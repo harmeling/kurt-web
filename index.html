@@ -24,14 +24,14 @@
       <section class="panel editor-panel">
         <div class="toolbar">
           <button id="runBtn" class="btn primary" disabled>
-            <span class="btn-icon" aria-hidden="true">▶</span>
             <span>Run</span>
           </button>
           <button id="loadBtn" class="btn small" title="Upload from local file">Upload</button>
           <button id="saveBtn" class="btn small" title="Download to local file">Download</button>
           <div id="examplesContainer" class="examples"></div>
           <div class="spacer"></div>
-          <a class="link" href="https://github.com/kurt-lang" target="_blank" rel="noreferrer noopener">Docs</a>
+          <button id="helpBtn" class="btn small" title="Keyboard shortcuts & Help">Help</button>
+          <a class="link" href="https://github.com/kurt-lang" target="_blank" rel="noreferrer noopener">kurt-lang</a>
         </div>
         <div class="editor-wrap">
           <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
@@ -42,7 +42,10 @@
       <section class="panel output-panel hidden" id="outputPanel" aria-live="polite">
         <div class="panel-header">
           <span>Output</span>
-          <button id="copyBtn" class="btn small" title="Copy output">Copy</button>
+          <div class="actions">
+            <button id="copyBtn" class="btn small" title="Copy output">Copy</button>
+            <button id="clearBtn" class="btn small" title="Clear output">Clear</button>
+          </div>
         </div>
         <pre id="output" class="output" tabindex="0"></pre>
       </section>
@@ -51,5 +54,28 @@
     <footer class="app-footer">
       <span>Runs entirely in your browser using Pyodide. Dark mode friendly.</span>
     </footer>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="helpTitle">Help & Shortcuts</h2>
+          <button id="helpCloseBtn" class="btn small" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Keyboard shortcuts:</p>
+          <ul>
+            <li><strong>Run proof:</strong> Cmd/Ctrl + Enter</li>
+            <li><strong>Copy output:</strong> Click <em>Copy</em> in the Output panel</li>
+            <li><strong>Upload/Download:</strong> Use the buttons in the toolbar</li>
+          </ul>
+          <p>Tips:</p>
+          <ul>
+            <li>Use the <em>examples</em> and <em>tutorial</em> menus to load sample proofs.</li>
+            <li>Theories are available under the <em>theories</em> menu for <code>load</code> statements.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </body>
   </html>

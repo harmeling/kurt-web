@@ -11,11 +11,15 @@ const output = $('#output');
 const outputPanel = $('#outputPanel');
 const runBtn = $('#runBtn');
 const copyBtn = $('#copyBtn');
+const clearBtn = $('#clearBtn');
 const statusEl = $('#status');
 const examplesContainer = $('#examplesContainer');
 const editorHighlight = $('#editorHighlight');
 const loadBtn = $('#loadBtn');
 const saveBtn = $('#saveBtn');
+const helpBtn = $('#helpBtn');
+const helpModal = $('#helpModal');
+const helpCloseBtn = $('#helpCloseBtn');
 
 // A small, built-in fallback for kurt.py if fetching from the workspace fails.
 // This fallback prints a banner and echoes input lines; replace when real kurt.py is available.
@@ -184,6 +188,29 @@ function setupUI() {
       setTimeout(() => setStatus('Ready'), 1200);
     }
   });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      clearOutput();
+      statusEl.textContent = 'Output cleared';
+      setTimeout(() => setStatus('Ready'), 1000);
+    });
+  }
+
+  // Help modal
+  if (helpBtn && helpModal) {
+    const openHelp = () => helpModal.classList.remove('hidden');
+    const closeHelp = () => helpModal.classList.add('hidden');
+    helpBtn.addEventListener('click', openHelp);
+    if (helpCloseBtn) helpCloseBtn.addEventListener('click', closeHelp);
+    helpModal.addEventListener('click', (e) => {
+      if (e.target === helpModal) {
+        closeHelp();
+      }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp();
+    });
+  }
 
   // Run on Cmd/Ctrl+Enter
   editor.addEventListener('keydown', (e) => {

@@ -75,6 +75,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .panel-header { justify-content: space-between; }
+.panel-header .actions { display: inline-flex; gap: 8px; }
 .spacer { flex: 1; }
 
 textarea#editor {
@@ -171,6 +172,29 @@ textarea#editor {
 }
 .hidden { display: none; }
 
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.modal {
+  width: min(560px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+}
+.modal-body { padding: 12px; color: var(--text); }
+.modal-body ul { margin: 8px 0 0 20px; }
+
 .btn {
   --bg-btn: #1c2333;
   --bg-btn-hover: #232c41;
@@ -208,4 +232,6 @@ textarea#editor {
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
   .output { height: clamp(160px, 38vh, 520px); }
+  .toolbar { flex-wrap: wrap; }
+  .examples { flex-wrap: wrap; }
 }
