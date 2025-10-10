@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# VS Code
+.vscode/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*

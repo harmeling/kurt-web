@@ -1,0 +1,54 @@
+kurt-lang
+
+The Kurt programming language is an artificial language to write proofs in a form that is designed to be close to how humans write proofs. The file kurt.py contains the whole implementation. You can either call ./kurt.py or ./kurt. For now, just clone the repository and start proving:
+
+~/git/kurt-lang (main ✗) kurt
+This is Kurt, Version 0.1 (made by Stefan Harmeling, 2025)
+!!![1] bool A, B
+!!![2] use A implies B
+use A implies B                                             ; 2 axiom
+!!![3] use A
+use A                                                       ; 3 axiom
+!!![4] B
+B                                                           ; 4 by 3, 2
+!!![5] ^D
+Bye!
+Alternatively, create a file modus-ponens.kurt:
+
+; simple modus ponens proof
+bool A, B
+use A implies B
+use A
+B
+Then just check it in the commandline:
+
+~/git/kurt-lang (main ✗) kurt modus-ponens.kurt 
+This is Kurt, Version 0.1 (made by Stefan Harmeling, 2025)
+use A implies B                                             ; 3 axiom
+use A                                                       ; 4 axiom
+B                                                           ; 5 by 4, 3
+Proof checked.
+Happy proving!
+
+Your task:
+
+- write a website like "https://play.kotlinlang.org/" for kurt.
+- i.e., the python code should run on the device in the browser, so no complicated server-site stuff necessary
+- the output of `kurt.py` should be shown when the "code" (actually the proof) is "run" with the play button
+- the output should be on the right hand side (only when there is output), or if not enough space (e.g., cell phone, vertical screen) shown below.  
+- dark mode looks good
+- we will add syntax highlighting later
+
+- please create  the whole website
+
+- more features:
+  - have example proofs in a folder called `proofs` that can be accessed via the gui
+  - have a tutorial, which are basically also just proofs in a folder called `tutorial`
+  - add a link to github to submit issues
+  - syntax highlighting, e.g., use the kurt-syntax stuff
+  - if the proof succeeds with `Proof checked.` make this text green.
+  - if there is a ProofError, ParseError, EvalError make that word red.
+  - add a `upload` and `download` button for local file storage
+  - remove the `clear` button
+  - loading via button `tutorial` creates invisible stuff
+  - a long file is going beyond the boundaries of the LHS window

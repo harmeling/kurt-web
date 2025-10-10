@@ -1,0 +1,5 @@
+; 00-true.kurt
+
+; The statement that is always true is `true`.
+
+true       ; will be always provable.
