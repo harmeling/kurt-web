@@ -68,6 +68,8 @@ function clearOutput() {
   // Clear both raw text and any highlighted HTML
   output.textContent = '';
   output.innerHTML = '';
+  // Hide the output panel until next run
+  outputPanel.classList.add('hidden');
 }
 
 function setRunning(running) {
