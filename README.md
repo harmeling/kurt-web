@@ -74,3 +74,10 @@ To enable Pages:
 3. After the first successful run, your site will be available at the URL shown in the workflow summary.
 
 If you serve the files from any static host (e.g., GitHub Pages, Netlify), the app will use `manifest.json` to populate the menus and will run Kurt in-browser via Pyodide as usual. The Python dev server is only needed for local development.
+
+### Quick enable steps
+
+- Open Settings → Pages: [https://github.com/harmeling/kurt-web/settings/pages](https://github.com/harmeling/kurt-web/settings/pages)
+- Set Source to "GitHub Actions" and Save.
+- Watch the deployment run here: [https://github.com/harmeling/kurt-web/actions](https://github.com/harmeling/kurt-web/actions)
+- Your site will be published at: [https://harmeling.github.io/kurt-web/](https://harmeling.github.io/kurt-web/)
