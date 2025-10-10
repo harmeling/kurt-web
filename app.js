@@ -17,9 +17,7 @@ const examplesContainer = $('#examplesContainer');
 const editorHighlight = $('#editorHighlight');
 const loadBtn = $('#loadBtn');
 const saveBtn = $('#saveBtn');
-const helpBtn = $('#helpBtn');
-const helpModal = $('#helpModal');
-const helpCloseBtn = $('#helpCloseBtn');
+// no help modal
 
 // A small, built-in fallback for kurt.py if fetching from the workspace fails.
 // This fallback prints a banner and echoes input lines; replace when real kurt.py is available.
@@ -67,7 +65,9 @@ function appendOutput(text) {
 }
 
 function clearOutput() {
+  // Clear both raw text and any highlighted HTML
   output.textContent = '';
+  output.innerHTML = '';
 }
 
 function setRunning(running) {
@@ -191,24 +191,9 @@ function setupUI() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       clearOutput();
+      // Keep panel visible but empty
       statusEl.textContent = 'Output cleared';
       setTimeout(() => setStatus('Ready'), 1000);
-    });
-  }
-
-  // Help modal
-  if (helpBtn && helpModal) {
-    const openHelp = () => helpModal.classList.remove('hidden');
-    const closeHelp = () => helpModal.classList.add('hidden');
-    helpBtn.addEventListener('click', openHelp);
-    if (helpCloseBtn) helpCloseBtn.addEventListener('click', closeHelp);
-    helpModal.addEventListener('click', (e) => {
-      if (e.target === helpModal) {
-        closeHelp();
-      }
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp();
     });
   }
 

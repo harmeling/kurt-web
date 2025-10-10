@@ -173,27 +173,7 @@ textarea#editor {
 .hidden { display: none; }
 
 /* Modal */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: grid;
-  place-items: center;
-  z-index: 50;
-}
-.modal {
-  width: min(560px, calc(100vw - 32px));
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px; border-bottom: 1px solid var(--border);
-}
-.modal-body { padding: 12px; color: var(--text); }
-.modal-body ul { margin: 8px 0 0 20px; }
+
 
 .btn {
   --bg-btn: #1c2333;
