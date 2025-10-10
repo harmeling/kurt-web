@@ -52,3 +52,10 @@ Your task:
   - remove the `clear` button
   - loading via button `tutorial` creates invisible stuff
   - a long file is going beyond the boundaries of the LHS window
+  - help window with hot keys.  where is a good location to put the link?
+  - add a `clear` button to the output window, next to `Copy`
+  - at first load the `Run` button shows a little triangle.  please remove it.
+  - on cell phone, there is not enough space for all buttons, not all of the can be reached, could that be wrap in two lines if necessary?
+  - on cell phone, the buttons of the input panel do not fit horizontally.  please wrap them around, if there is not enough space
+  - the spacing between the buttons on the input panel should be always the same
+  
