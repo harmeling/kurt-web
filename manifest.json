@@ -1,0 +1,17 @@
+{
+  "proofs": {
+    "examples": [
+      "de-morgan.kurt",
+      "excluded-middle.kurt",
+      "modus-ponens.kurt"
+    ],
+    "tutorial": [
+      "00-true.kurt"
+    ]
+  },
+  "theories": [
+    "equality.kurt",
+    "first-order.kurt",
+    "propositional.kurt"
+  ]
+}

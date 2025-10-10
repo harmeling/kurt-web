@@ -59,3 +59,18 @@ Place your actual `kurt.py` file next to `index.html` (same folder). The app wil
   - Make sure you open `http://localhost:8000` (not `file://`).
   - In Safari Settings → Advanced, try enabling “Show features for web developers” and ensure JavaScript is allowed.
   - Hard refresh (Cmd+Shift+R) after switching servers to clear cached headers.
+
+## Deploying on GitHub Pages
+
+This site is fully static and can be hosted on GitHub Pages without any server.
+
+- A GitHub Actions workflow (`.github/workflows/pages.yml`) builds and deploys the site to Pages on every push to `main`.
+- Directory listings for examples/tutorial/theories use a static `manifest.json` fallback when the dev server endpoint is not available. The workflow auto-generates `manifest.json` during the build by scanning `proofs/` and `theories/`.
+
+To enable Pages:
+
+1. Push to `main` (the workflow runs automatically).
+2. In your repository settings → Pages, set Source to "GitHub Actions".
+3. After the first successful run, your site will be available at the URL shown in the workflow summary.
+
+If you serve the files from any static host (e.g., GitHub Pages, Netlify), the app will use `manifest.json` to populate the menus and will run Kurt in-browser via Pyodide as usual. The Python dev server is only needed for local development.

@@ -208,15 +208,53 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Discover subfolders and build compact dropdown buttons
 async function listDirectory(path) {
+  // 1) Try dev server JSON endpoint (available when running server.py)
   try {
     const res = await fetch(`/__list?path=${encodeURIComponent(path)}`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    // Return directories with trailing slash and files as-is
-    return [...(data.dirs || []), ...(data.files || [])];
+    if (res.ok) {
+      const data = await res.json();
+      const list = [...(data.dirs || []), ...(data.files || [])];
+      if (list.length) return list;
+    }
+  } catch {}
+
+  // 2) Fallback for static hosting (e.g., GitHub Pages): use manifest.json
+  try {
+    const mres = await fetch('manifest.json', { cache: 'no-store' });
+    if (!mres.ok) return [];
+    const manifest = await mres.json();
+    const fromManifest = resolveManifestListing(manifest, path);
+    return fromManifest;
   } catch {
     return [];
   }
+}
+
+function resolveManifestListing(manifest, path) {
+  // Normalize path to ensure trailing slash for directories
+  const p = path.endsWith('/') ? path : path + '/';
+  const proofs = manifest.proofs || {};
+  const theories = manifest.theories || [];
+
+  // List top-level of proofs/ -> return subfolder names with trailing slash
+  if (p === 'proofs/') {
+    const subfolders = Object.keys(proofs);
+    return subfolders.map((s) => s.replace(/\/$/, '') + '/');
+  }
+  // List specific proofs subfolder e.g., proofs/examples/
+  if (p.startsWith('proofs/')) {
+    const parts = p.split('/').filter(Boolean); // ["proofs", "examples"]
+    if (parts.length === 2) {
+      const folder = parts[1];
+      const files = proofs[folder] || [];
+      return files;
+    }
+  }
+  // List theories/
+  if (p === 'theories/') {
+    return theories;
+  }
+  return [];
 }
 
 async function buildExamplesUI() {
