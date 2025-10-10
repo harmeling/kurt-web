@@ -133,9 +133,8 @@ textarea#editor {
 .tok-ok { color: var(--ok); font-weight: 600; }
 .tok-err { color: var(--err); font-weight: 600; }
 
-.examples { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+.examples { display: contents; }
 .examples .menu-wrapper { position: relative; }
-.examples .btn.small { padding: 4px 8px; font-size: 12px; height: 28px; }
 .examples .btn.small .btn-icon { margin-right: 4px; font-size: 10px; }
 
 .dropdown-menu {
@@ -195,7 +194,7 @@ textarea#editor {
   border: none;
   font-weight: 600;
 }
-.btn.small { padding: 6px 10px; font-size: 12px; }
+.btn.small { padding: 6px 10px; font-size: 12px; height: 28px; display: inline-flex; align-items: center; }
 .btn-icon { margin-right: 6px; }
 
 .link { color: var(--accent-2); text-decoration: none; }
@@ -212,6 +211,5 @@ textarea#editor {
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
   .output { height: clamp(160px, 38vh, 520px); }
-  .toolbar { flex-wrap: wrap; }
-  .examples { flex-wrap: wrap; }
+  .toolbar { flex-wrap: wrap; row-gap: 8px; }
 }
