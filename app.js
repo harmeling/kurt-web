@@ -4,6 +4,7 @@ let pyodide = null;
 let kurtPyCode = null;
 let theoriesSynced = false;
 let currentFilename = 'proof.kurt';
+let replacements = {};
 
 const $ = (sel) => document.querySelector(sel);
 const editor = $('#editor');
@@ -105,6 +106,9 @@ async function init() {
     try { pyodide.FS.mkdir('/play'); } catch {}
     pyodide.FS.chdir('/play');
 
+    // Fire-and-forget: load replacements map
+    loadReplacements();
+
     setStatus('Ready');
     runBtn.disabled = false;
     // Populate example pickers if proofs/ exists
@@ -113,6 +117,21 @@ async function init() {
     console.error(err);
     setStatus('Failed to initialize');
     showOutput(String(err));
+  }
+}
+
+async function loadReplacements() {
+  try {
+    const res = await fetch('replacements.json', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && typeof json === 'object') {
+        replacements = json;
+        // console.log('Loaded replacements', replacements);
+      }
+    }
+  } catch (e) {
+    // ignore; feature is optional
   }
 }
 
@@ -213,6 +232,19 @@ function setupUI() {
   // Keep overlay sized with editor
   const ro = new ResizeObserver(() => syncScroll());
   ro.observe(editor);
+
+  // Replacement mechanism similar to VS Code extension
+  let lastKey = null;
+  let caretBefore = 0;
+  editor.addEventListener('keydown', (e) => {
+    lastKey = e.key;
+    caretBefore = editor.selectionStart;
+  });
+  editor.addEventListener('input', () => {
+    maybeApplyReplacement(lastKey, caretBefore);
+    // reset so paste/composition won't get processed repeatedly
+    lastKey = null;
+  });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -242,6 +274,68 @@ async function listDirectory(path) {
   } catch {
     return [];
   }
+}
+
+function isAlphaNum(ch) {
+  return /^[a-zA-Z0-9]$/.test(ch);
+}
+
+function maybeApplyReplacement(triggerKey, caretPosBefore) {
+  if (!replacements || !editor) return;
+  // Only act on a single-character trigger keys or Enter
+  let triggerChar = null;
+  if (triggerKey === 'Enter') triggerChar = '\n';
+  else if (triggerKey === ' ') triggerChar = ' ';
+  else if (triggerKey && triggerKey.length === 1) triggerChar = triggerKey;
+  else return;
+
+  if (isAlphaNum(triggerChar)) return; // ignore alphanumerics
+
+  const text = editor.value;
+  // After the input event, the caret is after the inserted char
+  const caret = editor.selectionStart;
+  // We expect that exactly one char was inserted; indexBefore points to the position of that char
+  const indexBefore = Math.max(0, caret - 1);
+
+  // Compute line start and textBefore (up to, but not including, the trigger char)
+  const lineStart = text.lastIndexOf('\n', indexBefore - 1) + 1;
+  const textBefore = text.slice(lineStart, indexBefore);
+
+  const m = textBefore.match(/(\\[a-zA-Z]+)$/);
+  if (!m) return;
+  const matchedCommand = m[1];
+  const replacement = replacements[matchedCommand];
+  if (!replacement) return;
+
+  // Determine replacement range in the whole text
+  const matchStartInLine = textBefore.length - matchedCommand.length;
+  const startIndex = lineStart + matchStartInLine;
+  let endIndex;
+  if (triggerChar === ' ' || triggerChar === '\n') {
+    // Also remove the space/newline we just typed
+    endIndex = indexBefore + 1;
+  } else {
+    endIndex = indexBefore; // keep punctuation etc.
+  }
+
+  const shouldKeepTrigger = triggerChar !== ' ' && triggerChar !== '\n' && triggerChar !== '\\';
+  let finalText = replacement + (shouldKeepTrigger ? triggerChar : '');
+
+  // Build new editor value
+  const newVal = text.slice(0, startIndex) + finalText + text.slice(endIndex);
+  editor.value = newVal;
+  renderEditorHighlight();
+
+  // Set caret position
+  let newCaret = startIndex + finalText.length;
+  if (triggerChar === '\n') {
+    // Manually insert a newline after the replacement
+    const withNl = newVal.slice(0, newCaret) + '\n' + newVal.slice(newCaret);
+    editor.value = withNl;
+    renderEditorHighlight();
+    newCaret += 1;
+  }
+  editor.selectionStart = editor.selectionEnd = newCaret;
 }
 
 function resolveManifestListing(manifest, path) {
