@@ -12,6 +12,7 @@
   --warn: #ffcc66;
   --err: #ff6b6b;
   --shadow: 0 8px 24px rgba(0,0,0,0.4);
+  --code-font-size: 13px;
 }
 
 * { box-sizing: border-box; }
@@ -88,7 +89,7 @@ textarea#editor {
   outline: none;
   padding: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
+  font-size: var(--code-font-size);
   overflow: auto;            /* scrolling container */
   white-space: pre;          /* preserve long lines; no soft wrap */
 }
@@ -102,7 +103,7 @@ textarea#editor {
 .editor-highlight,
 textarea#editor {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
+  font-size: var(--code-font-size);
   line-height: 1.5;
   tab-size: 2;
   white-space: pre;
@@ -168,6 +169,9 @@ textarea#editor {
   height: clamp(160px, 60vh, 680px);
   overflow: auto;
   white-space: pre; /* don't wrap to keep formatting aligned */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: var(--code-font-size);
+  line-height: 1.5;
 }
 .hidden { display: none; }
 
