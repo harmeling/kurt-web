@@ -59,3 +59,4 @@ Your task:
   - on cell phone, the buttons of the input panel do not fit horizontally.  please wrap them around, if there is not enough space
   - the spacing between the buttons on the input panel should be always the same
   
+next:
