@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Kurt Playground</title>
+		<meta name="description" content="Playground for the Kurt proof language. Write a proof, run it in your browser, and see Kurt's output." />
+		<link rel="stylesheet" href="styles.css" />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='16' fill='%2309f'/%3E%3Ctext x='50' y='62' text-anchor='middle' font-size='60' font-family='monospace' fill='white'%3EK%3C/text%3E%3C/svg%3E" />
+		<!-- Pyodide: Python in the browser -->
+		<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+		<script defer src="app.js"></script>
+	</head>
+	<body>
+		<header class="app-header">
+			<div class="brand">
+				<span class="logo">K</span>
+				<span class="title">Kurt Playground</span>
+			</div>
+			<div class="status" id="status">Loading runtime…</div>
+		</header>
+
+		<main class="layout" id="layout">
+			<section class="panel editor-panel">
+				<div class="toolbar">
+					<button id="runBtn" class="btn primary" disabled title="Cmd/Ctrl + Enter to run the proof">
+						<span>Run</span>
+					</button>
+					<button id="loadBtn" class="btn small" title="Upload from local file">Upload</button>
+					<button id="saveBtn" class="btn small" title="Download to local file">Download</button>
+					<div id="examplesContainer" class="examples"></div>
+					<div class="spacer"></div>
+					<a class="link" href="https://github.com/kurt-lang" target="_blank" rel="noreferrer noopener">kurt-lang</a>
+				</div>
+				<div class="editor-wrap">
+					<pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
+					<textarea id="editor" spellcheck="false" aria-label="Kurt proof editor" wrap="off"></textarea>
+				</div>
+			</section>
+
+			<section class="panel output-panel hidden" id="outputPanel" aria-live="polite">
+				<div class="panel-header">
+					<span>Output</span>
+					<div class="actions">
+						<button id="clearBtn" class="btn small" title="Clear output">Clear</button>
+						<button id="copyBtn" class="btn small" title="Copy output">Copy</button>
+					</div>
+				</div>
+				<pre id="output" class="output" tabindex="0"></pre>
+			</section>
+		</main>
+
+		<footer class="app-footer">
+			<span>Runs entirely in your browser using Pyodide. Dark mode friendly.<br> This website is made by Stefan Harmeling (2025) using agentic mode with GPT-5 in vscode.<br>The kurt proof programming language is made by Stefan Harmeling (2025).</span>
+		</footer>
+
+	</body>
+	</html>
