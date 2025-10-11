@@ -1,0 +1,29 @@
+{
+  // Enable cSpell, but ONLY for these file types (language IDs)
+  // Everything else (js/ts/html/css/json/python, etc.) will be disabled
+  "cSpell.enabled": true,
+  "cSpell.enabledFileTypes": {
+    "*": false,
+    "markdown": true,
+    "plaintext": true,
+    "git-commit": true,
+    "git-rebase": true
+  },
+
+  // If you also use the Spell Right extension, restrict it similarly
+  "spellright.enabled": true,
+  "spellright.documentTypes": [
+    "markdown",
+    "plaintext",
+    "git-commit",
+    "git-rebase"
+],
+"cSpell.words": [
+    "COEP",
+    "github",
+    "Harmeling",
+    "micropip",
+    "ponens",
+    "Pyodide"
+]
+}

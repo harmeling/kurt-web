@@ -6,9 +6,6 @@ __pycache__/
 *.pyc
 .venv/
 
-# VS Code
-.vscode/
-
 # Logs
 npm-debug.log*
 yarn-error.log*
