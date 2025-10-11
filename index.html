@@ -42,6 +42,12 @@
 				<div class="panel-header">
 					<span>Output</span>
 					<div class="actions">
+						<div class="indent-wrapper">
+							<button id="indentBtn" class="btn small" type="button" title="Set reason indentation">Indent: <span id="indentLabel">40</span></button>
+							<div id="indentPopover" class="popover hidden" role="dialog" aria-label="Reason indentation">
+								<input id="indentSlider" type="range" min="20" max="120" step="2" value="40" />
+							</div>
+						</div>
 						<button id="clearBtn" class="btn small" title="Clear output">Clear</button>
 						<button id="copyBtn" class="btn small" title="Copy output">Copy</button>
 					</div>
@@ -51,7 +57,7 @@
 		</main>
 
 			<footer class="app-footer">
-				<span>Runs entirely in your browser using Pyodide. Dark mode friendly. Code size: Cmd/Ctrl + / −, reset: Cmd/Ctrl 0.<br> This website is made by Stefan Harmeling (2025) using agentic mode with GPT-5 in vscode.<br>The kurt proof programming language is made by Stefan Harmeling (2025).</span>
+				<span>Run code with Cmd/Ctrl Enter, code size: Cmd/Ctrl +/−/0, indent: Cmd/Ctrl ]/[.<br>The <a href="https://www.kurt-lang.org">Kurt programming language</a> for proof checking is made by Stefan Harmeling (2025).</span>
 		</footer>
 
 	</body>

@@ -12,7 +12,7 @@
 	--warn: #ffcc66;
 	--err: #ff6b6b;
 	--shadow: 0 8px 24px rgba(0,0,0,0.4);
-	--code-font-size: 13px;
+	--code-font-size: 15px;
 	--code-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
@@ -51,7 +51,7 @@ body {
 
 .layout {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: 12px;
 	padding: 12px;
 	max-width: 1400px;
@@ -64,6 +64,7 @@ body {
 	border-radius: 12px;
 	box-shadow: var(--shadow);
 	min-height: 260px;
+	min-width: 0; /* allow grid item to shrink and not force track wider */
 	display: flex;
 	flex-direction: column;
 }
@@ -162,19 +163,73 @@ textarea#editor {
 }
 .dropdown-menu .item:hover { background: #151a28; }
 
-.output-panel { overflow: hidden; }
+.output-panel { overflow: visible; position: relative; }
 .output {
 	margin: 0;
 	padding: 12px;
 	background: #0e1320;
 	height: clamp(160px, 60vh, 680px);
-	overflow: auto;
+	width: 100%;
+	max-width: 100%;
+	overflow-x: auto;
+	overflow-y: auto;
 	white-space: pre; /* don't wrap to keep formatting aligned */
 	font-family: var(--code-font-family);
 	font-size: var(--code-font-size);
 	line-height: 1.5;
 }
 .hidden { display: none; }
+
+/* Indent popover */
+.indent-wrapper { position: relative; z-index: 1000; }
+.popover {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	min-width: 180px;
+	background: #0e1320;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	box-shadow: var(--shadow);
+	padding: 10px 12px;
+	z-index: 999; /* ensure on top of dropdowns and headers */
+}
+.popover.hidden { display: none; }
+.popover input[type="range"] { width: 100%; }
+.popover input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 6px;
+	background: #243049;
+	border-radius: 4px;
+	outline: none;
+}
+.popover input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #8fb5ff; /* solid to avoid transparency */
+	border: 1px solid #4976c6;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.popover input[type="range"]::-moz-range-thumb {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #8fb5ff;
+	border: 1px solid #4976c6;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.popover input[type="range"]::-moz-range-track {
+	height: 6px;
+	background: #243049;
+	border: none;
+	border-radius: 4px;
+}
+.popover .row input.num { width: 80px; background: #0e1320; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+.popover .row.end { justify-content: flex-end; }
 
 .btn {
 	--bg-btn: #1c2333;

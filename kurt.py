@@ -3732,6 +3732,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("filename", nargs='?',                       help=f'check the proof in the file, w/o filename start interactively')
     parser.add_argument('-i', '--interactive',  action='store_true', help=f'enter read-eval-print loop after loading `filename`')
     parser.add_argument('-m', '--markdown',     action='store_true', help=f'run on `.md` files instead of `.kurt`, will ignore everything that is not indented by {md_indent} spaces')
+    parser.add_argument('-r', '--reason-indent', type=int, default=reason_indent, help=f'specify the indentation for reasons (default: {reason_indent})')
     parser.add_argument('-p', '--path',                              help=f'specify the path where `load` looks for theories after checking {theory_path}')
     parser.add_argument('-v', '--verbose',      action='store_true', help=f'show extra information during proof checking')
     parser.add_argument('-d', '--debug',        action='store_true', help=f'show debugging information')
@@ -3769,6 +3770,10 @@ def main() -> None:
     # debug flag?
     global debug_flag
     debug_flag = args.debug
+
+    # set reason indentation
+    global reason_indent
+    reason_indent = args.reason_indent
 
     # readline history
     if readline:

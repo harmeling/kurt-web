@@ -5,6 +5,11 @@ let kurtPyCode = null;
 let theoriesSynced = false;
 let currentFilename = 'proof.kurt';
 let replacements = {};
+let initializing = false;
+let indentRerunTimer = null; // shared debounce timer for indent-triggered re-runs
+let isRunning = false;       // tracks an active run
+let rerunQueued = false;     // queue a rerun when changes happen during a run
+let lastRunIndent = null;    // remember last indent value used
 // code font size controls only; font family is fixed to monospace
 
 const $ = (sel) => document.querySelector(sel);
@@ -19,6 +24,12 @@ const examplesContainer = $('#examplesContainer');
 const editorHighlight = $('#editorHighlight');
 const loadBtn = $('#loadBtn');
 const saveBtn = $('#saveBtn');
+// Indentation controls
+const indentBtn = $('#indentBtn');
+const indentLabel = $('#indentLabel');
+const indentPopover = $('#indentPopover');
+const indentSlider = $('#indentSlider');
+// minimal popover now only has a slider
 // no font family toggle button
 // no help modal
 
@@ -42,8 +53,19 @@ def run(path):
         sys.exit(1)
 
 def main(argv):
-    if len(argv) >= 2:
-        run(argv[1])
+  # accept optional -r <indent> before the file path
+  args = list(argv[1:])
+  file = None
+  i = 0
+  while i < len(args):
+    if args[i] == '-r' and i + 1 < len(args):
+      # ignore in fallback
+      i += 2
+      continue
+    file = args[i]
+    break
+  if file:
+    run(file)
     else:
         print(banner, end='')
         print("Type your proof in the editor and press Run.")
@@ -58,8 +80,14 @@ function setStatus(msg) {
 
 function showOutput(text) {
   if (!text) return;
-  outputPanel.classList.remove('hidden');
-  output.innerHTML = highlightOutput(text);
+  // Ensure panel is visible now that we have something to show
+  if (outputPanel && outputPanel.classList.contains('hidden')) {
+    outputPanel.classList.remove('hidden');
+  }
+  const nextHtml = highlightOutput(text);
+  if (output.innerHTML !== nextHtml) {
+    output.innerHTML = nextHtml;
+  }
 }
 
 function appendOutput(text) {
@@ -71,13 +99,11 @@ function clearOutput() {
   // Clear both raw text and any highlighted HTML
   output.textContent = '';
   output.innerHTML = '';
-  // Hide the output panel until next run
-  outputPanel.classList.add('hidden');
+  // Keep the output panel visible to avoid layout reflow flicker
 }
 
 function setRunning(running) {
   runBtn.disabled = running || !kurtPyCode || !pyodide;
-  runBtn.textContent = running ? 'Running…' : 'Run';
 }
 
 async function loadKurtPy() {
@@ -95,9 +121,29 @@ async function loadKurtPy() {
 }
 
 async function init() {
+  if (initializing) return;
+  initializing = true;
   try {
     setStatus('Loading Python runtime…');
-    pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/' });
+
+    // Ensure loadPyodide function exists; if not, try alternate CDN script
+    if (typeof loadPyodide !== 'function') {
+      await loadPyodideScriptFallback();
+    }
+
+    // Attempt primary, then alternate indexURL if needed
+    const primaryURL = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/';
+    const altURL = 'https://cdn.jsdelivr.net/npm/pyodide@0.26.2/full/';
+    try {
+      pyodide = await loadPyodideWithTimeout(primaryURL, 15000);
+    } catch (e1) {
+      setStatus('Pyodide slow or blocked; trying alternate CDN…');
+      try {
+        pyodide = await loadPyodideWithTimeout(altURL, 15000);
+      } catch (e2) {
+        throw e2 || e1;
+      }
+    }
     setStatus('Fetching kurt.py…');
     kurtPyCode = await loadKurtPy();
 
@@ -119,7 +165,40 @@ async function init() {
     console.error(err);
     setStatus('Failed to initialize');
     showOutput(String(err));
+    // Offer a retry action
+    if (statusEl) {
+      statusEl.innerHTML = 'Failed to initialize. <a href="#" id="retryInit">Retry</a>';
+      const retry = document.getElementById('retryInit');
+      if (retry) retry.addEventListener('click', (e) => { e.preventDefault(); initializing = false; init(); });
+    }
   }
+  initializing = false;
+}
+
+async function loadPyodideWithTimeout(indexURL, timeoutMs) {
+  setStatus('Loading Python runtime…');
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Pyodide load timeout')), timeoutMs));
+  const load = (async () => await loadPyodide({ indexURL }))();
+  return await Promise.race([load, timeout]);
+}
+
+async function loadPyodideScriptFallback() {
+  // try alternate CDN script if the primary failed to define loadPyodide
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src*="pyodide.js"]');
+    // If a pyodide script is already present, just wait a bit more
+    if (existing && typeof loadPyodide === 'function') return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/pyodide@0.26.2/full/pyodide.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load alternate Pyodide script'));
+    document.head.appendChild(script);
+    // Also set a guard timeout
+    setTimeout(() => {
+      if (typeof loadPyodide === 'function') resolve();
+    }, 5000);
+  });
 }
 
 async function loadReplacements() {
@@ -137,10 +216,21 @@ async function loadReplacements() {
   }
 }
 
-async function runProof() {
+async function runProof(options = {}) {
   if (!pyodide) return;
-  setRunning(true);
+  const silent = !!options.silent;
+  const currentIndent = getReasonIndent();
+  // If a run is in progress, coalesce and run once after it finishes
+  if (isRunning) {
+    rerunQueued = true;
+    return;
+  }
+  isRunning = true;
+  if (!silent) setRunning(true);
   clearOutput();
+  if (outputPanel && outputPanel.classList.contains('hidden')) {
+    outputPanel.classList.remove('hidden');
+  }
 
   const code = editor.value ?? '';
   // Save code into a temp file
@@ -156,9 +246,10 @@ async function runProof() {
   }
 
   try {
-    const pyResult = await pyodide.runPythonAsync(`
+    const indent = getReasonIndent();
+  const pyResult = await pyodide.runPythonAsync(`
 import sys, runpy, io, contextlib
-sys.argv = ['kurt.py', '${tmpName}']
+sys.argv = ['kurt.py', '-r', '${indent}', '${tmpName}']
 buf_out = io.StringIO()
 buf_err = io.StringIO()
 with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
@@ -185,13 +276,20 @@ with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
       showOutput(combined);
     } else {
       showOutput('');
-      setStatus('Ran with no output');
+      if (!silent) setStatus('Ran with no output');
     }
   } catch (e) {
     const msg = (e && e.message) ? e.message : String(e);
     showOutput(msg);
   }
-  setRunning(false);
+  lastRunIndent = currentIndent;
+  isRunning = false;
+  if (!silent) setRunning(false);
+  // If a rerun was queued during this run, or the indent changed again, run once more silently
+  if (rerunQueued || getReasonIndent() !== lastRunIndent) {
+    rerunQueued = false;
+    scheduleIndentRerun();
+  }
 }
 
 function setupUI() {
@@ -214,9 +312,12 @@ function setupUI() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       clearOutput();
-      // Keep panel visible but empty
-      statusEl.textContent = 'Output cleared';
-      setTimeout(() => setStatus('Ready'), 1000);
+      if (outputPanel && !outputPanel.classList.contains('hidden')) {
+        outputPanel.classList.add('hidden');
+      }
+      // Keep panel visible but empty and minimize status churn
+      setStatus('Output cleared');
+      setTimeout(() => setStatus('Ready'), 600);
     });
   }
 
@@ -258,7 +359,7 @@ function setupUI() {
   window.addEventListener('keydown', (e) => {
     const isMac = navigator.platform.toLowerCase().includes('mac');
     const accel = isMac ? e.metaKey : e.ctrlKey;
-    if (!accel) return;
+  if (!accel) return;
     if (e.key === '+' || e.key === '=') {
       e.preventDefault();
       adjustCodeFontSize(1);
@@ -267,13 +368,29 @@ function setupUI() {
       adjustCodeFontSize(-1);
     } else if (e.key === '0') {
       e.preventDefault();
-      setCodeFontSize(13);
+      setCodeFontSize(15);
+    } else if (e.key === ']') {
+      e.preventDefault();
+      adjustReasonIndent(2);
+  scheduleIndentRerun();
+    } else if (e.key === '[') {
+      e.preventDefault();
+      adjustReasonIndent(-2);
+  scheduleIndentRerun();
     }
   });
+
+  // Indent controls wiring
+  initReasonIndentUI();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  setupUI();
+  try {
+    setupUI();
+  } catch (e) {
+    console.error('UI setup failed:', e);
+    setStatus('UI init error; continuing…');
+  }
   init();
 });
 
@@ -379,6 +496,107 @@ function setCodeFontSize(px) {
 
 function adjustCodeFontSize(delta) {
   setCodeFontSize(getCurrentCodeFontSize() + delta);
+}
+
+// --- Reason indent control ---
+const INDENT_KEY = 'kurt.reasonIndent';
+const INDENT_DEFAULT = 40;
+const INDENT_MIN = 20;
+const INDENT_MAX = 120;
+
+function getReasonIndent() {
+  const v = parseInt(localStorage.getItem(INDENT_KEY) || '', 10);
+  if (Number.isFinite(v)) return clampIndent(v);
+  return INDENT_DEFAULT;
+}
+
+function setReasonIndent(v) {
+  const clamped = clampIndent(v);
+  localStorage.setItem(INDENT_KEY, String(clamped));
+  if (indentLabel) indentLabel.textContent = String(clamped);
+  if (indentSlider) indentSlider.value = String(clamped);
+}
+
+function clampIndent(v) {
+  const n = Math.round(Number(v));
+  return Math.max(INDENT_MIN, Math.min(INDENT_MAX, n));
+}
+
+function adjustReasonIndent(delta) {
+  setReasonIndent(getReasonIndent() + delta);
+}
+
+function initReasonIndentUI() {
+  // One-time migration: if no value or legacy 86, reset to 40
+  const raw = localStorage.getItem(INDENT_KEY);
+  const parsed = raw !== null ? parseInt(raw, 10) : NaN;
+  if (!Number.isFinite(parsed) || parsed === 86) {
+    setReasonIndent(INDENT_DEFAULT);
+  } else {
+    setReasonIndent(parsed);
+  }
+  let indentOpenAt = null;
+  if (indentBtn && indentPopover) {
+    indentBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!indentPopover) return;
+      const wasHidden = indentPopover.classList.contains('hidden');
+      // Hide other popovers first
+      document.querySelectorAll('.popover').forEach(el => el.classList.add('hidden'));
+      if (wasHidden) {
+        // Opening: record current value
+        indentOpenAt = getReasonIndent();
+        indentPopover.classList.remove('hidden');
+        indentPopover.style.display = 'block';
+        console.debug('Indent popover opened');
+        // Focus slider for immediate keyboard/drag interaction
+        if (indentSlider) {
+          try { indentSlider.focus(); } catch {}
+        }
+      } else {
+        // Closing via toggle: run if changed (safety; live updates already run)
+        indentPopover.classList.add('hidden');
+        indentPopover.style.display = '';
+        const changed = indentOpenAt !== null && getReasonIndent() !== indentOpenAt;
+        indentOpenAt = null;
+        if (changed && !runBtn.disabled) {
+          runProof();
+        }
+      }
+    });
+    // close on outside click
+    document.addEventListener('click', (e) => {
+      if (!indentPopover.contains(e.target) && e.target !== indentBtn && !indentBtn.contains(e.target)) {
+        const wasVisible = !indentPopover.classList.contains('hidden');
+        if (wasVisible) {
+          indentPopover.classList.add('hidden');
+          indentPopover.style.display = '';
+          const changed = indentOpenAt !== null && getReasonIndent() !== indentOpenAt;
+          indentOpenAt = null;
+          if (changed && !runBtn.disabled) {
+            runProof();
+          }
+        }
+      }
+    });
+    // Prevent clicks within the popover from bubbling to the document handler
+    indentPopover.addEventListener('click', (e) => e.stopPropagation());
+    indentPopover.addEventListener('mousedown', (e) => e.stopPropagation());
+  }
+  // Live updates with debounce to avoid rapid re-runs during drag
+  if (indentSlider) {
+    indentSlider.addEventListener('input', () => {
+      setReasonIndent(parseInt(indentSlider.value, 10));
+      scheduleIndentRerun();
+    });
+  }
+}
+
+function scheduleIndentRerun() {
+  if (indentRerunTimer) clearTimeout(indentRerunTimer);
+  indentRerunTimer = setTimeout(() => {
+    if (!runBtn.disabled) runProof({ silent: true });
+  }, 200);
 }
 
 function resolveManifestListing(manifest, path) {
