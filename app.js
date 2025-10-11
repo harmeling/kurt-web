@@ -5,6 +5,7 @@ let kurtPyCode = null;
 let theoriesSynced = false;
 let currentFilename = 'proof.kurt';
 let replacements = {};
+// code font size controls only; font family is fixed to monospace
 
 const $ = (sel) => document.querySelector(sel);
 const editor = $('#editor');
@@ -18,6 +19,7 @@ const examplesContainer = $('#examplesContainer');
 const editorHighlight = $('#editorHighlight');
 const loadBtn = $('#loadBtn');
 const saveBtn = $('#saveBtn');
+// no font family toggle button
 // no help modal
 
 // A small, built-in fallback for kurt.py if fetching from the workspace fails.
@@ -245,6 +247,29 @@ function setupUI() {
     // reset so paste/composition won't get processed repeatedly
     lastKey = null;
   });
+
+  // Remove any residual font toggle button from the DOM (we keep only size shortcuts)
+  const toggleBtn = document.getElementById('fontToggle');
+  if (toggleBtn && toggleBtn.parentElement) {
+    toggleBtn.parentElement.removeChild(toggleBtn);
+  }
+
+  // Keyboard shortcuts: Cmd/Ctrl +/- adjust size; Cmd/Ctrl+0 reset
+  window.addEventListener('keydown', (e) => {
+    const isMac = navigator.platform.toLowerCase().includes('mac');
+    const accel = isMac ? e.metaKey : e.ctrlKey;
+    if (!accel) return;
+    if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      adjustCodeFontSize(1);
+    } else if (e.key === '-') {
+      e.preventDefault();
+      adjustCodeFontSize(-1);
+    } else if (e.key === '0') {
+      e.preventDefault();
+      setCodeFontSize(13);
+    }
+  });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -336,6 +361,24 @@ function maybeApplyReplacement(triggerKey, caretPosBefore) {
     newCaret += 1;
   }
   editor.selectionStart = editor.selectionEnd = newCaret;
+}
+
+function getCurrentCodeFontSize() {
+  const root = getComputedStyle(document.documentElement);
+  const sz = root.getPropertyValue('--code-font-size').trim();
+  const n = parseFloat(sz);
+  return Number.isFinite(n) ? n : 13;
+}
+
+function setCodeFontSize(px) {
+  const clamped = Math.max(10, Math.min(24, Math.round(px)));
+  document.documentElement.style.setProperty('--code-font-size', `${clamped}px`);
+  // re-render to ensure overlay stays in sync if metrics change
+  renderEditorHighlight();
+}
+
+function adjustCodeFontSize(delta) {
+  setCodeFontSize(getCurrentCodeFontSize() + delta);
 }
 
 function resolveManifestListing(manifest, path) {
