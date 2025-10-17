@@ -294,7 +294,7 @@ with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
 
 function setupUI() {
   // Prefill sample proof
-  editor.value = `; simple modus ponens proof\nbool A, B\nuse A implies B\nuse A\nB\n`;
+  editor.value = `; simple modus ponens proof\nuse A implies B\nuse A\nB\n`;
   renderEditorHighlight();
 
   runBtn.addEventListener('click', runProof);
