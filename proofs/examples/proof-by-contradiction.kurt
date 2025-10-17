@@ -1,0 +1,16 @@
+; example: proof by contradiction
+load propositional
+
+; axioms
+use p ⇒ q
+use ¬q
+
+; what to show
+show ¬p
+proof
+    assume p
+        q
+        ⊥
+    thus ¬p
+qed
+;;; Proof checked.

@@ -1,0 +1,47 @@
+; contraposition.kurt
+load propositional
+var A, B
+
+; lemma
+show A ⇒ B  ≡  ¬A ∨ B
+proof
+    show (A ⇒ B)  ⇒  (¬A ∨ B)
+    proof
+        assume A ⇒ B
+            assume A
+                B
+                ¬A ∨ B
+            thus A ⇒ ¬A ∨ B
+            assume ¬A
+                ¬A ∨ B
+            thus ¬A ⇒ ¬A ∨ B
+            ¬A ∨ B
+        thus (A ⇒ B) ⇒ (¬A ∨ B)
+    qed
+    show (¬A ∨ B)  ⇒  (A ⇒ B)
+    proof
+        assume ¬A ∨ B
+            assume A
+                assume ¬A
+                    contradiction
+                    B
+                thus ¬A ⇒ B
+                assume B
+                    B
+                thus B ⇒ B
+                B
+            thus A ⇒ B
+        thus (¬A ∨ B)  ⇒  (A ⇒ B)
+    qed
+    A ⇒ B  ≡  ¬A ∨ B
+qed
+
+; theorem
+show (A ⇒ B)  ≡  (¬B ⇒ ¬A)   "contraposition"
+proof
+    A ⇒ B  ≡  ¬A ∨ B
+           ≡  B ∨ ¬A
+           ≡  ¬¬B ∨ ¬A
+           ≡  ¬B ⇒ ¬A
+qed
+;;; Proof checked.
