@@ -8,7 +8,10 @@ from __future__ import annotations
 
 ## for profiling run:
 # python -m cProfile -o kurt.prof kurt.py
+# then analyze with:
+# snakeviz kurt.prof
 # python -m cProfile -s time kurt.py proofs/linear-algebra/group.kurt
+
 
 ## merge the dev into main branch:
 # git checkout main && git pull && git merge dev && git push
@@ -1148,8 +1151,6 @@ class KnowledgeBase:
         self.var.add(s)
 
     def add_const(self, s: str) -> None:
-        if s == 'x':
-            debug(f'adding `x` to level {self.level}')
         # a constant is automatically declared if a new symbol is used or when it is explicitly declared
         # declaring is only allowed, if it doesn't yet exist as a variable or constant
         if self.is_used(s):
@@ -1994,7 +1995,6 @@ def contains_bool_vars(expr: Expr, kb: KnowledgeBase) -> bool:
 def contains(expr: Expr, symbols: set[str], kb: KnowledgeBase) -> bool:
     # check whether the `expr` contains certain `symbols`
     # note that bound variables are ignored
-    debug(f'contains: checking {expr_str(expr, kb)} for symbols {symbols}')
     match expr:
         # symbols
         case Token(label='SYMBOL', value=s):
@@ -3013,11 +3013,13 @@ def apply_subst(expr: Expr, s: State, kb: KnowledgeBase) -> Expr:
             return expr
 
         # binding operator: recurse into body with extended blocked
-        case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bound_v), *tail] if isinstance(op, str) and kb.is_bindop(op):
-            assert isinstance(bound_v, str)
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            bound_v, _ = unpack_condition(cond, kb)
             body = expr[2:]
-            new_body = [apply_subst(c, s.block_always(bound_v), kb) for c in body]
-            return [expr[0], expr[1], *new_body]
+            new_s = s.block_always(bound_v)
+            new_cond = apply_subst(cond, new_s, kb)
+            new_body = [apply_subst(c, new_s, kb) for c in body]
+            return [expr[0], new_cond, *new_body]
         
         # general case: recurse into all children
         case [*exprs]:
@@ -3063,9 +3065,14 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
             return set(), set()
         
         # binding operators "bind" free variables
-        case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bound_v), *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            bound_v, opt_condition = unpack_condition(cond, kb)
             fv, bv = free_bound_vars(tail, kb)
-            if bound_v in fv:           # `bound_v` appears freely in `tail`
+            if opt_condition is not None:
+                fv_cond, bv_cond = free_bound_vars(opt_condition, kb)
+                fv.update(fv_cond)
+                bv.update(bv_cond)
+            if bound_v in fv:           # `bound_v` appears freely in `tail` or `opt_condition`
                 fv.remove(bound_v)      # remove from the free vars, since in `expr` it is bound
             assert isinstance(bound_v, str)
             bv.add(bound_v)             # add to the bound vars (also if it wasn't a free variable, i.e., didn't appear in `tail`)
@@ -3170,16 +3177,17 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
             return expr, s
 
         # binding operator expression
-        case [Token(label='SYMBOL', value=bind_op),
-              Token(label='SYMBOL', value=bind_var), *body] \
-              if isinstance(bind_op, str) and kb.is_bindop(bind_op) and isinstance(bind_var, str):
+        case [Token(label='SYMBOL', value=bind_op), cond, *body] if isinstance(bind_op, str) and kb.is_bindop(bind_op):
+            bind_var, opt_condition = unpack_condition(cond, kb)
 
             # operator gets processed with current scope (actually nothing to do)
             head1, s = rename_all_vars_rec(expr[0], kb, s, bound_vars)
 
-            # `bind_var` and `body` are processed in the context, that `bind_var in bound_vars` hold
+            # extend the scope with the new bound variable
             new_bound_vars = bound_vars | {bind_var}
-            head2, s = rename_all_vars_rec(expr[1], kb, s, new_bound_vars)
+
+            # `cond` and `body` are processed in the context, that `bind_var in bound_vars` hold
+            head2, s = rename_all_vars_rec(cond, kb, s, new_bound_vars)
 
             # `body` gets new scope including the bound variable
             new_body = []
@@ -3485,15 +3493,21 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
             match pattern:
 
                 # binding operator matching (rename bound variable before!)
-                case [Token(label='SYMBOL', value=op_p), Token(label='SYMBOL', value=v_p), *args_p] if isinstance(op_p, str) and kb.is_bindop(op_p):
+                case [Token(label='SYMBOL', value=op_p), cond_p, *args_p] if isinstance(op_p, str) and kb.is_bindop(op_p):
+                    v_p, opt_condition_p = unpack_condition(cond_p, kb)
                     if op_p == SUB_SYMBOL and not is_sub(expr):   
                             # asymmetric:  don't match a `sub` expr to a `sub` pattern (an infinite loop!)
                             yield from match_against_sub(expr, pattern, tail, s, kb)
                     # in any case: additionally binding ops match against their matching binding ops
                     match expr:
-                        case [Token(label='SYMBOL', value=op_e), Token(label='SYMBOL', value=v_e), *args_e]:
-                            if op_p==op_e and len(args_p)==len(args_e):
+                        case [Token(label='SYMBOL', value=op_e), cond_e, *args_e] if isinstance(op_e, str) and kb.is_bindop(op_e):
+                            v_e, opt_condition_e = unpack_condition(cond_e, kb)
+                            if op_p==op_e and len(args_p)==len(args_e) and ((opt_condition_p is None) == (opt_condition_e is None)):
                                 assert isinstance(v_p, str) and isinstance(v_e, str)
+                                if opt_condition_e is not None:
+                                    assert isinstance(cond_e, list) and isinstance(cond_p, list)
+                                    args_e = args_e + cond_e
+                                    args_p = args_p + cond_p
                                 # Rename the expr-side binder body from v_e to v_p (alpha-eq) before unifying.
                                 args_e = [deepcopy_expr(args_e_i) for args_e_i in args_e]
                                 args_e = alpha_rename_binder_body(args_e, v_e, v_p, kb)
@@ -3592,16 +3606,13 @@ def alpha_rename_binder_body(body: list[Expr], old: str, new: str, kb: Knowledge
             case Token(label='SYMBOL', value=s) if isinstance(s, str) and s == old:
                 # This occurrence is bound by the current binder thus rename
                 return Token(label='SYMBOL', value=new)
-            case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bv), *tail] \
-                 if isinstance(op, str) and kb.is_bindop(op) and isinstance(bv, str):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+                bv, opt_condition = unpack_condition(cond, kb)
                 if bv == old:
                     # A new binder that *rebinds* `old` thus do not rename under it
-                    return [Token(label='SYMBOL', value=op),
-                            Token(label='SYMBOL', value=bv), *tail]
+                    return [Token(label='SYMBOL', value=op), cond, *tail]
                 # Otherwise, keep renaming under this binder
-                return [Token(label='SYMBOL', value=op),
-                        Token(label='SYMBOL', value=bv),
-                        *[ren(c) for c in tail]]
+                return [Token(label='SYMBOL', value=op), ren(cond), ren(tail)]
             case [*children]:
                 return [ren(c) for c in children]
             case _:
@@ -3633,30 +3644,28 @@ def capture_avoiding_replace(A: Expr, x: str, t: Expr, s: State, kb: KnowledgeBa
             case Token():
                 return e
 
-            case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bv), *body] if isinstance(op, str) and kb.is_bindop(op) and isinstance(bv, str):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                bv, opt_condition = unpack_condition(cond, kb)
+
                 # if this binder binds x, x is not free below thus no substitution under it,
                 # but we still recurse structurally to catch nested binders that might need α-renaming
                 if bv == x:
                     new_body = [go(c, blk | {bv}) for c in body]
-                    return [Token(label='SYMBOL', value=op),
-                            Token(label='SYMBOL', value=bv), *new_body]
+                    return [Token(label='SYMBOL', value=op), cond, *new_body]
 
                 # if bv occurs free in t, α-rename this binder locally
                 if bv in FVt:
                     # Build an avoid set to keep name fresh w.r.t. t and current e
-                    avoid = FVt | free_vars_only([Token(label='SYMBOL', value=op),
-                                                  Token(label='SYMBOL', value=bv), *body], kb) \
-                            | {x} | set(blk)
+                    avoid = FVt | free_vars_only([Token(label='SYMBOL', value=op), cond, *body], kb) | {x} | set(blk)
                     bv2 = fresh_like(bv, avoid, kb)
+                    cond_ren = alpha_rename_binder_body([cond], bv, bv2, kb)[0]
                     body_ren = alpha_rename_binder_body(body, bv, bv2, kb)
                     new_body = [go(c, blk | {bv2}) for c in body_ren]
-                    return [Token(label='SYMBOL', value=op),
-                            Token(label='SYMBOL', value=bv2), *new_body]
-
+                    return [Token(label='SYMBOL', value=op), cond_ren, *new_body]
                 # Normal descent: no α-renaming needed
+                new_cond = go(cond, blk | {bv})
                 new_body = [go(c, blk | {bv}) for c in body]
-                return [Token(label='SYMBOL', value=op),
-                        Token(label='SYMBOL', value=bv), *new_body]
+                return [Token(label='SYMBOL', value=op), new_cond, *new_body]
 
             case [*children]:
                 return [go(c, blk) for c in children]
@@ -3702,16 +3711,17 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
                     return [e[0], e[1], t_s, A_s], s_after
 
             # binding operator: [op, bv, *body]
-            case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bv), *body] if isinstance(op, str) and kb.is_bindop(op) and isinstance(bv, str):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                bv, opt_condition = unpack_condition(cond, kb)
+
                 # enter binder scope
                 s_scope = s.block_always(bv)
-                new_body = []
-                for c in body:
-                    c_local, s_scope = trigger_sub_core(c, s_scope)
-                    new_body.append(c_local)
+                new_cond, s_scope = trigger_sub_core(cond, s_scope)
+                new_body, s_scope = trigger_sub_core(body, s_scope)
                 # leave binder scope (pop the block)
                 s_after = s_scope.unblock(bv)
-                return [e[0], e[1], *new_body], s_after
+                assert isinstance(new_body, list)
+                return [e[0], new_cond, *new_body], s_after
 
             # any other list
             case [*children] if len(children) > 0:
@@ -3744,7 +3754,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
                 # iterate over all possible substitutions that unify
                 # basically, this is two-sided matching, aka unification
 
-                debug(f'trying to match `{expr_str(expr, kb)}` against candidate `{expr_str(candidate.simplified_expr, kb)}`')
+                #debug(f'trying to match `{expr_str(expr, kb)}` against candidate `{expr_str(candidate.simplified_expr, kb)}`')
                 for s_cand in unify_exprs_with_patterns([(candidate.simplified_expr, expr)], s, kb):
                     # try to unify the rest of the expressions (the `tail`)
                     s_local = s_cand
@@ -3754,7 +3764,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
                         tail_local.append(e_local)
                     success, found_formulas, s_final = match_all_theory(tail_local, s_local, kb)
                     if success:
-                        debug(f'`{expr_str(expr, kb)}` against `{expr_str(candidate.simplified_expr, kb)}` with substitution {s_final}`')
+                        #debug(f'`{expr_str(expr, kb)}` against `{expr_str(candidate.simplified_expr, kb)}` with substitution {s_final}`')
                         return True, [candidate, *found_formulas], s_final   # match was found!  BINGO!
             # no match so far, however, possibly `expr` is a conjunction that we can split into pieces
             match expr:
@@ -3780,7 +3790,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
 #    free vars in `premises` 
 def impl_elim(expr: Expr, proven_formula: Formula, filename: str, mainstream: bool, s: State, kb: KnowledgeBase) -> tuple[str, State]:
 
-    debug(f'impl_elim: trying to prove `{expr_str(expr, kb)}` using `{expr_str(proven_formula.expr, kb)}`')
+    #debug(f'impl_elim: trying to prove `{expr_str(expr, kb)}` using `{expr_str(proven_formula.expr, kb)}`')
 
     # continue with the renamed and simplified variant of `proven_formula` that is generated during the construction of it
     formula_expr: Expr = proven_formula.simplified_expr
@@ -3822,7 +3832,7 @@ def impl_elim(expr: Expr, proven_formula: Formula, filename: str, mainstream: bo
     s = State(s.subst, blocked_as_domain, s.blocked_as_range)
     s_final: Optional[State] = State.empty()
     for s_matched in unify_exprs_with_patterns([(expr, conclusion)], s, kb):
-        debug(f'impl_elim: matched `{expr}` with conclusion `{expr_str(conclusion, kb)}` with substitution {s_matched}')
+        #f'impl_elim: matched `{expr}` with conclusion `{expr_str(conclusion, kb)}` with substitution {s_matched}')
         if premise is None:
             s_final = s_matched
             break           # bingo!  we found one
