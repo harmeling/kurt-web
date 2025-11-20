@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # main code
-cp ../kurt-lang/kurt.py .
+cp ../kurt-lang/src/kurt/kurt.py .
 
 # theories
-cp ../kurt-lang/theories/prop.kurt      theories/.
-cp ../kurt-lang/theories/logic.kurt     theories/.
-cp ../kurt-lang/theories/equality.kurt  theories/.
+cp ../kurt-lang/src/kurt/theories/prop.kurt      theories/.
+cp ../kurt-lang/src/kurt/theories/logic.kurt     theories/.
+cp ../kurt-lang/src/kurt/theories/equality.kurt  theories/.
 
 # examples
 cp ../kurt-lang/proofs/natural-deduction/contraposition.kurt          proofs/examples/.
