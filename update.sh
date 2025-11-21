@@ -13,12 +13,12 @@ cp ../kurt-lang/proofs/natural-deduction/contraposition.kurt          proofs/exa
 cp ../kurt-lang/proofs/natural-deduction/double-negation.kurt         proofs/examples/.
 cp ../kurt-lang/proofs/natural-deduction/de-morgan.kurt               proofs/examples/.
 cp ../kurt-lang/proofs/natural-deduction/excluded-middle.kurt         proofs/examples/.
-cp ../kurt-lang/proofs/natural-deduction/modus-ponens.kurt            proofs/examples/.
+cp ../kurt-lang/modus-ponens.kurt                                     proofs/examples/.
 cp ../kurt-lang/proofs/natural-deduction/proof-by-contradiction.kurt  proofs/examples/.
 
 # tutorial
 rm -f proofs/tutorial/*
-cp ../kurt-lang/proofs/tutorial/*                                     proofs/tutorial/.
+cp ../kurt-lang/tutorial/*                                            proofs/tutorial/.
 
 # git
 git commit -am "update kurt.py, theories, and examples"
