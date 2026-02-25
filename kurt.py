@@ -53,7 +53,7 @@ except ImportError:
     readline = None
 
 # config: general information
-version        = 0.1.0
+version        = 0.1
 made_by        = 'made by Stefan Harmeling, 2025'
 
 # config: the indentation for the different blocks
