@@ -126,8 +126,13 @@ IFF_SYMBOL    = 'iff'        # equivalence
 
 # default theory and theory path
 default_theory = 'theory.kurt'             # default theory
+try:
+    packaged_theories = resources.files("kurt.theories")
+except (ModuleNotFoundError, ValueError):
+    # Fall back to local theories directory when kurt is not installed as a package
+    packaged_theories = Path(__file__).parent / "theories"
 theory_path = [Path.cwd(),                             # current working directory
-                          resources.files("kurt.theories")]       # path of packaged theories
+                          packaged_theories]           # path of packaged theories
 
 # debugging
 debug_flag = False
