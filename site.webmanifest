@@ -1,0 +1,10 @@
+{
+  "name": "Kurt Playground",
+  "short_name": "Kurt",
+  "description": "Write, check, and share Kurt proofs in the browser.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#121521",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

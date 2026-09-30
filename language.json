@@ -1,0 +1,58 @@
+{
+  "kurtVersion": "0.9.0",
+  "declarations": [
+    "var",
+    "const",
+    "infix",
+    "postfix",
+    "prefix",
+    "brackets",
+    "arity",
+    "bindop",
+    "chain",
+    "flat",
+    "sym",
+    "bool",
+    "calc",
+    "alias"
+  ],
+  "commands": [
+    "help",
+    "hint",
+    "verbose",
+    "parse",
+    "tokenize",
+    "format",
+    "level",
+    "mode",
+    "context",
+    "trail",
+    "load",
+    "save",
+    "syntax",
+    "local",
+    "theory",
+    "cert",
+    "use",
+    "def",
+    "show",
+    "proof",
+    "qed",
+    "todo",
+    "assume",
+    "case",
+    "let",
+    "pick",
+    "sandbox",
+    "expect",
+    "break",
+    "inspect"
+  ],
+  "helpers": [
+    "with"
+  ],
+  "constants": [
+    "true",
+    "false"
+  ]
+}

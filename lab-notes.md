@@ -23,3 +23,11 @@ Operational log for agent-session setup and activity on the `agent` branch.
 ## 2026-09-30 — requested publication to main
 
 - User explicitly requested merging `agent` into `main` and pushing to GitHub; this records the required exception before touching `main`.
+
+## 2026-09-30 — playground usability and browser architecture
+
+- Moved Pyodide/Kurt execution into a cancellable Web Worker and added exact output plus `.kurtc` downloads.
+- Added URL sharing, local draft/settings persistence, Kurt version/fingerprint display, clickable error locations, generated language metadata, a touch symbol bar, and installable/offline PWA assets.
+- Added Playwright tests for successful and rejected proofs, standard-theory loading, clickable diagnostics, certificates, share URLs, touch symbols, and service-worker registration. Pages now runs these tests before deployment.
+- `scripts/generate_language.py` derives browser highlighting metadata from `kurt-lang`; `update.sh` regenerates it during synchronization.
+- Verification here: standalone/asset smoke test passes, all 21 JavaScript-referenced element IDs exist, JSON/Python/diff checks pass. Node is unavailable locally, so Playwright will first execute in GitHub Actions after publication.

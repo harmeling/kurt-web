@@ -29,6 +29,13 @@ jobs:
           python3 scripts/generate_manifest.py
           python3 scripts/smoke_test.py
 
+      - name: Browser tests
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+          rm -rf node_modules test-results playwright-report
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

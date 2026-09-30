@@ -10,3 +10,6 @@ __pycache__/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+node_modules/
+test-results/
+playwright-report/

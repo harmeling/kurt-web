@@ -81,3 +81,15 @@ If you serve the files from any static host (e.g., GitHub Pages, Netlify), the a
 - Set Source to "GitHub Actions" and Save.
 - Watch the deployment run here: [https://github.com/harmeling/kurt-web/actions](https://github.com/harmeling/kurt-web/actions)
 - Your site will be published at: [https://harmeling.github.io/kurt-web/](https://harmeling.github.io/kurt-web/)
+
+## Playground features
+
+Proof checking runs in a cancellable Web Worker, so the editor stays responsive. Drafts and display settings are saved locally. Share creates a URL containing the proof; no proof is uploaded. Successful runs expose downloadable output and `.kurtc` certificates. Error locations jump back to the relevant source line. The symbol strip is designed for touch screens, and the app can be installed from browsers that support PWAs.
+
+The service worker caches the app shell and Kurt bundle. Pyodide is loaded from jsDelivr and must have been fetched by the browser at least once before an offline session.
+
+## Tests
+
+- `python3 scripts/smoke_test.py` checks generated assets and the standalone runtime.
+- `npm install && npx playwright install chromium && npm run test:e2e` runs the real browser suite.
+- `./update.sh ../kurt-lang` rebuilds Kurt, synchronizes proofs/theories, regenerates language metadata and the manifest, then runs smoke tests.

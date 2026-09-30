@@ -15,6 +15,7 @@ cp "$lang_dir/proofs/natural-deduction/contraposition.kurt" \
    "$lang_dir/modus-ponens.kurt" \
    "$lang_dir/proofs/natural-deduction/proof-by-contradiction.kurt" \
    "$web_dir/proofs/examples/"
+python3 "$web_dir/scripts/generate_language.py" "$lang_dir"
 python3 "$web_dir/scripts/generate_manifest.py"
 python3 "$web_dir/scripts/smoke_test.py"
 echo "Synchronized from $lang_dir. Review and commit the changes when ready."

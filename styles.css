@@ -272,3 +272,21 @@ textarea#editor {
 	.output { height: clamp(160px, 38vh, 520px); }
 	.toolbar { flex-wrap: wrap; row-gap: 8px; }
 }
+.version { color: var(--muted); font-size: 11px; font-weight: 400; }
+.btn.danger { background: #792d39; border-color: #a84454; }
+.symbol-bar { display: flex; gap: 4px; padding: 6px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); background: #101522; }
+.symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: #1c2333; cursor: pointer; font-size: 16px; }
+.output-line { display: block; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
+button.output-line { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+button.output-line:hover { background: rgba(51,145,255,.12); }
+.diagnostic { text-decoration: underline dotted var(--accent-2); text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  .app-header { align-items: flex-start; gap: 8px; }
+  .brand { flex-wrap: wrap; }
+  .toolbar { padding: 8px; }
+  .toolbar .link { display: none; }
+  .symbol-bar { position: sticky; top: 0; z-index: 5; }
+  textarea#editor { height: 48vh; }
+  .panel-header { align-items: flex-start; gap: 8px; }
+  .panel-header .actions { flex-wrap: wrap; justify-content: flex-end; }
+}
