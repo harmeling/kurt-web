@@ -1,4 +1,13 @@
 ; propositional logic
+;
+; covers: not, or, invimplies (backwards implication), iff, and the standard elimination/
+; introduction rules connecting them and the hardcoded connectives (and-intro/elim, or-intro/
+; elim, iff-intro/elim, not-intro/elim, bottom-intro/elim, top-elim). `true`/`false`/
+; `implies`/`and` themselves are hardcoded directly in kurt.py (see minimal.kurt for exactly
+; what) -- this file only adds `not`, `or`, `invimplies`, `iff`, and the rules relating them.
+;
+; loaded (directly or transitively) by nearly every other theory here -- logic.kurt,
+; equality.kurt, set.kurt, arith.kurt, and modal.kurt all `load prop` first.
 
 ;; builtin syntax
 ; infix  implies 13 12  ; logical implies, right associative (since 13>12)
@@ -67,9 +76,11 @@ use %A  and  %B   implies   %A                                      "and-elim"  
 use %A   implies   %A or %B                                         "or-intro"   ; `or` is symmetric and flat
 use (%A or %B) and (%A implies %C) and (%B implies %C) implies %C   "or-elim"
 
+use (%A invimplies %B) iff (%B implies %A)                         "invimplies-def"
+
 use (%A implies %B) and (%B implies %A) implies (%A iff %B)         "iff-intro"
-use (%A iff %B) implies (%A implies %B)                             "iff-elim"
-use (%A iff %B) implies (%B implies %A)                             "iff-elim"
+use (%A iff %B) implies (%A implies %B)                             "iff-elim-forward"
+use (%A iff %B) implies (%B implies %A)                             "iff-elim-backward"
 use %A iff %A                                                       "iff-reflexive"
 use (sub %x %a %A) and (%a iff %b)  implies  (sub %x %b %A)         "iff-subst"
 
@@ -80,8 +91,7 @@ use false implies %A                                                "bottom-elim
 
 use (%A implies false) implies not %A                               "not-intro"
 use not not %A implies %A                                           "not-elim"
-use %A implies not not %A                                           "not-intro"
+use %A implies not not %A                                           "not-not-intro"
 use %A iff not not %A                                               "not-not"
-trail
+
 ; for automatic testing we add the following line:
-;;; Proof checked.

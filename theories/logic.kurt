@@ -1,14 +1,18 @@
 ; first order logic
+;
+; covers: forall-elim (instantiate a universal at a specific value) and exists-intro
+; (introduce an existential from a witness). forall-intro and exists-elim are *not* axioms
+; here -- they're the effect of closing a `let`/`pick` block (see kurt.py's `eval_done`).
+;
+; not covered: `existsunique` (unique existence) -- drafted below but commented out, needs
+; more thought about how to state/use uniqueness cleanly before it's worth adding for real.
 
 ;; syntax
 load prop  ; syntax and rules for prop logic
-arity  forall 2       ; universal quantification
-arity  exists 2       ; existential quantification
-bindop forall, exists
-bool   forall 0 2     ; position 1 is a variable or a boolean expression (with a variable)
-bool   exists 0 2     ; position 1 is a variable or a boolean expression (with a variable)
-alias  ∃ exists
-alias  ∀ forall
+; `forall`/`exists`'s syntax (arity, bindop, bool signature, ∀/∃ aliases) is hardcoded
+; directly in `initial_kb` now, not declared here -- see the comment next to it in
+; `kurt.py`, right after `initial_kb.add_arity(SUB_SYMBOL, 3)`. Only their axioms
+; (forall-elim, exists-intro) are theory-level, below.
 ; arity  existsunique 2 ; existential quantification with uniqueness
 ; bool   existsunique 0 2 ; position 1 is a variable or a boolean expression (with a variable)
 ; alias  ∃! existsunique
@@ -18,6 +22,14 @@ alias  ∀ forall
 use forall $x %A                        implies  sub $x $a %A      "forall-elim"
 use sub $x $a %A                        implies  exists $x %A      "exists-intro"
 ;use (exists $x %B) and (%B implies %A)  implies  %A                "exists-elim"
+
+; quantifiers with a condition, `∀ $x > 0 P $x` and `∃ $x > 0 P $x`: in a rule, the condition
+; `sub $x $v %C` stands for any condition on the bound variable `$v` (`%C` is the condition
+; with the hole `$x` for `$v`, e.g. `$x > 0`)
+use (forall (sub $x $v %C) %P) and (sub $x $a %C)  implies  sub $v $a %P    "forall-cond-elim"
+use (sub $x $a %C) and (sub $v $a %P)  implies  exists (sub $x $v %C) %P    "exists-cond-intro"
+use (forall (sub $x $v %C) %P)  iff  forall $w ((sub $x $w %C) implies (sub $v $w %P))  "forall-cond-def"
+use (exists (sub $x $v %C) %P)  iff  exists $w ((sub $x $w %C) and (sub $v $w %P))      "exists-cond-def"
 
 ; ;; existsunique
 ; use %A and (forall $x (%A implies (forall $y (%A implies ($x = $y)))))  implies  existsunique $x %A  "existsunique-intro"
@@ -50,4 +62,3 @@ use sub $x $a %A                        implies  exists $x %A      "exists-intro
 ;     `exists $%1 %B`
 
 ; for automatic testing we add the following line:
-;;; Proof checked.

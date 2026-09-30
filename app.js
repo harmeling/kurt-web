@@ -33,46 +33,6 @@ const indentSlider = $('#indentSlider');
 // no font family toggle button
 // no help modal
 
-// A small, built-in fallback for kurt.py if fetching from the workspace fails.
-// This fallback prints a banner and echoes input lines; replace when real kurt.py is available.
-const FALLBACK_KURT_PY = `#!/usr/bin/env python3
-import sys
-banner = "This is Kurt, Browser Playground (fallback)\n"
-def run(path):
-    print(banner, end='')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            for i, line in enumerate(f, 1):
-                line = line.rstrip('\n')
-                if not line or line.strip().startswith(';'):
-                    continue
-                print(f"{line}                                             ; {i} echo")
-        print("Proof checked.")
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-def main(argv):
-  # accept optional -r <indent> before the file path
-  args = list(argv[1:])
-  file = None
-  i = 0
-  while i < len(args):
-    if args[i] == '-r' and i + 1 < len(args):
-      # ignore in fallback
-      i += 2
-      continue
-    file = args[i]
-    break
-  if file:
-    run(file)
-    else:
-        print(banner, end='')
-        print("Type your proof in the editor and press Run.")
-
-if __name__ == '__main__':
-    main(sys.argv)
-`;
 
 function setStatus(msg) {
   statusEl.textContent = msg;
@@ -108,16 +68,16 @@ function setRunning(running) {
 
 async function loadKurtPy() {
   // Try to fetch kurt.py from a sibling path (when hosted alongside this site).
-  // If unavailable, use the fallback.
+  // Fail clearly if it is unavailable.
   try {
     const res = await fetch('kurt.py', { cache: 'no-store' });
     if (res.ok) {
       return await res.text();
     }
   } catch (e) {
-    // ignore and fallback
+    // handled below
   }
-  return FALLBACK_KURT_PY;
+  throw new Error('Could not load the Kurt runtime. Reload the page or check the deployment.');
 }
 
 async function init() {
@@ -790,11 +750,13 @@ function ensureFsDir(path) {
 
 // --- Syntax highlighting ---
 const grammar = {
+  number: /(?<![A-Za-z0-9_])(?:[0-9]+(?:\.[0-9]+)?)(?![A-Za-z0-9_])/g,
+  variable: /(?<![A-Za-z0-9_])[%$][A-Za-z0-9_]+/g,
   comment: /;.*$/gm,
   string: /".*?"/g,
-  kw1: /\b(?:var|const|infix|postfix|prefix|brackets|arity|bindop|chain|flat|sym|bool|alias)\b/g,
-  kw2: /\b(?:load|use|assume|show|def|fix|pick|proof|qed|thus|with|parse|tokenize|format|level|mode|context|trail|syntax|theory|implications|help|break)\b/g,
-  kw3: /\b(?:contradiction|true|false)\b/g,
+  kw1: /\b(?:var|const|infix|postfix|prefix|brackets|arity|bindop|chain|flat|sym|bool|calc|alias)\b/g,
+  kw2: /\b(?:load|save|use|show|def|local|proof|qed|todo|assume|case|let|pick|with|sandbox|expect|break|help|hint|verbose|parse|tokenize|format|level|mode|context|trail|syntax|theory|cert|inspect)\b/g,
+  kw3: /\b(?:true|false)\b/g,
   todo: /\b(?:todo)\b/g,
 };
 
@@ -846,6 +808,8 @@ function highlightLine(line) {
       .replace(grammar.kw1, (mm) => `<span class="tok-kw1">${mm}</span>`)
       .replace(grammar.kw2, (mm) => `<span class="tok-kw2">${mm}</span>`)
       .replace(grammar.kw3, (mm) => `<span class="tok-kw3">${mm}</span>`)
+      .replace(grammar.variable, (mm) => `<span class="tok-variable">${mm}</span>`)
+      .replace(grammar.number, (mm) => `<span class="tok-number">${mm}</span>`)
       .replace(grammar.todo, (mm) => `<span class="tok-todo">${mm}</span>`);
   }).join('');
 

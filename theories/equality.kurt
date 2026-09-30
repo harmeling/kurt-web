@@ -1,4 +1,9 @@
 ; equality
+;
+; covers: reflexivity ("equal-intro"), Leibniz substitution ("equal-elim": if $a=$b, anything
+; true of $a is true of $b), and `≠`'s relationship to `=`. Deliberately small -- "equal-elim"
+; is the substitution primitive nearly every other theory's `=`-chain proofs are built out of
+; (arith.kurt's algebraic rules, set.kurt's distributive-law proof, ...).
 load prop
 
 ;; syntax
@@ -28,4 +33,3 @@ use $a ≠ $b       implies  not ($a = $b)                  "not-equal-elim"
 ;  $a = $b and $f($a) = $f($a)  implies  $f($a) = $f($b)
 
 ; for automatic testing we add the following line:
-;;; Proof checked.

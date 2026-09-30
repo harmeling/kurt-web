@@ -11,8 +11,8 @@ A minimal, dark-mode playground for the Kurt proof language that runs fully in t
 - `index.html` — App shell and layout.
 - `styles.css` — Dark theme and responsive split-pane styling.
 - `app.js` — Loads Pyodide, mounts `kurt.py`, and runs proofs by invoking Python.
-- `kurt.py` — The Kurt interpreter. If this file is not present next to the site, a small fallback implementation is used that simply echoes input lines.
-- `modus-ponens.kurt` — Example proof (optional).
+- `kurt.py` — The Kurt interpreter. This is the generated Kurt 0.9 standalone bundle, including all standard theories.
+- `proofs/` and `theories/` — Current examples, tutorials, and standard theories.
 
 ## Local development
 
@@ -44,12 +44,12 @@ serve -p 8000
 
 ## Using your real kurt.py
 
-Place your actual `kurt.py` file next to `index.html` (same folder). The app will fetch it and run that version. If it can't find it, the fallback is used.
+Run `./update.sh ../kurt-lang` to regenerate `kurt.py`, synchronize theories and tutorials, regenerate the manifest, and run smoke tests. The script deliberately does not commit or push.
 
 ## Notes
 
 - Everything executes in the browser via WebAssembly. No server-side execution is performed.
-- We can add syntax highlighting (e.g., CodeMirror/Monaco) later.
+- The editor highlights current Kurt commands, constants, variables, numbers, strings, and comments.
 - If `kurt.py` needs any Python packages, we can load them using Pyodide's micropip at startup.
 
 ## Safari troubleshooting

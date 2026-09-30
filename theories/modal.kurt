@@ -1,0 +1,33 @@
+; modal logic
+;
+; covers: box (□, necessity) and diamond (◇, possibility), their duality (box-def/
+; diamond-def), distribution over and/or, system K (box distributes over implication), and a
+; seriality-style axiom labelled "T" (%p implies possibly %p) -- note this is *not* the
+; standard modal-logic "T" axiom (usually □%p implies %p); the name here is this file's own
+; convention, not standard terminology. See proofs/modal-logic/ for worked examples.
+;
+; not covered: systems S4/S5 (no "4"/"5" axioms), no accessibility-relation reasoning.
+load prop
+prefix b 20, d 20          ; box and diamond
+bool b, d
+alias □ b
+alias ◇ d
+
+; every axiom below is a schema (`%p`/`%q`, like prop.kurt's `%A`/`%B`) so it applies to *any*
+; boolean expression, not just to two specific hardcoded propositions -- earlier versions of
+; this file wrote `p`/`q`/`A`/`B` without the `%` prefix, which silently pinned every axiom to
+; those exact declared constants and made it impossible to apply K (etc.) to anything else;
+; confirmed the difference directly: `use □(X ⇒ Y)` + `use □X` could never derive `□Y` before
+; this fix, only the literal `□(p ⇒ q)` + `□p` could ever derive `□q`.
+use ◇%p ≡ ¬□¬%p   "diamond-def"
+use □%p ≡ ¬◇¬%p   "box-def"
+use ◇%p ∨ ◇%q ≡ ◇(%p ∨ %q)   "diamond-distrib-or"
+use □%p ∧ □%q ≡ □(%p ∧ %q)   "box-distrib-and"
+
+; system K
+use □(%p ⇒ %q) ⇒ (□%p ⇒ □%q)    "K"
+
+; system T
+use %p ⇒ ◇%p   "T"
+
+; for automatic testing we add the following line:

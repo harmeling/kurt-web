@@ -24,20 +24,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Generate manifest.json
+      - name: Validate browser assets
         run: |
-          set -euo pipefail
-          to_json_list() {
-            if [ -d "$1" ]; then
-              find "$1" -maxdepth 1 -type f -name "*.kurt" -printf '%f\n' | sort | jq -R . | jq -s .
-            else
-              echo '[]'
-            fi
-          }
-          EXAMPLES=$(to_json_list proofs/examples)
-          TUTORIAL=$(to_json_list proofs/tutorial)
-          THEORIES=$(to_json_list theories)
-          jq -n --argjson examples "$EXAMPLES" --argjson tutorial "$TUTORIAL" --argjson theories "$THEORIES" '{proofs: {examples: $examples, tutorial: $tutorial}, theories: $theories}' > manifest.json
+          python3 scripts/generate_manifest.py
+          python3 scripts/smoke_test.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

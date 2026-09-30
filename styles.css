@@ -132,6 +132,8 @@ textarea#editor {
 .tok-kw2 { color: #9d87ff; font-weight: 600; }
 .tok-kw3 { color: #ffb86b; font-weight: 600; }
 .tok-ident { color: var(--text); }
+.tok-variable { color: #f1a7dc; }
+.tok-number { color: #ffb86b; }
 .tok-todo { color: #ffd166; text-decoration: underline; }
 .tok-ok { color: var(--ok); font-weight: 600; }
 .tok-err { color: var(--err); font-weight: 600; }
