@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('checks a proof and loads a standard theory', async ({ page }) => {
-  await page.locator('#editor').fill('load arith\n1 + 1 = 2\n');
+  await page.locator('#editor').fill('load arith\ncalc on\n1 + 1 = 2\n');
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
   await expect(page.locator('#output')).toContainText('Proof checked');

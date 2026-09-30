@@ -35,3 +35,4 @@ Operational log for agent-session setup and activity on the `agent` branch.
 ## 2026-09-30 — requested publication of playground upgrade
 
 - User explicitly approved merging the ten-feature upgrade from `agent` into `main` and publishing it; this records the required branch exception before touching `main`.
+- First Pages run `36726446182` correctly blocked deployment: the Playwright success fixture omitted `calc on`, so Kurt properly rejected its arithmetic claim. The runtime and the other three browser tests passed; corrected the fixture rather than weakening the assertion.
