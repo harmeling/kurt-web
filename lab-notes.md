@@ -19,3 +19,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - Replaced the destructive auto-commit/push update script with a fail-fast synchronization script that leaves review and publication explicit.
 - Verification: six published examples pass under the generated runtime; `scripts/smoke_test.py` passes; upstream `PYTHONPATH=src python3 -m unittest discover -q` passes from `kurt-lang`.
 - Result committed locally as `9b00439` (`Synchronize playground with Kurt 0.9`). Push was not attempted because external publication requires explicit approval in this environment.
+
+## 2026-09-30 — requested publication to main
+
+- User explicitly requested merging `agent` into `main` and pushing to GitHub; this records the required exception before touching `main`.
