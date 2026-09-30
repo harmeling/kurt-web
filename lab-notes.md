@@ -31,3 +31,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - Added Playwright tests for successful and rejected proofs, standard-theory loading, clickable diagnostics, certificates, share URLs, touch symbols, and service-worker registration. Pages now runs these tests before deployment.
 - `scripts/generate_language.py` derives browser highlighting metadata from `kurt-lang`; `update.sh` regenerates it during synchronization.
 - Verification here: standalone/asset smoke test passes, all 21 JavaScript-referenced element IDs exist, JSON/Python/diff checks pass. Node is unavailable locally, so Playwright will first execute in GitHub Actions after publication.
+
+## 2026-09-30 — requested publication of playground upgrade
+
+- User explicitly approved merging the ten-feature upgrade from `agent` into `main` and publishing it; this records the required branch exception before touching `main`.
