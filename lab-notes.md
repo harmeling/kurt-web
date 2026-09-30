@@ -18,3 +18,4 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - Updated browser highlighting for the current command set, variables, and numbers; refreshed documentation and made Pages run the asset smoke test.
 - Replaced the destructive auto-commit/push update script with a fail-fast synchronization script that leaves review and publication explicit.
 - Verification: six published examples pass under the generated runtime; `scripts/smoke_test.py` passes; upstream `PYTHONPATH=src python3 -m unittest discover -q` passes from `kurt-lang`.
+- Result committed locally as `9b00439` (`Synchronize playground with Kurt 0.9`). Push was not attempted because external publication requires explicit approval in this environment.
