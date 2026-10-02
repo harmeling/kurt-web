@@ -36,3 +36,10 @@ Operational log for agent-session setup and activity on the `agent` branch.
 
 - User explicitly approved merging the ten-feature upgrade from `agent` into `main` and publishing it; this records the required branch exception before touching `main`.
 - First Pages run `36726446182` correctly blocked deployment: the Playwright success fixture omitted `calc on`, so Kurt properly rejected its arithmetic claim. The runtime and the other three browser tests passed; corrected the fixture rather than weakening the assertion.
+
+## 2026-10-02 — synchronized with Kurt 0.7.0
+
+- kurt-lang's first public version is now 0.7.0 (tagged `v0.7.0`; it had been planned as 0.9.0). Ran `./update.sh`: `kurt.py` and `language.json` now say 0.7.0, the banner says 2016-2026; theories, tutorial and examples were already identical.
+- `scripts/smoke_test.py` no longer hard-codes the Kurt version: it checks that `kurt.py` and `language.json` name the same one.
+- `update.sh` now sets the service worker's cache name from a hash of the generated files, so browsers fetch a new Kurt instead of serving the old one from the cache (stable when nothing changed).
+- Verified: smoke test passes; Node is unavailable here, so the Playwright tests run only in GitHub Actions. Committed on `agent`, not pushed: pushing `main` deploys the public site, so that waits for the user.
