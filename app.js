@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const editor = $('#editor');
 const editorHighlight = $('#editorHighlight');
+const lineNumbers = $('#lineNumbers');
 const output = $('#output');
 const outputPanel = $('#outputPanel');
 const runBtn = $('#runBtn');
@@ -165,9 +166,17 @@ function colorCode(text) {
     .replace(grammar.number, m => `<span class="tok-number">${m}</span>`);
 }
 function renderEditorHighlight() {
-  editorHighlight.innerHTML = editor.value.split('\n').map(highlightLine).join('\n') || '&nbsp;'; syncScroll();
+  editorHighlight.innerHTML = editor.value.split('\n').map(highlightLine).join('\n') || '&nbsp;';
+  // line numbers (the editor doesn't wrap lines, so a line of text is a row), as wide as needed
+  const count = editor.value.split('\n').length;
+  lineNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+  $('#editorWrap').style.setProperty('--line-digits', String(Math.max(2, String(count).length)));
+  syncScroll();
 }
-function syncScroll() { editorHighlight.scrollTop = editor.scrollTop; editorHighlight.scrollLeft = editor.scrollLeft; }
+function syncScroll() {
+  editorHighlight.scrollTop = editor.scrollTop; editorHighlight.scrollLeft = editor.scrollLeft;
+  lineNumbers.scrollTop = editor.scrollTop;
+}
 function showOutput(text) {
   lastOutputText = String(text || '');
   outputPanel.classList.remove('hidden'); output.innerHTML = '';

@@ -120,6 +120,30 @@ textarea#editor {
 	margin: 0; /* avoid default <pre> margins causing vertical offset */
 	overflow: hidden;          /* overlay itself never scrolls */
 }
+/* line numbers: a gutter on the left, scrolled along with the editor (app.js) */
+.editor-wrap { --line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px); }
+.line-numbers {
+	position: absolute;
+	top: 0; bottom: 0; left: 0;
+	width: var(--gutter);
+	margin: 0;
+	padding: 12px 8px 12px 0;
+	box-sizing: border-box;
+	text-align: right;
+	font-family: var(--code-font-family);
+	font-size: var(--code-font-size);
+	line-height: 1.5;
+	white-space: pre;
+	color: var(--muted);
+	background: #0b101b;
+	border-right: 1px solid var(--border);
+	overflow: hidden;
+	pointer-events: none;
+	user-select: none;
+	z-index: 1;
+}
+.editor-wrap .editor-highlight,
+.editor-wrap textarea#editor { padding-left: calc(var(--gutter) + 10px); }
 .editor-wrap textarea#editor {
 	position: relative;
 	background: transparent;

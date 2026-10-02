@@ -77,3 +77,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - `./update.sh`: Kurt 0.7.1 (the soundness fix for `let` constants in nested blocks), and the current theories and tutorial (modal.kurt marked experimental).
 - On an iPhone the View menu stuck out on the left: it opens to the left of its button (`align-right`), and on a narrow screen the toolbar wraps, so the button is near the left edge. `toggleMenu` now shifts an opened menu into the window (`translateX`), and no menu is wider than the screen. New Playwright test with a 390×844 window for the View and the File menu.
 - The Save menu above the output is called File now (as asked); the help says so.
+
+## 2026-10-02 — line numbers
+
+- The editor shows line numbers in a gutter on the left (`#lineNumbers`, a `<pre>` like the highlighting layer): `renderEditorHighlight` writes them (the editor doesn't wrap lines, so a line is a row), `syncScroll` scrolls them with the editor, and the gutter is as wide as the number of digits needs (`--line-digits`). New Playwright test: the numbers, three digits for 200 lines, and scrolling.

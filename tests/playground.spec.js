@@ -125,3 +125,13 @@ test('keeps the menus inside a phone screen', async ({ page }) => {
     await page.locator(button).click();                               // closes it again
   }
 });
+
+test('shows line numbers that scroll with the editor', async ({ page }) => {
+  await page.locator('#editor').fill('bool A\nuse A\nA\n');
+  await expect(page.locator('#lineNumbers')).toHaveText('1\n2\n3\n4');
+  const many = Array.from({ length: 200 }, (_, i) => `; line ${i + 1}`).join('\n');
+  await page.locator('#editor').fill(many);
+  await expect(page.locator('#lineNumbers')).toContainText('200');
+  await page.locator('#editor').evaluate(e => { e.scrollTop = 600; e.dispatchEvent(new Event('scroll')); });
+  await expect.poll(() => page.locator('#lineNumbers').evaluate(g => g.scrollTop)).toBeGreaterThan(0);
+});
