@@ -52,3 +52,16 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
   await last.click();
   await expect(page.locator('#editor')).toHaveValue(/48-groups/);
 });
+
+test('opens and closes the help', async ({ page }) => {
+  await page.locator('#helpBtn').click();
+  const help = page.locator('#helpDialog');
+  await expect(help).toBeVisible();
+  await expect(help).toContainText('Getting started');
+  await expect(help).toContainText('Certificate');
+  await page.keyboard.press('Escape');
+  await expect(help).toBeHidden();
+  await page.locator('#helpBtn').click();
+  await page.locator('#helpCloseBtn').click();
+  await expect(help).toBeHidden();
+});

@@ -231,6 +231,9 @@ function setupUI() {
   $('#certificateBtn').onclick = () => lastCertificate && download('proof.kurtc', lastCertificate, 'application/json');
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);
   $('#loadBtn').onclick = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.kurt,text/plain'; input.onchange = async () => input.files[0] && setEditor(await input.files[0].text(), input.files[0].name); input.click(); };
+  $('#helpBtn').onclick = () => $('#helpDialog').showModal();
+  $('#helpCloseBtn').onclick = () => $('#helpDialog').close();
+  $('#helpDialog').addEventListener('click', event => { if (event.target === $('#helpDialog')) $('#helpDialog').close(); });   // a click beside it
   $('#indentBtn').onclick = () => $('#indentPopover').classList.toggle('hidden');
   $('#indentSlider').oninput = event => updateSettings({ indent: Number(event.target.value) });
   document.addEventListener('click', event => { if (!event.target.closest('.menu-wrapper')) document.querySelectorAll('.dropdown-menu').forEach(x => x.classList.add('hidden')); });
