@@ -24,6 +24,7 @@ test('rejects invalid source and links to its line', async ({ page }) => {
 
 test('creates a restorable share link and persists a draft', async ({ page, context }) => {
   await page.locator('#editor').fill('true\n');
+  await page.locator('#fileBtn').click();
   await page.locator('#shareBtn').click();
   await expect(page).toHaveURL(/#proof=/);
   const url = page.url();
@@ -64,4 +65,15 @@ test('opens and closes the help', async ({ page }) => {
   await page.locator('#helpBtn').click();
   await page.locator('#helpCloseBtn').click();
   await expect(help).toBeHidden();
+});
+
+test('has upload, download and the link in the File menu', async ({ page }) => {
+  await expect(page.locator('#loadBtn')).toBeHidden();
+  await page.locator('#fileBtn').click();
+  for (const id of ['#loadBtn', '#saveBtn', '#shareBtn']) await expect(page.locator(id)).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.locator('#saveBtn').click();
+  expect((await download).suggestedFilename()).toMatch(/\.kurt$/);
+  await expect(page.locator('#fileMenu')).toBeHidden();
+  await expect(page.locator('.app-header a', { hasText: 'kurt-lang.org' })).toHaveAttribute('href', 'https://www.kurt-lang.org');
 });

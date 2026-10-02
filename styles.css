@@ -139,7 +139,7 @@ textarea#editor {
 .tok-err { color: var(--err); font-weight: 600; }
 
 .examples { display: contents; }
-.examples .menu-wrapper { position: relative; }
+.menu-wrapper { position: relative; }
 .examples .btn.small .btn-icon { margin-right: 4px; font-size: 10px; }
 
 .dropdown-menu {
@@ -276,6 +276,7 @@ textarea#editor {
 	.toolbar { flex-wrap: wrap; row-gap: 8px; }
 }
 .version { color: var(--muted); font-size: 11px; font-weight: 400; }
+.header-link { font-size: 12px; }
 .btn.danger { background: #792d39; border-color: #a84454; }
 .symbol-bar { display: flex; gap: 4px; padding: 6px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); background: #101522; }
 .symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: #1c2333; cursor: pointer; font-size: 16px; }
@@ -287,7 +288,6 @@ button.output-line:hover { background: rgba(51,145,255,.12); }
   .app-header { align-items: flex-start; gap: 8px; }
   .brand { flex-wrap: wrap; }
   .toolbar { padding: 8px; }
-  .toolbar .link { display: none; }
   .symbol-bar { position: sticky; top: 0; z-index: 5; }
   textarea#editor { height: 48vh; }
   .panel-header { align-items: flex-start; gap: 8px; }

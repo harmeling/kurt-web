@@ -92,7 +92,7 @@ function decodeShare(value) {
 async function shareProof() {
   const url = new URL(location.href); url.hash = `proof=${encodeShare(editor.value)}`;
   history.replaceState(null, '', url);
-  try { await navigator.clipboard.writeText(url.href); setStatus('Share link copied'); }
+  try { await navigator.clipboard.writeText(url.href); setStatus('Link to this proof copied'); }
   catch { prompt('Copy this proof link:', url.href); }
 }
 function loadInitialDraft() {
@@ -198,6 +198,16 @@ async function buildExamplesUI() {
   for (const folder of folders) await createMenu(folder.slice(0, -1), `proofs/${folder}`);
   await createMenu('theories', 'theories/');
 }
+function toggleMenu(event, menu) {
+  event.stopPropagation();
+  document.querySelectorAll('.dropdown-menu').forEach(x => x !== menu && x.classList.add('hidden'));
+  menu.classList.toggle('hidden');
+  if (!menu.classList.contains('hidden')) {
+    // fit the menu into the window below its button, so a long one scrolls instead of running off the screen
+    menu.style.maxHeight = `${Math.max(160, window.innerHeight - menu.getBoundingClientRect().top - 12)}px`;
+    menu.scrollTop = 0;
+  }
+}
 async function createMenu(label, path) {
   const files = (await listDirectory(path)).filter(x => x.endsWith('.kurt')); if (!files.length) return;
   const wrapper = document.createElement('div'); wrapper.className = 'menu-wrapper';
@@ -207,16 +217,7 @@ async function createMenu(label, path) {
     item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load example'); setEditor(await response.text(), file); menu.classList.add('hidden'); setStatus('Ready'); };
     menu.append(item);
   });
-  button.onclick = event => {
-    event.stopPropagation();
-    document.querySelectorAll('.dropdown-menu').forEach(x => x !== menu && x.classList.add('hidden'));
-    menu.classList.toggle('hidden');
-    if (!menu.classList.contains('hidden')) {
-      // fit the menu into the window below its button, so a long one scrolls instead of running off the screen
-      menu.style.maxHeight = `${Math.max(160, window.innerHeight - menu.getBoundingClientRect().top - 12)}px`;
-      menu.scrollTop = 0;
-    }
-  };
+  button.onclick = event => toggleMenu(event, menu);
   wrapper.append(button, menu); examplesContainer.append(wrapper);
 }
 
@@ -231,6 +232,8 @@ function setupUI() {
   $('#certificateBtn').onclick = () => lastCertificate && download('proof.kurtc', lastCertificate, 'application/json');
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);
   $('#loadBtn').onclick = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.kurt,text/plain'; input.onchange = async () => input.files[0] && setEditor(await input.files[0].text(), input.files[0].name); input.click(); };
+  $('#fileBtn').onclick = event => toggleMenu(event, $('#fileMenu'));
+  $('#fileMenu').addEventListener('click', () => $('#fileMenu').classList.add('hidden'));   // after choosing an entry
   $('#helpBtn').onclick = () => $('#helpDialog').showModal();
   $('#helpCloseBtn').onclick = () => $('#helpDialog').close();
   $('#helpDialog').addEventListener('click', event => { if (event.target === $('#helpDialog')) $('#helpDialog').close(); });   // a click beside it

@@ -58,3 +58,8 @@ Operational log for agent-session setup and activity on the `agent` branch.
 
 - A Help button in the toolbar opens a dialog (`<dialog id="helpDialog">`, closes with Close, Esc, or a click beside it): what Kurt is, getting started with the tutorial menu, checking a proof and reading the output, writing (declarations, blocks, comments, symbol shortcuts), what each button does (incl. Certificate), and links to www.kurt-lang.org. The toolbar link now points to www.kurt-lang.org (it redirects to the public kurt-lang repository).
 - New Playwright test: the help opens, shows its sections, and closes with Esc and with Close. Smoke test passes; Node isn't available here, so the browser tests run in the Pages workflow.
+
+## 2026-10-02 — less crowded toolbar
+
+- Upload, Download and Share are now entries of a File menu (`#fileMenu`, the same IDs as before); Share is called "Copy link to this proof" (the link contains the proof), and its status says so. `kurt-lang.org` moved from the end of the toolbar into the header, right after the version and fingerprint. The help describes the File menu. `toggleMenu` in `app.js` opens every menu (also the generated ones) and fits it into the window.
+- Playwright: the share test opens the File menu first; a new test checks the File menu's entries, that Download gives a `.kurt` file and closes the menu, and the header link.

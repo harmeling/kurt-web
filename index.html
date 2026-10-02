@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand"><span class="logo">K</span><span class="title">Kurt Playground</span><span id="version" class="version">Kurt loading…</span></div>
+    <div class="brand"><span class="logo">K</span><span class="title">Kurt Playground</span><span id="version" class="version">Kurt loading…</span><a class="link header-link" href="https://www.kurt-lang.org" target="_blank" rel="noreferrer noopener">kurt-lang.org</a></div>
     <div id="status" class="status" role="status">Loading runtime…</div>
   </header>
   <main class="layout">
@@ -21,13 +21,17 @@
       <div class="toolbar">
         <button id="runBtn" class="btn primary" disabled title="Cmd/Ctrl + Enter">Run</button>
         <button id="cancelBtn" class="btn danger hidden">Cancel</button>
-        <button id="loadBtn" class="btn small">Upload</button>
-        <button id="saveBtn" class="btn small">Download</button>
-        <button id="shareBtn" class="btn small">Share</button>
+        <div class="menu-wrapper" id="fileMenuWrapper">
+          <button id="fileBtn" class="btn small" aria-haspopup="menu">File</button>
+          <div id="fileMenu" class="dropdown-menu hidden" role="menu">
+            <button id="loadBtn" class="item" role="menuitem">Upload a .kurt file…</button>
+            <button id="saveBtn" class="item" role="menuitem">Download as .kurt file</button>
+            <button id="shareBtn" class="item" role="menuitem">Copy link to this proof</button>
+          </div>
+        </div>
         <div id="examplesContainer" class="examples"></div>
         <div class="spacer"></div>
         <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
-        <a class="link" href="https://www.kurt-lang.org" target="_blank" rel="noreferrer noopener">kurt-lang.org</a>
       </div>
       <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
       <div class="editor-wrap">
@@ -78,9 +82,8 @@
 
       <h3>The buttons</h3>
       <ul>
-        <li><strong>Upload</strong> / <strong>Download</strong>: open a <code>.kurt</code> file, or save the proof as one
-        (for the <code>kurt</code> command line).</li>
-        <li><strong>Share</strong>: copies a link that contains the proof itself.</li>
+        <li><strong>File</strong>: upload a <code>.kurt</code> file, download the proof as one (for the
+        <code>kurt</code> command line), or copy a link to this proof: the link contains the proof itself.</li>
         <li><strong>Indent</strong>: the column where the reasons start in the output.</li>
         <li><strong>Certificate</strong>: after a successful check, downloads the proof's certificates
         (<code>.kurtc</code>): for each line, the rule, the facts and the values that Kurt's kernel checked. Put it

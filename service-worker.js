@@ -1,4 +1,4 @@
-const CACHE = 'kurt-playground-2b9b513ed04e';
+const CACHE = 'kurt-playground-27338569222b';
 const ASSETS = ['./','index.html','styles.css','app.js','kurt-worker.js','kurt.py','manifest.json','language.json','replacements.json','site.webmanifest','icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
