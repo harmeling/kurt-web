@@ -43,3 +43,4 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - `scripts/smoke_test.py` no longer hard-codes the Kurt version: it checks that `kurt.py` and `language.json` name the same one.
 - `update.sh` now sets the service worker's cache name from a hash of the generated files, so browsers fetch a new Kurt instead of serving the old one from the cache (stable when nothing changed).
 - Verified: smoke test passes; Node is unavailable here, so the Playwright tests run only in GitHub Actions. Committed on `agent`, not pushed: pushing `main` deploys the public site, so that waits for the user.
+- User explicitly approved (2026-10-02) pushing `agent` and merging it into `main` to publish the 0.7.0 synchronization; this records the branch exception before touching `main`.
