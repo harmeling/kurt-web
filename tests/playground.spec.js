@@ -104,7 +104,12 @@ test('changes the text size and the column of the reasons in the View menu', asy
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
   await page.locator('#viewBtn').click();
-  await page.locator('#indentSlider').fill('60');          // checks the proof again with the new column
+  // (Playwright can't `fill` a range input: set it like a drag does, with `input` and `change`)
+  await page.locator('#indentSlider').evaluate(slider => {
+    slider.value = '60';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));   // checks the proof again with the new column
+  });
   await expect(page.locator('#indentLabel')).toHaveText('60');
   await expect(page.locator('#output')).toHaveText(/^A {59}; /m, { timeout: 60000 });
 });
