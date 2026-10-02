@@ -52,3 +52,4 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - Added `LICENSE` (MIT, 2016-2026 Stefan Harmeling, the same text as kurt-lang's) and `"license": "MIT"` in `package.json`; README has a license section. Until now the public repository had no license at all.
 - Verified: smoke test passes, `cache_name.py` is stable when nothing changed, `pages.yml` parses. Node is unavailable here, so the new browser test runs first in GitHub Actions.
 - User explicitly approved pushing `agent` and merging it into `main` (publishing); this records the branch exception before touching `main`.
+- From now on: work on `main` and push it directly (the user's decision, so changes can be tested on the deployed site); AGENTS.md says so.
