@@ -59,7 +59,7 @@ test('opens and closes the help', async ({ page }) => {
   const help = page.locator('#helpDialog');
   await expect(help).toBeVisible();
   await expect(help).toContainText('Getting started');
-  await expect(help).toContainText('Certificate');
+  await expect(help).toContainText('certificate');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
   await page.locator('#helpBtn').click();
@@ -111,5 +111,6 @@ test('changes the text size and the column of the reasons in the View menu', asy
     slider.dispatchEvent(new Event('change', { bubbles: true }));   // checks the proof again with the new column
   });
   await expect(page.locator('#indentLabel')).toHaveText('60');
-  await expect(page.locator('#output')).toHaveText(/^A {59}; /m, { timeout: 60000 });
+  // (the output has a line per element, without line breaks in its text: no `^`)
+  await expect(page.locator('#output')).toHaveText(/A {59}; 3 by 2/, { timeout: 60000 });
 });
