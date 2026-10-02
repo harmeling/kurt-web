@@ -61,6 +61,10 @@ function runProof() {
   worker.postMessage({ type: 'run', code: editor.value, indent: settings().indent });
 }
 
+function changeFontSize(step) {
+  // step -1 or +1, or 0 for the default size (the View menu, and Cmd/Ctrl - / + / 0)
+  updateSettings({ fontSize: step === 0 ? 15 : Math.max(10, Math.min(24, settings().fontSize + step)) });
+}
 function settings() {
   try { return { fontSize: 15, indent: 40, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
   catch { return { fontSize: 15, indent: 40 }; }
@@ -69,7 +73,7 @@ function updateSettings(patch) {
   const next = { ...settings(), ...patch };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
   document.documentElement.style.setProperty('--code-font-size', `${next.fontSize}px`);
-  $('#indentLabel').textContent = next.indent; $('#indentSlider').value = next.indent;
+  $('#indentLabel').textContent = next.indent; $('#indentSlider').value = next.indent; $('#fontSizeLabel').textContent = next.fontSize;
   renderEditorHighlight();
 }
 function persistDraft() {
@@ -237,10 +241,17 @@ function setupUI() {
   $('#helpBtn').onclick = () => $('#helpDialog').showModal();
   $('#helpCloseBtn').onclick = () => $('#helpDialog').close();
   $('#helpDialog').addEventListener('click', event => { if (event.target === $('#helpDialog')) $('#helpDialog').close(); });   // a click beside it
-  $('#indentBtn').onclick = () => $('#indentPopover').classList.toggle('hidden');
+  $('#saveOutputBtn').onclick = event => toggleMenu(event, $('#saveOutputMenu'));
+  $('#saveOutputMenu').addEventListener('click', event => { if (event.target.closest('.item:not(:disabled)')) $('#saveOutputMenu').classList.add('hidden'); });
+  $('#viewBtn').onclick = event => toggleMenu(event, $('#viewMenu'));
+  $('#fontSmallerBtn').onclick = () => changeFontSize(-1);
+  $('#fontLargerBtn').onclick = () => changeFontSize(+1);
+  $('#fontResetBtn').onclick = () => changeFontSize(0);
   $('#indentSlider').oninput = event => updateSettings({ indent: Number(event.target.value) });
+  // a new column shows at once: check again (once the slider is let go)
+  $('#indentSlider').onchange = () => { if (!outputPanel.classList.contains('hidden')) runProof(); };
   document.addEventListener('click', event => { if (!event.target.closest('.menu-wrapper')) document.querySelectorAll('.dropdown-menu').forEach(x => x.classList.add('hidden')); });
-  window.addEventListener('keydown', event => { if (!(event.ctrlKey || event.metaKey)) return; if (['+','=','-','0'].includes(event.key)) { event.preventDefault(); const size = event.key === '0' ? 15 : Math.max(10, Math.min(24, settings().fontSize + (event.key === '-' ? -1 : 1))); updateSettings({ fontSize: size }); } });
+  window.addEventListener('keydown', event => { if (!(event.ctrlKey || event.metaKey)) return; if (['+','=','-','0'].includes(event.key)) { event.preventDefault(); changeFontSize(event.key === '0' ? 0 : (event.key === '-' ? -1 : 1)); } });
 }
 
 window.addEventListener('DOMContentLoaded', async () => {

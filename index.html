@@ -31,6 +31,23 @@
         </div>
         <div id="examplesContainer" class="examples"></div>
         <div class="spacer"></div>
+        <div class="menu-wrapper">
+          <button id="viewBtn" class="btn small" aria-haspopup="true">View</button>
+          <div id="viewMenu" class="dropdown-menu align-right view-menu hidden">
+            <div class="menu-row">
+              <span>Text size <span id="fontSizeLabel">15</span></span>
+              <span class="stepper">
+                <button id="fontSmallerBtn" class="btn small" aria-label="Smaller text">A−</button>
+                <button id="fontLargerBtn" class="btn small" aria-label="Larger text">A+</button>
+                <button id="fontResetBtn" class="btn small">Reset</button>
+              </span>
+            </div>
+            <div class="menu-row column">
+              <label for="indentSlider">Reasons in the output start at column <span id="indentLabel">40</span></label>
+              <input id="indentSlider" type="range" min="20" max="120" step="2" value="40">
+            </div>
+          </div>
+        </div>
         <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
       </div>
       <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
@@ -41,10 +58,14 @@
     </section>
     <section class="panel output-panel hidden" id="outputPanel" aria-live="polite">
       <div class="panel-header"><span>Output</span><div class="actions">
-        <div class="indent-wrapper"><button id="indentBtn" class="btn small">Indent: <span id="indentLabel">40</span></button><div id="indentPopover" class="popover hidden"><input id="indentSlider" type="range" min="20" max="120" step="2" value="40"></div></div>
-        <button id="certificateBtn" class="btn small" disabled>Certificate</button>
-        <button id="outputDownloadBtn" class="btn small">Download output</button>
-        <button id="copyBtn" class="btn small">Copy</button>
+        <div class="menu-wrapper">
+          <button id="saveOutputBtn" class="btn small" aria-haspopup="menu">Save</button>
+          <div id="saveOutputMenu" class="dropdown-menu align-right hidden" role="menu">
+            <button id="copyBtn" class="item" role="menuitem">Copy output</button>
+            <button id="outputDownloadBtn" class="item" role="menuitem">Download output (.txt)</button>
+            <button id="certificateBtn" class="item" role="menuitem" disabled>Download certificate (.kurtc)</button>
+          </div>
+        </div>
         <button id="clearBtn" class="btn small">Clear</button>
       </div></div>
       <pre id="output" class="output" tabindex="0"></pre>
@@ -84,15 +105,15 @@
       <ul>
         <li><strong>File</strong>: upload a <code>.kurt</code> file, download the proof as one (for the
         <code>kurt</code> command line), or copy a link to this proof: the link contains the proof itself.</li>
-        <li><strong>Indent</strong>: the column where the reasons start in the output.</li>
-        <li><strong>Certificate</strong>: after a successful check, downloads the proof's certificates
-        (<code>.kurtc</code>): for each line, the rule, the facts and the values that Kurt's kernel checked. Put it
-        next to the same <code>proof.kurt</code>, and the command-line <code>kurt</code> checks it again without
-        searching.</li>
-        <li><strong>Download output</strong>, <strong>Copy</strong>, <strong>Clear</strong>: the output.</li>
+        <li><strong>View</strong>: the text size, and the column where the reasons start in the output (changing
+        it checks the proof again, so you see it right away).</li>
+        <li><strong>Save</strong>, above the output: copy the output, download it, or download the proof's
+        certificate (<code>.kurtc</code>, after a successful check): for each line, the rule, the facts and the
+        values that Kurt's kernel checked. Put it next to the same <code>proof.kurt</code>, and the command-line
+        <code>kurt</code> checks it again without searching. <strong>Clear</strong> closes the output.</li>
       </ul>
-      <p>Cmd/Ctrl + / − / 0 changes the text size. Your draft stays in this browser, and the playground also works
-      offline after the first visit.</p>
+      <p>With a keyboard, Cmd/Ctrl+Enter checks and Cmd/Ctrl + / − / 0 changes the text size. Your draft stays in
+      this browser, and the playground also works offline after the first visit.</p>
 
       <h3>More</h3>
       <p><a href="https://www.kurt-lang.org" target="_blank" rel="noreferrer noopener">www.kurt-lang.org</a>: Kurt's
@@ -100,6 +121,6 @@
       install Kurt, or download the single file <code>kurt.py</code>.</p>
     </div>
   </dialog>
-  <footer class="app-footer">Cmd/Ctrl+Enter checks · Cmd/Ctrl +/−/0 changes text size · drafts stay in this browser</footer>
+  <footer class="app-footer"><span class="keys">Cmd/Ctrl+Enter checks · Cmd/Ctrl +/−/0 changes text size · </span>drafts stay in this browser</footer>
 </body>
 </html>

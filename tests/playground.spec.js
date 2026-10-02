@@ -77,3 +77,34 @@ test('has upload, download and the link in the File menu', async ({ page }) => {
   await expect(page.locator('#fileMenu')).toBeHidden();
   await expect(page.locator('.app-header a', { hasText: 'kurt-lang.org' })).toHaveAttribute('href', 'https://www.kurt-lang.org');
 });
+
+test('has copy, download and the certificate in the Save menu', async ({ page }) => {
+  await page.locator('#editor').fill('bool A\nuse A\nA\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  await page.locator('#saveOutputBtn').click();
+  for (const id of ['#copyBtn', '#outputDownloadBtn', '#certificateBtn']) await expect(page.locator(id)).toBeVisible();
+  await expect(page.locator('#certificateBtn')).toBeEnabled();
+  const download = page.waitForEvent('download');
+  await page.locator('#certificateBtn').click();
+  expect((await download).suggestedFilename()).toBe('proof.kurtc');
+  await expect(page.locator('#saveOutputMenu')).toBeHidden();
+});
+
+test('changes the text size and the column of the reasons in the View menu', async ({ page }) => {
+  const size = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--code-font-size').trim());
+  await page.locator('#viewBtn').click();
+  await page.locator('#fontResetBtn').click();
+  await expect.poll(size).toBe('15px');
+  await page.locator('#fontLargerBtn').click();
+  await expect.poll(size).toBe('16px');
+  await expect(page.locator('#fontSizeLabel')).toHaveText('16');
+  await page.locator('#fontResetBtn').click();
+  await page.locator('#editor').fill('bool A\nuse A\nA\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  await page.locator('#viewBtn').click();
+  await page.locator('#indentSlider').fill('60');          // checks the proof again with the new column
+  await expect(page.locator('#indentLabel')).toHaveText('60');
+  await expect(page.locator('#output')).toHaveText(/^A {59}; /m, { timeout: 60000 });
+});

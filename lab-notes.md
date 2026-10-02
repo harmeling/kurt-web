@@ -63,3 +63,9 @@ Operational log for agent-session setup and activity on the `agent` branch.
 
 - Upload, Download and Share are now entries of a File menu (`#fileMenu`, the same IDs as before); Share is called "Copy link to this proof" (the link contains the proof), and its status says so. `kurt-lang.org` moved from the end of the toolbar into the header, right after the version and fingerprint. The help describes the File menu. `toggleMenu` in `app.js` opens every menu (also the generated ones) and fits it into the window.
 - Playwright: the share test opens the File menu first; a new test checks the File menu's entries, that Download gives a `.kurt` file and closes the menu, and the header link.
+
+## 2026-10-02 — Save and View menus
+
+- Output panel: Copy, Download output and Certificate are entries of a Save menu ("Copy output", "Download output (.txt)", "Download certificate (.kurtc)", the last one active only after a successful check); Clear stays a button.
+- The Indent button is gone: a View menu in the toolbar has the text size (A−, A+, Reset; on phones the only way, since there are no Cmd/Ctrl shortcuts) and the column where the reasons start; changing the column checks the proof again (when the slider is let go), so the new layout shows at once. The footer hides its keyboard shortcuts on touch screens. The help describes it.
+- Playwright: two new tests (Save menu with the certificate download; View menu: text size, and a new column re-checks with the reason at column 60). The `-r 60` layout was checked locally with the bundled kurt.py.
