@@ -93,3 +93,7 @@ The service worker caches the app shell and Kurt bundle. Pyodide is loaded from 
 - `python3 scripts/smoke_test.py` checks generated assets and the standalone runtime.
 - `npm install && npx playwright install chromium && npm run test:e2e` runs the real browser suite.
 - `./update.sh ../kurt-lang` rebuilds Kurt, synchronizes proofs/theories, regenerates language metadata and the manifest, then runs smoke tests.
+
+## License
+
+[MIT](LICENSE) © 2016-2026 Stefan Harmeling. The playground includes Kurt itself (`kurt.py`, the theories and the tutorial), which is under the same license.

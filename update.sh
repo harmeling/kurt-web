@@ -17,16 +17,6 @@ cp "$lang_dir/proofs/natural-deduction/contraposition.kurt" \
    "$web_dir/proofs/examples/"
 python3 "$web_dir/scripts/generate_language.py" "$lang_dir"
 python3 "$web_dir/scripts/generate_manifest.py"
-# a new cache name whenever the generated files change, so browsers don't keep an old Kurt
-python3 - "$web_dir" <<'PY'
-import hashlib, re, sys
-from pathlib import Path
-web = Path(sys.argv[1])
-files = [web / 'kurt.py', web / 'language.json', web / 'manifest.json', *sorted((web / 'theories').glob('*.kurt'))]
-digest = hashlib.sha256(b''.join(f.read_bytes() for f in files)).hexdigest()[:12]
-worker = web / 'service-worker.js'
-text = worker.read_text(encoding='utf-8')
-worker.write_text(re.sub(r"const CACHE = '[^']*';", f"const CACHE = 'kurt-playground-{digest}';", text, count=1), encoding='utf-8')
-PY
+python3 "$web_dir/scripts/cache_name.py"       # a new cache name whenever something it caches changed
 python3 "$web_dir/scripts/smoke_test.py"
 echo "Synchronized from $lang_dir. Review and commit the changes when ready."

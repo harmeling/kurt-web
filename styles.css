@@ -153,6 +153,9 @@ textarea#editor {
 	box-shadow: var(--shadow);
 	padding: 6px 0;
 	z-index: 20;
+	max-height: 70vh;            /* long menus (the tutorial) scroll; app.js fits it to the window */
+	overflow-y: auto;
+	overscroll-behavior: contain;
 }
 .dropdown-menu.hidden { display: none; }
 .dropdown-menu .item {

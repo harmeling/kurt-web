@@ -38,3 +38,17 @@ test('offers touch symbols and registers its offline worker', async ({ page }) =
   await expect(page.locator('#editor')).toHaveValue('∀');
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.getRegistration().then(Boolean))).toBeTruthy();
 });
+
+test('scrolls a long menu that does not fit into the window', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 500 });
+  await page.locator('.menu-wrapper button', { hasText: 'tutorial' }).click();
+  const menu = page.locator('.menu-wrapper', { hasText: 'tutorial' }).locator('.dropdown-menu');
+  await expect(menu).toBeVisible();
+  const box = await menu.boundingBox();
+  expect(box.y + box.height).toBeLessThanOrEqual(500);
+  expect(await menu.evaluate(m => m.scrollHeight > m.clientHeight)).toBeTruthy();
+  const last = menu.locator('.item', { hasText: '48-groups.kurt' });
+  await last.scrollIntoViewIfNeeded();
+  await last.click();
+  await expect(page.locator('#editor')).toHaveValue(/48-groups/);
+});

@@ -44,3 +44,11 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - `update.sh` now sets the service worker's cache name from a hash of the generated files, so browsers fetch a new Kurt instead of serving the old one from the cache (stable when nothing changed).
 - Verified: smoke test passes; Node is unavailable here, so the Playwright tests run only in GitHub Actions. Committed on `agent`, not pushed: pushing `main` deploys the public site, so that waits for the user.
 - User explicitly approved (2026-10-02) pushing `agent` and merging it into `main` to publish the 0.7.0 synchronization; this records the branch exception before touching `main`.
+
+## 2026-10-02 — long menus scroll; cache name from all cached files; MIT license
+
+- The tutorial menu (49 lessons) ran off the screen and couldn't be scrolled: `.dropdown-menu` now has `max-height`/`overflow-y: auto`, and `app.js` fits an opened menu to the window below its button. New Playwright test: in a 900×500 window the tutorial menu ends inside the window, scrolls, and its `48-groups.kurt` loads.
+- `scripts/cache_name.py` sets the service worker's cache name from a hash of all files it caches (its `ASSETS`, the theories and proofs); it runs in `update.sh` and in the Pages workflow right before the upload, so a change to `app.js` or `styles.css` reaches browsers too (the earlier hash in `update.sh` only covered the generated files).
+- Added `LICENSE` (MIT, 2016-2026 Stefan Harmeling, the same text as kurt-lang's) and `"license": "MIT"` in `package.json`; README has a license section. Until now the public repository had no license at all.
+- Verified: smoke test passes, `cache_name.py` is stable when nothing changed, `pages.yml` parses. Node is unavailable here, so the new browser test runs first in GitHub Actions.
+- User explicitly approved pushing `agent` and merging it into `main` (publishing); this records the branch exception before touching `main`.

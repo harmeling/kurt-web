@@ -207,7 +207,16 @@ async function createMenu(label, path) {
     item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load example'); setEditor(await response.text(), file); menu.classList.add('hidden'); setStatus('Ready'); };
     menu.append(item);
   });
-  button.onclick = event => { event.stopPropagation(); document.querySelectorAll('.dropdown-menu').forEach(x => x !== menu && x.classList.add('hidden')); menu.classList.toggle('hidden'); };
+  button.onclick = event => {
+    event.stopPropagation();
+    document.querySelectorAll('.dropdown-menu').forEach(x => x !== menu && x.classList.add('hidden'));
+    menu.classList.toggle('hidden');
+    if (!menu.classList.contains('hidden')) {
+      // fit the menu into the window below its button, so a long one scrolls instead of running off the screen
+      menu.style.maxHeight = `${Math.max(160, window.innerHeight - menu.getBoundingClientRect().top - 12)}px`;
+      menu.scrollTop = 0;
+    }
+  };
   wrapper.append(button, menu); examplesContainer.append(wrapper);
 }
 

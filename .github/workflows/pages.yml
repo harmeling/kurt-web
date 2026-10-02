@@ -36,6 +36,9 @@ jobs:
           npm run test:e2e
           rm -rf node_modules test-results playwright-report
 
+      - name: Cache name from the files that are deployed
+        run: python3 scripts/cache_name.py
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

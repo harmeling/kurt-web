@@ -1,6 +1,7 @@
 {
   "name": "kurt-web",
   "private": true,
+  "license": "MIT",
   "scripts": { "test:e2e": "playwright test" },
   "devDependencies": { "@playwright/test": "^1.55.0" }
 }
