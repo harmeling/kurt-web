@@ -71,3 +71,9 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - Playwright: two new tests (Save menu with the certificate download; View menu: text size, and a new column re-checks with the reason at column 60). The `-r 60` layout was checked locally with the bundled kurt.py.
 - The Pages runs of `759c7eb` and `ac40b55` failed in the browser tests, so neither deployed. Most likely cause: Playwright can't `fill` a range input (the new View-menu test). The test now sets the slider's value and sends `input`/`change` like a drag; and on GitHub, Playwright's `github` reporter turns each failure into an annotation, which is readable without admin rights (the logs aren't).
 - The annotations showed two mistakes in the tests (not in the playground): the output has a line per element, so a pattern anchored with `^` can't match (the column was right); and the help says "certificate" in lower case since the Save menu. Both tests fixed.
+
+## 2026-10-02 — Kurt 0.7.1; menus inside a phone screen; "File" above the output
+
+- `./update.sh`: Kurt 0.7.1 (the soundness fix for `let` constants in nested blocks), and the current theories and tutorial (modal.kurt marked experimental).
+- On an iPhone the View menu stuck out on the left: it opens to the left of its button (`align-right`), and on a narrow screen the toolbar wraps, so the button is near the left edge. `toggleMenu` now shifts an opened menu into the window (`translateX`), and no menu is wider than the screen. New Playwright test with a 390×844 window for the View and the File menu.
+- The Save menu above the output is called File now (as asked); the help says so.

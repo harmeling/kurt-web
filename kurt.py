@@ -64,7 +64,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.7.0'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.7.1'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -883,21 +883,28 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; for automatic testing we add the following line (in this '
                  'case we should fail, because of `false`):\n'
                  ';;; ProofError: can not derive `false`\n',
- 'modal.kurt': '; modal logic\n'
+ 'modal.kurt': '; EXPERIMENTAL EXAMPLE: a modal-logic fragment\n'
                ';\n'
-               '; covers: box (□, necessity) and diamond (◇, possibility), '
-               'their duality (box-def/\n'
-               '; diamond-def), distribution over and/or, system K (box '
-               'distributes over implication), and a\n'
-               '; seriality-style axiom labelled "T" (%p implies possibly %p) '
-               '-- note this is *not* the\n'
-               '; standard modal-logic "T" axiom (usually □%p implies %p); the '
-               "name here is this file's own\n"
-               '; convention, not standard terminology. See '
-               'proofs/modal-logic/ for worked examples.\n'
+               '; This file demonstrates that Kurt theories can introduce '
+               'modal prefix operators and axiom\n'
+               '; schemata. It covers box (□, necessity), diamond (◇, '
+               'possibility), their duality, distribution\n'
+               '; over and/or, the K distribution axiom, and the T axiom in '
+               'its dual form `%p implies ◇%p`.\n'
                ';\n'
-               '; not covered: systems S4/S5 (no "4"/"5" axioms), no '
-               'accessibility-relation reasoning.\n'
+               '; This is not a complete proof system for normal modal logic K '
+               'or T: Kurt cannot currently\n'
+               '; express the necessitation rule "from a theorem %p infer '
+               '□%p". In particular, do not describe\n'
+               '; `load modal` as implementing system K or T. There are also '
+               'no 4/5 axioms or\n'
+               '; accessibility-relation semantics. See proofs/modal-logic/ '
+               'for executable examples.\n'
+               ';\n'
+               '; With classical propositional logic and the duality below, '
+               '`%p implies ◇%p` is equivalent to\n'
+               '; the standard T axiom `□%p implies %p`. It is not the '
+               'seriality axiom D (`□%p implies ◇%p`).\n'
                'load prop\n'
                'prefix b 20, d 20          ; box and diamond\n'
                'bool b, d\n'
@@ -921,13 +928,11 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use ◇%p ∨ ◇%q ≡ ◇(%p ∨ %q)   "diamond-distrib-or"\n'
                'use □%p ∧ □%q ≡ □(%p ∧ %q)   "box-distrib-and"\n'
                '\n'
-               '; system K\n'
+               '; K distribution axiom\n'
                'use □(%p ⇒ %q) ⇒ (□%p ⇒ □%q)    "K"\n'
                '\n'
-               '; system T\n'
-               'use %p ⇒ ◇%p   "T"\n'
-               '\n'
-               '; for automatic testing we add the following line:\n',
+               '; T axiom, in its dual form\n'
+               'use %p ⇒ ◇%p   "T"\n',
  'natural.kurt': '; natural numbers\n'
                  ';\n'
                  '; covers: `Nat` membership (0 is a natural number, and the '
@@ -2331,7 +2336,9 @@ class KnowledgeBase:
             assert s not in self.var
             return False
         elif s[0] in ['$', '%']:
-            return True
+            # ... unless an enclosing level made it a constant (`let %E`, then `assume %E` inside:
+            # there `%E` is still the one constant, not "for all" -- found 2026-10-02)
+            return not (self.parent is not None and self.parent.is_const(s))
         elif s in self.var:
             return True
         else:
@@ -5068,8 +5075,8 @@ def bool_expr(expr: Expr, kb: KnowledgeBase, strict: bool=True) -> bool:
     # - at some places we are strict
     # - at other places (like eval_use) we are not strict, since we are adding a new formula
     match expr:
-        case Token(label='SYMBOL', value=v) if isinstance(v, str) and (kb.is_var(v) or kb.is_fixed_var(v)) and kb.is_bool(v):
-            return True                    # boolean variables (also when fixed by an assumption)
+        case Token(label='SYMBOL', value=v) if isinstance(v, str) and (kb.is_var(v) or kb.is_fixed_var(v) or v.startswith('%')) and kb.is_bool(v):
+            return True                    # boolean variables (also when fixed by an assumption, or a constant by `let %E`)
         case Token(label='SYMBOL', value=v):
             assert isinstance(v, str)
             if strict or kb.is_used(v):

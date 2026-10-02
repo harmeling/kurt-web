@@ -221,7 +221,8 @@ input[type="range"]::-moz-range-track {
 .dropdown-menu.align-right { left: auto; right: 0; }
 .dropdown-menu .item:disabled { opacity: 0.45; cursor: default; }
 .dropdown-menu .item:disabled:hover { background: transparent; }
-.view-menu { min-width: 280px; padding: 10px 12px; }
+.view-menu { min-width: min(280px, calc(100vw - 16px)); padding: 10px 12px; }
+.dropdown-menu { max-width: calc(100vw - 16px); }
 .menu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
 .menu-row.column { flex-direction: column; align-items: stretch; }
 .menu-row input[type="range"] { width: 100%; }

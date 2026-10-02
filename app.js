@@ -210,6 +210,12 @@ function toggleMenu(event, menu) {
     // fit the menu into the window below its button, so a long one scrolls instead of running off the screen
     menu.style.maxHeight = `${Math.max(160, window.innerHeight - menu.getBoundingClientRect().top - 12)}px`;
     menu.scrollTop = 0;
+    // ... and inside it horizontally: on a phone, a menu opening to the left of its button
+    // (`align-right`) can stick out of the screen
+    menu.style.transform = '';
+    const box = menu.getBoundingClientRect(), margin = 8;
+    const shift = box.left < margin ? margin - box.left : Math.min(0, window.innerWidth - margin - box.right);
+    if (shift) menu.style.transform = `translateX(${shift}px)`;
   }
 }
 async function createMenu(label, path) {

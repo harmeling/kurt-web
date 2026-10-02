@@ -78,7 +78,7 @@ test('has upload, download and the link in the File menu', async ({ page }) => {
   await expect(page.locator('.app-header a', { hasText: 'kurt-lang.org' })).toHaveAttribute('href', 'https://www.kurt-lang.org');
 });
 
-test('has copy, download and the certificate in the Save menu', async ({ page }) => {
+test('has copy, download and the certificate in the File menu of the output', async ({ page }) => {
   await page.locator('#editor').fill('bool A\nuse A\nA\n');
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
@@ -113,4 +113,15 @@ test('changes the text size and the column of the reasons in the View menu', asy
   await expect(page.locator('#indentLabel')).toHaveText('60');
   // (the output has a line per element, without line breaks in its text: no `^`)
   await expect(page.locator('#output')).toHaveText(/A {59}; 3 by 2/, { timeout: 60000 });
+});
+
+test('keeps the menus inside a phone screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });            // an iPhone
+  for (const [button, menu] of [['#viewBtn', '#viewMenu'], ['#fileBtn', '#fileMenu']]) {
+    await page.locator(button).click();
+    const box = await page.locator(menu).boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    await page.locator(button).click();                               // closes it again
+  }
 });
