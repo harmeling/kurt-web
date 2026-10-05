@@ -184,8 +184,15 @@ function colorCode(text) {
     .replace(grammar.variable, m => `<span class="tok-variable">${m}</span>`)
     .replace(grammar.number, m => `<span class="tok-number">${m}</span>`);
 }
+// the lines of the proof that the reason of the hovered output line refers to (and its own)
+let refLines = new Set(), selfLines = new Set();
 function renderEditorHighlight() {
-  editorHighlight.innerHTML = editor.value.split('\n').map(highlightLine).join('\n') || '&nbsp;';
+  editorHighlight.innerHTML = editor.value.split('\n').map((line, i) => {
+    const html = highlightLine(line);
+    if (refLines.has(i + 1)) return `<span class="ref-line">${html || ' '}</span>`;
+    if (selfLines.has(i + 1)) return `<span class="self-line">${html || ' '}</span>`;
+    return html;
+  }).join('\n') || '&nbsp;';
   // line numbers (the editor doesn't wrap lines, so a line of text is a row), as wide as needed
   const count = editor.value.split('\n').length;
   lineNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
@@ -206,6 +213,63 @@ function showOutput(text) {
     row.innerHTML = highlightLine(line).replace(/\b(\w+Error)\b/g, '<span class="tok-err">$1</span>').replace(/\bProof checked\.?/g, '<span class="tok-ok">$&</span>');
     if (pendingLine) { const target = pendingLine; row.title = `Go to line ${target}`; row.onclick = () => goToLine(target); if (!line.trim()) pendingLine = null; }
     output.append(row);
+  });
+  linkReasons();
+}
+// Each line of the output ends with its reason, e.g. `; 33 by equal-elim(33a, 32)`: its own line
+// (33) and the lines its step uses (33a, 32; also ranges `21-35`, and labels of this proof, `K7`).
+// Hovering a line of the output marks those lines in the output and in the editor.
+function reasonOf(text) {
+  const found = text.match(/;\s+(\d+[a-z]?)(?:\s+(.*))?$/); if (!found) return null;
+  const [, id, rest = ''] = found;
+  const label = rest.match(/"([^"]+)"\s*$/)?.[1] || null;
+  const refs = [];
+  const by = rest.match(/(?:^|\s)by\s+(.*?)(?:\s+"[^"]*")?\s*$/);
+  if (by) {
+    const call = by[1].match(/^([^(\s]+)(?:\((.*)\))?/);
+    if (call) refs.push(call[1], ...(call[2] ? call[2].split(',').map(x => x.trim()) : []));
+  }
+  return { id, label, refs };
+}
+function linkReasons() {
+  const rows = [...output.querySelectorAll('.output-line')], byId = new Map(), byLabel = new Map(), info = [];
+  rows.forEach((row, i) => {
+    const reason = reasonOf(row.textContent);
+    // a reason on a line of its own (after a comment) belongs to the line above
+    const owner = reason && !row.textContent.split(';')[0].trim() && i > 0 ? i - 1 : i;
+    if (!reason) return;
+    info.push({ rows: owner === i ? [row] : [rows[owner], row], ...reason });
+    if (!byId.has(reason.id)) byId.set(reason.id, []);
+    byId.get(reason.id).push(rows[owner], row);
+    if (reason.label) byLabel.set(reason.label, reason.id);
+  });
+  const lineOf = id => Number(String(id).match(/^\d+/)?.[0]);
+  info.forEach(item => {
+    const ids = new Set(), lines = new Set();
+    for (const ref of item.refs) {
+      const range = ref.match(/^(\d+)-(\d+)$/);
+      if (range) { for (let n = Number(range[1]); n <= Number(range[2]); n++) { ids.add(String(n)); lines.add(n); } continue; }
+      const id = /^\d+[a-z]?$/.test(ref) ? ref : byLabel.get(ref);
+      if (id && id !== item.id) { ids.add(id); lines.add(lineOf(id)); }
+    }
+    if (!ids.size) return;
+    const show = on => {
+      output.querySelectorAll('.output-line.ref, .output-line.self').forEach(x => x.classList.remove('ref', 'self'));
+      refLines = new Set(); selfLines = new Set();
+      if (on) {
+        ids.forEach(id => (byId.get(id) || []).forEach(x => x.classList.add('ref')));
+        item.rows.forEach(x => x.classList.add('self'));
+        refLines = lines; selfLines = new Set([lineOf(item.id)]);
+      }
+      renderEditorHighlight();
+    };
+    item.rows.forEach(row => {
+      row.classList.add('has-refs');
+      row.title = row.title || `uses ${[...ids].map(id => `line ${id}`).join(', ')}`;
+      row.addEventListener('mouseenter', () => show(true));
+      row.addEventListener('mouseleave', () => show(false));
+      row.addEventListener('click', () => show(!row.classList.contains('self')));     // on a phone
+    });
   });
 }
 function goToLine(line) {

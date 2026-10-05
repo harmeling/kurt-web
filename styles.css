@@ -300,6 +300,11 @@ input[type="range"]::-moz-range-track {
 .output-line { display: block; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
 button.output-line { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 button.output-line:hover { background: rgba(51,145,255,.12); }
+.output-line.has-refs { cursor: help; }
+.output-line.self { background: rgba(51,145,255,.16); }
+.output-line.ref { background: rgba(255,196,0,.22); }
+.editor-highlight .ref-line { background: rgba(255,196,0,.22); display: inline-block; min-width: 100%; }
+.editor-highlight .self-line { background: rgba(51,145,255,.16); display: inline-block; min-width: 100%; }
 .diagnostic { text-decoration: underline dotted var(--accent-2); text-underline-offset: 3px; }
 @media (max-width: 600px) {
   .app-header { align-items: flex-start; gap: 8px; }

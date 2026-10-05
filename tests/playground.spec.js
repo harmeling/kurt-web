@@ -67,6 +67,20 @@ test('runs a lesson that loads a file next to it', async ({ page }) => {
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
 });
 
+test('marks the lines a step uses when hovering its line in the output', async ({ page }) => {
+  await page.locator('#editor').fill('bool A, B\nuse A implies B\nuse A\nB\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  const step = page.locator('#output .output-line', { hasText: 'by 2(3)' });
+  await step.hover();
+  await expect(step).toHaveClass(/self/);
+  await expect(page.locator('#output .output-line.ref')).toHaveCount(2);          // lines 2 and 3
+  await expect(page.locator('#editorHighlight .ref-line')).toHaveCount(2);
+  await expect(page.locator('#editorHighlight .self-line')).toHaveCount(1);       // line 4
+  await page.locator('#editor').hover();
+  await expect(page.locator('#output .output-line.ref')).toHaveCount(0);
+});
+
 test('opens and closes the help', async ({ page }) => {
   await page.locator('#helpBtn').click();
   const help = page.locator('#helpDialog');
