@@ -87,3 +87,17 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - 2026-10-05 14:46: Kurt 0.7.2 (`./update.sh`). The lessons: `proofs/tutorial/` is the new tutorial (made from the cookbook), `proofs/keywords/` the old one; menus in the order tutorial, keywords, examples, theories. A proof can `load` a file of its own folder now (e.g. lesson 12 its `12-my-theory.kurt`, keywords/17-local.kurt its helper): `app.js` fetches the files named by `load` lines that are no theory (also transitively) and the worker writes them next to `proof.kurt`. New Playwright test for it. Help text and README for the two menus.
 
 - 2026-10-05 14:54: hovering (or tapping) a line of the output marks the lines its step uses -- in the output (yellow, the line itself blue) and in the editor -- read from the reasons Kurt prints (`; 33 by equal-elim(33a, 32)`: line numbers, ranges `21-35`, labels of this proof). Help text, Playwright test.
+
+## 2026-10-05: the whole width, a divider, aligned panels, line numbers in the output
+
+- The layout fills the window (no `max-width`); between the editor and the output is a divider
+  (`#divider`) to drag (double-click: half and half; the share is kept in localStorage). Before the
+  first run the editor takes the whole width. Below 960px (one column) there is no divider.
+- The first line of the output is at the height of the first line of the editor (`alignPanels`: the
+  header of the output grows by the symbol bar), and the output reaches down as far as the editor.
+- The output has a gutter with the editor's line numbers (`numberOutputLines`): on the last row with
+  a line's number in its reason (earlier rows with that number are derived, e.g. `impl-intro` when a
+  block closes), and on rows without a number (`proof`, `qed`) by their first word; rows that are
+  extra (derived steps, split declarations, messages) have no number.
+- The header link (and the help's) points to https://github.com/harmeling/kurt-lang; kurt-lang.org
+  will point to this playground.

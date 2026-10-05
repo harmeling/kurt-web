@@ -51,12 +51,29 @@ body {
 
 .layout {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 12px;
+	/* the whole width of the window; editor | divider | output, the divider moves (app.js) */
+	grid-template-columns: minmax(0, var(--left, 1fr)) 12px minmax(0, var(--right, 1fr));
 	padding: 12px;
-	max-width: 1400px;
-	margin: 0 auto;
 }
+/* without output (yet), the editor takes the whole width */
+.layout:has(> .output-panel.hidden) { grid-template-columns: minmax(0, 1fr); }
+.layout:has(> .output-panel.hidden) > .divider { display: none; }
+.divider {
+	cursor: col-resize;
+	touch-action: none;
+	position: relative;
+}
+.divider::after {
+	content: '';
+	position: absolute;
+	top: 50%; left: 50%;
+	width: 4px; height: 48px;
+	transform: translate(-50%, -50%);
+	border-radius: 2px;
+	background: var(--border);
+}
+.divider:hover::after, .divider.dragging::after { background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
 
 .panel {
 	background: var(--panel);
@@ -195,7 +212,10 @@ textarea#editor {
 .output-panel { overflow: visible; position: relative; }
 .output {
 	margin: 0;
-	padding: 12px;
+	padding: 12px 12px 12px 0;
+	/* the line numbers of the editor, in a gutter like the editor's (app.js numberOutputLines) */
+	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
+	background: linear-gradient(to right, #0b101b var(--gutter), var(--border) var(--gutter) calc(var(--gutter) + 1px), #0e1320 0);
 	background: #0e1320;
 	height: clamp(160px, 60vh, 680px);
 	width: 100%;
@@ -206,6 +226,22 @@ textarea#editor {
 	font-family: var(--code-font-family);
 	font-size: var(--code-font-size);
 	line-height: 1.5;
+}
+.output-line::before {
+	content: attr(data-line);
+	display: inline-block;
+	position: sticky; left: 0;
+	width: calc(var(--gutter) + 1px);
+	padding-right: 8px;
+	margin-right: 10px;
+	text-align: right;
+	color: var(--muted);
+	background: linear-gradient(to right, #0b101b var(--gutter), var(--border) 0);
+	user-select: none;
+}
+/* two columns: the output reaches down as far as the editor (its first line is aligned by app.js) */
+@media (min-width: 961px) {
+	.output { flex: 1 1 auto; height: 0; min-height: 160px; }
 }
 .hidden { display: none; }
 
@@ -288,7 +324,8 @@ input[type="range"]::-moz-range-track {
 }
 
 @media (max-width: 960px) {
-	.layout { grid-template-columns: 1fr; }
+	.layout { grid-template-columns: 1fr; gap: 12px; }
+	.layout > .divider { display: none; }
 	.output { height: clamp(160px, 38vh, 520px); }
 	.toolbar { flex-wrap: wrap; row-gap: 8px; }
 }
@@ -297,8 +334,8 @@ input[type="range"]::-moz-range-track {
 .btn.danger { background: #792d39; border-color: #a84454; }
 .symbol-bar { display: flex; gap: 4px; padding: 6px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); background: #101522; }
 .symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: #1c2333; cursor: pointer; font-size: 16px; }
-.output-line { display: block; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
-button.output-line { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.output-line { display: block; width: max-content; min-width: 100%; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
+button.output-line { padding: 0; border: 0; background: transparent; cursor: pointer; }
 button.output-line:hover { background: rgba(51,145,255,.12); }
 .output-line.has-refs { cursor: help; }
 .output-line.self { background: rgba(51,145,255,.16); }

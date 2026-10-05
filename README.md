@@ -1,6 +1,6 @@
 # Kurt Playground (static site)
 
-A minimal, dark-mode playground for the [Kurt proof language](https://www.kurt-lang.org) that runs fully in the browser using Pyodide. Kurt is developed by Stefan Harmeling (TU Dortmund).
+A minimal, dark-mode playground for the [Kurt proof language](https://github.com/harmeling/kurt-lang) that runs fully in the browser using Pyodide. Kurt is developed by Stefan Harmeling (TU Dortmund).
 
 - Write a proof on the left, click Run (or press Cmd/Ctrl+Enter) to execute `kurt.py` client-side.
 - Output appears on the right (or below on small screens).

@@ -214,7 +214,42 @@ function showOutput(text) {
     if (pendingLine) { const target = pendingLine; row.title = `Go to line ${target}`; row.onclick = () => goToLine(target); if (!line.trim()) pendingLine = null; }
     output.append(row);
   });
-  linkReasons();
+  linkReasons(); numberOutputLines(); alignPanels();
+}
+// The line numbers of the editor, on the rows of the output that echo a line: the last row with the
+// number of a line in its reason (the rows before it with that number are derived, e.g. `impl-intro`
+// when a block closes), and rows without a number (`proof`, `qed`) by their first word, in order.
+function numberOutputLines() {
+  const rows = [...output.querySelectorAll('.output-line')], source = editor.value.split('\n');
+  const lines = rows.map(() => null), used = new Set(), lastRow = new Map();
+  rows.forEach((row, i) => {
+    const reason = reasonOf(row.textContent); if (!reason || !/^\d+$/.test(reason.id)) return;
+    const owner = !row.textContent.split(';')[0].trim() && i > 0 ? i - 1 : i, line = Number(reason.id);
+    if (line > source.length) return;
+    if (lastRow.has(line)) lines[lastRow.get(line)] = null;
+    lines[owner] = line; lastRow.set(line, owner);
+  });
+  lines.forEach(l => { if (l) used.add(l); });
+  const firstWord = text => text.trim().split(/\s+/)[0];
+  let previous = 0;
+  rows.forEach((row, i) => {
+    if (lines[i]) { previous = lines[i]; return; }
+    const word = firstWord(row.textContent.split(';')[0]); if (!word) return;
+    const next = lines.slice(i + 1).find(Boolean) || source.length + 1;
+    for (let line = previous + 1; line < next; line++) {
+      if (!used.has(line) && firstWord(source[line - 1]) === word) { lines[i] = line; used.add(line); previous = line; break; }
+    }
+  });
+  rows.forEach((row, i) => { if (lines[i]) row.dataset.line = lines[i]; });
+  output.style.setProperty('--line-digits', String(Math.max(2, String(Math.max(0, ...lines)).length)));
+}
+// Two columns: the first line of the output at the height of the first line of the editor (the
+// header of the output grows by the height of the symbol bar).
+function alignPanels() {
+  const header = outputPanel.querySelector('.panel-header'); header.style.minHeight = '';
+  if (outputPanel.classList.contains('hidden') || window.innerWidth <= 960) return;
+  const gap = $('#editorWrap').getBoundingClientRect().top - output.getBoundingClientRect().top;
+  if (gap > 0) header.style.minHeight = `${header.getBoundingClientRect().height + gap}px`;
 }
 // Each line of the output ends with its reason, e.g. `; 33 by equal-elim(33a, 32)`: its own line
 // (33) and the lines its step uses (33a, 32; also ranges `21-35`, and labels of this proof, `K7`).
@@ -326,7 +361,41 @@ async function createMenu(label, path) {
   wrapper.append(button, menu); examplesContainer.append(wrapper);
 }
 
+// the divider between the editor and the output (two columns only): drag it, double-click for half
+// and half; the share of the editor is remembered
+const SPLIT_KEY = 'kurt-playground-split';
+function setSplit(share) {
+  const layout = $('.layout');
+  if (share === null) { layout.style.removeProperty('--left'); layout.style.removeProperty('--right'); return; }
+  share = Math.min(0.85, Math.max(0.15, share));
+  layout.style.setProperty('--left', `${share}fr`); layout.style.setProperty('--right', `${1 - share}fr`);
+}
+function setupDivider() {
+  const divider = $('#divider'), layout = $('.layout');
+  try { const saved = Number(localStorage.getItem(SPLIT_KEY)); if (saved) setSplit(saved); } catch {}
+  divider.addEventListener('pointerdown', event => {
+    event.preventDefault(); divider.setPointerCapture(event.pointerId);
+    divider.classList.add('dragging'); document.body.classList.add('resizing');
+  });
+  divider.addEventListener('pointermove', event => {
+    if (!divider.classList.contains('dragging')) return;
+    const box = layout.getBoundingClientRect(), padding = 12;
+    const share = (event.clientX - box.left - padding) / (box.width - 2 * padding - divider.offsetWidth);
+    setSplit(share);
+  });
+  const stop = () => {
+    if (!divider.classList.contains('dragging')) return;
+    divider.classList.remove('dragging'); document.body.classList.remove('resizing');
+    const left = parseFloat(layout.style.getPropertyValue('--left'));
+    try { if (left) localStorage.setItem(SPLIT_KEY, String(left)); } catch {}
+  };
+  divider.addEventListener('pointerup', stop); divider.addEventListener('pointercancel', stop);
+  divider.addEventListener('dblclick', () => { setSplit(null); try { localStorage.removeItem(SPLIT_KEY); } catch {} });
+}
 function setupUI() {
+  setupDivider();
+  window.addEventListener('resize', alignPanels);
+  new ResizeObserver(alignPanels).observe($('.editor-panel'));
   loadInitialDraft(); const saved = settings(); updateSettings(saved);
   editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); }); editor.addEventListener('scroll', syncScroll);
   editor.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); } });

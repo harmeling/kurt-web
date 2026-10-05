@@ -102,7 +102,7 @@ test('has upload, download and the link in the File menu', async ({ page }) => {
   await page.locator('#saveBtn').click();
   expect((await download).suggestedFilename()).toMatch(/\.kurt$/);
   await expect(page.locator('#fileMenu')).toBeHidden();
-  await expect(page.locator('.app-header a', { hasText: 'kurt-lang.org' })).toHaveAttribute('href', 'https://www.kurt-lang.org');
+  await expect(page.locator('.app-header a', { hasText: 'github.com/harmeling/kurt-lang' })).toHaveAttribute('href', 'https://github.com/harmeling/kurt-lang');
 });
 
 test('has copy, download and the certificate in the File menu of the output', async ({ page }) => {
@@ -161,4 +161,35 @@ test('shows line numbers that scroll with the editor', async ({ page }) => {
   await expect(page.locator('#lineNumbers')).toContainText('200');
   await page.locator('#editor').evaluate(e => { e.scrollTop = 600; e.dispatchEvent(new Event('scroll')); });
   await expect.poll(() => page.locator('#lineNumbers').evaluate(g => g.scrollTop)).toBeGreaterThan(0);
+});
+
+test('fills the window, aligns the first lines, and moves the divider', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect(page.locator('#divider')).toBeHidden();                            // no output yet
+  await page.locator('#editor').fill('bool A\nuse A\nA\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  const box = async sel => page.locator(sel).boundingBox();
+  const [editor, output, divider] = [await box('#editorWrap'), await box('#output'), await box('#divider')];
+  expect(editor.x).toBeLessThan(20); expect(output.x + output.width).toBeGreaterThan(1580);
+  expect(Math.abs(editor.y - output.y)).toBeLessThan(1.5);                        // the first lines
+  expect(Math.abs(editor.y + editor.height - output.y - output.height)).toBeLessThan(1.5);
+  await page.mouse.move(divider.x + divider.width / 2, divider.y + divider.height / 2);
+  await page.mouse.down(); await page.mouse.move(500, divider.y + divider.height / 2, { steps: 5 }); await page.mouse.up();
+  expect((await box('#editorWrap')).width).toBeLessThan(editor.width - 200);
+  await page.reload(); await expect(page.locator('#status')).toHaveText('Ready', { timeout: 60000 });
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  expect((await box('#editorWrap')).width).toBeLessThan(editor.width - 200);     // remembered
+  await page.locator('#divider').dblclick();
+  expect(Math.abs((await box('#editorWrap')).width - editor.width)).toBeLessThan(2);
+});
+
+test('numbers the lines of the output that echo a line of the editor', async ({ page }) => {
+  await page.locator('#editor').fill('; a lemma\nbool A, B\nshow A implies A\nproof\n  assume A\n    A\nqed\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  const numbered = page.locator('#output .output-line[data-line]');
+  const lines = await numbered.evaluateAll(rows => rows.map(r => [r.dataset.line, r.textContent.split(';')[0].trim()]));
+  expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
 });
