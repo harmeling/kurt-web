@@ -161,8 +161,25 @@ test('shows line numbers that scroll with the editor', async ({ page }) => {
   const many = Array.from({ length: 200 }, (_, i) => `; line ${i + 1}`).join('\n');
   await page.locator('#editor').fill(many);
   await expect(page.locator('#lineNumbers')).toContainText('200');
-  await page.locator('#editor').evaluate(e => { e.scrollTop = 600; e.dispatchEvent(new Event('scroll')); });
-  await expect.poll(() => page.locator('#lineNumbers').evaluate(g => g.scrollTop)).toBeGreaterThan(0);
+  // the editor's text, its highlighted copy and the numbers scroll together, in one container
+  await page.locator('#editorWrap').evaluate(w => { w.scrollTop = w.scrollHeight; });
+  const y = async sel => (await page.locator(sel).boundingBox()).y;
+  expect(await y('#editor')).toBeLessThan(await y('#editorWrap') - 600);
+  expect(await y('#editorHighlight')).toBe(await y('#editor'));
+  expect(await y('#lineNumbers')).toBe(await y('#editor'));
+  expect(await page.locator('#editor').evaluate(e => e.scrollTop)).toBe(0);
+  // typing at the end: the textarea doesn't scroll on its own, the container shows the caret
+  const scrolled = () => page.locator('#editorWrap').evaluate(w => [w.scrollTop, w.scrollLeft]);
+  const before = await scrolled();
+  await page.locator('#editor').focus();
+  await page.keyboard.press('Control+End');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Enter');
+  await page.keyboard.type('; the end, a long line ' + 'x'.repeat(200));
+  expect(await page.locator('#editor').evaluate(e => [e.scrollTop, e.scrollLeft])).toEqual([0, 0]);
+  const [wrap, highlight, editor] = [await page.locator('#editorWrap').boundingBox(), await page.locator('#editorHighlight').boundingBox(), await page.locator('#editor').boundingBox()];
+  expect(highlight.y).toBe(editor.y); expect(highlight.x).toBe(editor.x);
+  const after = await scrolled();
+  expect(after[0]).toBeGreaterThan(before[0]); expect(after[1]).toBeGreaterThan(before[1]);   // to the caret
 });
 
 test('fills the window, aligns the first lines, and moves the divider', async ({ page }) => {

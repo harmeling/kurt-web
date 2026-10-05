@@ -167,74 +167,68 @@ body.resizing { cursor: col-resize; user-select: none; }
 .panel-header .actions { display: inline-flex; gap: 8px; }
 .spacer { flex: 1; }
 
-textarea#editor {
-	width: 100%;
-	height: clamp(280px, 60vh, 680px);
-	resize: none; /* hide handle to avoid fake-resizable UI */
-	background: var(--code-bg);
-	color: var(--text);
-	border: 0;
-	outline: none;
-	padding: 12px;
-	font-family: var(--code-font-family);
-	font-size: var(--code-font-size);
-	overflow: auto;            /* scrolling container */
-	white-space: pre;          /* preserve long lines; no soft wrap */
-}
-
+/* The editor: the line numbers, the highlighted text, and the textarea on top of it (its text
+   transparent) are in one scroll container, `.editor-wrap`. The textarea is as large as its text
+   and never scrolls itself, so the three can't drift apart while scrolling (with a scroll event
+   they lagged a frame, and at the end the textarea could scroll further than the copy). */
 .editor-wrap {
+	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
 	position: relative;
+	height: clamp(280px, 60vh, 680px);
+	overflow: auto;
 	border-radius: 12px;
-	overflow: hidden;          /* clip overlay and textarea to rounded corners */
-	background: var(--code-bg);       /* unify background for overlay/textarea */
+	background: var(--code-bg);
 }
+.editor-stack {
+	display: grid;
+	grid-template-columns: var(--gutter) auto;
+	width: max-content;
+	min-width: 100%;
+	min-height: 100%;
+}
+.editor-code { display: grid; }
+.line-numbers,
 .editor-highlight,
 textarea#editor {
+	margin: 0;
 	font-family: var(--code-font-family);
 	font-size: var(--code-font-size);
 	line-height: 1.5;
 	tab-size: 2;
 	white-space: pre;
-	word-break: break-word;
+}
+.editor-highlight,
+textarea#editor {
+	grid-area: 1 / 1;
+	padding: 12px 12px 12px 10px;
 }
 .editor-highlight {
-	position: absolute;
-	inset: 0;
+	padding-right: 36px;       /* wider than the textarea's text, so the textarea never scrolls */
+	color: var(--text);
 	pointer-events: none;
-	padding: 12px;
-	color: var(--text); /* default visible for non-token text */
-	margin: 0; /* avoid default <pre> margins causing vertical offset */
-	overflow: hidden;          /* overlay itself never scrolls */
 }
-/* line numbers: a gutter on the left, scrolled along with the editor (app.js) */
-.editor-wrap { --line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px); }
+textarea#editor {
+	width: 100%;
+	height: 100%;
+	min-height: 100%;
+	resize: none;
+	border: 0;
+	outline: none;
+	overflow: hidden;
+	background: transparent;
+	color: transparent;        /* the highlighted copy below shows the text */
+	caret-color: var(--text);
+}
 .line-numbers {
-	position: absolute;
-	top: 0; bottom: 0; left: 0;
-	width: var(--gutter);
-	margin: 0;
+	position: sticky; left: 0;
+	z-index: 1;
 	padding: 12px 8px 12px 0;
-	box-sizing: border-box;
 	text-align: right;
-	font-family: var(--code-font-family);
-	font-size: var(--code-font-size);
-	line-height: 1.5;
-	white-space: pre;
 	color: var(--muted);
 	background: var(--gutter-bg);
 	border-right: 1px solid var(--border);
-	overflow: hidden;
 	pointer-events: none;
 	user-select: none;
-	z-index: 1;
-}
-.editor-wrap .editor-highlight,
-.editor-wrap textarea#editor { padding-left: calc(var(--gutter) + 10px); }
-.editor-wrap textarea#editor {
-	position: relative;
-	background: transparent;
-	color: transparent;           /* hide raw text to avoid double rendering */
-	caret-color: var(--text);     /* keep caret visible */
 }
 .tok-comment { color: var(--tok-comment); }
 .tok-string { color: var(--tok-string); }
@@ -423,7 +417,7 @@ button.output-line:hover { background: var(--row-hover); }
   .brand { flex-wrap: wrap; }
   .toolbar { padding: 8px; }
   .symbol-bar { position: sticky; top: 0; z-index: 5; }
-  textarea#editor { height: 48vh; }
+  .editor-wrap { height: 48vh; }
   .panel-header { align-items: flex-start; gap: 8px; }
   .panel-header .actions { flex-wrap: wrap; justify-content: flex-end; }
 }

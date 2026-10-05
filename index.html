@@ -58,9 +58,13 @@
         <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
       </div>
       <div class="editor-wrap" id="editorWrap">
-        <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
-        <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
-        <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor" wrap="off"></textarea>
+        <div class="editor-stack">
+          <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
+          <div class="editor-code">
+            <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
+            <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor" wrap="off"></textarea>
+          </div>
+        </div>
       </div>
       <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
     </section>

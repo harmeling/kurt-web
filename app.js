@@ -194,23 +194,22 @@ function colorCode(text) {
 // the lines of the proof that the reason of the hovered output line refers to (and its own)
 let refLines = new Set(), selfLines = new Set();
 function renderEditorHighlight() {
+  const last = editor.value.split('\n').length - 1;
   editorHighlight.innerHTML = editor.value.split('\n').map((line, i) => {
     const html = highlightLine(line);
     if (refLines.has(i + 1)) return `<span class="ref-line">${html || ' '}</span>`;
     if (selfLines.has(i + 1)) return `<span class="self-line">${html || ' '}</span>`;
-    return html;
+    return html || (i === last ? ' ' : '');     // an empty last line takes its room, as in the textarea
   }).join('\n') || '&nbsp;';
   // line numbers (the editor doesn't wrap lines, so a line of text is a row), as wide as needed
   const count = editor.value.split('\n').length;
   lineNumbers.innerHTML = Array.from({ length: count }, (_, i) => i + 1).map(n =>
     selfLines.has(n) ? `<span class="self-num">${n}</span>` : refLines.has(n) ? `<span class="ref-num">${n}</span>` : n).join('\n');
   $('#editorWrap').style.setProperty('--line-digits', String(Math.max(2, String(count).length)));
-  syncScroll();
 }
-function syncScroll() {
-  editorHighlight.scrollTop = editor.scrollTop; editorHighlight.scrollLeft = editor.scrollLeft;
-  lineNumbers.scrollTop = editor.scrollTop;
-}
+// the textarea is as large as its text and doesn't scroll (`.editor-wrap` does); should it ever
+// scroll a little, it goes back, so that it stays on its highlighted copy
+function keepEditorUnscrolled() { if (editor.scrollTop || editor.scrollLeft) { editor.scrollTop = 0; editor.scrollLeft = 0; } }
 function showOutput(text) {
   lastOutputText = String(text || '');
   outputPanel.classList.remove('hidden'); output.innerHTML = '';
@@ -323,7 +322,7 @@ function linkReasons() {
 }
 function goToLine(line) {
   const starts = [0]; for (let i = 0; i < editor.value.length; i++) if (editor.value[i] === '\n') starts.push(i + 1);
-  const position = starts[Math.max(0, Math.min(line - 1, starts.length - 1))]; editor.focus(); editor.setSelectionRange(position, position); editor.scrollTop = Math.max(0, (line - 3) * parseFloat(getComputedStyle(editor).lineHeight));
+  const position = starts[Math.max(0, Math.min(line - 1, starts.length - 1))]; editor.focus(); editor.setSelectionRange(position, position); $('#editorWrap').scrollTop = Math.max(0, (line - 3) * parseFloat(getComputedStyle(editor).lineHeight));
 }
 
 function buildSymbolBar() {
@@ -426,7 +425,7 @@ function setupUI() {
   window.addEventListener('resize', alignPanels);
   new ResizeObserver(alignPanels).observe($('.editor-panel'));
   loadInitialDraft(); const saved = settings(); updateSettings(saved);
-  editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); }); editor.addEventListener('scroll', syncScroll);
+  editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); }); editor.addEventListener('scroll', keepEditorUnscrolled);
   editor.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); } });
   runBtn.onclick = runProof; cancelBtn.onclick = cancelRun; $('#shareBtn').onclick = shareProof;
   $('#copyBtn').onclick = async () => { await navigator.clipboard.writeText(lastOutputText); setStatus('Output copied'); };

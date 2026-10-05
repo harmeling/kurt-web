@@ -124,3 +124,10 @@ Operational log for agent-session setup and activity on the `agent` branch.
   checks that the variables are defined and the backgrounds not transparent.
 - Loading another file (a menu, Upload, a shared link) clears the output and the certificate of
   the old one (`clearOutput`, also the Clear button). New Playwright test.
+- Fix: a selection in the editor shifted against the text when scrolling to the end, and lagged
+  while scrolling (the highlighted copy followed the textarea's scroll event, a frame late, and
+  couldn't scroll as far). Now the line numbers, the copy and the textarea are in one scroll
+  container (`.editor-wrap` > `.editor-stack`, a grid; the numbers sticky on the left); the
+  textarea is as large as its text and doesn't scroll itself. Test: after scrolling and typing at
+  the end, the textarea hasn't scrolled, the copy is where it is, and the container followed the
+  caret.
