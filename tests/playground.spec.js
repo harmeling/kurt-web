@@ -74,6 +74,10 @@ test('marks the lines a step uses when hovering its line in the output', async (
   const step = page.locator('#output .output-line', { hasText: 'by 2(3)' });
   await step.hover();
   await expect(step).toHaveClass(/self/);
+  // the mark starts after the gutter (as in the editor), the number's box is the gutter's color
+  expect(await step.evaluate(r => getComputedStyle(r).backgroundImage)).toContain('linear-gradient');
+  expect(await step.evaluate(r => getComputedStyle(r, '::before').backgroundColor))
+    .toBe(await page.locator('#lineNumbers').evaluate(g => getComputedStyle(g).backgroundColor));
   await expect(page.locator('#output .output-line.ref')).toHaveCount(2);          // lines 2 and 3
   await expect(page.locator('#editorHighlight .ref-line')).toHaveCount(2);
   await expect(page.locator('#editorHighlight .self-line')).toHaveCount(1);       // line 4

@@ -293,12 +293,12 @@ textarea#editor {
 	content: attr(data-line);
 	display: inline-block;
 	position: sticky; left: 0;
-	width: calc(var(--gutter) + 1px);
+	width: var(--gutter);
 	padding-right: 8px;
-	margin-right: 10px;
+	margin-right: 11px;        /* the line of the output's background, then the gap before the text */
 	text-align: right;
 	color: var(--muted);
-	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0);
+	background: var(--gutter-bg);
 	user-select: none;
 }
 /* two columns: the output reaches down as far as the editor (its first line is aligned by app.js) */
@@ -399,10 +399,10 @@ input[type="range"]::-moz-range-track {
 .symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--btn-bg); cursor: pointer; font-size: 16px; }
 .output-line { display: block; width: max-content; min-width: 100%; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
 button.output-line { padding: 0; border: 0; background: transparent; cursor: pointer; }
-button.output-line:hover { background: var(--row-hover); }
+button.output-line:hover { background: linear-gradient(to right, transparent calc(var(--gutter) + 11px), var(--row-hover) 0); }
 .output-line.has-refs { cursor: crosshair; }
-.output-line.self { background: var(--mark-self); }
-.output-line.ref { background: var(--mark-ref); }
+.output-line.self { background: linear-gradient(to right, transparent calc(var(--gutter) + 11px), var(--mark-self) 0); }
+.output-line.ref { background: linear-gradient(to right, transparent calc(var(--gutter) + 11px), var(--mark-ref) 0); }
 .editor-highlight .self-line { background: var(--mark-self); display: inline-block; min-width: 100%; }
 .editor-highlight .ref-line { background: var(--mark-ref); display: inline-block; min-width: 100%; }
 /* the numbers of these lines, in the editor and in the output */
@@ -444,7 +444,7 @@ button.output-line:hover { background: var(--row-hover); }
 .help-body ul { padding-left: 20px; }
 .help-body code { background: var(--menu-hover); padding: 1px 4px; border-radius: 4px; }
 .help-body a { color: var(--accent-2); }
-.output-line.self::before { background: linear-gradient(var(--mark-self), var(--mark-self)), linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0); }
-.output-line.ref::before { background: linear-gradient(var(--mark-ref), var(--mark-ref)), linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0); }
+.output-line.self::before { background: linear-gradient(var(--mark-self), var(--mark-self)), var(--gutter-bg); }
+.output-line.ref::before { background: linear-gradient(var(--mark-ref), var(--mark-ref)), var(--gutter-bg); }
 .theme-btn { margin-left: 8px; }
 .header-right { display: flex; align-items: center; }

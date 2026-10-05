@@ -131,3 +131,6 @@ Operational log for agent-session setup and activity on the `agent` branch.
   textarea is as large as its text and doesn't scroll itself. Test: after scrolling and typing at
   the end, the textarea hasn't scrolled, the copy is where it is, and the container followed the
   caret.
+- The gutter of the output like the editor's: the number's box has the gutter's color only (the
+  dividing line comes from the output's background), and a hovered or marked row is colored from
+  after the gutter and the gap on, not behind the number.
