@@ -195,7 +195,8 @@ function renderEditorHighlight() {
   }).join('\n') || '&nbsp;';
   // line numbers (the editor doesn't wrap lines, so a line of text is a row), as wide as needed
   const count = editor.value.split('\n').length;
-  lineNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+  lineNumbers.innerHTML = Array.from({ length: count }, (_, i) => i + 1).map(n =>
+    selfLines.has(n) ? `<span class="self-num">${n}</span>` : refLines.has(n) ? `<span class="ref-num">${n}</span>` : n).join('\n');
   $('#editorWrap').style.setProperty('--line-digits', String(Math.max(2, String(count).length)));
   syncScroll();
 }
@@ -244,7 +245,7 @@ function numberOutputLines() {
   output.style.setProperty('--line-digits', String(Math.max(2, String(Math.max(0, ...lines)).length)));
 }
 // Two columns: the first line of the output at the height of the first line of the editor (the
-// header of the output grows by the height of the symbol bar).
+// header of the output grows by what the toolbar of the editor is higher).
 function alignPanels() {
   const header = outputPanel.querySelector('.panel-header'); header.style.minHeight = '';
   if (outputPanel.classList.contains('hidden') || window.innerWidth <= 960) return;
@@ -392,7 +393,22 @@ function setupDivider() {
   divider.addEventListener('pointerup', stop); divider.addEventListener('pointercancel', stop);
   divider.addEventListener('dblclick', () => { setSplit(null); try { localStorage.removeItem(SPLIT_KEY); } catch {} });
 }
+// the light and the dark theme (index.html sets it before the page is drawn); the button names the other
+const THEME_KEY = 'kurt-playground-theme';
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  $('#themeBtn').textContent = theme === 'light' ? 'Dark' : 'Light';
+  $('meta[name="theme-color"]').setAttribute('content', theme === 'light' ? '#ffffff' : '#121521');
+}
+function setupTheme() {
+  setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+  $('#themeBtn').addEventListener('click', () => {
+    const theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    setTheme(theme); try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  });
+}
 function setupUI() {
+  setupTheme();
   setupDivider();
   window.addEventListener('resize', alignPanels);
   new ResizeObserver(alignPanels).observe($('.editor-panel'));

@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#121521">
+  <script>
+    // the light or the dark theme (the button in the header), before the page is drawn
+    try {
+      const theme = localStorage.getItem('kurt-playground-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+    } catch {}
+  </script>
   <meta name="description" content="Run and share checked Kurt proofs directly in your browser.">
   <title>Kurt Playground</title>
   <link rel="stylesheet" href="styles.css">
@@ -14,7 +21,7 @@
 <body>
   <header class="app-header">
     <div class="brand"><span class="logo">K</span><span class="title">Kurt Playground</span><span id="version" class="version">Kurt loading…</span><a class="link header-link" href="https://github.com/harmeling/kurt-lang" target="_blank" rel="noreferrer noopener">github.com/harmeling/kurt-lang</a></div>
-    <div id="status" class="status" role="status">Loading runtime…</div>
+    <div class="header-right"><div id="status" class="status" role="status">Loading runtime…</div><button id="themeBtn" class="btn small theme-btn" aria-label="Switch between the light and the dark theme">Light</button></div>
   </header>
   <main class="layout">
     <section class="panel editor-panel">
@@ -50,12 +57,12 @@
         </div>
         <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
       </div>
-      <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
       <div class="editor-wrap" id="editorWrap">
         <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
         <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
         <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor" wrap="off"></textarea>
       </div>
+      <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
     </section>
     <div id="divider" class="divider" role="separator" aria-orientation="vertical" aria-label="Drag to resize the editor and the output" title="Drag to resize; double-click for half and half"></div>
     <section class="panel output-panel hidden" id="outputPanel" aria-live="polite">
@@ -112,6 +119,9 @@
         <code>kurt</code> command line), or copy a link to this proof: the link contains the proof itself.</li>
         <li><strong>View</strong>: the text size, and the column where the reasons start in the output (changing
         it checks the proof again, so you see it right away).</li>
+        <li><strong>Light</strong> / <strong>Dark</strong>, at the top right: the light or the dark theme.</li>
+        <li>The symbols below the editor insert themselves at the cursor. The bar between the editor and the
+        output moves (double-click: half and half).</li>
         <li><strong>File</strong>, above the output: copy the output, download it, or download the proof's
         certificate (<code>.kurtc</code>, after a successful check): for each line, the rule, the facts and the
         values that Kurt's kernel checked. Put it next to the same <code>proof.kurt</code>, and the command-line

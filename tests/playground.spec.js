@@ -77,6 +77,8 @@ test('marks the lines a step uses when hovering its line in the output', async (
   await expect(page.locator('#output .output-line.ref')).toHaveCount(2);          // lines 2 and 3
   await expect(page.locator('#editorHighlight .ref-line')).toHaveCount(2);
   await expect(page.locator('#editorHighlight .self-line')).toHaveCount(1);       // line 4
+  await expect(page.locator('#lineNumbers .ref-num')).toHaveText(['2', '3']);     // their numbers
+  await expect(page.locator('#lineNumbers .self-num')).toHaveText('4');
   await page.locator('#editor').hover();
   await expect(page.locator('#output .output-line.ref')).toHaveCount(0);
 });
@@ -173,7 +175,8 @@ test('fills the window, aligns the first lines, and moves the divider', async ({
   const [editor, output, divider] = [await box('#editorWrap'), await box('#output'), await box('#divider')];
   expect(editor.x).toBeLessThan(20); expect(output.x + output.width).toBeGreaterThan(1580);
   expect(Math.abs(editor.y - output.y)).toBeLessThan(1.5);                        // the first lines
-  expect(Math.abs(editor.y + editor.height - output.y - output.height)).toBeLessThan(1.5);
+  const [left, right] = [await box('.editor-panel'), await box('#outputPanel')];
+  expect(Math.abs(left.y + left.height - right.y - right.height)).toBeLessThan(1.5); // the bottoms
   await page.mouse.move(divider.x + divider.width / 2, divider.y + divider.height / 2);
   await page.mouse.down(); await page.mouse.move(500, divider.y + divider.height / 2, { steps: 5 }); await page.mouse.up();
   expect((await box('#editorWrap')).width).toBeLessThan(editor.width - 200);
@@ -192,4 +195,21 @@ test('numbers the lines of the output that echo a line of the editor', async ({ 
   const numbered = page.locator('#output .output-line[data-line]');
   const lines = await numbered.evaluateAll(rows => rows.map(r => [r.dataset.line, r.textContent.split(';')[0].trim()]));
   expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
+});
+
+test('switches between the dark and the light theme, and remembers it', async ({ page }) => {
+  const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+  const background = () => page.locator('.editor-wrap').evaluate(e => getComputedStyle(e).backgroundColor);
+  const first = await theme(), before = await background();
+  await page.locator('#themeBtn').click();
+  expect(await theme()).not.toBe(first);
+  expect(await background()).not.toBe(before);
+  await page.reload();
+  expect(await theme()).not.toBe(first);
+  await expect(page.locator('#themeBtn')).toHaveText(first === 'dark' ? 'Dark' : 'Light');
+});
+
+test('has the symbols below the editor', async ({ page }) => {
+  const bar = await page.locator('#symbolBar').boundingBox(), editor = await page.locator('#editorWrap').boundingBox();
+  expect(bar.y).toBeGreaterThanOrEqual(editor.y + editor.height - 1);
 });

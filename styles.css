@@ -1,7 +1,9 @@
 :root {
 	color-scheme: dark;
 	--bg: #0b0d12;
+	--bg-2: #0c0f17;
 	--bg-elev: #121521;
+	--header-bg: rgba(18, 21, 33, 0.8);
 	--panel: #151a28;
 	--border: #242b3a;
 	--text: #e6eefc;
@@ -12,15 +14,82 @@
 	--warn: #ffcc66;
 	--err: #ff6b6b;
 	--shadow: 0 8px 24px rgba(0,0,0,0.4);
+	--code-bg: var(--code-bg);
+	--gutter-bg: var(--gutter-bg);
+	--bar-bg: var(--bar-bg);
+	--btn-bg: #1c2333;
+	--btn-hover: #232c41;
+	--menu-hover: #151a28;
+	--track: #243049;
+	--thumb: #8fb5ff;
+	--thumb-border: #4976c6;
+	--danger-bg: #792d39;
+	--danger-border: #a84454;
+	--tok-comment: #6b86b3;
+	--tok-string: #9ae6b4;
+	--tok-kw1: #79a8ff;
+	--tok-kw2: #9d87ff;
+	--tok-kw3: #ffb86b;
+	--tok-variable: #f1a7dc;
+	--tok-number: #ffb86b;
+	--tok-todo: #ffd166;
+	/* hovering a line of the output: the line itself (yellow) and the lines its step uses (blue) */
+	--mark-self: rgba(255, 196, 0, 0.22);
+	--mark-self-num: #ffd166;
+	--mark-ref: rgba(51, 145, 255, 0.18);
+	--mark-ref-num: #78b3ff;
+	--row-hover: rgba(51, 145, 255, 0.12);
 	--code-font-size: 15px;
 	--code-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg: #f4f6fb;
+	--bg-2: #eef1f7;
+	--bg-elev: #ffffff;
+	--header-bg: rgba(255, 255, 255, 0.85);
+	--panel: #ffffff;
+	--border: #d5dbe7;
+	--text: #1b2333;
+	--muted: #5b6b87;
+	--accent: #1f6fe0;
+	--accent-2: #1d5fc4;
+	--ok: #0f8a55;
+	--warn: #a77800;
+	--err: #d23c3c;
+	--shadow: 0 6px 18px rgba(30, 40, 70, 0.12);
+	--code-bg: #fbfcfe;
+	--gutter-bg: #eef1f6;
+	--bar-bg: #f3f5fa;
+	--btn-bg: #eef1f6;
+	--btn-hover: #e2e7f0;
+	--menu-hover: #e9eef7;
+	--track: #d5dbe7;
+	--thumb: #1f6fe0;
+	--thumb-border: #1d5fc4;
+	--danger-bg: #f6d5da;
+	--danger-border: #d27a87;
+	--tok-comment: #6a7a96;
+	--tok-string: #1c7d47;
+	--tok-kw1: #1f5fd0;
+	--tok-kw2: #6b4fd8;
+	--tok-kw3: #b85f00;
+	--tok-variable: #b0369a;
+	--tok-number: #b85f00;
+	--tok-todo: #a77800;
+	--mark-self: rgba(255, 190, 0, 0.32);
+	--mark-self-num: #8a5f00;
+	--mark-ref: rgba(31, 111, 224, 0.15);
+	--mark-ref-num: #1d5fc4;
+	--row-hover: rgba(31, 111, 224, 0.08);
 }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
 	margin: 0;
-	background: linear-gradient(180deg, var(--bg) 0%, #0c0f17 100%);
+	background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
 	color: var(--text);
 	font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
 		Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -34,7 +103,7 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	padding: 12px 16px;
-	background: rgba(18, 21, 33, 0.8);
+	background: var(--header-bg);
 	border-bottom: 1px solid var(--border);
 	backdrop-filter: blur(8px);
 }
@@ -102,7 +171,7 @@ textarea#editor {
 	width: 100%;
 	height: clamp(280px, 60vh, 680px);
 	resize: none; /* hide handle to avoid fake-resizable UI */
-	background: #0e1320;
+	background: var(--code-bg);
 	color: var(--text);
 	border: 0;
 	outline: none;
@@ -117,7 +186,7 @@ textarea#editor {
 	position: relative;
 	border-radius: 12px;
 	overflow: hidden;          /* clip overlay and textarea to rounded corners */
-	background: #0e1320;       /* unify background for overlay/textarea */
+	background: var(--code-bg);       /* unify background for overlay/textarea */
 }
 .editor-highlight,
 textarea#editor {
@@ -152,7 +221,7 @@ textarea#editor {
 	line-height: 1.5;
 	white-space: pre;
 	color: var(--muted);
-	background: #0b101b;
+	background: var(--gutter-bg);
 	border-right: 1px solid var(--border);
 	overflow: hidden;
 	pointer-events: none;
@@ -167,15 +236,15 @@ textarea#editor {
 	color: transparent;           /* hide raw text to avoid double rendering */
 	caret-color: var(--text);     /* keep caret visible */
 }
-.tok-comment { color: #6b86b3; }
-.tok-string { color: #9ae6b4; }
-.tok-kw1 { color: #79a8ff; font-weight: 600; }
-.tok-kw2 { color: #9d87ff; font-weight: 600; }
-.tok-kw3 { color: #ffb86b; font-weight: 600; }
+.tok-comment { color: var(--tok-comment); }
+.tok-string { color: var(--tok-string); }
+.tok-kw1 { color: var(--tok-kw1); font-weight: 600; }
+.tok-kw2 { color: var(--tok-kw2); font-weight: 600; }
+.tok-kw3 { color: var(--tok-kw3); font-weight: 600; }
 .tok-ident { color: var(--text); }
-.tok-variable { color: #f1a7dc; }
-.tok-number { color: #ffb86b; }
-.tok-todo { color: #ffd166; text-decoration: underline; }
+.tok-variable { color: var(--tok-variable); }
+.tok-number { color: var(--tok-number); }
+.tok-todo { color: var(--tok-todo); text-decoration: underline; }
 .tok-ok { color: var(--ok); font-weight: 600; }
 .tok-err { color: var(--err); font-weight: 600; }
 
@@ -188,7 +257,7 @@ textarea#editor {
 	top: calc(100% + 6px);
 	left: 0;
 	min-width: 220px;
-	background: #0e1320;
+	background: var(--code-bg);
 	border: 1px solid var(--border);
 	border-radius: 10px;
 	box-shadow: var(--shadow);
@@ -207,7 +276,7 @@ textarea#editor {
 	padding: 8px 12px; cursor: pointer;
 	font-size: 13px;
 }
-.dropdown-menu .item:hover { background: #151a28; }
+.dropdown-menu .item:hover { background: var(--menu-hover); }
 
 .output-panel { overflow: visible; position: relative; }
 .output {
@@ -215,8 +284,8 @@ textarea#editor {
 	padding: 12px 12px 12px 0;
 	/* the line numbers of the editor, in a gutter like the editor's (app.js numberOutputLines) */
 	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
-	background: linear-gradient(to right, #0b101b var(--gutter), var(--border) var(--gutter) calc(var(--gutter) + 1px), #0e1320 0);
-	background: #0e1320;
+	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) var(--gutter) calc(var(--gutter) + 1px), var(--code-bg) 0);
+	background: var(--code-bg);
 	height: clamp(160px, 60vh, 680px);
 	width: 100%;
 	max-width: 100%;
@@ -236,7 +305,7 @@ textarea#editor {
 	margin-right: 10px;
 	text-align: right;
 	color: var(--muted);
-	background: linear-gradient(to right, #0b101b var(--gutter), var(--border) 0);
+	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0);
 	user-select: none;
 }
 /* two columns: the output reaches down as far as the editor (its first line is aligned by app.js) */
@@ -250,7 +319,7 @@ input[type="range"] {
 	-webkit-appearance: none;
 	appearance: none;
 	height: 6px;
-	background: #243049;
+	background: var(--track);
 	border-radius: 4px;
 	outline: none;
 }
@@ -260,21 +329,21 @@ input[type="range"]::-webkit-slider-thumb {
 	width: 18px;
 	height: 18px;
 	border-radius: 50%;
-	background: #8fb5ff; /* solid to avoid transparency */
-	border: 1px solid #4976c6;
+	background: var(--thumb); /* solid to avoid transparency */
+	border: 1px solid var(--thumb-border);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 input[type="range"]::-moz-range-thumb {
 	width: 18px;
 	height: 18px;
 	border-radius: 50%;
-	background: #8fb5ff;
-	border: 1px solid #4976c6;
+	background: var(--thumb);
+	border: 1px solid var(--thumb-border);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 input[type="range"]::-moz-range-track {
 	height: 6px;
-	background: #243049;
+	background: var(--track);
 	border: none;
 	border-radius: 4px;
 }
@@ -290,8 +359,8 @@ input[type="range"]::-moz-range-track {
 @media (hover: none) { .app-footer .keys { display: none; } }   /* no keyboard shortcuts on a touch screen */
 
 .btn {
-	--bg-btn: #1c2333;
-	--bg-btn-hover: #232c41;
+	--bg-btn: var(--btn-bg);
+	--bg-btn-hover: var(--btn-hover);
 	background: var(--bg-btn);
 	color: var(--text);
 	border: 1px solid var(--border);
@@ -307,6 +376,7 @@ input[type="range"]::-moz-range-track {
 	--bg-btn: linear-gradient(135deg, #2e6efb, #1a9bff);
 	--bg-btn-hover: linear-gradient(135deg, #2b68ee, #1a90ef);
 	border: none;
+	color: #fff;
 	font-weight: 600;
 }
 .btn.small { padding: 6px 10px; font-size: 12px; height: 28px; display: inline-flex; align-items: center; }
@@ -331,17 +401,23 @@ input[type="range"]::-moz-range-track {
 }
 .version { color: var(--muted); font-size: 11px; font-weight: 400; }
 .header-link { font-size: 12px; }
-.btn.danger { background: #792d39; border-color: #a84454; }
-.symbol-bar { display: flex; gap: 4px; padding: 6px 12px; overflow-x: auto; border-bottom: 1px solid var(--border); background: #101522; }
-.symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: #1c2333; cursor: pointer; font-size: 16px; }
+.btn.danger { background: var(--danger-bg); border-color: var(--danger-border); }
+.symbol-bar { display: flex; gap: 4px; padding: 6px 12px; overflow-x: auto; border-top: 1px solid var(--border); background: var(--bar-bg); }
+.symbol { min-width: 30px; height: 28px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--btn-bg); cursor: pointer; font-size: 16px; }
 .output-line { display: block; width: max-content; min-width: 100%; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
 button.output-line { padding: 0; border: 0; background: transparent; cursor: pointer; }
-button.output-line:hover { background: rgba(51,145,255,.12); }
+button.output-line:hover { background: var(--row-hover); }
 .output-line.has-refs { cursor: help; }
-.output-line.self { background: rgba(51,145,255,.16); }
-.output-line.ref { background: rgba(255,196,0,.22); }
-.editor-highlight .ref-line { background: rgba(255,196,0,.22); display: inline-block; min-width: 100%; }
-.editor-highlight .self-line { background: rgba(51,145,255,.16); display: inline-block; min-width: 100%; }
+.output-line.self { background: var(--mark-self); }
+.output-line.ref { background: var(--mark-ref); }
+.editor-highlight .self-line { background: var(--mark-self); display: inline-block; min-width: 100%; }
+.editor-highlight .ref-line { background: var(--mark-ref); display: inline-block; min-width: 100%; }
+/* the numbers of these lines, in the editor and in the output */
+.line-numbers .self-num, .line-numbers .ref-num { display: inline-block; width: calc(100% + 8px); margin-right: -8px; padding-right: 8px; }
+.line-numbers .self-num, .output-line.self::before { color: var(--mark-self-num); font-weight: 700; }
+.line-numbers .ref-num, .output-line.ref::before { color: var(--mark-ref-num); font-weight: 700; }
+.line-numbers .self-num { background: var(--mark-self); }
+.line-numbers .ref-num { background: var(--mark-ref); }
 .diagnostic { text-decoration: underline dotted var(--accent-2); text-underline-offset: 3px; }
 @media (max-width: 600px) {
   .app-header { align-items: flex-start; gap: 8px; }
@@ -358,7 +434,7 @@ button.output-line:hover { background: rgba(51,145,255,.12); }
 	width: min(720px, calc(100vw - 32px));
 	max-height: calc(100vh - 48px);
 	padding: 0;
-	background: #0e1320; color: var(--text);
+	background: var(--code-bg); color: var(--text);
 	border: 1px solid var(--border); border-radius: 12px;
 	box-shadow: var(--shadow);
 }
@@ -366,12 +442,16 @@ button.output-line:hover { background: rgba(51,145,255,.12); }
 .help-header {
 	display: flex; align-items: center; justify-content: space-between;
 	padding: 12px 16px; border-bottom: 1px solid var(--border);
-	position: sticky; top: 0; background: #0e1320;
+	position: sticky; top: 0; background: var(--code-bg);
 }
 .help-header h2 { margin: 0; font-size: 16px; }
 .help-body { padding: 4px 16px 16px; font-size: 14px; line-height: 1.5; }
 .help-body h3 { font-size: 14px; margin: 16px 0 4px; color: var(--accent-2); }
 .help-body p, .help-body ul { margin: 4px 0; }
 .help-body ul { padding-left: 20px; }
-.help-body code { background: #151a28; padding: 1px 4px; border-radius: 4px; }
+.help-body code { background: var(--menu-hover); padding: 1px 4px; border-radius: 4px; }
 .help-body a { color: var(--accent-2); }
+.output-line.self::before { background: linear-gradient(var(--mark-self), var(--mark-self)), linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0); }
+.output-line.ref::before { background: linear-gradient(var(--mark-ref), var(--mark-ref)), linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) 0); }
+.theme-btn { margin-left: 8px; }
+.header-right { display: flex; align-items: center; }

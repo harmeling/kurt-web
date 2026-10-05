@@ -101,3 +101,14 @@ Operational log for agent-session setup and activity on the `agent` branch.
   extra (derived steps, split declarations, messages) have no number.
 - The header link (and the help's) points to https://github.com/harmeling/kurt-lang; kurt-lang.org
   will point to this playground.
+
+## 2026-10-05: a light theme, colored line numbers, the symbols below the editor
+
+- A light theme besides the dark one: the button at the top right (`#themeBtn`, it names the other
+  theme); the choice is kept in localStorage, otherwise the system's preference. All colors are
+  variables in `:root`, redefined in `:root[data-theme="light"]`; a small script in `<head>` sets
+  the theme before the page is drawn.
+- Hovering a line of the output: the line itself is yellow now, the lines its step uses blue (the
+  other way round before), and their line numbers are colored too, in the editor and the output.
+- The symbol bar is below the editor, so the editor's first line is right below its toolbar, at
+  the height of the output's first line.
