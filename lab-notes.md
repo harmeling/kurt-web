@@ -81,3 +81,5 @@ Operational log for agent-session setup and activity on the `agent` branch.
 ## 2026-10-02 — line numbers
 
 - The editor shows line numbers in a gutter on the left (`#lineNumbers`, a `<pre>` like the highlighting layer): `renderEditorHighlight` writes them (the editor doesn't wrap lines, so a line is a row), `syncScroll` scrolls them with the editor, and the gutter is as wide as the number of digits needs (`--line-digits`). New Playwright test: the numbers, three digits for 200 lines, and scrolling.
+
+- 2026-10-05 14:27: the example contraposition.kurt failed (it loaded excluded-middle.kurt, a neighbouring file); now it proves the excluded middle itself (kurt-lang 771958f), checks with the 0.7.1 kurt.py of the playground. New service-worker cache name.
