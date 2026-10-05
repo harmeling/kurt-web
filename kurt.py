@@ -64,7 +64,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.7.1'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.7.2'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -131,6 +131,15 @@ CALCULATOR_RELATIONS: dict[str, Callable[[Fraction, Fraction], bool]] = {
     'gt': lambda a, b: a > b,
     'ge': lambda a, b: a >= b,
 }
+# sets of numbers that the calculator knows: a theory binds its set to one (natural.kurt's
+# `calc Nat naturals`) and the membership to `element` (set.kurt's `calc in element`), and then
+# `calc on` proves `3 ∈ Nat` -- every number Kurt reads is exact, so it is rational
+CALCULATOR_SETS: dict[str, Callable[[Fraction], bool]] = {
+    'naturals': lambda v: v.denominator == 1 and v >= 0,
+    'integers': lambda v: v.denominator == 1,
+    'rationals': lambda v: True,
+}
+CALCULATOR_MEMBERSHIP = 'element'
 
 # `_EMBEDDED_THEORIES` is populated (from `theories/*.kurt`) only in the generated single-file
 # bundle produced by `scripts/build_standalone.py` -- empty here, in the real source file. It
@@ -202,6 +211,29 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'use (sub $x $a %C) ∧ (∀ (sub $x $w %C) ((sub $v $w $T) >= '
                   '(sub $v $a $T)))  ⇒  (min (sub $x $v %C) $T) = sub $v $a '
                   '$T   "min-intro"\n'
+                  '\n'
+                  ';; argmax and argmin over a set: *some* element of `$A` '
+                  'where `T` is largest (smallest) -- there\n'
+                  ';; can be several, so there is no rule `argmax ... = $a`; '
+                  'the rules say something only if such an\n'
+                  ';; element `$a` exists (`argmax` is a choice of one of '
+                  'them). Only over a set `$v ∈ $A`: with any\n'
+                  ';; condition (`sub $x $v %C`), the argmax term would be the '
+                  'value of another `sub`, inside it.\n'
+                  'const argmax, argmin\n'
+                  'arity argmax 2\n'
+                  'arity argmin 2\n'
+                  'bindop argmax, argmin\n'
+                  'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) <= (sub $v $a '
+                  '$T)))  ⇒  (argmax $v ∈ $A $T) ∈ $A   "argmax-in"\n'
+                  'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) <= (sub $v $a '
+                  '$T)))  ⇒  ∀ ($w ∈ $A) ((sub $v $w $T) <= (sub $v (argmax $v '
+                  '∈ $A $T) $T))   "argmax-max"\n'
+                  'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) >= (sub $v $a '
+                  '$T)))  ⇒  (argmin $v ∈ $A $T) ∈ $A   "argmin-in"\n'
+                  'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) >= (sub $v $a '
+                  '$T)))  ⇒  ∀ ($w ∈ $A) ((sub $v $w $T) >= (sub $v (argmin $v '
+                  '∈ $A $T) $T))   "argmin-min"\n'
                   '\n'
                   ';; supremum and infimum: the least upper bound and the '
                   'greatest lower bound of the values of\n'
@@ -310,6 +342,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use $c ≠ 0 ⇒ ($a * $c) / $c = $a             "mul-div"\n'
                'use $c ≠ 0 ⇒ ($a / $c) * $c = $a             "div-mul"\n'
                'use $c ≠ 0 ⇒ $a / $c + $b / $c = ($a + $b) / $c  "div-add"\n'
+               'use $c ≠ 0 ∧ $d ≠ 0 ⇒ ($a / $c) * ($b / $d) = ($a * $b) / ($c '
+               '* $d)  "div-mul-div"\n'
+               'use $a ≠ 0 ∧ $b ≠ 0 ⇒ $a * $b ≠ 0             "mul-ne-zero"\n'
                'use $a + 0 = $a          "add-identity"\n'
                'use $a - 0 = $a          "sub-identity"\n'
                '\n'
@@ -388,8 +423,17 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '`generate_chain_transitivity` in kurt.py and\n'
                ';; doc/kurt-soundness.md for how and why.\n'
                '\n'
+               ';; the relations among each other\n'
+               'use $a <= $b  ⇔  $b >= $a            "le-ge"\n'
+               'use $a < $b  ⇔  $b > $a              "lt-gt"\n'
+               'use $a < $b  ⇒  $a <= $b             "lt-le"\n'
+               'use $a <= $a                         "le-refl"\n'
+               'use $a < $b  ⇒  $a ≠ $b              "lt-ne"\n'
+               '\n'
                ';; anti-symmetry\n'
                'use $a <= $b ∧ $a >= $b  ⇒  $a = $b   "le-ge-antisym"\n'
+               'use $a > $b  ⇒  $a ≠ $b                "gt-ne"\n'
+               'use $a - $b >= 0  ⇒  $a >= $b          "sub-ge-zero"\n'
                'use $a <  $b ∧ $a >  $b  ⇒  false   "lt-gt-contra"\n'
                'use $a <  $b ∧ $a >= $b  ⇒  false   "lt-ge-contra"\n'
                'use $a >  $b ∧ $a <= $b  ⇒  false   "gt-le-contra"\n'
@@ -399,9 +443,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '\n'
                ';; factorial\n'
                'use 0! = 1                              "factorial-base"\n'
-               'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n'
-               '\n'
-               '; for automatic testing we add the following line:\n',
+               'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n',
  'equality.kurt': '; equality\n'
                   ';\n'
                   '; covers: reflexivity ("equal-intro"), Leibniz substitution '
@@ -445,9 +487,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '(sub $x $a $A = sub $x $b $A)  "term-replacement"\n'
                   ';  e.g.\n'
                   ';  other notation\n'
-                  ';  $a = $b and $f($a) = $f($a)  implies  $f($a) = $f($b)\n'
-                  '\n'
-                  '; for automatic testing we add the following line:\n',
+                  ';  $a = $b and $f($a) = $f($a)  implies  $f($a) = $f($b)\n',
  'group.kurt': '; groups\n'
                ';\n'
                '; covers: `group(G, (∘), e, inv)` -- the set `G` with the '
@@ -668,6 +708,82 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'inverse-unique, for `inv a`\n'
                '        $inv ($inv $a) = $a\n'
                'qed\n',
+ 'integer.kurt': '; integers\n'
+                 ';\n'
+                 '; covers: `Int`, the integers -- the natural numbers and '
+                 'their negatives -- closed under `+`, `-`\n'
+                 '; and `*`. As for natural.kurt, they are numbers of '
+                 'arith.kurt, so its laws (and `calc`) apply.\n'
+                 'load natural\n'
+                 'const Int\n'
+                 'calc Int integers                   ; `calc on` proves `-3 ∈ '
+                 'Int`\n'
+                 '\n'
+                 'use $n ∈ Nat  ⇒  $n ∈ Int                         "int-nat"\n'
+                 'use $n ∈ Nat  ⇒  -$n ∈ Int                        '
+                 '"int-neg-nat"\n'
+                 'use $z ∈ Int  ⇒  $z ∈ Nat ∨ -$z ∈ Nat             '
+                 '"int-cases"      ; nothing else\n'
+                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a + $b ∈ Int         "int-add"\n'
+                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a - $b ∈ Int         "int-sub"\n'
+                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a * $b ∈ Int         "int-mul"\n'
+                 '\n'
+                 'show 0 ∈ Int     "int-zero"\n'
+                 'proof\n'
+                 '    0 ∈ Nat\n'
+                 '    0 ∈ Int\n'
+                 'qed\n'
+                 '\n'
+                 'show 1 ∈ Int     "int-one"\n'
+                 'proof\n'
+                 '    1 ∈ Nat\n'
+                 '    1 ∈ Int\n'
+                 'qed\n'
+                 '\n'
+                 'show $z ∈ Int  ⇒  -$z ∈ Int     "int-neg"\n'
+                 'proof\n'
+                 '    assume $z ∈ Int\n'
+                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
+                 '        case $z ∈ Nat\n'
+                 '            -$z ∈ Int                                  ; '
+                 'int-neg-nat\n'
+                 '        case -$z ∈ Nat\n'
+                 '            -$z ∈ Int                                  ; '
+                 'int-nat\n'
+                 '        -$z ∈ Int\n'
+                 'qed\n'
+                 '\n'
+                 '; a positive integer is a natural number\n'
+                 'show $z ∈ Int ∧ $z > 0  ⇒  $z ∈ Nat     "int-pos-nat"\n'
+                 'proof\n'
+                 '    assume $z ∈ Int ∧ $z > 0\n'
+                 '        $z ∈ Int\n'
+                 '        $z > 0\n'
+                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
+                 '        case $z ∈ Nat\n'
+                 '            $z ∈ Nat\n'
+                 '        case -$z ∈ Nat\n'
+                 '            0 <= -$z                                   ; '
+                 'nat-nonneg\n'
+                 '            -$z >= 0                                   ; '
+                 'le-ge\n'
+                 '            -$z + $z >= 0 + $z                         ; '
+                 'ge-add\n'
+                 '            -$z + $z = 0                               ; '
+                 'add-inverse\n'
+                 '            0 + $z = $z                                ; '
+                 'add-identity\n'
+                 '            0 >= 0 + $z\n'
+                 '            0 >= $z\n'
+                 '            $z <= 0                                    ; '
+                 'le-ge\n'
+                 '            $z > 0 ∧ $z <= 0\n'
+                 '            ⊥                                          ; '
+                 'gt-le-contra\n'
+                 '            $z ∈ Nat\n'
+                 '        $z ∈ Nat\n'
+                 'qed\n'
+                 '\n',
  'logic.kurt': '; first order logic\n'
                ';\n'
                '; covers: forall-elim (instantiate a universal at a specific '
@@ -721,6 +837,17 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use (exists (sub $x $v %C) %P)  iff  exists $w ((sub $x $w %C) '
                'and (sub $v $w %P))      "exists-cond-def"\n'
                '\n'
+               '; rewriting under a binder: an equivalence that holds for '
+               'every x may replace one formula by the\n'
+               "; other inside `∀ x` and `∃ x` (`iff-subst` can't, since its "
+               "`sub` doesn't capture `x`). Axioms,\n"
+               '; since a proof for any `%A` that depends on `$x` would need '
+               '`sub` in its lines.\n'
+               'use (forall $x (%A iff %B))  implies  ((forall $x %A) iff '
+               '(forall $x %B))   "forall-iff"\n'
+               'use (forall $x (%A iff %B))  implies  ((exists $x %A) iff '
+               '(exists $x %B))   "exists-iff"\n'
+               '\n'
                '; ;; existsunique\n'
                '; use %A and (forall $x (%A implies (forall $y (%A implies ($x '
                '= $y)))))  implies  existsunique $x %A  "existsunique-intro"\n'
@@ -762,9 +889,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'appropriately, since it appears free\n'
                ';   - case 2: we match `%B` using `%B implies %A`, then we use '
                'that `%B` to match against\n'
-               ';     `exists $%1 %B`\n'
-               '\n'
-               '; for automatic testing we add the following line:\n',
+               ';     `exists $%1 %B`\n',
  'minimal.kurt': '; minimal\n'
                  'false ; never load this theory, this file is just for '
                  'reference\n'
@@ -831,7 +956,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; a standalone fact (e.g. a bare `A implies A` does not '
                  'derive from nothing). Prove a\n'
                  '; specific instance instead, with '
-                 '`show`/`proof`/`assume`/`qed` (see `tutorial/`,\n'
+                 '`show`/`proof`/`assume`/`qed` (see `keywords/`,\n'
                  '; lessons 08-proof and 18-assume). `not`/`false` themselves '
                  "also aren't declared here at\n"
                  '; all -- see `prop.kurt` for those, and for a general, '
@@ -878,11 +1003,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '(the body) must be boolean\n'
                  'const  forall, exists\n'
                  'alias  ∀ forall\n'
-                 'alias  ∃ exists\n'
-                 '\n'
-                 '; for automatic testing we add the following line (in this '
-                 'case we should fail, because of `false`):\n'
-                 ';;; ProofError: can not derive `false`\n',
+                 'alias  ∃ exists\n',
  'modal.kurt': '; EXPERIMENTAL EXAMPLE: a modal-logic fragment\n'
                ';\n'
                '; This file demonstrates that Kurt theories can introduce '
@@ -946,24 +1067,645 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  "; `impl_elim`'s single-hop derivation needs to apply "
                  '"induction" in one step.\n'
                  ';\n'
+                 '; also: `0 <= n`, so `n + 1 ≠ 0` and every n ≠ 0 has a '
+                 'predecessor; no natural number between\n'
+                 '; n and n + 1; the well-ordering principle (from induction); '
+                 'even and odd numbers (every number is\n'
+                 '; one of them, none is both); divisibility `∣` (`\\mid`) and '
+                 '`coprime`.\n'
+                 ';\n'
                  '; arithmetic comes from arith.kurt: natural numbers are real '
                  'numbers, so all of its laws\n'
                  '; (and `calc`) apply to them as well.\n'
                  'load set\n'
                  'load arith\n'
+                 'load logic\n'
                  '\n'
                  ';; inference rules\n'
                  'const Nat\n'
+                 'calc Nat naturals                   ; `calc on` proves `3 ∈ '
+                 'Nat`\n'
                  '\n'
                  'use 0 in Nat  "nat-zero"\n'
                  'use $n in Nat  implies  $n+1 in Nat  "nat-succ"\n'
+                 '; sums and products of natural numbers are natural numbers '
+                 '(by induction from a recursive\n'
+                 '; definition of `+` and `*`; arith.kurt states their laws '
+                 'instead)\n'
+                 'use $a in Nat ∧ $b in Nat  implies  $a + $b in Nat  '
+                 '"nat-add"\n'
+                 'use $a in Nat ∧ $b in Nat  implies  $a * $b in Nat  '
+                 '"nat-mul"\n'
+                 "; natural numbers aren't negative\n"
+                 'use $n ∈ Nat  ⇒  0 <= $n  "nat-nonneg"\n'
                  '\n'
                  '; A(0)  and  forall n (A(n) -> A(n+1))   implies   forall n '
                  'A(n)\n'
                  'use ((sub $x 0 %A) ∧ (∀ $n ∈ Nat  (sub $x $n %A  ⇒  sub $x '
                  '($n+1) %A)))   ⇒ ∀ $n in Nat  (sub $x $n %A)   "induction"\n'
                  '\n'
-                 '; for automatic testing we add the following line:\n',
+                 'show 1 ∈ Nat     "nat-one"\n'
+                 'proof\n'
+                 '    0 + 1 ∈ Nat\n'
+                 '    calc on\n'
+                 '    1 ∈ Nat\n'
+                 '    calc off\n'
+                 'qed\n'
+                 '\n'
+                 'show 2 ∈ Nat     "nat-two"\n'
+                 'proof\n'
+                 '    1 + 1 ∈ Nat\n'
+                 '    calc on\n'
+                 '    2 ∈ Nat\n'
+                 '    calc off\n'
+                 'qed\n'
+                 '\n'
+                 '; 0 is no successor (Peano)\n'
+                 'show $n ∈ Nat  ⇒  $n + 1 ≠ 0     "nat-succ-ne-zero"\n'
+                 'proof\n'
+                 '    assume $n ∈ Nat\n'
+                 '        0 <= $n\n'
+                 '        0 + 1 <= $n + 1\n'
+                 '        calc on\n'
+                 '        1 <= $n + 1\n'
+                 '        0 < 1\n'
+                 '        calc off\n'
+                 '        0 < $n + 1\n'
+                 '        0 ≠ $n + 1\n'
+                 'qed\n'
+                 '\n'
+                 '; a natural number other than 0 is positive\n'
+                 'show $n ∈ Nat ∧ $n ≠ 0  ⇒  0 < $n     "nat-pos"\n'
+                 'proof\n'
+                 '    assume $n ∈ Nat ∧ $n ≠ 0\n'
+                 '        $n ∈ Nat\n'
+                 '        $n ≠ 0\n'
+                 '        0 <= $n\n'
+                 '        0 < $n ∨ 0 = $n ∨ 0 > $n                       ; '
+                 'trichotomy\n'
+                 '        case 0 < $n\n'
+                 '            0 < $n\n'
+                 '        case 0 = $n ∨ 0 > $n\n'
+                 '            case 0 = $n\n'
+                 '                ¬($n = 0)\n'
+                 '                $n = 0 ∧ ¬($n = 0)\n'
+                 '                ⊥\n'
+                 '                0 < $n\n'
+                 '            case 0 > $n\n'
+                 '                0 > $n ∧ 0 <= $n\n'
+                 '                ⊥                                      ; '
+                 'gt-le-contra\n'
+                 '                0 < $n\n'
+                 '            0 < $n\n'
+                 '        0 < $n\n'
+                 'qed\n'
+                 '\n'
+                 '; every natural number is 0 or a successor\n'
+                 'show ∀ $n ∈ Nat ($n = 0 ∨ ∃ $m ($m ∈ Nat ∧ $n = $m + 1))     '
+                 '"nat-zero-or-succ"\n'
+                 'proof\n'
+                 '    0 = 0\n'
+                 '    0 = 0 ∨ ∃ $m ($m ∈ Nat ∧ 0 = $m + 1)\n'
+                 '    let n ∈ Nat\n'
+                 '        assume n = 0 ∨ ∃ $m ($m ∈ Nat ∧ n = $m + 1)\n'
+                 '            n + 1 = n + 1\n'
+                 '            n ∈ Nat ∧ n + 1 = n + 1\n'
+                 '            ∃ $m ($m ∈ Nat ∧ n + 1 = $m + 1)\n'
+                 '            n + 1 = 0 ∨ ∃ $m ($m ∈ Nat ∧ n + 1 = $m + 1)\n'
+                 '    ∀ $n ∈ Nat ($n = 0 ∨ ∃ $m ($m ∈ Nat ∧ $n = $m + 1)  ⇒  '
+                 '$n + 1 = 0 ∨ ∃ $m ($m ∈ Nat ∧ $n + 1 = $m + 1))\n'
+                 '    (0 = 0 ∨ ∃ $m ($m ∈ Nat ∧ 0 = $m + 1)) ∧ ∀ $n ∈ Nat ($n '
+                 '= 0 ∨ ∃ $m ($m ∈ Nat ∧ $n = $m + 1)  ⇒  $n + 1 = 0 ∨ ∃ $m '
+                 '($m ∈ Nat ∧ $n + 1 = $m + 1))\n'
+                 '    ∀ $n ∈ Nat ($n = 0 ∨ ∃ $m ($m ∈ Nat ∧ $n = $m + 1))\n'
+                 'qed\n'
+                 '\n'
+                 '; the predecessor\n'
+                 'show $n ∈ Nat ∧ $n ≠ 0  ⇒  ∃ $m ($m ∈ Nat ∧ $n = $m + 1)     '
+                 '"nat-pred"\n'
+                 'proof\n'
+                 '    assume $n ∈ Nat ∧ $n ≠ 0\n'
+                 '        $n ∈ Nat\n'
+                 '        $n ≠ 0\n'
+                 '        $n = 0 ∨ ∃ $m ($m ∈ Nat ∧ $n = $m + 1)\n'
+                 '        case $n = 0\n'
+                 '            ¬($n = 0)\n'
+                 '            $n = 0 ∧ ¬($n = 0)\n'
+                 '            ⊥\n'
+                 '            ∃ $m ($m ∈ Nat ∧ $n = $m + 1)\n'
+                 '        case ∃ $m ($m ∈ Nat ∧ $n = $m + 1)\n'
+                 '            ∃ $m ($m ∈ Nat ∧ $n = $m + 1)\n'
+                 '        ∃ $m ($m ∈ Nat ∧ $n = $m + 1)\n'
+                 'qed\n'
+                 '\n'
+                 '; no natural number between n and n + 1\n'
+                 'show ∀ $n ∈ Nat ∀ $k ∈ Nat ($k <= $n ∨ $n + 1 <= $k)     '
+                 '"nat-discrete"\n'
+                 'proof\n'
+                 '    ; n = 0\n'
+                 '    let k ∈ Nat\n'
+                 '        k = 0 ∨ ∃ $m ($m ∈ Nat ∧ k = $m + 1)\n'
+                 '        case k = 0\n'
+                 '            0 <= 0\n'
+                 '            k <= 0\n'
+                 '            k <= 0 ∨ 0 + 1 <= k\n'
+                 '        case ∃ $m ($m ∈ Nat ∧ k = $m + 1)\n'
+                 '            pick m with m ∈ Nat ∧ k = m + 1\n'
+                 '                m ∈ Nat\n'
+                 '                k = m + 1\n'
+                 '                0 <= m\n'
+                 '                0 + 1 <= m + 1\n'
+                 '                0 + 1 <= k\n'
+                 '                k <= 0 ∨ 0 + 1 <= k\n'
+                 '        k <= 0 ∨ 0 + 1 <= k\n'
+                 '    ∀ $k ∈ Nat ($k <= 0 ∨ 0 + 1 <= $k)\n'
+                 '    ; n → n + 1\n'
+                 '    let n ∈ Nat\n'
+                 '        assume ∀ $k ∈ Nat ($k <= n ∨ n + 1 <= $k)\n'
+                 '            let k ∈ Nat\n'
+                 '                k = 0 ∨ ∃ $m ($m ∈ Nat ∧ k = $m + 1)\n'
+                 '                case k = 0\n'
+                 '                    n + 1 ∈ Nat\n'
+                 '                    0 <= n + 1\n'
+                 '                    k <= n + 1\n'
+                 '                    k <= n + 1 ∨ n + 1 + 1 <= k\n'
+                 '                case ∃ $m ($m ∈ Nat ∧ k = $m + 1)\n'
+                 '                    pick m with m ∈ Nat ∧ k = m + 1\n'
+                 '                        m ∈ Nat\n'
+                 '                        k = m + 1\n'
+                 '                        m <= n ∨ n + 1 <= m\n'
+                 '                        case m <= n\n'
+                 '                            m + 1 <= n + 1\n'
+                 '                            k <= n + 1\n'
+                 '                            k <= n + 1 ∨ n + 1 + 1 <= k\n'
+                 '                        case n + 1 <= m\n'
+                 '                            n + 1 + 1 <= m + 1\n'
+                 '                            n + 1 + 1 <= k\n'
+                 '                            k <= n + 1 ∨ n + 1 + 1 <= k\n'
+                 '                        k <= n + 1 ∨ n + 1 + 1 <= k\n'
+                 '                k <= n + 1 ∨ n + 1 + 1 <= k\n'
+                 '            ∀ $k ∈ Nat ($k <= n + 1 ∨ n + 1 + 1 <= $k)\n'
+                 '    ∀ $n ∈ Nat (∀ $k ∈ Nat ($k <= $n ∨ $n + 1 <= $k)  ⇒  ∀ '
+                 '$k ∈ Nat ($k <= $n + 1 ∨ $n + 1 + 1 <= $k))\n'
+                 '    (∀ $k ∈ Nat ($k <= 0 ∨ 0 + 1 <= $k)) ∧ ∀ $n ∈ Nat (∀ $k '
+                 '∈ Nat ($k <= $n ∨ $n + 1 <= $k)  ⇒  ∀ $k ∈ Nat ($k <= $n + 1 '
+                 '∨ $n + 1 + 1 <= $k))\n'
+                 '    ∀ $n ∈ Nat ∀ $k ∈ Nat ($k <= $n ∨ $n + 1 <= $k)\n'
+                 'qed\n'
+                 '\n'
+                 '; every nonempty set of natural numbers has a least element\n'
+                 'show $S ⊂ Nat ∧ (∃ $x ($x ∈ $S))  ⇒  ∃ $m ($m ∈ $S ∧ ∀ $y ∈ '
+                 '$S ($m <= $y))     "well-ordering"\n'
+                 'proof\n'
+                 '    assume $S ⊂ Nat ∧ (∃ $x ($x ∈ $S))\n'
+                 '        $S ⊂ Nat\n'
+                 '        ∃ $x ($x ∈ $S)\n'
+                 '        ∀ $c ($c ∈ $S  implies  $c ∈ Nat)\n'
+                 '        assume ¬(∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= $y)))\n'
+                 '            ; then no k <= n is in S, by induction on n\n'
+                 '            ; n = 0: only k = 0, which would be the least '
+                 'element\n'
+                 '            let k ∈ Nat\n'
+                 '                assume k <= 0\n'
+                 '                    0 <= k\n'
+                 '                    k >= 0\n'
+                 '                    k = 0\n'
+                 '                    assume k ∈ $S\n'
+                 '                        0 ∈ $S\n'
+                 '                        let y ∈ $S\n'
+                 '                            y ∈ $S  implies  y ∈ Nat\n'
+                 '                            y ∈ Nat\n'
+                 '                            0 <= y\n'
+                 '                        ∀ $y ∈ $S (0 <= $y)\n'
+                 '                        0 ∈ $S ∧ ∀ $y ∈ $S (0 <= $y)\n'
+                 '                        ∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= '
+                 '$y))\n'
+                 '                        (∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= '
+                 '$y))) ∧ ¬(∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= $y)))\n'
+                 '                        ⊥\n'
+                 '                    ¬(k ∈ $S)\n'
+                 '            ∀ $k ∈ Nat ($k <= 0  ⇒  ¬($k ∈ $S))\n'
+                 '            ; n → n + 1\n'
+                 '            let n ∈ Nat\n'
+                 '                assume ∀ $k ∈ Nat ($k <= n  ⇒  ¬($k ∈ $S))\n'
+                 "                    ; n + 1 isn't in S: it would be the "
+                 'least element\n'
+                 '                    assume n + 1 ∈ $S\n'
+                 '                        let y ∈ $S\n'
+                 '                            y ∈ $S  implies  y ∈ Nat\n'
+                 '                            y ∈ Nat\n'
+                 '                            ∀ $k ∈ Nat ($k <= n ∨ n + 1 <= '
+                 '$k)       ; nat-discrete\n'
+                 '                            y <= n ∨ n + 1 <= y\n'
+                 '                            case y <= n\n'
+                 '                                y <= n  ⇒  ¬(y ∈ $S)\n'
+                 '                                ¬(y ∈ $S)\n'
+                 '                                y ∈ $S ∧ ¬(y ∈ $S)\n'
+                 '                                ⊥\n'
+                 '                                n + 1 <= y\n'
+                 '                            case n + 1 <= y\n'
+                 '                                n + 1 <= y\n'
+                 '                            n + 1 <= y\n'
+                 '                        ∀ $y ∈ $S (n + 1 <= $y)\n'
+                 '                        n + 1 ∈ $S ∧ ∀ $y ∈ $S (n + 1 <= '
+                 '$y)\n'
+                 '                        ∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= '
+                 '$y))\n'
+                 '                        (∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= '
+                 '$y))) ∧ ¬(∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= $y)))\n'
+                 '                        ⊥\n'
+                 '                    ¬(n + 1 ∈ $S)\n'
+                 '                    let k ∈ Nat\n'
+                 '                        assume k <= n + 1\n'
+                 '                            ∀ $j ∈ Nat ($j <= n ∨ n + 1 <= '
+                 '$j)       ; nat-discrete\n'
+                 '                            k <= n ∨ n + 1 <= k\n'
+                 '                            case k <= n\n'
+                 '                                k <= n  ⇒  ¬(k ∈ $S)\n'
+                 '                                ¬(k ∈ $S)\n'
+                 '                            case n + 1 <= k\n'
+                 '                                k >= n + 1\n'
+                 '                                k = n + 1\n'
+                 '                                ¬(k ∈ $S)\n'
+                 '                            ¬(k ∈ $S)\n'
+                 '                    ∀ $k ∈ Nat ($k <= n + 1  ⇒  ¬($k ∈ $S))\n'
+                 '            ∀ $n ∈ Nat (∀ $k ∈ Nat ($k <= $n  ⇒  ¬($k ∈ '
+                 '$S))  ⇒  ∀ $k ∈ Nat ($k <= $n + 1  ⇒  ¬($k ∈ $S)))\n'
+                 '            (∀ $k ∈ Nat ($k <= 0  ⇒  ¬($k ∈ $S))) ∧ ∀ $n ∈ '
+                 'Nat (∀ $k ∈ Nat ($k <= $n  ⇒  ¬($k ∈ $S))  ⇒  ∀ $k ∈ Nat ($k '
+                 '<= $n + 1  ⇒  ¬($k ∈ $S)))\n'
+                 '            ∀ $n ∈ Nat ∀ $k ∈ Nat ($k <= $n  ⇒  ¬($k ∈ $S))\n'
+                 '            ; but S has an element x, and x <= x\n'
+                 '            pick x with x ∈ $S\n'
+                 '                x ∈ $S  implies  x ∈ Nat\n'
+                 '                x ∈ Nat\n'
+                 '                ∀ $k ∈ Nat ($k <= x  ⇒  ¬($k ∈ $S))\n'
+                 '                x <= x\n'
+                 '                x <= x  ⇒  ¬(x ∈ $S)\n'
+                 '                ¬(x ∈ $S)\n'
+                 '                x ∈ $S ∧ ¬(x ∈ $S)\n'
+                 '                ⊥\n'
+                 '        ¬¬(∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= $y)))\n'
+                 '        ∃ $m ($m ∈ $S ∧ ∀ $y ∈ $S ($m <= $y))\n'
+                 'qed\n'
+                 '\n'
+                 '; a natural number other than 0 and 1 is at least 2\n'
+                 'show $d ∈ Nat ∧ $d ≠ 0 ∧ $d ≠ 1  ⇒  2 <= $d     '
+                 '"nat-ge-two"\n'
+                 'proof\n'
+                 '    assume $d ∈ Nat ∧ $d ≠ 0 ∧ $d ≠ 1\n'
+                 '        $d ∈ Nat\n'
+                 '        $d ≠ 0\n'
+                 '        $d ≠ 1\n'
+                 '        0 <= $d\n'
+                 '        $d >= 0\n'
+                 '        ∀ $k ∈ Nat ($k <= 0 ∨ 0 + 1 <= $k)              ; '
+                 'nat-discrete\n'
+                 '        $d <= 0 ∨ 0 + 1 <= $d\n'
+                 '        case $d <= 0\n'
+                 '            $d = 0                                     ; '
+                 'le-ge-antisym\n'
+                 '            ¬($d = 0)\n'
+                 '            $d = 0 ∧ ¬($d = 0)\n'
+                 '            ⊥\n'
+                 '            1 <= $d\n'
+                 '        case 0 + 1 <= $d\n'
+                 '            calc on\n'
+                 '            1 <= $d\n'
+                 '            calc off\n'
+                 '        1 <= $d\n'
+                 '        $d >= 1\n'
+                 '        1 ∈ Nat\n'
+                 '        ∀ $k ∈ Nat ($k <= 1 ∨ 1 + 1 <= $k)              ; '
+                 'nat-discrete\n'
+                 '        $d <= 1 ∨ 1 + 1 <= $d\n'
+                 '        case $d <= 1\n'
+                 '            $d = 1                                     ; '
+                 'le-ge-antisym\n'
+                 '            ¬($d = 1)\n'
+                 '            $d = 1 ∧ ¬($d = 1)\n'
+                 '            ⊥\n'
+                 '            1 + 1 <= $d\n'
+                 '        case 1 + 1 <= $d\n'
+                 '            1 + 1 <= $d\n'
+                 '        1 + 1 <= $d\n'
+                 '        calc on\n'
+                 '        2 <= $d\n'
+                 '        calc off\n'
+                 'qed\n'
+                 '\n'
+                 '; multiplying by a number of at least 2 makes a positive '
+                 'number larger\n'
+                 'show $b ∈ Nat ∧ $b ≠ 0 ∧ 2 <= $d  ⇒  $b < $d * $b     '
+                 '"nat-lt-mul"\n'
+                 'proof\n'
+                 '    assume $b ∈ Nat ∧ $b ≠ 0 ∧ 2 <= $d\n'
+                 '        $b ∈ Nat\n'
+                 '        $b ≠ 0\n'
+                 '        2 <= $d\n'
+                 '        0 < $b                                         ; '
+                 'nat-pos\n'
+                 '        $b > 0                                         ; '
+                 'lt-gt\n'
+                 '        2 * $b <= $d * $b                              ; '
+                 'le-mul-pos\n'
+                 '        0 + $b < $b + $b                               ; '
+                 'lt-add\n'
+                 '        0 + $b = $b                                    ; '
+                 'add-identity\n'
+                 '        (1 + 1) * $b = 1 * $b + 1 * $b                 ; '
+                 'distrib-add\n'
+                 '        1 * $b = $b                                    ; '
+                 'mul-identity\n'
+                 '        $b + $b = 1 * $b + 1 * $b\n'
+                 '                = (1 + 1) * $b\n'
+                 '        calc on\n'
+                 '        $b + $b = 2 * $b\n'
+                 '        calc off\n'
+                 '        $b < $b + $b\n'
+                 '        $b < 2 * $b\n'
+                 '        $b < $d * $b\n'
+                 'qed\n'
+                 '\n'
+                 ';; even and odd numbers\n'
+                 'bool even, odd\n'
+                 'arity even 1, odd 1\n'
+                 'def even $m  iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)       '
+                 '"even-def"\n'
+                 'def odd $m   iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)   '
+                 '"odd-def"\n'
+                 '\n'
+                 '; every natural number is even or odd (by induction)\n'
+                 'show ∀ $n ∈ Nat  (even $n ∨ odd $n)   "even-or-odd"\n'
+                 'proof\n'
+                 '    ; base case: 0 = 2 * 0\n'
+                 '    0 = 2 * 0\n'
+                 '    0 ∈ Nat ∧ 0 = 2 * 0\n'
+                 '    ∃ $k ($k ∈ Nat ∧ 0 = 2 * $k)\n'
+                 '    even 0\n'
+                 '    even 0 ∨ odd 0\n'
+                 '    ; induction step\n'
+                 '    show ∀ $n ∈ Nat  ((even $n ∨ odd $n)  ⇒  (even ($n + 1) '
+                 '∨ odd ($n + 1)))\n'
+                 '    proof\n'
+                 '        let n ∈ Nat\n'
+                 '            assume even n ∨ odd n\n'
+                 '                assume even n\n'
+                 '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k)\n'
+                 '                    pick k with k ∈ Nat ∧ n = 2 * k\n'
+                 '                        n = 2 * k\n'
+                 '                        k ∈ Nat\n'
+                 '                        n + 1 = 2 * k + 1\n'
+                 '                        k ∈ Nat ∧ n + 1 = 2 * k + 1\n'
+                 '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * $j + '
+                 '1)\n'
+                 '                        odd (n + 1)\n'
+                 '                        even (n + 1) ∨ odd (n + 1)\n'
+                 '                assume odd n\n'
+                 '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k + 1)\n'
+                 '                    pick k with k ∈ Nat ∧ n = 2 * k + 1\n'
+                 '                        n = 2 * k + 1\n'
+                 '                        k ∈ Nat\n'
+                 '                        n + 1 = 2 * k + 1 + 1\n'
+                 '                        calc on\n'
+                 '                        n + 1 = 2 * k + 2\n'
+                 '                        calc off\n'
+                 '                        2 * (k + 1) = 2 * k + 2 * 1\n'
+                 '                        calc on\n'
+                 '                        2 * (k + 1) = 2 * k + 2\n'
+                 '                        calc off\n'
+                 '                        n + 1 = 2 * (k + 1)\n'
+                 '                        k + 1 ∈ Nat\n'
+                 '                        k + 1 ∈ Nat ∧ n + 1 = 2 * (k + 1)\n'
+                 '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * $j)\n'
+                 '                        even (n + 1)\n'
+                 '                        even (n + 1) ∨ odd (n + 1)\n'
+                 '                even (n + 1) ∨ odd (n + 1)\n'
+                 '    qed\n'
+                 '    ; by induction (natural.kurt)\n'
+                 'qed\n'
+                 '\n'
+                 '; 2 k = 2 j + 1 has no solution in Nat\n'
+                 'show ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)     '
+                 '"even-ne-odd"\n'
+                 'proof\n'
+                 '    ; k = 0: 2 j + 1 ≠ 0\n'
+                 '    let j ∈ Nat\n'
+                 '        2 * j ∈ Nat\n'
+                 '        2 * j + 1 ≠ 0                                 ; '
+                 'nat-succ-ne-zero\n'
+                 '        calc on\n'
+                 '        2 * 0 ≠ 2 * j + 1\n'
+                 '        calc off\n'
+                 '    ∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)\n'
+                 '    ; k → k + 1\n'
+                 '    let k ∈ Nat\n'
+                 '        assume ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)\n'
+                 '            2 * k ∈ Nat\n'
+                 '            2 * (k + 1) = 2 * k + 2 * 1\n'
+                 '            let j ∈ Nat\n'
+                 '                assume 2 * (k + 1) = 2 * j + 1\n'
+                 '                    j = 0 ∨ ∃ $m ($m ∈ Nat ∧ j = $m + '
+                 '1)       ; nat-zero-or-succ\n'
+                 '                    case j = 0\n'
+                 '                        2 * k + 2 * 1 = 2 * (k + 1)\n'
+                 '                                      = 2 * j + 1\n'
+                 '                                      = 2 * 0 + 1\n'
+                 '                        2 * k + 2 * 1 + (- 1) = 2 * 0 + 1 + '
+                 '(- 1)\n'
+                 '                        calc on\n'
+                 '                        2 * k + 1 = 0\n'
+                 '                        calc off\n'
+                 '                        2 * k + 1 ≠ '
+                 '0                         ; nat-succ-ne-zero\n'
+                 '                        ¬(2 * k + 1 = 0)\n'
+                 '                        2 * k + 1 = 0 ∧ ¬(2 * k + 1 = 0)\n'
+                 '                        ⊥\n'
+                 '                    case ∃ $m ($m ∈ Nat ∧ j = $m + 1)\n'
+                 '                        pick m with m ∈ Nat ∧ j = m + 1\n'
+                 '                            m ∈ Nat\n'
+                 '                            j = m + 1\n'
+                 '                            2 * (m + 1) = 2 * m + 2 * 1\n'
+                 '                            2 * k + 2 * 1 = 2 * (k + 1)\n'
+                 '                                          = 2 * j + 1\n'
+                 '                                          = 2 * (m + 1) + 1\n'
+                 '                                          = 2 * m + 2 * 1 + '
+                 '1\n'
+                 '                            2 * k + 2 * 1 + (- 2) = 2 * m + '
+                 '2 * 1 + 1 + (- 2)\n'
+                 '                            calc on\n'
+                 '                            2 * k = 2 * m + 1\n'
+                 '                            calc off\n'
+                 '                            2 * k ≠ 2 * m + 1\n'
+                 '                            ¬(2 * k = 2 * m + 1)\n'
+                 '                            2 * k = 2 * m + 1 ∧ ¬(2 * k = 2 '
+                 '* m + 1)\n'
+                 '                            ⊥\n'
+                 '                    ⊥\n'
+                 '                ¬(2 * (k + 1) = 2 * j + 1)\n'
+                 '                2 * (k + 1) ≠ 2 * j + 1\n'
+                 '            ∀ $j ∈ Nat (2 * (k + 1) ≠ 2 * $j + 1)\n'
+                 '    ∀ $k ∈ Nat (∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ $j ∈ '
+                 'Nat (2 * ($k + 1) ≠ 2 * $j + 1))\n'
+                 '    (∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)) ∧ ∀ $k ∈ Nat (∀ $j ∈ '
+                 'Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ $j ∈ Nat (2 * ($k + 1) ≠ 2 * '
+                 '$j + 1))\n'
+                 '    ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)\n'
+                 'qed\n'
+                 '\n'
+                 '; no number is even and odd\n'
+                 'show ¬(even $m ∧ odd $m)     "not-even-and-odd"\n'
+                 'proof\n'
+                 '    assume even $m ∧ odd $m\n'
+                 '        even $m\n'
+                 '        odd $m\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
+                 '        pick k with k ∈ Nat ∧ $m = 2 * k\n'
+                 '            k ∈ Nat\n'
+                 '            $m = 2 * k\n'
+                 '            pick j with j ∈ Nat ∧ $m = 2 * j + 1\n'
+                 '                j ∈ Nat\n'
+                 '                $m = 2 * j + 1\n'
+                 '                2 * k = $m\n'
+                 '                      = 2 * j + 1\n'
+                 '                ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)        ; '
+                 'even-ne-odd\n'
+                 '                2 * k ≠ 2 * j + 1\n'
+                 '                ¬(2 * k = 2 * j + 1)\n'
+                 '                2 * k = 2 * j + 1 ∧ ¬(2 * k = 2 * j + 1)\n'
+                 '                ⊥\n'
+                 'qed\n'
+                 '\n'
+                 '; the square of an odd number is odd: m m = (2k+1) m = 2 k m '
+                 '+ m = 2 (k m + k) + 1\n'
+                 'show $m ∈ Nat ∧ odd $m  ⇒  odd ($m * $m)   "odd-square"\n'
+                 'proof\n'
+                 '    assume $m ∈ Nat ∧ odd $m\n'
+                 '        odd $m\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
+                 '        pick k with k ∈ Nat ∧ $m = 2 * k + 1\n'
+                 '            $m = 2 * k + 1\n'
+                 '            k ∈ Nat\n'
+                 '            $m ∈ Nat\n'
+                 '            $m * $m = (2 * k + 1) * $m\n'
+                 '                    = 2 * k * $m + 1 * $m\n'
+                 '                    = 2 * k * $m + $m\n'
+                 '                    = 2 * k * $m + (2 * k + 1)\n'
+                 '                    = 2 * k * $m + 2 * k + 1\n'
+                 '                    = 2 * (k * $m + k) + 1\n'
+                 '            k * $m ∈ Nat\n'
+                 '            k * $m + k ∈ Nat\n'
+                 '            k * $m + k ∈ Nat ∧ $m * $m = 2 * (k * $m + k) + '
+                 '1\n'
+                 '            ∃ $j ($j ∈ Nat ∧ $m * $m = 2 * $j + 1)\n'
+                 '            odd ($m * $m)\n'
+                 'qed\n'
+                 '\n'
+                 '; if the square is even, so is the number: otherwise it is '
+                 'odd, and so is its square\n'
+                 'show $m ∈ Nat ∧ even ($m * $m)  ⇒  even $m   "even-square"\n'
+                 'proof\n'
+                 '    assume $m ∈ Nat ∧ even ($m * $m)\n'
+                 '        $m ∈ Nat\n'
+                 '        even $m ∨ odd $m                               ; '
+                 'even-or-odd\n'
+                 '        assume even $m\n'
+                 '            even $m\n'
+                 '        assume odd $m\n'
+                 '            odd ($m * $m)                              ; '
+                 'odd-square\n'
+                 '            even ($m * $m) ∧ odd ($m * $m)\n'
+                 '            false                                      ; '
+                 'not-even-and-odd\n'
+                 '            even $m\n'
+                 '        even $m                                        ; '
+                 'or-elim\n'
+                 'qed\n'
+                 '\n'
+                 ';; divisibility\n'
+                 'infix ∣ 20 20\n'
+                 'bool ∣ 0\n'
+                 'def $a ∣ $b  ⇔  ∃ $k ($k ∈ Nat ∧ $b = $a * $k)       '
+                 '"divides"\n'
+                 '\n'
+                 'show $a ∈ Nat  ⇒  $a ∣ $a     "divides-refl"\n'
+                 'proof\n'
+                 '    assume $a ∈ Nat\n'
+                 '        1 ∈ Nat\n'
+                 '        $a = $a * 1\n'
+                 '        1 ∈ Nat ∧ $a = $a * 1\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $a = $a * $k)\n'
+                 '        $a ∣ $a\n'
+                 'qed\n'
+                 '\n'
+                 'show $a ∈ Nat  ⇒  1 ∣ $a     "one-divides"\n'
+                 'proof\n'
+                 '    assume $a ∈ Nat\n'
+                 '        $a = 1 * $a\n'
+                 '        $a ∈ Nat ∧ $a = 1 * $a\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $a = 1 * $k)\n'
+                 '        1 ∣ $a\n'
+                 'qed\n'
+                 '\n'
+                 'show $a ∣ $b ∧ $b ∣ $c  ⇒  $a ∣ $c     "divides-trans"\n'
+                 'proof\n'
+                 '    assume $a ∣ $b ∧ $b ∣ $c\n'
+                 '        $a ∣ $b\n'
+                 '        $b ∣ $c\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $b = $a * $k)\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $c = $b * $k)\n'
+                 '        pick k with k ∈ Nat ∧ $b = $a * k\n'
+                 '            k ∈ Nat\n'
+                 '            $b = $a * k\n'
+                 '            pick j with j ∈ Nat ∧ $c = $b * j\n'
+                 '                j ∈ Nat\n'
+                 '                $c = $b * j\n'
+                 '                $c = $a * k * j\n'
+                 '                k * j ∈ Nat\n'
+                 '                k * j ∈ Nat ∧ $c = $a * (k * j)\n'
+                 '                ∃ $l ($l ∈ Nat ∧ $c = $a * $l)\n'
+                 '                $a ∣ $c\n'
+                 'qed\n'
+                 '\n'
+                 '; even means divisible by 2\n'
+                 'show even $m  ⇔  2 ∣ $m     "even-divides"\n'
+                 'proof\n'
+                 '    assume even $m\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                 '        2 ∣ $m\n'
+                 '    assume 2 ∣ $m\n'
+                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                 '        even $m\n'
+                 'qed\n'
+                 '\n'
+                 '; coprime: 1 is the only common divisor\n'
+                 'arity coprime 2\n'
+                 'def coprime($a, $b)  ⇔  ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  ⇒  $d '
+                 '= 1)     "coprime"\n'
+                 '\n'
+                 'show coprime($a, $b)  ⇒  ¬(even $a ∧ even $b)     '
+                 '"coprime-not-both-even"\n'
+                 'proof\n'
+                 '    assume coprime($a, $b)\n'
+                 '        ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  ⇒  $d = 1)\n'
+                 '        assume even $a ∧ even $b\n'
+                 '            even $a\n'
+                 '            even $b\n'
+                 '            2 ∣ $a                                     ; '
+                 'even-divides\n'
+                 '            2 ∣ $b                                     ; '
+                 'even-divides\n'
+                 '            2 ∣ $a ∧ 2 ∣ $b\n'
+                 '            2 ∣ $a ∧ 2 ∣ $b  ⇒  2 = 1\n'
+                 '            2 = 1\n'
+                 '            calc on\n'
+                 '            2 ≠ 1\n'
+                 '            calc off\n'
+                 '            ¬(2 = 1)\n'
+                 '            2 = 1 ∧ ¬(2 = 1)\n'
+                 '            false\n'
+                 'qed\n',
  'prop.kurt': '; propositional logic\n'
               ';\n'
               '; covers: not, or, invimplies (backwards implication), iff, and '
@@ -1098,7 +1840,256 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               'use %A iff not not '
               '%A                                               "not-not"\n'
               '\n'
-              '; for automatic testing we add the following line:\n',
+              '; the excluded middle, proven (not an axiom): from "not-elim"\n'
+              'show %A or not '
+              '%A                                                   '
+              '"excluded-middle"\n'
+              'proof\n'
+              '    assume not (%A or not %A)\n'
+              '        assume %A\n'
+              '            %A or not %A\n'
+              '            false\n'
+              '        not %A\n'
+              '        %A or not %A\n'
+              '        false\n'
+              '    not not (%A or not %A)\n'
+              '    %A or not %A\n'
+              'qed\n',
+ 'rational.kurt': '; rational numbers\n'
+                  ';\n'
+                  '; covers: `Rat`, the fractions m / n of an integer m and a '
+                  'natural number n ≠ 0, closed under\n'
+                  '; `+`, `-`, `*` and `/` (by a number ≠ 0); and every '
+                  'positive rational in lowest terms\n'
+                  '; ("lowest-terms", proven from the well-ordering of '
+                  'natural.kurt). As for natural.kurt, they are\n'
+                  '; numbers of arith.kurt, so its laws (and `calc`) apply.\n'
+                  'load integer\n'
+                  'const Rat\n'
+                  'calc Rat rationals                  ; `calc on` proves `1 / '
+                  '3 ∈ Rat`\n'
+                  '\n'
+                  'use $q ∈ Rat  ⇔  ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ '
+                  '$q = $m / $n)     "rat-def"\n'
+                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a + $b ∈ '
+                  'Rat                          "rat-add"\n'
+                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a - $b ∈ '
+                  'Rat                          "rat-sub"\n'
+                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a * $b ∈ '
+                  'Rat                          "rat-mul"\n'
+                  'use $a ∈ Rat ∧ $b ∈ Rat ∧ $b ≠ 0  ⇒  $a / $b ∈ '
+                  'Rat                 "rat-div"\n'
+                  '\n'
+                  'show $z ∈ Int  ⇒  $z ∈ Rat     "rat-int"\n'
+                  'proof\n'
+                  '    assume $z ∈ Int\n'
+                  '        1 ∈ Nat\n'
+                  '        calc on\n'
+                  '        1 ≠ 0\n'
+                  '        calc off\n'
+                  '        $z = $z / 1                                    ; '
+                  'div-identity\n'
+                  '        $z ∈ Int ∧ 1 ∈ Nat ∧ 1 ≠ 0 ∧ $z = $z / 1\n'
+                  '        ∃ $n ($z ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $z / $n)\n'
+                  '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $m / '
+                  '$n)\n'
+                  '        $z ∈ Rat\n'
+                  'qed\n'
+                  '\n'
+                  '; a positive rational is a fraction of natural numbers\n'
+                  'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ '
+                  '$n ≠ 0 ∧ $q = $m / $n)     "rat-pos"\n'
+                  'proof\n'
+                  '    assume $q ∈ Rat ∧ $q > 0\n'
+                  '        $q ∈ Rat\n'
+                  '        $q > 0\n'
+                  '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
+                  '$n)\n'
+                  '        pick m with ∃ $n (m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q '
+                  '= m / $n)\n'
+                  '            pick n with m ∈ Int ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m '
+                  '/ n\n'
+                  '                m ∈ Int\n'
+                  '                n ∈ Nat\n'
+                  '                n ≠ 0\n'
+                  '                $q = m / n\n'
+                  '                0 < n                                  ; '
+                  'nat-pos\n'
+                  '                n > 0                                  ; '
+                  'lt-gt\n'
+                  '                ; m = q n > 0\n'
+                  '                (m / n) * n = m                        ; '
+                  'div-mul\n'
+                  '                $q * n = (m / n) * n\n'
+                  '                       = m\n'
+                  '                $q * n > 0                             ; '
+                  'mul-pos\n'
+                  '                m > 0\n'
+                  '                m ∈ Nat                                ; '
+                  'int-pos-nat\n'
+                  '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m / n\n'
+                  '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ $q = m '
+                  '/ $j)\n'
+                  '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
+                  '$q = $i / $j)\n'
+                  'qed\n'
+                  '\n'
+                  '; cancelling a common factor\n'
+                  'show $d ≠ 0 ∧ $b ≠ 0  ⇒  ($d * $a) / ($d * $b) = $a / '
+                  '$b     "frac-cancel"\n'
+                  'proof\n'
+                  '    assume $d ≠ 0 ∧ $b ≠ 0\n'
+                  '        $d ≠ 0\n'
+                  '        $b ≠ 0\n'
+                  '        ($d / $d) * ($a / $b) = ($d * $a) / ($d * $b)    ; '
+                  'div-mul-div\n'
+                  '        $d / $d = 1                                    ; '
+                  'div-self\n'
+                  '        1 * ($a / $b) = $a / $b                        ; '
+                  'mul-identity\n'
+                  '        ($d * $a) / ($d * $b) = ($d / $d) * ($a / $b)\n'
+                  '                              = 1 * ($a / $b)\n'
+                  '                              = $a / $b\n'
+                  'qed\n'
+                  '\n'
+                  '; lowest terms: a positive rational is m / n with coprime '
+                  'natural numbers m, n -- take the least\n'
+                  '; denominator n (well-ordering); a common divisor d ≥ 2 of '
+                  'm and n would give the smaller\n'
+                  '; denominator n / d\n'
+                  'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ '
+                  '$n ≠ 0 ∧ coprime($m, $n) ∧ $q = $m / $n)     '
+                  '"lowest-terms"\n'
+                  'proof\n'
+                  '    assume $q ∈ Rat ∧ $q > 0\n'
+                  '        ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
+                  '$n)     ; rat-pos\n'
+                  '        ; the denominators\n'
+                  '        let c\n'
+                  '            assume c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
+                  '∧ $q = $i / $j) }\n'
+                  '                c ∈ Nat ∧ c ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
+                  '/ c)    ; separation\n'
+                  '                c ∈ Nat\n'
+                  '        ∀ $c ($c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                  '$q = $i / $j) }  implies  $c ∈ Nat)\n'
+                  '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
+                  '$j) } ⊂ Nat\n'
+                  '        pick m with ∃ $n (m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q '
+                  '= m / $n)\n'
+                  '            pick n with m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m '
+                  '/ n\n'
+                  '                m ∈ Nat\n'
+                  '                n ∈ Nat\n'
+                  '                n ≠ 0\n'
+                  '                $q = m / n\n'
+                  '                m ∈ Nat ∧ $q = m / n\n'
+                  '                ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
+                  '                n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
+                  '/ n)\n'
+                  '                n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                  '$q = $i / $j) }     ; separation\n'
+                  '                ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                  'Nat ∧ $q = $i / $j) })\n'
+                  '        ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                  '$q = $i / $j) })\n'
+                  '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
+                  '$j) } ⊂ Nat ∧ ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                  'Nat ∧ $q = $i / $j) })\n'
+                  '        ; the least one\n'
+                  '        ∃ $l ($l ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                  '$q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                  'Nat ∧ $q = $i / $j) } ($l <= $y))   ; well-ordering\n'
+                  '        pick n with n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                  'Nat ∧ $q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i '
+                  '($i ∈ Nat ∧ $q = $i / $j) } (n <= $y)\n'
+                  '            n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = '
+                  '$i / $j) }\n'
+                  '            ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                  '$q = $i / $j) } (n <= $y)\n'
+                  '            n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
+                  'n)     ; separation\n'
+                  '            n ∈ Nat\n'
+                  '            n ≠ 0\n'
+                  '            ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
+                  '            pick m with m ∈ Nat ∧ $q = m / n\n'
+                  '                m ∈ Nat\n'
+                  '                $q = m / n\n'
+                  '                ; m and n are coprime\n'
+                  '                let d ∈ Nat\n'
+                  '                    assume d ∣ m ∧ d ∣ n\n'
+                  '                        d ∣ m\n'
+                  '                        d ∣ n\n'
+                  '                        ∃ $k ($k ∈ Nat ∧ m = d * $k)\n'
+                  '                        ∃ $k ($k ∈ Nat ∧ n = d * $k)\n'
+                  '                        pick a with a ∈ Nat ∧ m = d * a\n'
+                  '                            a ∈ Nat\n'
+                  '                            m = d * a\n'
+                  '                            pick b with b ∈ Nat ∧ n = d * '
+                  'b\n'
+                  '                                b ∈ Nat\n'
+                  '                                n = d * b\n'
+                  '                                ; d ≠ 0 and b ≠ 0, since n '
+                  '≠ 0\n'
+                  '                                assume d = 0\n'
+                  '                                    n = 0 * b\n'
+                  '                                    n = '
+                  '0                      ; mul-zero\n'
+                  '                                    ¬(n = 0)\n'
+                  '                                    n = 0 ∧ ¬(n = 0)\n'
+                  '                                    ⊥\n'
+                  '                                ¬(d = 0)\n'
+                  '                                d ≠ 0\n'
+                  '                                assume b = 0\n'
+                  '                                    n = d * 0\n'
+                  '                                    n = '
+                  '0                      ; mul-zero\n'
+                  '                                    ¬(n = 0)\n'
+                  '                                    n = 0 ∧ ¬(n = 0)\n'
+                  '                                    ⊥\n'
+                  '                                ¬(b = 0)\n'
+                  '                                b ≠ 0\n'
+                  '                                ; so q = a / b, and b is a '
+                  'denominator too\n'
+                  '                                (d * a) / (d * b) = a / '
+                  'b      ; frac-cancel\n'
+                  '                                $q = m / n\n'
+                  '                                   = (d * a) / n\n'
+                  '                                   = (d * a) / (d * b)\n'
+                  '                                   = a / b\n'
+                  '                                a ∈ Nat ∧ $q = a / b\n'
+                  '                                ∃ $i ($i ∈ Nat ∧ $q = $i / '
+                  'b)\n'
+                  '                                b ∈ Nat ∧ b ≠ 0 ∧ ∃ $i ($i '
+                  '∈ Nat ∧ $q = $i / b)\n'
+                  '                                b ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ '
+                  '$i ($i ∈ Nat ∧ $q = $i / $j) }     ; separation\n'
+                  '                                n <= b\n'
+                  '                                ; d = 1, since d ≥ 2 would '
+                  'make b < d b = n\n'
+                  '                                assume ¬(d = 1)\n'
+                  '                                    d ≠ 1\n'
+                  '                                    2 <= '
+                  'd                     ; nat-ge-two\n'
+                  '                                    b < d * '
+                  'b                  ; nat-lt-mul\n'
+                  '                                    b < n\n'
+                  '                                    b >= '
+                  'n                     ; le-ge\n'
+                  '                                    b < n ∧ b >= n\n'
+                  '                                    '
+                  '⊥                          ; lt-ge-contra\n'
+                  '                                ¬¬(d = 1)\n'
+                  '                                d = 1\n'
+                  '                ∀ $d ∈ Nat ($d ∣ m ∧ $d ∣ n  ⇒  $d = 1)\n'
+                  '                coprime(m, n)\n'
+                  '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ coprime(m, n) ∧ '
+                  '$q = m / n\n'
+                  '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
+                  'coprime(m, $j) ∧ $q = m / $j)\n'
+                  '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
+                  'coprime($i, $j) ∧ $q = $i / $j)\n'
+                  'qed\n',
  'set.kurt': '; set theory\n'
              ';\n'
              '; covers: separation (`{$z ∈ $A | P($z)}`, the subset of `$A` of '
@@ -1107,8 +2098,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'set, ordered pairs and tuples\n'
              '; (`(a, b)`, `fst`, `snd`), Cartesian products (`A × B`), and '
              'mappings (`:`/`→`,\n'
-             '; `f : A → B` for "f is a function from A to B", without '
-             'function extensionality) -- see\n'
+             '; `f : A → B` for "f is a function from A to B", as sets of '
+             'pairs, with function extensionality) -- see\n'
              '; proofs/mafi1/001-two-equal-sets.kurt for a real '
              'distributive-law proof and\n'
              '; proofs/set-theory/ for more.\n'
@@ -1139,7 +2130,6 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'infix    ∩  40 40        ; intersection\n'
              'bool     in 0\n'
              'bool     ⊂ 0\n'
-             'bool     ∈ 0\n'
              'alias    ∈ in            ; `∈` inherits all properties of `in`\n'
              'brackets { }             ; curly brackets\n'
              '; `A → B` is the *set* of all mappings from A to B; `f : A → B` '
@@ -1149,6 +2139,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; `in`\n'
              'infix    → 30 30         ; for mappings\n'
              'alias    : in\n'
+             '; `calc on` decides `3 ∈ Nat` for a set that is bound to the '
+             "calculator (natural.kurt's `calc Nat naturals`)\n"
+             'calc     in element\n'
              'infix    × 45 45         ; Cartesian product\n'
              '\n'
              '; we assume that all objects are sets\n'
@@ -1217,29 +2210,109 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'use $p ∈ $A × $B  implies  $p = (fst $p, snd '
              '$p)                  "product-pairs"\n'
              '\n'
-             '; axioms for mappings\n'
-             ';\n'
-             '; a mapping is modelled as an opaque, applicable set object, not '
-             '(as in ZF set theory) a set\n'
-             '; of ordered pairs -- building the full ZF machinery (relations '
-             'as sets of pairs,\n'
-             '; single-valuedness) would be a much bigger, separate '
-             "undertaking. Application uses kurt's ordinary space-application "
-             '(`$f $a`), and `A → B` is\n'
-             '; the set of all objects that behave like an A→B mapping when '
-             'applied.\n'
-             'use $f ∈ ($A → $B)  ≡  ∀ $a  ($a ∈ $A implies ($f $a) ∈ '
-             '$B)        "function-space"\n'
+             '; mappings, as in ZF set theory: a mapping f from A to B is a '
+             'set of pairs, f ⊂ A × B, with\n'
+             '; exactly one pair (a, b) for each a ∈ A -- and `f a` is that b. '
+             'So the mapping is its graph, and\n'
+             '; two mappings from A that agree on A are equal '
+             '("function-extensionality", from the\n'
+             '; extensionality of sets); only ∅ is a mapping from ∅. '
+             "(Application `f a` is kurt's ordinary\n"
+             '; space-application, also written `f(a)`.)\n'
+             'use $f ∈ ($A → $B)  ≡  $f ⊂ $A × $B ∧ (∀ $a ∈ $A ∃ $b (($a, $b) '
+             '∈ $f)) ∧ ∀ $a ∀ $b ∀ $c (($a, $b) ∈ $f ∧ ($a, $c) ∈ $f  implies  '
+             '$b = $c)   "function-space"\n'
+             'use $f ∈ ($A → $B) ∧ ($a, $b) ∈ $f  implies  $f $a = '
+             '$b              "apply"\n'
              '\n'
-             '; no function extensionality: in this model it would be false -- '
-             'every object is in `∅ → B`\n'
-             '; (nothing to check), so any two objects would be equal (`0 = '
-             '1`); and in general, knowing the\n'
-             "; values `f a` for `a ∈ A` doesn't determine the object `f`. It "
-             'needs mappings as sets of pairs\n'
-             '; (with their domain), see dev/todo.md.\n'
+             '; the pair of a and f a is in f, and f a ∈ B\n'
+             'show $f ∈ ($A → $B) ∧ $a ∈ $A  implies  ($a, $f $a) ∈ $f ∧ $f $a '
+             '∈ $B     "apply-in"\n'
+             'proof\n'
+             '    assume $f ∈ ($A → $B) ∧ $a ∈ $A\n'
+             '        $f ∈ ($A → $B)\n'
+             '        $a ∈ $A\n'
+             '        $f ⊂ $A × $B ∧ (∀ $x ∈ $A ∃ $y (($x, $y) ∈ $f)) ∧ ∀ $x ∀ '
+             '$y ∀ $z (($x, $y) ∈ $f ∧ ($x, $z) ∈ $f  implies  $y = $z)\n'
+             '        $f ⊂ $A × $B\n'
+             '        ∀ $x ∈ $A ∃ $y (($x, $y) ∈ $f)\n'
+             '        ∃ $y (($a, $y) ∈ $f)\n'
+             '        pick b with ($a, b) ∈ $f\n'
+             '            $f $a = b                                  ; apply\n'
+             '            ($a, $f $a) ∈ $f\n'
+             '            ∀ $c ($c ∈ $f  implies  $c ∈ $A × $B)\n'
+             '            ($a, b) ∈ $f  implies  ($a, b) ∈ $A × $B\n'
+             '            ($a, b) ∈ $A × $B\n'
+             '            $a ∈ $A ∧ b ∈ $B                           ; '
+             'product\n'
+             '            b ∈ $B\n'
+             '            $f $a ∈ $B\n'
+             '            ($a, $f $a) ∈ $f ∧ $f $a ∈ $B\n'
+             'qed\n'
              '\n'
-             '; for automatic testing we add the following line:\n'}
+             '; two mappings from A to B that agree on A are equal\n'
+             'show $f ∈ ($A → $B) ∧ $g ∈ ($A → $B) ∧ (∀ $a ∈ $A ($f $a = $g '
+             '$a))  implies  $f = $g     "function-extensionality"\n'
+             'proof\n'
+             '    assume $f ∈ ($A → $B) ∧ $g ∈ ($A → $B) ∧ (∀ $a ∈ $A ($f $a = '
+             '$g $a))\n'
+             '        $f ∈ ($A → $B)\n'
+             '        $g ∈ ($A → $B)\n'
+             '        ∀ $a ∈ $A ($f $a = $g $a)\n'
+             '        $f ⊂ $A × $B ∧ (∀ $x ∈ $A ∃ $y (($x, $y) ∈ $f)) ∧ ∀ $x ∀ '
+             '$y ∀ $z (($x, $y) ∈ $f ∧ ($x, $z) ∈ $f  implies  $y = $z)\n'
+             '        $g ⊂ $A × $B ∧ (∀ $x ∈ $A ∃ $y (($x, $y) ∈ $g)) ∧ ∀ $x ∀ '
+             '$y ∀ $z (($x, $y) ∈ $g ∧ ($x, $z) ∈ $g  implies  $y = $z)\n'
+             '        $f ⊂ $A × $B\n'
+             '        $g ⊂ $A × $B\n'
+             '        ∀ $c ($c ∈ $f  implies  $c ∈ $A × $B)\n'
+             '        ∀ $c ($c ∈ $g  implies  $c ∈ $A × $B)\n'
+             '        ; f ⊂ g: a pair (a, b) of f is (a, f a) = (a, g a), '
+             'which is in g\n'
+             '        let c\n'
+             '            assume c ∈ $f\n'
+             '                c ∈ $A × $B\n'
+             '                c = (fst c, snd c)                     ; '
+             'product-pairs\n'
+             '                (fst c, snd c) ∈ $f\n'
+             '                (fst c, snd c) ∈ $A × $B\n'
+             '                fst c ∈ $A ∧ snd c ∈ $B                ; '
+             'product\n'
+             '                fst c ∈ $A\n'
+             '                $f (fst c) = snd c                     ; apply\n'
+             '                $f (fst c) = $g (fst c)\n'
+             '                (fst c, $g (fst c)) ∈ $g ∧ $g (fst c) ∈ $B      '
+             '; apply-in\n'
+             '                (fst c, $g (fst c)) ∈ $g\n'
+             '                snd c = $g (fst c)\n'
+             '                (fst c, snd c) ∈ $g\n'
+             '                c ∈ $g\n'
+             '        ∀ $c ($c ∈ $f  implies  $c ∈ $g)\n'
+             '        $f ⊂ $g\n'
+             '        ; g ⊂ f, the same way\n'
+             '        let c\n'
+             '            assume c ∈ $g\n'
+             '                c ∈ $A × $B\n'
+             '                c = (fst c, snd c)                     ; '
+             'product-pairs\n'
+             '                (fst c, snd c) ∈ $g\n'
+             '                (fst c, snd c) ∈ $A × $B\n'
+             '                fst c ∈ $A ∧ snd c ∈ $B                ; '
+             'product\n'
+             '                fst c ∈ $A\n'
+             '                $g (fst c) = snd c                     ; apply\n'
+             '                $f (fst c) = $g (fst c)\n'
+             '                (fst c, $f (fst c)) ∈ $f ∧ $f (fst c) ∈ $B      '
+             '; apply-in\n'
+             '                (fst c, $f (fst c)) ∈ $f\n'
+             '                snd c = $f (fst c)\n'
+             '                (fst c, snd c) ∈ $f\n'
+             '                c ∈ $f\n'
+             '        ∀ $c ($c ∈ $g  implies  $c ∈ $f)\n'
+             '        $g ⊂ $f\n'
+             '        $f ⊂ $g ∧ $g ⊂ $f\n'
+             '        $f = $g                                        ; eq-def\n'
+             'qed\n'}
 
 class _EmbeddedTheoryFile:
     def __init__(self, files: dict[str, str], name: str) -> None:
@@ -1400,6 +2473,8 @@ REPLACEMENTS: dict[str, str] = {
     '\\mapsto':   '↦',     # maps to
     '\\to':       '→',     # mapping arrow
     '\\times':    '×',     # Cartesian product
+    '\\cdot':     '·',     # a product, e.g. `λ · x` for a scalar times a vector
+    '\\mid':      '∣',     # divides, e.g. `2 ∣ n` (not the `|` of `{ x ∈ A | ... }`)
     '\\langle':   '⟨',     # angle brackets, e.g. for a scalar product `⟨a, b⟩`
     '\\rangle':   '⟩',
 
@@ -1555,7 +2630,7 @@ keywords: dict[str, str] = {
     'let':         'fix a new constant, possibly with an assumption (made for "forall-intro"), block must be indented',
     'pick':        'pick a new constant "with" assumption (made for "exists-elim"), block must be indented',
     'sandbox':     'open a temporary block, useful for trying out things; discarded when closed, whether by dedenting or by `break`',
-    'expect':      'open a block whose content must raise the named kind of error (one of ProofError, ParseError, EvalError, SyntaxError, TypeError) to succeed -- anywhere inside, including in nested blocks and while they close; the block is discarded either way',
+    'expect':      'open a block whose content must raise the named kind of error (one of ProofError, ParseError, EvalError, SyntaxError, TypeError), optionally with a text its message contains (`expect "ProofError" "can not derive"`), to succeed -- anywhere inside, including in nested blocks and while they close; the block is discarded either way',
 
     # closing a block explicitly (besides just dedenting, which works everywhere and is enough on its own)
     'break':       'discard the current block immediately (no proof step, no dedent needed)',
@@ -1576,6 +2651,7 @@ class Token:
     column: Optional[int] = None
     origin: Optional[Value] = None
     chained: bool = False    # an `and` created by `chain_relations`, only needed while parsing
+    glued: bool = False      # written directly after the token before, without a space (`f(x)`)
 
     def __repr__(self) -> str:
         return f'{self.value}'
@@ -2069,7 +3145,7 @@ class KnowledgeBase:
     def __init__(self, parent:Optional[KnowledgeBase], mode: Mode, tmp: bool = False) -> None:
         # general
         self.parent: Optional[KnowledgeBase] = parent
-        self._todos: list[str]      = []         # list of todos (only relevant on level 0, all todos are collected there)
+        self._todos: list[str]      = []         # the open todos of this level (a block passes them on when it closes with a result, see `pop_level`)
         self.level: int             = 0 if parent is None else parent.level + 1
         self.mode_str: str          = mode[0]    # one of ['root', 'sandbox', 'proof', 'assume', 'case', 'let', 'pick', 'expect']
         self.mode_args: list[Expr]  = mode[1]    # expression that opened the current block (just [] for 'root', 'sandbox', 'proof')
@@ -2164,12 +3240,16 @@ class KnowledgeBase:
     def push_level(self, mode_str: str, mode_expr_list: list[Expr]) -> KnowledgeBase:
         return KnowledgeBase(parent=self, mode=(mode_str, mode_expr_list), tmp=self.tmp)
 
-    def pop_level(self) -> KnowledgeBase:
+    def pop_level(self, keep_todos: bool = False) -> KnowledgeBase:
+        # `keep_todos`: the block closes with a result, so its open `todo`s are the parent's now;
+        # otherwise it is discarded (`sandbox`, `expect`, `break`, an error), and its `todo`s too
         if self.level == 0:
             raise KurtException(f'EvalError: no block to close')
         self.check_all_shown_proved()  # check that all `show` formulas have been proved
         assert self.parent is not None, f'BUG: we should be one level up'
         parent = self.parent
+        if keep_todos:
+            parent._todos.extend(self._todos)
         self.parent = None        # detaching it might help the garbage collector
         return parent
 
@@ -2183,24 +3263,19 @@ class KnowledgeBase:
         bundle = compute_exports(self)
         validate_exports(bundle, self, self.parent, own_file)
         apply_exports(self.parent, bundle)
-        return self.pop_level()
+        return self.pop_level(keep_todos=True)
 
     def nice_mode_str(self) -> str:
         args_str = ", ".join([f'{expr_str(v, self)}' for v in self.mode_args]) if len(self.mode_args) > 0 else ''
         return f'{">"*self.level}! {self.mode_str} {args_str}'
 
     def todo_add(self, todo) -> None:
-        if self.parent is None:
-            self._todos.append(todo)
-        else:
-            self.parent.todo_add(todo)
+        # stored on the level of the block, see `pop_level`
+        self._todos.append(todo)
 
     def todos(self) -> list[str]:
-        if self.parent is None:
-            return self._todos
-        else:
-            assert len(self._todos) == 0, f'BUG: `todos` must be stored in the top level'
-            return self.parent.todos()
+        # the open `todo`s, of this level and the ones around it
+        return (self.parent.todos() if self.parent is not None else []) + self._todos
 
     def loaded_files_str(self) -> str:
         lines = self._loaded_files_lines()
@@ -2713,6 +3788,10 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` is already a variable or starts with `$` or `%`')
         if self.is_const(s):
             raise KurtException(f'EvalError: symbol `{s}` is already a constant')
+        if self.is_known(s):
+            # an alias is a new name: it takes over everything of its symbol, so it can't have
+            # declarations of its own (`bool ∈ 0`, then `alias ∈ in`), which might differ
+            raise KurtException(f'EvalError: symbol `{s}` is already declared -- an alias must be a new name')
         # (found in the soundness review of 2026-09-29: `alias Q $x`, and cycles `alias q r`, `alias r q`)
         if self.is_var(t) or self.is_fixed_var(t):
             raise KurtException(f'EvalError: an alias is another name for a symbol, not for the variable `{t}`')
@@ -2755,6 +3834,8 @@ class KnowledgeBase:
     def get_lbp(self, token: Optional[Token]) -> int:
         if token is None:
             raise StopIteration
+        if token.label == 'SYMBOL' and token.value == '(' and token.glued:
+            return glued_lbp         # `f(x)`, without a space: binds more tightly than `f x`, also in a condition
         if token.label == 'SYMBOL':
             if token.value in self.lbp:
                 return self.lbp[token.value]
@@ -2833,7 +3914,13 @@ class KnowledgeBase:
                 match children:
                     case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and self.is_bindop(op):
                         bound_v, _ = unpack_condition(cond, self)
-                        bound_vars = bound_vars | {bound_v}   # add v to a copy of `bound_vars`
+                        middle, body = binder_scope(tail)
+                        for child in middle:                    # outside the scope of `bound_v`
+                            self._add_new_symbols(child, bound_vars)
+                        inner = bound_vars | {bound_v}          # add v to a copy of `bound_vars`
+                        for child in [children[0], cond, *body]:
+                            self._add_new_symbols(child, inner)
+                        return
                 for child in children:
                     self._add_new_symbols(child, bound_vars)
             case _:
@@ -2970,6 +4057,7 @@ initial_kb.add_infix (IMPL_SYMBOL, 13, 12)                 # implies is infix op
 initial_kb.add_infix (AND_SYMBOL, 16, 16)                  # and     is infix operator
 space_lbp:    int = 90                                     # left  binding power: function application binds most tightly, `f x + y` is `(f x) + y`
 space_rbp:    int = 90                                     # right binding power, see `space_lbp`
+glued_lbp:    int = 95                                     # `f(x)` without a space: `inv det($A)` is `inv (det $A)`
 initial_kb.add_infix (SPACE_SYMBOL, space_lbp, space_rbp)  # space op is for fn like `f x`
 
 initial_kb.add_bool  (TRUE_SYMBOL, [0])                    # true is bool
@@ -3157,7 +4245,11 @@ def equal_expr_alpha(t1: Expr, t2: Expr, kb: 'KnowledgeBase', bmap1: dict, bmap2
             new_bmap2 = {**bmap2, bv2: bv1}
             if c1 is not None and not equal_expr_alpha(c1, c2, kb, new_bmap1, new_bmap2, keep_order):
                 return False
-            return all(equal_expr_alpha(a, b, kb, new_bmap1, new_bmap2, keep_order) for a, b in zip(tail1, tail2))
+            middle1, body1 = binder_scope(tail1)
+            middle2, body2 = binder_scope(tail2)
+            # the middle arguments are outside the scope of the binder (`binder_scope`)
+            return (all(equal_expr_alpha(a, b, kb, bmap1, bmap2, keep_order) for a, b in zip(middle1, middle2))
+                    and all(equal_expr_alpha(a, b, kb, new_bmap1, new_bmap2, keep_order) for a, b in zip(body1, body2)))
         case ([Token(label='SYMBOL', value=op1) as head1, *args1], [Token(label='SYMBOL', value=op2) as head2, *args2]) \
                 if isinstance(op1, str) and op1 == op2 and len(args1) == len(args2) and len(args1) > 1 \
                 and kb.is_sym(op1) and (op1 not in SYM_KEEP_ORDER or not keep_order):
@@ -3262,7 +4354,8 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             if alias is not None:
                 origin = value             # store for string generation
                 value  = alias
-            yield Token(label, value, column, origin)
+            glued = pos > 0 and not input_line[pos - 1].isspace()
+            yield Token(label, value, column, origin, glued=glued)
         elif label in ('INT', 'FLOAT'):
             assert isinstance(value, str)
             if len(value) > MAX_NUMBER_DIGITS:
@@ -3345,9 +4438,12 @@ def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str]
                 if (v not in bound and v[0] not in '$%' and '$$$' not in v and v not in found
                         and not kb.is_used(v) and not kb.is_declared(v)):
                     found.append(v)
-            case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
                 bv, _ = unpack_condition(cond, kb)
-                for child in e:
+                middle, body = binder_scope(tail)
+                for child in middle:
+                    walk(child, bound)
+                for child in [e[0], cond, *body]:
                     walk(child, bound | {bv})
             case [*children]:
                 for child in children:
@@ -3408,12 +4504,17 @@ def parse_expression(ts: PeekableGenerator, kb: KnowledgeBase, rbp: int) -> Expr
     left: Expr = nud(ts, kb, t)                   # nud == "null denotation"
     peek_lbp: int = kb.get_lbp(ts.peek)           # peek at lbp of the next token
     while rbp < peek_lbp:                         # is the next operator binding more strongly?
-        if peek_lbp == space_rbp:                 # not another operator but another expression
+        if peek_lbp in (space_rbp, glued_lbp):    # not another operator but another expression
             t: Token = space_token                # insert special token for expression like 'f x'
         else:                                     # peek_lbp is larger or smaller than space_rbp
             t: Token = next(ts)                   # get next token
         led: Led = kb.get_led(t)                  # get the correct 'led' function
+        glued = peek_lbp == glued_lbp
         left: Expr = led(ts, kb, left, t)         # led == "left denotation"
+        if glued:
+            # `det($A)` is one term, like `(det $A)` -- the brackets keep the flattening of
+            # applications from turning `inv det($A)` into `inv det $A`
+            left = [Token('SYMBOL', '($$$)', column=t.column), left]
         peek_lbp: int = kb.get_lbp(ts.peek)       # update peek_lbp for the iteration
     return left                                   # return the accumulated expression
 
@@ -3642,6 +4743,11 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
     if ts.peek.label == 'END':
         return keyword_token, [], '', False                   # empty token stream
     expr_list: list[Expr]
+    if keyword == 'let':
+        tokens = list(ts)
+        if any(is_helper_keyword(t) for t in tokens):
+            return keyword_token, [parse_let_with(tokens[:-1], kb)], '', False     # [:-1] removes end_token
+        ts = PeekableGenerator(iter(tokens))
     if keyword_token is None or keyword_token.value in keywords_with_parsing:
         expr: Expr  = parse_expression(ts, kb, begin_rbp)     # parse expression
         expr, label, local = post_process(kb, expr)           # turn spaces into calls, symmetry, flatness
@@ -3657,9 +4763,27 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
                 print(f'parsed as: {expr_str(expr, kb)}', file=sys.stderr)
                 raise e      # reraise it
     else:
-        expr_list = split_by_comma(list(ts)[:-1])             # [:-1] removes end_token
+        expr_list = split_by_comma(list(ts)[:-1], kb)         # [:-1] removes end_token
         check_no_keyword(expr_list)             # don't check the `keyword` and the `label`
     return keyword_token, expr_list, label, local
+
+def parse_let_with(tokens: list[Token], kb: KnowledgeBase) -> Expr:
+    # `let x with C`, like `pick x with C`: the same as `let C`, if `C` binds `x` (`unpack_condition`)
+    msg = 'EvalError: `let` with `with` takes a new constant and a condition on it, e.g. `let x with P(x)`'
+    with_index = next(i for i, t in enumerate(tokens) if is_helper_keyword(t))
+    pre, post = tokens[:with_index], tokens[with_index+1:]
+    if len(pre) != 1 or not post or any(is_helper_keyword(t) for t in post) or any(t.value == COMMA_SYMBOL for t in tokens):
+        raise KurtException(msg)
+    ts = PeekableGenerator(t for t in post + [end_token])
+    condition = parse_expression(ts, kb, begin_rbp)
+    condition, _, _ = post_process(kb, condition)
+    check_no_keyword(condition)
+    type_check_expression(condition, kb)
+    name = pre[0].value
+    bound, _ = unpack_condition(condition, kb)
+    if bound != name:
+        raise KurtException(f'EvalError: in `let {name} with {expr_str(condition, kb)}`, the condition is about `{bound}`, not `{name}`', pre[0].column)
+    return condition
 
 ## kurt eval
 def create_usage(keyword: str, arg_labels: list[list[Label]]) -> str:
@@ -3835,7 +4959,8 @@ def contains(expr: Expr, symbols: set[str], kb: KnowledgeBase) -> bool:
             bound_v, condition = unpack_condition(cond, kb)
             symbols_wo_bound_v = symbols - {bound_v}  # set difference creating a new set
             cond_check = False if condition is None else contains(condition, symbols_wo_bound_v, kb)
-            return cond_check or contains(tail, symbols_wo_bound_v, kb)
+            middle, body = binder_scope(tail)        # the middle arguments are outside the scope
+            return cond_check or contains(middle, symbols, kb) or contains(body, symbols_wo_bound_v, kb)
         # other list
         case [*children]:
             return any(contains(c, symbols, kb) for c in children)
@@ -3858,7 +4983,10 @@ def free_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str] = fro
             found = set() if op in bound_vars else {op}
             if condition is not None:
                 found |= free_symbols(condition, kb, new_bound_vars)
-            for child in tail:
+            middle, body = binder_scope(tail)        # the middle arguments are outside the scope
+            for child in middle:
+                found |= free_symbols(child, kb, bound_vars)
+            for child in body:
                 found |= free_symbols(child, kb, new_bound_vars)
             return found
         case [*children]:
@@ -3887,7 +5015,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
             log(kb, 'sandbox', f'{line} closed, its content is discarded', kb.level)
         return kb
     if kb.mode_str == 'expect':
-        assert len(kb.mode_args) == 1 and isinstance(kb.mode_args[0], Token)
+        assert len(kb.mode_args) in (1, 2) and isinstance(kb.mode_args[0], Token)
         expected_kind = kb.mode_args[0].value
         # deliberately not one of `KurtException.KNOWN_KINDS`, so this can never be
         # mistaken by `read_eval_loop` for the very error it says didn't happen
@@ -3963,7 +5091,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
     # add a the new formula to the theory
     reason = decorate_reason(mainstream, reason, filename, str(line))
     f = Formula(kb, expr, '', str(line), filename, '', reason, keyword='')
-    kb = kb.pop_level()                    # drop current level and perform some checks
+    kb = kb.pop_level(keep_todos=True)     # drop current level and perform some checks
     kb.theory_append(f)                    # add a copy to the theory
     if mainstream:
         log(kb, f.formula_str(kb), reason, kb.level)
@@ -4048,7 +5176,7 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> K
     # exportable exactly like a labelled `use`/`def` axiom would be (see doc/kurt-doc.md's
     # `load` section); this used to be silently dropped (`label = ''` unconditionally) here
     f = Formula(kb, planned_f.expr, planned_f.input_line, str(planned_f.line), filename, planned_f.label, reason, keyword='', local=planned_f.local)
-    kb = kb.pop_level()                        # drop current level and perform some checks
+    kb = kb.pop_level(keep_todos=True)         # drop current level and perform some checks
     kb.show.pop()                              # pop the last planned formula off the show stack, since it is proved now
     kb.theory_append(f)                        # add a copy to the current theory
     if mainstream:
@@ -4072,7 +5200,10 @@ def extract_by_condition(e: Expr, c: Callable[[str], bool], kb: KnowledgeBase, b
             bound_v, condition = unpack_condition(cond, kb)
             new_bound_vars = bound_vars | {bound_v}
             found = [] if condition is None else extract_by_condition(condition, c, kb, new_bound_vars)
-            for child in tail:
+            middle, body = binder_scope(tail)        # the middle arguments are outside the scope
+            for child in middle:
+                found += extract_by_condition(child, c, kb, bound_vars)
+            for child in body:
                 found += extract_by_condition(child, c, kb, new_bound_vars)
             return found
         case [*children]:
@@ -4085,6 +5216,12 @@ def extract_by_condition(e: Expr, c: Callable[[str], bool], kb: KnowledgeBase, b
 # what is allowed for `let`?
 #     let x      ; x must be new constant or existing variable
 #     let x>0    ; x must be new constant or existing variable
+def binder_scope(tail: list[Expr]) -> tuple[list[Expr], list[Expr]]:
+    # the arguments of a binder after its condition, split into the middle ones -- the range of
+    # `sum i (a, b) T`, the point of `lim v a T` -- which are outside the scope of its variable,
+    # as in mathematics, and the last one, the body, which is inside (like the condition)
+    return tail[:-1], tail[-1:]
+
 def unpack_condition(expr: Expr, kb: KnowledgeBase) -> tuple[str, Optional[Expr]]:
     if isinstance(expr, Token):
         if expr.label != 'SYMBOL':
@@ -4135,6 +5272,18 @@ def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line
         kb.theory_append(f)
     return kb
 
+def pick_instance(existential: Expr, witness: Expr, kb: KnowledgeBase) -> Optional[Expr]:
+    # what `pick` knows about the witness of `∃ x body`: `body` with the witness for `x` -- and for
+    # an existential with a condition, `∃ (C) body`, the condition and the body (as logic.kurt's
+    # "exists-cond-def": `∃ (sub $x $v %C) %P` is `∃ $w ((sub $x $w %C) and (sub $v $w %P))`)
+    match existential:
+        case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if q == EXISTS_SYMBOL and isinstance(x, str):
+            return normalize_expr(k_replace(body, x, witness, kb), kb)
+        case [Token(label='SYMBOL', value=q), cond, body] if q == EXISTS_SYMBOL and isinstance(cond, list):
+            x, _ = unpack_condition(cond, kb)
+            return normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(cond, x, witness, kb), k_replace(body, x, witness, kb)], kb)
+    return None
+
 def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_line, filename: str, line: int, mainstream: bool) -> tuple[KnowledgeBase, Expr]:
     assert isinstance(new_const_expr, Token) and new_const_expr.label=='SYMBOL'
     new_const = new_const_expr.value
@@ -4152,16 +5301,11 @@ def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_li
     for candidate in kb.all_theory():
         cand_expr = candidate.simplified_expr
         if is_exists(cand_expr):
-            match cand_expr:
-                case [Token(label='SYMBOL', value=quantifier), Token(label='SYMBOL', value=bound_var), body] if isinstance(bound_var, str):
-                    assert quantifier == EXISTS_SYMBOL
-                    s = State({bound_var: new_const_expr}, frozenset(), frozenset())
-                    body = deepcopy_expr(body)
-                    body = apply_subst(body, s, kb)
-                    if equal_expr(body, fact, kb):
-                        break  # end the loop without the `else` block
+            instance = pick_instance(cand_expr, new_const_expr, kb)
+            if instance is not None and equal_expr(instance, fact, kb):
+                break  # end the loop without the `else` block
     else:
-        raise KurtException(f'ProofError: can not find an existential formula that matches the `pick`')
+        raise KurtException(f'ProofError: can not find an existential formula that matches the `pick` -- to show something for an arbitrary `{new_const}` with this property, write `let {new_const} with ...` instead')
     source = candidate
 
     # (3) open a new block, add a new constant and the fact
@@ -4323,8 +5467,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 for arg in args:
                     match arg:
                         case [Token(label='SYMBOL', value=symbol), Token(label='SYMBOL', value=operation)] if isinstance(symbol, str) and isinstance(operation, str):
-                            if operation not in CALCULATOR_OPERATIONS and operation not in CALCULATOR_RELATIONS:
-                                raise KurtException(f'EvalError: `{operation}` is not an operation of the calculator, one of {", ".join(CALCULATOR_OPERATIONS + tuple(CALCULATOR_RELATIONS))}', keyword_token.column)
+                            known = CALCULATOR_OPERATIONS + tuple(CALCULATOR_RELATIONS) + (CALCULATOR_MEMBERSHIP,) + tuple(CALCULATOR_SETS)
+                            if operation not in known:
+                                raise KurtException(f'EvalError: `{operation}` is not an operation of the calculator, one of {", ".join(known)}', keyword_token.column)
                             bindings.append((symbol, operation))
                         case _:
                             msg = create_usage(keyword, [[], ['on'], ['off'], ['SYMBOL', 'OPERATION']])
@@ -4852,8 +5997,10 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         log(kb, f'sandbox', f'{line} open sandbox, close with `break`', kb.level-1)  # log the new constant
 
     elif keyword == 'expect':
-        msg = 'EvalError: `expect` takes exactly one string argument naming the expected error kind, e.g. `expect "ProofError"`'
-        if len(args) != 1:
+        msg = 'EvalError: `expect` takes a string naming the expected error kind, and optionally a text its message must contain, e.g. `expect "ProofError" "can not derive"`'
+        if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 2:
+            args = [[args[0][0]], [args[0][1]]]     # `expect "KIND" "TEXT"`, without a comma
+        if len(args) not in (1, 2):
             raise KurtException(msg)
         match args[0]:
             case [Token(label='STRING', value=expected_kind)] if expected_kind in KurtException.KNOWN_KINDS:
@@ -4862,9 +6009,17 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 raise KurtException(f'EvalError: unknown error kind `{bad_kind}` for `expect`, expected one of {KurtException.KNOWN_KINDS}')
             case _:
                 raise KurtException(msg)
-        kb = kb.push_level('expect', [Token(label='STRING', value=expected_kind)])
+        expected_args = [Token(label='STRING', value=expected_kind)]
+        if len(args) == 2:
+            match args[1]:
+                case [Token(label='STRING', value=expected_text)] if isinstance(expected_text, str) and expected_text != '':
+                    expected_args.append(Token(label='STRING', value=expected_text))
+                case _:
+                    raise KurtException(msg)
+        kb = kb.push_level('expect', expected_args)
         if mainstream:
-            log(kb, f'expect "{expected_kind}"', f'{line} open block, expect a `{expected_kind}` inside', kb.level-1)
+            text = f' "{expected_args[1].value}"' if len(expected_args) == 2 else ''
+            log(kb, f'expect "{expected_kind}"{text}', f'{line} open block, expect a `{expected_kind}` inside', kb.level-1)
 
     elif keyword == 'assume'  or  keyword == 'case':
         if len(args) != 1:
@@ -4903,7 +6058,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             log(kb, f'{keyword} {", ".join(args_str)}', reason, kb.level-1)  # log the new constants
 
     elif keyword == 'pick':
-        msg = 'EvalError: `pick` takes a new constant, keyword `with` and a formula , e.g. `pick x with F(x)`'
+        msg = 'EvalError: `pick` takes a new constant, keyword `with` and a formula, e.g. `pick x with F(x)`, or just the formula, e.g. `pick x > 0`'
         if len(args) == 0:
             raise KurtException(msg)
         if len(args) > 1:
@@ -4953,6 +6108,18 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         if kb.is_fixed_var(new_const):
                             raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
                         kb, fact = eval_pick(kb, new_const_expr, fact_expr, input_line, filename, line, mainstream)
+                    case [*tail] if tail and not any(is_helper_keyword(t) for t in tail):
+                        # `pick C`, like `let C`: the new constant is the one `C` is about
+                        # (`unpack_condition`), and then it is `pick x with C`
+                        ts = PeekableGenerator(t for t in tail + [end_token])
+                        condition, _, _ = post_process(kb, parse_expression(ts, kb, begin_rbp))
+                        new_const, _ = unpack_condition(condition, kb)
+                        if kb.is_const(new_const):
+                            raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
+                        if kb.is_fixed_var(new_const):
+                            raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
+                        new_const_expr = next(t for t in tail if isinstance(t, Token) and t.value == new_const)
+                        kb, fact = eval_pick(kb, new_const_expr, tail, input_line, filename, line, mainstream)
                     case _:
                         raise KurtException(msg)
             except KurtException:
@@ -4984,14 +6151,22 @@ def chop_off_comma(e: Expr) -> list[Expr]:
         case _:
             return [e]
 
-def split_by_comma(e: Expr) -> list[Expr]:
+def split_by_comma(e: Expr, kb: Optional[KnowledgeBase] = None) -> list[Expr]:
+    # split the raw tokens of a keyword that isn't parsed (e.g. `pick x with P(x, y)`) at the
+    # commas outside of brackets
     if isinstance(e, Token):
         return [e]        # nothing to split
     args = []
     current_arg: list[Expr] = []
+    depth = 0
     for ei in e:
+        if isinstance(ei, Token) and ei.label == 'SYMBOL' and isinstance(ei.value, str):
+            if ei.value in '([{' or (kb is not None and kb.is_lbracket(ei.value)):
+                depth += 1
+            elif ei.value in ')]}' or (kb is not None and kb.is_rbracket(ei.value)):
+                depth -= 1
         match ei:
-            case Token(label='SYMBOL', value=v) if v==COMMA_SYMBOL:
+            case Token(label='SYMBOL', value=v) if v==COMMA_SYMBOL and depth == 0:
                 if len(current_arg) == 0:
                     raise KurtException(f'ParseError: nothing to separate with a comma', ei.column)
                 args.append(current_arg)
@@ -5248,11 +6423,12 @@ def apply_subst(expr: Expr, s: State, kb: KnowledgeBase) -> Expr:
         # binding operator: recurse into body with extended blocked
         case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
             bound_v, _ = unpack_condition(cond, kb)
-            body = expr[2:]
+            middle, body = binder_scope(tail)
             new_s = s.block_always(bound_v)
             new_cond = apply_subst(cond, new_s, kb)
+            new_middle = [apply_subst(c, s, kb) for c in middle]     # outside the scope of `bound_v`
             new_body = [apply_subst(c, new_s, kb) for c in body]
-            return [expr[0], new_cond, *new_body]
+            return [expr[0], new_cond, *new_middle, *new_body]
         
         # general case: recurse into all children
         case [*exprs]:
@@ -5279,15 +6455,19 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
         # binding operators "bind" free variables
         case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
             bound_v, opt_condition = unpack_condition(cond, kb)
-            fv, bv = free_bound_vars(tail, kb)
+            middle, body = binder_scope(tail)
+            fv, bv = free_bound_vars(body, kb)
             if opt_condition is not None:
                 fv_cond, bv_cond = free_bound_vars(opt_condition, kb)
                 fv.update(fv_cond)
                 bv.update(bv_cond)
-            if bound_v in fv:           # `bound_v` appears freely in `tail` or `opt_condition`
+            if bound_v in fv:           # `bound_v` appears freely in the body or `opt_condition`
                 fv.remove(bound_v)      # remove from the free vars, since in `expr` it is bound
             assert isinstance(bound_v, str)
             bv.add(bound_v)             # add to the bound vars (also if it wasn't a free variable, i.e., didn't appear in `tail`)
+            fv_mid, bv_mid = free_bound_vars(middle, kb)    # outside the scope of `bound_v`
+            fv.update(fv_mid)
+            bv.update(bv_mid)
             return fv, bv
         
         # collect the free and bound variables in the children, covers also `e==[]`
@@ -5473,9 +6653,14 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
             # `cond` and `body` are processed in the context, that `bind_var in bound_vars` hold
             head2, s = rename_all_vars_rec(cond, kb, s, new_bound_vars)
 
-            # `body` gets new scope including the bound variable
+            # the body gets the new scope including the bound variable, the middle arguments not
+            # (they are outside the scope, see `binder_scope`)
+            middle, body_only = binder_scope(body)
             new_body = []
-            for child in body:
+            for child in middle:
+                new_child, s = rename_all_vars_rec(child, kb, s, bound_vars)
+                new_body.append(new_child)
+            for child in body_only:
                 new_child, s = rename_all_vars_rec(child, kb, s, new_bound_vars)
                 new_body.append(new_child)
 
@@ -5546,6 +6731,8 @@ def generate_all_combinations(expr: Expr, token_x: Token, expr_a: Optional[Expr]
     if bound_var_safe(expr, token_x, expr_a, expr, kb):     # requirement (2)
         yield (expr_a, expr)
 
+MAX_HOLES = 6     # see `all_single_hole_decompositions`
+
 def all_single_hole_decompositions(expr: Expr, token_x: Token, kb: KnowledgeBase) -> Iterator[tuple[Expr, Expr]]:
     # For each node in expr, yield (node_value, expr_with_that_node_replaced_by_token_x).
     for path, node in iter_nodes(expr):
@@ -5563,6 +6750,24 @@ def all_single_hole_decompositions(expr: Expr, token_x: Token, kb: KnowledgeBase
         seen.append(node)
         if sum(1 for _, other in iter_nodes(expr) if other == node) > 1:
             yield (node, replace_all_occurrences(expr, node, token_x))
+    # and as a hole at some of its occurrences (two or more, not all), e.g. `x` in
+    # `x R x ⇒ ¬(x ∈ S)` from `∀ $k ($k R x ⇒ ¬($k ∈ S))` -- only for up to `MAX_HOLES` occurrences,
+    # since their number grows exponentially
+    seen = []
+    for path, node in iter_nodes(expr):
+        if len(path) == 0 or any(node == other for other in seen):
+            continue
+        if isinstance(node, Token) and node.value in bound_vars:
+            continue
+        seen.append(node)
+        paths = [p for p, other in iter_nodes(expr) if other == node]
+        if 2 < len(paths) <= MAX_HOLES:
+            for k in range(2, len(paths)):
+                for chosen in itertools.combinations(paths, k):
+                    holes = expr
+                    for p in chosen:
+                        holes = replace_at_path(holes, p, token_x)
+                    yield (node, holes)
     # for each node of a `flat` operator, each group of two or more (but not all) of its
     # arguments as one hole, e.g. `b + c` in `a + b + c + d`: flattening forgot that grouping, but
     # it is still a legitimate subterm (any group, if the operator is also `sym`, otherwise only
@@ -5654,10 +6859,13 @@ def sub_condition_match(cond_e: Expr, v_e: str, args_e: list[Expr], cond_p: Expr
     if contains_symbol(cond_e, x) or any(contains_symbol(a, x) for a in args_e):
         return
     C = alpha_rename_binder_body([deepcopy_expr(cond_e)], v_e, x, kb)[0]
-    args_r = alpha_rename_binder_body([deepcopy_expr(a) for a in args_e], v_e, v_p, kb)
-    s_local = s.block_always(v_p)
-    for s_C in unify_exprs_with_patterns([(C, p_C)], s_local.block_as_domain(x), kb):
-        yield from unify_exprs_with_patterns(list(zip(args_r, args_p)) + tail, restore_blocked(s_C, x, s_local), kb)
+    middle_e, body_e = binder_scope(args_e)      # the middle arguments are outside the scope
+    middle_p, body_p = binder_scope(args_p)
+    args_r = alpha_rename_binder_body([deepcopy_expr(a) for a in body_e], v_e, v_p, kb)
+    for s_middle in unify_exprs_with_patterns(list(zip(middle_e, middle_p)), s, kb):
+        s_local = s_middle.block_always(v_p)
+        for s_C in unify_exprs_with_patterns([(C, p_C)], s_local.block_as_domain(x), kb):
+            yield from unify_exprs_with_patterns(list(zip(args_r, body_p)) + tail, restore_blocked(s_C, x, s_local), kb)
 
 def sub_solutions(expr: Expr, token_x: Token, p_a: Expr, p_A: Expr, s: State, kb: KnowledgeBase) -> Iterator[State]:
     # the states extending `s` with `expr == A[$x := a]` for the pattern parts `a` and `A` --
@@ -5799,12 +7007,14 @@ def contains_unbound_var(expr: Expr, s: State, kb: KnowledgeBase, except_var: Op
             # (a free variable of the goal itself is blocked as domain: it is fixed, not unknown)
             return (is_var_token(e, kb) and e.value != except_var and e.value not in bound
                     and not s.is_blocked_as_domain(e.value))
-        case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
             try:
                 bv, _ = unpack_condition(cond, kb)
             except KurtException:
                 return True
-            return any(contains_unbound_var(c, s, kb, except_var, bound | {bv}) for c in e)
+            middle, body = binder_scope(tail)        # the middle arguments are outside the scope
+            return (any(contains_unbound_var(c, s, kb, except_var, bound) for c in middle)
+                    or any(contains_unbound_var(c, s, kb, except_var, bound | {bv}) for c in [e[0], cond, *body]))
         case [*children]:
             return any(contains_unbound_var(c, s, kb, except_var, bound) for c in children)
     return False
@@ -6054,6 +7264,10 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                                 yield from sub_condition_match(cond_e, v_e, args_e, cond_p, args_p, tail, s, kb)
                             elif op_p==op_e and len(args_p)==len(args_e) and ((opt_condition_p is None) == (opt_condition_e is None)):
                                 assert isinstance(v_p, str) and isinstance(v_e, str)
+                                # the middle arguments (e.g. the range of a `sum`) are outside the scope of
+                                # the binder (`binder_scope`): matched as they are, before the rest
+                                middle_e, args_e = binder_scope(args_e)
+                                middle_p, args_p = binder_scope(args_p)
                                 if opt_condition_e is not None:
                                     assert isinstance(cond_e, list) and isinstance(cond_p, list)
                                     args_e = args_e + cond_e
@@ -6066,9 +7280,10 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                                     return
                                 args_e = [deepcopy_expr(args_e_i) for args_e_i in args_e]
                                 args_e = alpha_rename_binder_body(args_e, v_e, v_p, kb)
-                                # Block the pattern binder (domain+range) during descent
-                                s_local = s.block_always(v_p)
-                                yield from unify_exprs_with_patterns(list(zip(args_e, args_p)) + tail, s_local, kb)
+                                for s_middle in unify_exprs_with_patterns(list(zip(middle_e, middle_p)), s, kb):
+                                    # Block the pattern binder (domain+range) during descent
+                                    s_local = s_middle.block_always(v_p)
+                                    yield from unify_exprs_with_patterns(list(zip(args_e, args_p)) + tail, s_local, kb)
 
                 # list matching for flat and non-symmetric operators (do allow different lengths)
                 case [Token(label='SYMBOL', value=op_p), *tail_p] if isinstance(op_p, str) and (kb.is_flat(op_p) and not kb.is_sym(op_p)):
@@ -6142,9 +7357,11 @@ def alpha_rename_binder_body(body: list[Expr], old: str, new: str, kb: Knowledge
                 return Token(label='SYMBOL', value=new)
             case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
                 bv, opt_condition = unpack_condition(cond, kb)
+                middle, body = binder_scope(tail)
                 if bv == old:
-                    # A new binder that *rebinds* `old` thus do not rename under it
-                    return [Token(label='SYMBOL', value=op), cond, *tail]
+                    # A new binder that *rebinds* `old` thus do not rename under it -- only in its
+                    # middle arguments, which are outside its scope (`binder_scope`)
+                    return [Token(label='SYMBOL', value=op), cond, *[ren(c) for c in middle], *body]
                 # Otherwise, keep renaming under this binder
                 return [Token(label='SYMBOL', value=op), ren(cond), *[ren(c) for c in tail]]
             case [*children]:
@@ -6178,28 +7395,31 @@ def capture_avoiding_replace(A: Expr, x: str, t: Expr, s: State, kb: KnowledgeBa
             case Token():
                 return e
 
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
                 bv, opt_condition = unpack_condition(cond, kb)
+                # the middle arguments are outside the scope of `bv` (`binder_scope`)
+                middle, body = binder_scope(tail)
+                new_middle = [go(c, blk) for c in middle]
 
                 # if this binder binds x, x is not free below thus no substitution under it,
                 # but we still recurse structurally to catch nested binders that might need α-renaming
                 if bv == x:
                     new_body = [go(c, blk | {bv}) for c in body]
-                    return [Token(label='SYMBOL', value=op), cond, *new_body]
+                    return [Token(label='SYMBOL', value=op), cond, *new_middle, *new_body]
 
                 # if bv occurs free in t, α-rename this binder locally
                 if bv in FVt:
                     # Build an avoid set to keep name fresh w.r.t. t and current e
-                    avoid = FVt | free_vars_only([Token(label='SYMBOL', value=op), cond, *body], kb) | {x} | set(blk)
+                    avoid = FVt | free_vars_only([Token(label='SYMBOL', value=op), cond, *tail], kb) | {x} | set(blk)
                     bv2 = fresh_like(bv, avoid, kb)
                     cond_ren = alpha_rename_binder_body([cond], bv, bv2, kb)[0]
                     body_ren = alpha_rename_binder_body(body, bv, bv2, kb)
                     new_body = [go(c, blk | {bv2}) for c in body_ren]
-                    return [Token(label='SYMBOL', value=op), cond_ren, *new_body]
+                    return [Token(label='SYMBOL', value=op), cond_ren, *new_middle, *new_body]
                 # Normal descent: no α-renaming needed
                 new_cond = go(cond, blk | {bv})
                 new_body = [go(c, blk | {bv}) for c in body]
-                return [Token(label='SYMBOL', value=op), new_cond, *new_body]
+                return [Token(label='SYMBOL', value=op), new_cond, *new_middle, *new_body]
 
             case [*children]:
                 return [go(c, blk) for c in children]
@@ -6208,6 +7428,23 @@ def capture_avoiding_replace(A: Expr, x: str, t: Expr, s: State, kb: KnowledgeBa
 
     # 1) α-rename binders in A that would capture free vars of t
     A_alpha = go(A, s.blocked_as_domain)
+
+    # ... and binders in t over `x` itself: `x` may occur in `t` only bound (`sub $v (argmax $v ∈ $A
+    # $T) $T`), which the occurs check of `bind` would take for a cycle (found 2026-10-02)
+    def rename_bound_x(e: Expr) -> Expr:
+        match e:
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+                bv, _ = unpack_condition(cond, kb)
+                middle, body = binder_scope(tail)        # the middle arguments are outside the scope
+                if bv == x:
+                    bv2 = fresh_like(x, FVt | {x}, kb)
+                    cond, *body = alpha_rename_binder_body([cond, *body], x, bv2, kb)
+                return [e[0], rename_bound_x(cond), *(rename_bound_x(c) for c in middle), *(rename_bound_x(c) for c in body)]
+            case [*children]:
+                return [rename_bound_x(c) for c in children]
+        return e
+    if x not in FVt:
+        t = rename_bound_x(t)
 
     # 2) now do the capture-avoiding replacement using your apply_subst
     #    (blocked prevents touching bound occurrences of x)
@@ -6276,11 +7513,14 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
                         reading = None        # no variable to bind at all
                     if reading != bv:
                         raise BinderMisread()     # found in the soundness review of 2026-09-29
-                new_body, s_scope = trigger_sub_core(body, s_scope)
+                middle, body_only = binder_scope(body)
+                new_body, s_scope = trigger_sub_core(body_only, s_scope)
                 # leave binder scope (pop the block)
                 s_after = unblock_as_before(s_scope, bv, s)
-                assert isinstance(new_body, list)
-                return [e[0], new_cond, *new_body], s_after
+                # the middle arguments are outside the scope (`binder_scope`)
+                new_middle, s_after = trigger_sub_core(middle, s_after) if middle else ([], s_after)
+                assert isinstance(new_body, list) and isinstance(new_middle, list)
+                return [e[0], new_cond, *new_middle, *new_body], s_after
 
             # any other list
             case [*children] if len(children) > 0:
@@ -6617,6 +7857,31 @@ def loaded_files(fname: str) -> list[str]:
                     found.append(resolved)
     return found
 
+def certificates_text(fname: str) -> tuple[str, bool]:
+    # `kurt foo.kurtc`: the certificates of `foo.kurt`, line by line, as `cert` shows them -- after
+    # checking the file (quietly, with its `.kurtc`), so what is shown was checked by the kernel
+    lines_out = [f'certificates of {fname} ({kurtc_status(fname)})']
+    try:
+        with open(fname, encoding='utf-8') as f:
+            source = f.read().splitlines()
+    except OSError:
+        return f'no file `{fname}`', False
+    try:
+        kb = load_file(fname, copy.deepcopy(initial_kb), mainstream=False)
+    except KurtException as e:
+        return '\n'.join(lines_out + ['', e.msg.strip()]), False
+    path = str(Path(fname).resolve())
+    for (f, n), certs in sorted(((k, v) for k, v in certificates_by_line.items() if str(Path(k[0]).resolve()) == path), key=lambda kv: kv[0][1]):
+        written = source[n - 1].strip() if 0 < n <= len(source) else ''
+        lines_out += ['', f'line {n}: {written}']
+        for i, (cert, problem) in enumerate(certs):
+            part = f'({i + 1} of {len(certs)})' if len(certs) > 1 else ''
+            text = certificate_str(cert, problem, kb, f)
+            if part:
+                lines_out.append(f'  {part}')
+            lines_out += ['  ' + t.removeprefix('; ') for t in text.splitlines()]
+    return '\n'.join(lines_out), True
+
 def kurtc_status(fname: str) -> str:
     # whether `fname` has certificates that fit it as it is now
     try:
@@ -6760,6 +8025,67 @@ def replay_certificate(goal: Expr, fixed: frozenset[str], kb: KnowledgeBase) -> 
 class KernelReject(Exception):
     pass
 
+def k_bound(cond: Expr, kb: KnowledgeBase) -> str:
+    # the kernel's own reading of a binder's condition (not the search's `unpack_condition`): which
+    # variable it binds -- the one variable of the condition (a renamed bound variable, or a name
+    # unknown on this level, like the constant of a closed `let x ∈ A`), or with several, in a
+    # relation like `$a ∈ $G`, the one on its left; `sub $x $v %C` binds `$v`
+    match cond:
+        case Token(label='SYMBOL', value=v) if isinstance(v, str):
+            return v
+        case [Token(label='SYMBOL', value=op), x, Token(label='SYMBOL', value=v), _] if op == SUB_SYMBOL and isinstance(v, str):
+            return v
+    seen: list[str] = []
+    def collect(e: Expr) -> None:
+        match e:
+            case Token(label='SYMBOL', value=v) if isinstance(v, str) and (kb.is_var(v) or not kb.is_known(v)) and v not in seen:
+                seen.append(v)
+            case [*children]:
+                for c in children:
+                    collect(c)
+    collect(cond)
+    if len(seen) == 1:
+        return seen[0]
+    match cond:
+        case [Token(label='SYMBOL', value=rel), Token(label='SYMBOL', value=v), _] if is_relation(rel, kb) and v in seen:
+            return v
+    raise KernelReject(f'the condition `{expr_str(cond, kb)}` of a binder has no variable it clearly binds')
+
+def k_equal(t1: Expr, t2: Expr, kb: KnowledgeBase, bmap1: Optional[dict] = None, bmap2: Optional[dict] = None) -> bool:
+    # the kernel's own alpha-equivalence (not the search's `equal_expr`): equal up to the names of
+    # bound variables; the arguments of a `sym` operator, and of `=` and `iff`, in any order
+    bmap1, bmap2 = bmap1 or {}, bmap2 or {}
+    match (t1, t2):
+        case (Token(label=l1, value=v1), Token(label=l2, value=v2)):
+            if l1 != l2:
+                return False
+            if v1 in bmap1 or v2 in bmap2:
+                return bmap1.get(v1) == v2 and bmap2.get(v2) == v1
+            return v1 == v2
+        case ([Token(label='SYMBOL', value=op1), cond1, *body1], [Token(label='SYMBOL', value=op2), cond2, *body2]) \
+                if isinstance(op1, str) and op1 == op2 and kb.is_bindop(op1) and len(body1) == len(body2):
+            b1, b2 = k_bound(cond1, kb), k_bound(cond2, kb)
+            m1, m2 = {**bmap1, b1: b2}, {**bmap2, b2: b1}
+            if isinstance(cond1, Token) != isinstance(cond2, Token):
+                return False
+            if not isinstance(cond1, Token) and not k_equal(cond1, cond2, kb, m1, m2):
+                return False
+            # the middle arguments (a `sum`'s range) are outside the scope, only the last one inside
+            return (all(k_equal(a, b, kb, bmap1, bmap2) for a, b in zip(body1[:-1], body2[:-1]))
+                    and all(k_equal(a, b, kb, m1, m2) for a, b in zip(body1[-1:], body2[-1:])))
+        case ([Token(label='SYMBOL', value=op1) as h1, *args1], [Token(label='SYMBOL', value=op2), *args2]) \
+                if isinstance(op1, str) and op1 == op2 and len(args1) == len(args2) and len(args1) > 1 and kb.is_sym(op1):
+            unused = list(args2)
+            for a in args1:
+                i = next((i for i, b in enumerate(unused) if k_equal(a, b, kb, bmap1, bmap2)), None)
+                if i is None:
+                    return False
+                del unused[i]
+            return True
+        case ([*c1], [*c2]) if len(c1) == len(c2):
+            return all(k_equal(a, b, kb, bmap1, bmap2) for a, b in zip(c1, c2))
+    return False
+
 def k_free(e: Expr, kb: KnowledgeBase, bound: frozenset[str] = frozenset()) -> set[str]:
     # the free variables of `e`
     match e:
@@ -6768,8 +8094,9 @@ def k_free(e: Expr, kb: KnowledgeBase, bound: frozenset[str] = frozenset()) -> s
         case Token():
             return set()
         case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-            bv, _ = unpack_condition(cond, kb)
-            return set().union(*(k_free(c, kb, bound | {bv}) for c in [cond, *body]))
+            bv = k_bound(cond, kb)
+            return (set().union(*(k_free(c, kb, bound) for c in body[:-1]))          # outside the scope
+                    | set().union(*(k_free(c, kb, bound | {bv}) for c in [cond, *body[-1:]])))
         case [*children]:
             return set().union(*(k_free(c, kb, bound) for c in children)) if children else set()
     raise KernelReject(f'unexpected expression `{e}`')
@@ -6799,7 +8126,7 @@ def k_dependencies(e: Expr, kb: KnowledgeBase) -> dict[str, str]:
                 if not note(A, (x, True)):
                     walk(A)
             case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-                bv, _ = unpack_condition(cond, kb)
+                bv = k_bound(cond, kb)
                 walk(cond)
                 for c in body[:-1]:
                     walk(c)
@@ -6831,8 +8158,10 @@ def k_instantiate(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: Kn
         case Token():
             return e
         case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-            bv, _ = unpack_condition(cond, kb)
-            return [e[0], *(k_instantiate(c, values, deps, kb, bound | {bv}) for c in [cond, *body])]
+            bv = k_bound(cond, kb)
+            return [e[0], k_instantiate(cond, values, deps, kb, bound | {bv}),
+                    *(k_instantiate(c, values, deps, kb, bound) for c in body[:-1]),          # outside the scope
+                    *(k_instantiate(c, values, deps, kb, bound | {bv}) for c in body[-1:])]
         case [*children]:
             return [k_instantiate(c, values, deps, kb, bound) for c in children]
     raise KernelReject(f'unexpected expression `{e}`')
@@ -6845,14 +8174,16 @@ def k_replace(A: Expr, x: str, t: Expr, kb: KnowledgeBase) -> Expr:
         case Token():
             return A
         case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-            bv, _ = unpack_condition(cond, kb)
+            bv = k_bound(cond, kb)
+            middle = [k_replace(c, x, t, kb) for c in body[:-1]]       # outside the scope of `bv`
             if bv == x:
-                return A
+                return [A[0], cond, *middle, *body[-1:]]
             if bv in k_free(t, kb):
                 fresh = new_bool_var_name(bv) if kb.is_bool(bv) else new_var_name(bv)
-                A = k_rename(A, bv, fresh)
-                assert isinstance(A, list)
-            return [A[0], *(k_replace(c, x, t, kb) for c in A[1:])]
+                cond, inner = k_rename(cond, bv, fresh), [k_rename(c, bv, fresh) for c in body[-1:]]
+            else:
+                inner = body[-1:]
+            return [A[0], k_replace(cond, x, t, kb), *middle, *(k_replace(c, x, t, kb) for c in inner)]
         case [*children]:
             return [k_replace(c, x, t, kb) for c in children]
     raise KernelReject(f'unexpected expression `{A}`')
@@ -6914,17 +8245,113 @@ def k_constants(e: Expr, kb: KnowledgeBase, bound: frozenset[str] = frozenset())
         case Token():
             return set()
         case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-            bv, _ = unpack_condition(cond, kb)
-            return {op} | set().union(*(k_constants(c, kb, bound | {bv}) for c in [cond, *body]))
+            bv = k_bound(cond, kb)
+            return ({op} | set().union(*(k_constants(c, kb, bound) for c in body[:-1]))      # outside the scope
+                    | set().union(*(k_constants(c, kb, bound | {bv}) for c in [cond, *body[-1:]])))
         case [*children]:
             return set().union(*(k_constants(c, kb, bound) for c in children)) if children else set()
     raise KernelReject(f'unexpected expression `{e}`')
 
+class KernelEnv:
+    # what the kernel sees of a `KnowledgeBase` during one check: only the lookups it needs (and the
+    # trusted normalization and printing it calls), each answer remembered for the whole check -- so
+    # the environment is immutable while the kernel checks a step, and nothing can be changed through
+    # it (doc/kurt-soundness.md §9)
+    READS = frozenset({
+        # the symbols
+        'is_var', 'is_bool', 'bool_sig', 'is_bindop', 'is_const', 'is_known', 'is_used', 'is_fixed_var',
+        'is_vocabulary_symbol', 'is_arity_set', 'get_arity', 'is_flat', 'is_sym', 'all_flat', 'get_calc_ops',
+        'calculate', 'is_operator', 'is_infix', 'is_prefix', 'is_postfix', 'is_bracket_placeholder',
+        'get_infix', 'get_prefix', 'get_postfix', 'get_lbracket', 'is_lbracket', 'is_rbracket', 'get_alias',
+        'is_alias', 'lookup', 'levels',
+        # the facts, and how the block was opened
+        'all_theory', 'theory', 'const', 'mode_str', 'mode_args', 'pick_source', 'pick_fact', 'level',
+        # how expressions are printed (in a message)
+        'format', 'calc',
+    })
+
+    def __init__(self, kb: 'KnowledgeBase') -> None:
+        object.__setattr__(self, '_kb', kb)
+        object.__setattr__(self, '_memo', {})
+
+    def __getattr__(self, name: str):
+        if name not in KernelEnv.READS:
+            if name.startswith('__'):
+                raise AttributeError(name)      # e.g. `__deepcopy__`, which `copy` looks for
+            raise RuntimeError(f'BUG: the kernel can not use `{name}` of the knowledge base')
+        memo = self._memo
+        value = getattr(self._kb, name)
+        if not callable(value):
+            if name not in memo:
+                memo[name] = frozenset(value) if isinstance(value, set) else tuple(value) if isinstance(value, list) else value
+            return list(memo[name]) if isinstance(value, list) else memo[name]
+        def read(*args):
+            try:
+                key = (name, *args)
+                hash(key)
+            except TypeError:
+                return value(*args)          # an expression as argument: computed, not remembered
+            if key not in memo:
+                result = value(*args)
+                # a snapshot: a list is handed out as a new list each time, a generator as a new
+                # iterator over what it gave, a set as a frozen set
+                if isinstance(result, list):
+                    memo[key] = (list, tuple(result))
+                elif isinstance(result, (set, frozenset)):
+                    memo[key] = (frozenset, frozenset(result))
+                elif hasattr(result, '__next__'):
+                    memo[key] = (iter, tuple(result))
+                else:
+                    memo[key] = (None, result)
+            kind, result = memo[key]
+            return result if kind is None or kind is frozenset else kind(result)
+        return read
+
+    def __setattr__(self, name: str, value) -> None:
+        raise AttributeError(f'BUG: the kernel can not change `{name}` of the knowledge base')
+
+def k_env(kb) -> 'KernelEnv':
+    return kb if isinstance(kb, KernelEnv) else KernelEnv(kb)
+
+def k_reading(e: Expr, kb: KnowledgeBase) -> Optional[list[str]]:
+    # the variables bound by the binders of `e`, in order, as the kernel reads them (`k_bound`) --
+    # `None` if a condition can't be read
+    match e:
+        case Token():
+            return []
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            try:
+                bv = k_bound(cond, kb)
+            except KernelReject:
+                return None
+            parts = [k_reading(c, kb) for c in [cond, *body]]
+            return None if any(p is None for p in parts) else [bv] + [v for p in parts for v in p]   # type: ignore[union-attr]
+        case [*children]:
+            parts = [k_reading(c, kb) for c in children]
+            return None if any(p is None for p in parts) else [v for p in parts for v in p]   # type: ignore[union-attr]
+    return None
+
+def k_reading_changes(block: 'KnowledgeBase', parent: 'KnowledgeBase', result: Expr, last: Expr) -> Optional[str]:
+    # whether the result of closing `block` reads differently at the parent than its last line did
+    # inside the block (the kernel's own version of `binder_reading_changes`)
+    inside = k_reading(last, block)
+    outside = k_reading(result, parent)
+    if inside is None or outside is None:
+        return None     # can't be read at all -- the other checks report that
+    if block.mode_str == 'let':
+        prefix = [k_bound(c, parent) for c in block.mode_args if not is_bool_var_token(c, parent)]
+    elif block.mode_str in ('assume', 'case'):
+        prefix = k_reading(block.mode_args[0], parent) or []
+    else:
+        prefix = []
+    if outside != prefix + inside:
+        return f'a condition in `{expr_str(result, parent)}` would bind another variable outside the block'
+    return None
+
 def kernel_verify_block(cert: Certificate) -> Optional[str]:
     # closing a block: `cert.rule` is its last line, `cert.goal` the formula it gives
-    block = cert.block
-    assert block is not None and block.parent is not None and cert.rule is not None
-    parent = block.parent
+    assert cert.block is not None and cert.block.parent is not None and cert.rule is not None
+    block, parent = k_env(cert.block), k_env(cert.block.parent)     # read-only, for this check
     last = cert.rule
     if not block.theory or block.theory[-1] is not last:
         return 'the last line is not the last line of the block'
@@ -6942,8 +8369,7 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                   and (not block.is_vocabulary_symbol(c) or c == witness)}
         if leaked:
             return f'the constants {sorted(leaked)} of the block occur in `{expr_str(e, parent)}`'
-        reading = binder_reading_changes(block, e, last.expr)
-        return reading
+        return k_reading_changes(block, parent, e, last.expr)
     match cert.kind:
         case 'impl-intro' | 'not-intro':
             if block.mode_str not in ('assume', 'case') or len(block.mode_args) != 1:
@@ -6955,7 +8381,7 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                 if not (isinstance(last.expr, Token) and last.expr.value == FALSE_SYMBOL):
                     return 'the last line is not `false`'
                 expected = [Token('SYMBOL', NOT_SYMBOL), assumption]
-            if not equal_expr(cert.goal, expected, parent, keep_order=False):
+            if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
             return no_escape(cert.goal)
         case 'forall-intro':
@@ -6965,11 +8391,11 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
             for condition in reversed(block.mode_args):
                 if is_bool_var_token(condition, parent):
                     continue
-                v, _ = unpack_condition(condition, parent)
+                v = k_bound(condition, parent)
                 if not new_in_block(v):
                     return f'`{v}` was not new in the `let` block'
                 expected = [Token('SYMBOL', FORALL_SYMBOL), condition, expected]
-            if not equal_expr(cert.goal, expected, parent, keep_order=False):
+            if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
             return no_escape(cert.goal)
         case 'exists-elim':
@@ -6983,17 +8409,22 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
             match block.pick_source.simplified_expr:
                 case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if q == EXISTS_SYMBOL and isinstance(x, str):
                     instance = normalize_expr(k_replace(body, x, witness, parent), parent)
+                case [Token(label='SYMBOL', value=q), cond, body] if q == EXISTS_SYMBOL and isinstance(cond, list):
+                    # with a condition: the condition and the body ("exists-cond-def")
+                    x = k_bound(cond, parent)
+                    instance = normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(cond, x, witness, parent), k_replace(body, x, witness, parent)], parent)
                 case _:
                     return 'the fact picked from is not an existential'
-            if not equal_expr(instance, normalize_expr(block.pick_fact.expr, parent), parent, keep_order=False):
+            if not k_equal(instance, normalize_expr(block.pick_fact.expr, parent), parent):
                 return f'the fact `{expr_str(block.pick_fact.expr, parent)}` about the witness is not `{expr_str(instance, parent)}`'
-            if not equal_expr(cert.goal, last.expr, parent, keep_order=False):
+            if not k_equal(cert.goal, last.expr, parent):
                 return 'the block does not give its last line'
             return no_escape(cert.goal)
     return f'unknown block rule `{cert.kind}`'
 
 def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
     # `None` if the certificate proves its goal, otherwise what is wrong
+    kb = k_env(kb)          # read-only, for this check
     try:
         if cert.block is not None:
             return kernel_verify_block(cert)
@@ -7009,7 +8440,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
                 assert cert.rule is not None
                 if not k_known(cert.rule, kb):
                     return 'the fact is not in the theory'
-                return None if equal_expr(calculate_normalized(cert.rule.expr, kb), calculate_normalized(cert.goal, kb), kb, keep_order=False) else 'the fact does not compute to the goal'
+                return None if k_equal(calculate_normalized(cert.rule.expr, kb), calculate_normalized(cert.goal, kb), kb) else 'the fact does not compute to the goal'
         assert cert.kind == 'rule' and cert.rule is not None and cert.expr is not None
         if cert.expr is not cert.rule.simplified_expr or not k_known(cert.rule, kb):
             return 'the rule is not in the theory'
@@ -7025,7 +8456,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
             if cert.premise_fresh or cert.conclusion_fresh or cert.facts:
                 return 'a fact has no premise'
             instance = k_instance(cert.expr, cert.values, deps, kb)
-            return None if equal_expr(instance, goal, kb, keep_order=False) else f'the instance `{expr_str(instance, kb)}` is not the goal'
+            return None if k_equal(instance, goal, kb) else f'the instance `{expr_str(instance, kb)}` is not the goal'
         if cert.form != 'impl' or not is_implication(cert.expr):
             return f'unknown form `{cert.form}`'
         assert isinstance(cert.expr, list)
@@ -7042,13 +8473,13 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
             if v in cert.values and k_free(cert.values[v], kb) & eigen:
                 return f'the value of `{v}` depends on the fresh variables {sorted(k_free(cert.values[v], kb) & eigen)} of a `∀` premise'
         instance = k_instance(conclusion, cert.values, deps, kb)
-        if not equal_expr(instance, goal, kb, keep_order=False):
+        if not k_equal(instance, goal, kb):
             return f'the instance `{expr_str(instance, kb)}` of the conclusion is not the goal'
         facts = [k_instance(f.simplified_expr, cert.values, k_dependencies(f.simplified_expr, kb), kb) for f in cert.facts]
         def covered(part: Expr, strips: list[tuple[str, ...]]) -> bool:
             # `part` of the premise is an instance of a fact, or a `∀` whose body is (with one of
             # the recorded fresh variables), or a conjunction of such parts
-            if any(equal_expr(part, fact, kb, keep_order=False) for fact in facts):
+            if any(k_equal(part, fact, kb) for fact in facts):
                 return True
             if is_forall(part) and isinstance(part, list) and isinstance(part[1], Token):
                 for i, names in enumerate(strips):
@@ -7074,7 +8505,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
                 if is_op_expr(fact, AND_SYMBOL) and isinstance(fact, list):
                     remaining = list(parts)
                     for c in fact[1:]:
-                        i = next((i for i, r in enumerate(remaining) if equal_expr(c, r, kb, keep_order=False)), None)
+                        i = next((i for i, r in enumerate(remaining) if k_equal(c, r, kb)), None)
                         if i is None:
                             break
                         del remaining[i]
@@ -7104,6 +8535,31 @@ def resolved_values(s: State) -> dict[str, Expr]:
     return {v: resolve(t, frozenset({v})) for v, t in s.subst.items()}
 
 # unify a list of expression with the theory
+def cannot_unify(e: Expr, p: Expr, kb: 'KnowledgeBase') -> bool:
+    # a quick check that `e` and `p` never unify, without trying: different constants, or different
+    # operators (also in the arguments of an operator that isn't `flat`, `sym` or binding) -- a
+    # variable (also an operator variable, `var ∘`) or a `sub` may match anything, so `False` then
+    if isinstance(e, Token) or isinstance(p, Token):
+        if not (isinstance(e, Token) and isinstance(p, Token)):
+            t = e if isinstance(e, Token) else p
+            return not is_var_token(t, kb) and t.label in ('INT', 'FLOAT', 'STRING')
+        if is_var_token(e, kb) or is_var_token(p, kb):
+            return False
+        return (e.label, e.value) != (p.label, p.value)
+    if len(e) == 0 or len(p) == 0 or not isinstance(e[0], Token) or not isinstance(p[0], Token):
+        return False
+    op_e, op_p = e[0].value, p[0].value
+    if not isinstance(op_e, str) or not isinstance(op_p, str):
+        return False
+    for op in (op_e, op_p):
+        if op == SUB_SYMBOL or kb.is_var(op):
+            return False
+    if op_e != op_p:
+        return True
+    if len(e) != len(p) or kb.is_flat(op_e) or kb.is_sym(op_e) or kb.is_bindop(op_e):
+        return False
+    return any(cannot_unify(a, b, kb) for a, b in zip(e[1:], p[1:]))
+
 def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bool, list[Formula], State, list[tuple[str, ...]]]:
     # returns: success, the facts that matched, the state, and the fresh names of the `forall`s
     # stripped from `exprs` (for the certificate, see `Certificate`)
@@ -7113,11 +8569,20 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
         case []:
             return True, [], s, []
         
-        # still at least one to go
+        # still at least one to go -- a conjunct that is only a boolean variable without a value
+        # (`%A` of `%A ∧ ¬%A`) fits every fact, so it goes last: then the others give it its value,
+        # also one that is stored differently (`∀ x P x` is stored without its `∀`)
+        case [first, second, *rest] if is_bool_var_token(s.walk(first), kb) and not all(is_bool_var_token(s.walk(e), kb) for e in exprs):
+            others = [e for e in exprs if not is_bool_var_token(s.walk(e), kb)]
+            return match_all_theory(others + [e for e in exprs if is_bool_var_token(s.walk(e), kb)], s, kb)
         case [expr, *tail]:
-            # iterate over all formulas of the theory
+            # iterate over all formulas of the theory -- skipping those that can't unify with `expr`
+            # anyway (only saves time: a premise like `$a ∈ K` was tried against every formula)
             blocked = frozenset()   # no blocked variables
+            expr_walked = s.walk(expr)
             for candidate in kb.all_theory():
+                if not kb.calc and cannot_unify(candidate.simplified_expr, expr_walked, kb):
+                    continue
                 # iterate over all possible substitutions that unify
                 # basically, this is two-sided matching, aka unification
 
@@ -7142,7 +8607,11 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
             # conjunctive premise) matches the stored facts only without its outer `forall`s,
             # since those are removed from all facts -- with fresh variables that must stay
             # generic, exactly like for a quantified premise in `impl_elim`
+            # (with the values filled in first: `∀ $x (%A iff %B)` with `%A := P $x` must strip the `$x`
+            # of `P $x` too)
             expr_walked = s.walk(expr)
+            if is_forall(expr_walked):
+                expr_walked = apply_subst(expr_walked, s, kb)
             stripped, fresh_vars = remove_outer_forall_quantifiers(expr_walked, kb) if is_forall(expr_walked) else (expr_walked, ())
             if fresh_vars:
                 s_stripped = s
@@ -7271,7 +8740,10 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
             # straight to a concrete value like `g` let ANY two objects be proven equal, a
             # real soundness bug found and fixed this session (see doc/kurt-soundness.md).
             for fresh_v in premise_fresh_vars:
-                s_local = s_local.block_eigen(fresh_v)
+                # (only as an eigen variable: if the conclusion binds the same `$x` -- "forall-iff",
+                # `(∀ $x (%A ⇔ %B)) ⇒ ((∀ $x %A) ⇔ (∀ $x %B))` -- matching it blocked `$x` as a
+                # bound variable, so that not even a fact could take it as a value)
+                s_local = s_local.unblock(fresh_v).block_eigen(fresh_v)
 
             # search for the premise as well, i.e., match the theory against the `premise`
             success, matched_formulas, s_final, strips = match_all_theory([premise_local], s_local, kb)
@@ -7321,8 +8793,15 @@ def normalize_expr(expr: Expr, kb: KnowledgeBase) -> Expr:
     return symmetrize_all(flatten_all(expr, kb), kb)
 
 def numeric_comparison_holds(expr: Expr, kb: 'KnowledgeBase') -> bool:
-    # e.g. `3 <= 4` holds, while `2 = 3` and `x < 4` do not -- for a relation bound to the calculator
+    # e.g. `3 <= 4` holds, while `2 = 3` and `x < 4` do not -- for a relation bound to the calculator;
+    # and `3 ∈ Nat` for a set bound to it (`CALCULATOR_SETS`)
     match expr:
+        case [Token(label='SYMBOL', value=op), a, Token(label='SYMBOL', value=name)] \
+                if isinstance(op, str) and isinstance(name, str) and CALCULATOR_MEMBERSHIP in kb.get_calc_ops(op):
+            va = number_value(a, kb)
+            if va is None:
+                return False
+            return any(CALCULATOR_SETS[c](Fraction(va)) for c in kb.get_calc_ops(name) if c in CALCULATOR_SETS)
         case [Token(label='SYMBOL', value=op), a, b] if isinstance(op, str):
             va, vb = number_value(a, kb), number_value(b, kb)
             if va is None or vb is None:
@@ -7342,7 +8821,8 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
                 return [record_certificate(Certificate('todo', expr, frozenset()), kb)], s
 
     # rename variables
-    expr, _ = remove_outer_forall_quantifiers(expr, kb)
+    written = expr
+    expr, stripped = remove_outer_forall_quantifiers(expr, kb)
     expr = rename_all_vars(expr, kb)    # rename variables
 
     # "top-intro"
@@ -7373,17 +8853,34 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
     if replayed is not None:
         return [replayed], s
 
-    def search() -> Optional[tuple[list[Certificate], State]]:
+    def search(kinds: tuple[str, ...] = ('fact', 'rule', 'generic'), rewriting: Optional[bool] = None) -> Optional[tuple[list[Certificate], State]]:
         # "impl-elim": iterate over the previously proven formulas that form the current theory.
         # this part also handles restatements (as implication without a premise)
+        # (`rewriting`: only the rewriting rules, or only the others, see `guided_rewrite`)
         for proven_formula in kb.all_theory():
+            if formula_kind(proven_formula, kb) not in kinds:
+                continue
+            if rewriting is not None and (rewriting_variable(proven_formula, kb) is not None) != rewriting:
+                continue
             cert, s_matched = impl_elim(expr, expr_free_vars, proven_formula, filename, mainstream, s, kb)
             if cert is not None:
                 return [cert], s_matched
         return None
 
+    def generic_search() -> Optional[tuple[list[Certificate], State]]:
+        # the rules with a mere schema as conclusion: first rewriting with the shortcut (cheap), then
+        # those that aren't for rewriting (e.g. "and-elim"), then rewriting with the full search
+        return (guided_rewrite(expr, expr_free_vars, filename, mainstream, s, kb)
+                or conditional_rewrite(expr, expr_free_vars, filename, mainstream, s, kb)
+                or search(('generic',), rewriting=False)
+                or search(('generic',), rewriting=True))
+
+    # the order only decides which reason is found (and printed), not whether one is: facts first,
+    # then rules with a specific conclusion, then a conjunction clause by clause, and last the
+    # rules whose conclusion is a mere schema ("equal-elim", "bottom-elim", ...), which fit almost
+    # anything -- otherwise `a = a` was "by equal-elim(equal-intro, equal-intro)"
     if not has_hints:
-        found = search()
+        found = search(('fact',)) or search(('rule',))
         if found is not None:
             return found
 
@@ -7400,20 +8897,197 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
                     reasons.extend(more_reasons)
                 return reasons, s_clauses
             except KurtException:
-                if not has_hints:
-                    raise
-                found = search()
+                found = (search() or generic_search()) if has_hints else generic_search()
                 if found is None:
                     raise
                 return found
 
-    if has_hints:
-        found = search()
-        if found is not None:
-            return found
+    # (with stored certificates that didn't work, e.g. one for a step `17a` of conditional
+    # rewriting that doesn't exist yet, the search is the same as without them)
+    found = (search() or generic_search()) if has_hints else generic_search()
+    if found is not None:
+        return found
+
+    # the goal without its outer `∀`s stands for all values -- but a fact can also contain it with
+    # them, e.g. as a conjunct: `∀ x (x ∈ A ⇒ x ∈ B)` from `(∀ x (...)) ∧ (∀ x (...))` by "and-elim"
+    if stripped:
+        whole = rename_all_vars(written, kb)
+        whole_free = free_bound_vars(whole, kb)[0]
+        for proven_formula in kb.all_theory():
+            cert, s_matched = impl_elim(whole, whole_free, proven_formula, filename, mainstream, s, kb)
+            if cert is not None:
+                return [cert], s_matched
 
     # couldn't derive formula using any of the rules
     raise KurtException(f'ProofError: can not derive `{expr_str(expr, kb)}`', column=get_column(expr))
+
+# A rewriting step, e.g. the next line `X = B` of a chain after `X = A`: the rules for it
+# ("equal-elim", "iff-subst") have the conclusion `sub $x $b %A` and a premise `sub $x $a %A`, and
+# their search tries every subterm of the goal as `$b`. The goal differs from a recent fact only
+# in a few places, though -- so the subterms there are tried first as `$b` (only a shortcut of the
+# search: the step and its certificate are the same, and without a result the search runs as
+# before).
+GUIDED_FACTS = 3            # how many of the latest facts the goal is compared with
+GUIDED_CANDIDATES = 8       # how many differing subterms are tried
+
+def rewriting_variable(f: 'Formula', kb: 'KnowledgeBase') -> Optional[str]:
+    # the `$b` of a rule `... (sub $x $a %A) ... implies (sub $x $b %A)`, or `None`
+    e = f.simplified_expr
+    if not (is_implication(e) and isinstance(e, list) and is_sub(e[2])):
+        return None
+    _, x, b, A = e[2]
+    if not (isinstance(b, Token) and isinstance(b.value, str) and kb.is_var(b.value)):
+        return None
+    premise = e[1]
+    parts = premise[1:] if isinstance(premise, list) and isinstance(premise[0], Token) and premise[0].value == AND_SYMBOL else [premise]
+    if any(is_sub(p) and p[1] == x and p[3] == A and p[2] != b for p in parts):
+        return b.value
+    return None
+
+def differing_subterms(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> list[Expr]:
+    # the subterms of `goal` where it differs from `fact`, the smallest first, and each bigger
+    # part around them too
+    if equal_expr(fact, goal, kb):
+        return []
+    found: list[Expr] = []
+    if isinstance(fact, list) and isinstance(goal, list) and fact and goal and isinstance(fact[0], Token) and fact[0] == goal[0]:
+        op = fact[0].value
+        if isinstance(op, str) and not kb.is_bindop(op):
+            if len(fact) == len(goal) and not (kb.is_flat(op) or kb.is_sym(op)):
+                for a, b in zip(fact[1:], goal[1:]):
+                    found += differing_subterms(a, b, kb)
+            else:
+                # `flat`/`sym`: the arguments of the goal that the fact doesn't have
+                rest = [b for b in goal[1:] if not any(equal_expr(a, b, kb) for a in fact[1:])]
+                missing = [a for a in fact[1:] if not any(equal_expr(a, b, kb) for b in goal[1:])]
+                if len(rest) == 1 and len(missing) == 1:
+                    found += differing_subterms(missing[0], rest[0], kb)
+                found += rest
+                if len(rest) > 1:
+                    found.append([fact[0], *rest])
+    found.append(goal)
+    return found
+
+def differing_pairs(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> list[tuple[Expr, Expr]]:
+    # like `differing_subterms`, the pairs of a subterm of `fact` and the one of `goal` in its place
+    if equal_expr(fact, goal, kb):
+        return []
+    found: list[tuple[Expr, Expr]] = []
+    if isinstance(fact, list) and isinstance(goal, list) and fact and goal and isinstance(fact[0], Token) and fact[0] == goal[0]:
+        op = fact[0].value
+        if isinstance(op, str) and not kb.is_bindop(op):
+            if len(fact) == len(goal) and not (kb.is_flat(op) or kb.is_sym(op)):
+                for a, b in zip(fact[1:], goal[1:]):
+                    found += differing_pairs(a, b, kb)
+            else:
+                rest = [b for b in goal[1:] if not any(equal_expr(a, b, kb) for a in fact[1:])]
+                missing = [a for a in fact[1:] if not any(equal_expr(a, b, kb) for b in goal[1:])]
+                if len(rest) == 1 and len(missing) == 1:
+                    found += differing_pairs(missing[0], rest[0], kb)
+                    found.append((missing[0], rest[0]))
+                elif rest and missing:
+                    found.append(([fact[0], *missing] if len(missing) > 1 else missing[0], [goal[0], *rest] if len(rest) > 1 else rest[0]))
+    found.append((fact, goal))
+    return found
+
+def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, mainstream: bool, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
+    # a rewriting step with a rule that has conditions, e.g. `$a ∈ K ⇒ 1 · $a = $a` for
+    # `c · (1 · b) = c · b` with the fact `b ∈ K`: `equal-elim` needs the instance `1 · b = b` as a
+    # fact. So for a place where the goal differs from one of the latest facts (`differing_pairs`),
+    # that instance is derived first -- by a rule with a specific conclusion, whose conditions are
+    # facts -- and added as a step of its own (line `17a`, as for a conjunction), then the rewriting
+    # step uses it. Both steps have their certificates, checked by the kernel; nothing changes in
+    # the kernel. Without a result, the instance is taken out again.
+    rules = [(f, b) for f in kb.all_theory() if formula_kind(f, kb) == 'generic' for b in [rewriting_variable(f, kb)] if b is not None]
+    if not rules or not kb.theory:
+        return None
+    facts = list(itertools.islice((f for f in kb.all_theory() if not is_implication(f.simplified_expr)), GUIDED_FACTS))
+    pairs: list[tuple[Expr, Expr]] = []
+    for f in facts:
+        for a, b in differing_pairs(f.simplified_expr, expr, kb):
+            if b is not expr and not any(equal_expr(a, x, kb) and equal_expr(b, y, kb) for x, y in pairs):
+                pairs.append((a, b))
+    # (not a rule whose conclusion is only variables, `... ⇒ $a = $b` -- the uniqueness of an
+    # inverse fits every instance, but is hardly ever the one, and its search is expensive; except
+    # for the transitivity of a `chain`)
+    def specific_conclusion(f: 'Formula') -> bool:
+        e = f.simplified_expr
+        conclusion = e[2] if is_implication(e) and isinstance(e, list) else e
+        if f.filename.startswith('<chain'):
+            return True             # transitivity (`chain =`): two facts give the instance
+        return not (isinstance(conclusion, list) and len(conclusion) > 1 and all(is_var_token(a, kb) for a in conclusion[1:]))
+    specific = [f for f in kb.all_theory() if formula_kind(f, kb) == 'rule' and specific_conclusion(f)]
+    for a, b in pairs[:GUIDED_CANDIDATES]:
+        for rule, b_var in rules:
+            relation = rewriting_relation(rule, b_var, kb)
+            if relation is None or bool_expr(a, kb) != (relation == IFF_SYMBOL):
+                continue
+            instance: Expr = [Token('SYMBOL', relation), a, b]
+            instance_r = rename_all_vars(instance, kb)
+            instance_free = free_bound_vars(instance_r, kb)[0]
+            for candidate in specific:
+                cert, _ = impl_elim(instance_r, instance_free, candidate, filename, mainstream, State.empty(), kb)
+                if cert is None:
+                    continue
+                key = current_line[0]
+                line_str = f'{key[1] if key is not None else 0}{next(letter_generator())}'
+                reason = decorate_reason(mainstream, cert.short(filename, mainstream), filename, line_str)
+                step = Formula(kb, instance, expr_str(instance, kb), line_str, filename, '', reason, keyword='')
+                kb.theory_append(step)
+                if s.lookup(b_var) is None and not s.occurs(b_var, b):
+                    found, s_matched = impl_elim(expr, expr_free_vars, rule, filename, mainstream, s.bind(b_var, b), kb)
+                    if found is not None:
+                        if mainstream:
+                            log(kb, step.formula_str(kb), reason, kb.level)
+                        return [found], s_matched
+                kb.theory.pop()             # it didn't help
+                break
+    return None
+
+def rewriting_relation(rule: 'Formula', b_var: str, kb: 'KnowledgeBase') -> Optional[str]:
+    # the relation of the rewriting rule's premise `$a = $b` (or `%a iff %b`)
+    premise = rule.simplified_expr[1]   # type: ignore[index]
+    parts = premise[1:] if isinstance(premise, list) and isinstance(premise[0], Token) and premise[0].value == AND_SYMBOL else [premise]
+    for p in parts:
+        if (isinstance(p, list) and len(p) == 3 and isinstance(p[0], Token) and not is_sub(p)
+                and isinstance(p[2], Token) and p[2].value == b_var and p[0].value in (EQUAL_SYMBOL, IFF_SYMBOL)):
+            return p[0].value
+    return None
+
+def guided_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, mainstream: bool, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
+    rules = [(f, b) for f in kb.all_theory() if formula_kind(f, kb) == 'generic' for b in [rewriting_variable(f, kb)] if b is not None]
+    if not rules:
+        return None
+    facts = list(itertools.islice((f for f in kb.all_theory() if not is_implication(f.simplified_expr)), GUIDED_FACTS))   # the newest first
+    candidates: list[Expr] = []
+    for f in facts:
+        for t in differing_subterms(f.simplified_expr, expr, kb):
+            if t is not expr and not any(equal_expr(t, c, kb) for c in candidates):
+                candidates.append(t)
+    for t in candidates[:GUIDED_CANDIDATES]:
+        for rule, b in rules:
+            if s.lookup(b) is not None or s.occurs(b, t):
+                continue
+            cert, s_matched = impl_elim(expr, expr_free_vars, rule, filename, mainstream, s.bind(b, t), kb)
+            if cert is not None:
+                return [cert], s_matched
+    return None
+
+def formula_kind(f: 'Formula', kb: 'KnowledgeBase') -> str:
+    # for the order of the search (see `derive_expr`): a 'fact', a 'rule' with a specific
+    # conclusion, or a 'generic' rule whose conclusion is a schema that fits almost any goal
+    e = f.simplified_expr
+    def schema(conclusion: Expr) -> bool:
+        while is_forall(conclusion) and isinstance(conclusion, list) and isinstance(conclusion[1], Token):
+            conclusion = conclusion[2]
+        return is_var_token(conclusion, kb) or (is_sub(conclusion) and isinstance(conclusion, list) and is_var_token(conclusion[3], kb))
+    if is_implication(e):
+        assert isinstance(e, list)
+        return 'generic' if schema(e[2]) else 'rule'
+    if is_iff(e):                     # used as two implications (`%A iff %A` gives any `%A`)
+        assert isinstance(e, list)
+        return 'generic' if schema(e[1]) or schema(e[2]) else 'rule'
+    return 'fact'
 
 LHS_value = '$$LHS$$'
 LHS_token = Token('SYMBOL', value=LHS_value) # a special token to mark the LHS of the last row
@@ -7739,13 +9413,13 @@ def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, mai
     assert kb.level == 1, f'BUG: `load_file` decreased the level from 1 to {kb.level}'
     if is_trusted_file(fname):
         kb.frozen |= kb.declared_symbols()   # only this theory may change their meaning
-    if kurtc_enabled and len(root.todos()) == 0 and isinstance(candidate, Path):
+    if kurtc_enabled and len(kb.todos()) == 0 and isinstance(candidate, Path):
         write_kurtc(fname)       # checked completely: its certificates
     if len(kb.show) > 0:
         raise KurtException(f'EvalError: cannot merge and pop a level with promised formulas, got {len(kb.show)} formulas.')
     bundle = compute_exports(kb)
     validate_exports(bundle, kb, root, fname)
-    bundle.todos = list(root.todos())
+    bundle.todos = list(kb.todos())
     if not mainstream and key[1] is not None:
         _checked_exports[key] = (copy.deepcopy(bundle), [(dep, source_hash(dep)) for dep in bundle.libs])
     return bundle
@@ -7854,9 +9528,17 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths = theory_path, main
 ## commandline interface ##
 ###########################
 
-def kurt_prompt(level: int, line: int, continued: bool=False) -> str:
+def next_indentation(lexer_state: 'LexerState') -> int:
+    # the indentation the shell offers for the next line (with readline, the line starts with it,
+    # and a backspace dedents): the one of the current block, or one more level after a line
+    # that opened a block (`proof`, `assume`, ...)
+    indent = lexer_state.indent_stack[-1]
+    return indent + 4 if lexer_state.indent_requester else indent
+
+def kurt_prompt(level: int, line: int, continued: bool=False, show_level: bool=True) -> str:
     p: str = ''
-    p += level*'    '            # current level, just a visual hint -- not injected into what you type
+    if show_level:
+        p += level*'    '        # current level, just a visual hint (without readline, which fills in the indentation)
     p += ';'                                   # commenting out (for copy and paste back into a file)
     p += '... ' if continued else f'[{line}] ' # continuation?
     return p
@@ -7898,11 +9580,20 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                 new_line, replay = replay, None
             elif not is_file:
                 # indentation is significant here exactly like in a file (see `scan_parse_check_eval`):
-                # type or paste real leading spaces yourself to open/continue/close a block by
-                # dedenting, the same way you would in a file. `qed`/`break` remain as explicit,
-                # position-independent ways to close a block without relying on that.
-                prompt_text = kurt_prompt(kb.level, line, continued)
-                new_line = input(prompt_text).rstrip()     # read from stdin, leading spaces preserved
+                # with readline, the line starts with the indentation of the current block (one level
+                # deeper after a line that opened one), a backspace dedents and closes the block;
+                # without readline, type the leading spaces yourself. `qed`/`break` close a block
+                # without relying on that.
+                fill_in = readline is not None and sys.stdin.isatty()   # readline is used only at a terminal
+                prompt_text = kurt_prompt(kb.level, line, continued, show_level=not fill_in)
+                if fill_in:
+                    indent = next_indentation(lexer_state)
+                    readline.set_startup_hook(lambda: readline.insert_text(' ' * indent))
+                try:
+                    new_line = input(prompt_text).rstrip()     # read from stdin, leading spaces preserved
+                finally:
+                    if fill_in:
+                        readline.set_startup_hook(None)
                 new_line = replace_latex_syntax(new_line)  # automatic replacements in the shell before running the scanner
             else:
                 # here indentation matters, we read exactly what is in the file
@@ -7955,9 +9646,14 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                     kb = e.kb_after          # the blocks closed by the line before its error stay closed
                 expect_kb = enclosing_expect(kb)
                 if expect_kb is not None:
-                    assert len(expect_kb.mode_args) == 1 and isinstance(expect_kb.mode_args[0], Token)
+                    assert len(expect_kb.mode_args) in (1, 2) and isinstance(expect_kb.mode_args[0], Token)
                     expected_kind = expect_kb.mode_args[0].value
-                    if e.kind == expected_kind:
+                    expected_text = expect_kb.mode_args[1].value if len(expect_kb.mode_args) == 2 else None
+                    assert expected_text is None or isinstance(expected_text, str)
+                    if e.kind == expected_kind and expected_text is not None and expected_text not in e.msg:
+                        if not e.msg.lstrip().startswith('ExpectationError'):
+                            e.msg = f'ExpectationError: expect "{expected_kind}" "{expected_text}" got a `{expected_kind}` without that text:\n{e.msg}'
+                    elif e.kind == expected_kind:
                         # confirmed: the block did exactly what it promised -- discard it with
                         # everything inside it (like `break` would), wherever inside it the
                         # error came from: a statement directly inside it, a nested block, or a
@@ -8070,6 +9766,12 @@ def main() -> None:
             sys.exit(f'no file `{fname}`')
         print(dependencies_str(fname))
         sys.exit(0)
+
+    # the certificates of a file, readable?
+    if args.filename is not None and args.filename.endswith('.kurtc'):
+        text, ok = certificates_text(args.filename[:-1])
+        print(text)
+        sys.exit(0 if ok else 1)
 
     # say hello
     log(kb, f'This is Kurt, v{version} ({made_by}), file {file_fingerprint()}')

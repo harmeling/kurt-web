@@ -8,7 +8,7 @@
       "modus-ponens.kurt",
       "proof-by-contradiction.kurt"
     ],
-    "tutorial": [
+    "keywords": [
       "00-true.kurt",
       "01-bool.kurt",
       "02-use.kurt",
@@ -59,6 +59,29 @@
       "46-cert.kurt",
       "47-tuples.kurt",
       "48-groups.kurt"
+    ],
+    "tutorial": [
+      "00-check-a-proof-file.kurt",
+      "01-apply-an-implication-modus-ponens.kurt",
+      "02-prove-an-implication.kurt",
+      "03-prove-a-negation-by-contradiction.kurt",
+      "04-split-into-cases.kurt",
+      "05-rewrite-with-equality.kurt",
+      "06-define-a-constant-or-function.kurt",
+      "07-instantiate-a-universal-fact.kurt",
+      "08-prove-a-universal-fact.kurt",
+      "09-use-an-existential-witness.kurt",
+      "10-use-exact-arithmetic-with-calc.kurt",
+      "11-prove-a-statement-by-induction.kurt",
+      "12-my-theory.kurt",
+      "12-write-and-load-a-reusable-theory.kurt",
+      "13-check-that-a-bad-proof-is-rejected.kurt",
+      "14-develop-an-unfinished-proof-safely.kurt",
+      "15-understand-why-a-step-succeeded.kurt",
+      "16-diagnose-can-not-derive.kurt",
+      "17-grade-student-proofs-with-strict-mode.kurt",
+      "18-choose-the-theory-to-load.kurt",
+      "19-common-mistakes.kurt"
     ]
   },
   "theories": [
@@ -66,11 +89,13 @@
     "arith.kurt",
     "equality.kurt",
     "group.kurt",
+    "integer.kurt",
     "logic.kurt",
     "minimal.kurt",
     "modal.kurt",
     "natural.kurt",
     "prop.kurt",
+    "rational.kurt",
     "set.kurt"
   ]
 }

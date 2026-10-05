@@ -42,8 +42,8 @@ test('offers touch symbols and registers its offline worker', async ({ page }) =
 
 test('scrolls a long menu that does not fit into the window', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 500 });
-  await page.locator('.menu-wrapper button', { hasText: 'tutorial' }).click();
-  const menu = page.locator('.menu-wrapper', { hasText: 'tutorial' }).locator('.dropdown-menu');
+  await page.locator('.menu-wrapper button', { hasText: 'keywords' }).click();
+  const menu = page.locator('.menu-wrapper', { hasText: 'keywords' }).locator('.dropdown-menu');
   await expect(menu).toBeVisible();
   const box = await menu.boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(500);
@@ -52,6 +52,19 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
   await last.scrollIntoViewIfNeeded();
   await last.click();
   await expect(page.locator('#editor')).toHaveValue(/48-groups/);
+});
+
+test('runs a lesson that loads a file next to it', async ({ page }) => {
+  // lesson 12 of the tutorial loads `12-my-theory.kurt` from its folder -- the playground has to
+  // give it to the worker along with the proof
+  await page.locator('.menu-wrapper button', { hasText: 'tutorial' }).click();
+  const menu = page.locator('.menu-wrapper', { hasText: 'tutorial' }).locator('.dropdown-menu');
+  const lesson = menu.locator('.item', { hasText: '12-write-and-load-a-reusable-theory.kurt' });
+  await lesson.scrollIntoViewIfNeeded();
+  await lesson.click();
+  await expect(page.locator('#editor')).toHaveValue(/load 12-my-theory/);
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
 });
 
 test('opens and closes the help', async ({ page }) => {

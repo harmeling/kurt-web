@@ -12,7 +12,7 @@ A minimal, dark-mode playground for the [Kurt proof language](https://www.kurt-l
 - `styles.css` — Dark theme and responsive split-pane styling.
 - `app.js` — Loads Pyodide, mounts `kurt.py`, and runs proofs by invoking Python.
 - `kurt.py` — The Kurt interpreter. This is the generated Kurt 0.7 standalone bundle, including all standard theories.
-- `proofs/` and `theories/` — Current examples, tutorials, and standard theories.
+- `proofs/` and `theories/` — the tutorial, the lessons on the keywords, examples, and the standard theories.
 
 ## Local development
 

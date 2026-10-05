@@ -14,8 +14,12 @@ async function initialize() {
   postMessage({ type: 'ready', version });
 }
 
-async function runProof({ code, indent }) {
+async function runProof({ code, indent, files }) {
   pyodide.FS.writeFile('/play/proof.kurt', code, { encoding: 'utf8' });
+  // the files the proof loads besides the theories (e.g. a lesson's helper), next to it
+  for (const [name, text] of Object.entries(files || {})) {
+    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+  }
   try { pyodide.FS.unlink('/play/proof.kurtc'); } catch {}
   const result = await pyodide.runPythonAsync(`
 import sys, runpy, io, contextlib

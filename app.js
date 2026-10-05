@@ -11,7 +11,7 @@ const examplesContainer = $('#examplesContainer');
 const DEFAULT_PROOF = '; simple modus ponens proof\nuse A implies B\nuse A\nB\n';
 const DRAFT_KEY = 'kurt.draft';
 const SETTINGS_KEY = 'kurt.settings';
-let worker, ready = false, running = false, currentFilename = 'proof.kurt';
+let worker, ready = false, running = false, currentFilename = 'proof.kurt', currentFolder = null;
 let replacements = {}, language = {}, lastCertificate = null, lastOutputText = '', saveTimer;
 
 function setStatus(message) { statusEl.textContent = message; }
@@ -54,12 +54,31 @@ function cancelRun() {
   if (!running) return;
   worker.terminate(); setRunning(false); setStatus('Cancelled'); showOutput('Run cancelled.'); spawnWorker();
 }
-function runProof() {
+// the files that `load` lines name and that are no theory, e.g. the helper of a lesson
+// (`load 12-my-theory`): fetched from the folder the proof came from, also what they load
+async function loadedFiles(code) {
+  if (!currentFolder) return {};
+  let theories = [];
+  try { theories = (await fetch('manifest.json').then(r => r.json())).theories; } catch {}
+  const files = {}, todo = [code];
+  while (todo.length) {
+    for (const match of todo.pop().matchAll(/^\s*load\s+([^;\n]+)/gm)) {
+      for (let name of match[1].split(',').map(x => x.trim().replace(/^"|"$/g, '')).filter(Boolean)) {
+        if (!name.endsWith('.kurt')) name += '.kurt';
+        if (name.includes('/') || theories.includes(name) || name in files) continue;
+        try { const response = await fetch(`${currentFolder}${name}`); if (response.ok) { files[name] = await response.text(); todo.push(files[name]); } } catch {}
+      }
+    }
+  }
+  return files;
+}
+async function runProof() {
   if (!ready || running) return;
   lastCertificate = null; $('#certificateBtn').disabled = true;
   outputPanel.classList.remove('hidden'); output.textContent = '';
   setRunning(true); setStatus('Checking proof…');
-  worker.postMessage({ type: 'run', code: editor.value, indent: settings().indent });
+  const files = await loadedFiles(editor.value);
+  worker.postMessage({ type: 'run', code: editor.value, indent: settings().indent, files });
 }
 
 function changeFontSize(step) {
@@ -79,10 +98,10 @@ function updateSettings(patch) {
 }
 function persistDraft() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename })), 250);
+  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder })), 250);
 }
-function setEditor(code, filename = 'proof.kurt') {
-  editor.value = code; currentFilename = filename; renderEditorHighlight(); persistDraft();
+function setEditor(code, filename = 'proof.kurt', folder = null) {
+  editor.value = code; currentFilename = filename; currentFolder = folder; renderEditorHighlight(); persistDraft();
 }
 
 function encodeShare(text) {
@@ -103,7 +122,7 @@ async function shareProof() {
 function loadInitialDraft() {
   const shared = location.hash.match(/^#proof=(.+)$/);
   if (shared) { try { return setEditor(decodeShare(shared[1]), 'shared-proof.kurt'); } catch {} }
-  try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) return setEditor(draft.code, draft.filename); } catch {}
+  try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) return setEditor(draft.code, draft.filename, draft.folder || null); } catch {}
   setEditor(DEFAULT_PROOF);
 }
 
@@ -207,7 +226,10 @@ async function listDirectory(path) {
   const folder = path.match(/^proofs\/([^/]+)\/$/)?.[1]; return folder ? manifest.proofs[folder] || [] : [];
 }
 async function buildExamplesUI() {
-  const folders = (await listDirectory('proofs/')).filter(x => x.endsWith('/'));
+  // the tutorial first, then the lessons on the keywords, then the examples
+  const order = ['tutorial/', 'keywords/', 'examples/'];
+  const rank = folder => (order.indexOf(folder) + order.length + 1) % (order.length + 1);
+  const folders = (await listDirectory('proofs/')).filter(x => x.endsWith('/')).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   for (const folder of folders) await createMenu(folder.slice(0, -1), `proofs/${folder}`);
   await createMenu('theories', 'theories/');
 }
@@ -233,7 +255,7 @@ async function createMenu(label, path) {
   const button = document.createElement('button'); button.className = 'btn small'; button.textContent = label;
   const menu = document.createElement('div'); menu.className = 'dropdown-menu hidden';
   files.forEach(file => { const item = document.createElement('button'); item.className = 'item'; item.textContent = file;
-    item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load example'); setEditor(await response.text(), file); menu.classList.add('hidden'); setStatus('Ready'); };
+    item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load example'); setEditor(await response.text(), file, path); menu.classList.add('hidden'); setStatus('Ready'); };
     menu.append(item);
   });
   button.onclick = event => toggleMenu(event, menu);

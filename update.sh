@@ -5,9 +5,11 @@ lang_dir=${1:-../kurt-lang}
 web_dir=$(cd "$(dirname "$0")" && pwd)
 
 python3 "$lang_dir/scripts/build_standalone.py" -o "$web_dir/kurt.py"
-mkdir -p "$web_dir/theories" "$web_dir/proofs/tutorial" "$web_dir/proofs/examples"
+rm -rf "$web_dir/proofs/tutorial" "$web_dir/proofs/keywords"
+mkdir -p "$web_dir/theories" "$web_dir/proofs/tutorial" "$web_dir/proofs/keywords" "$web_dir/proofs/examples"
 cp "$lang_dir"/src/kurt/theories/*.kurt "$web_dir/theories/"
 cp "$lang_dir"/tutorial/*.kurt "$web_dir/proofs/tutorial/"
+cp "$lang_dir"/keywords/*.kurt "$web_dir/proofs/keywords/"
 cp "$lang_dir/proofs/natural-deduction/contraposition.kurt" \
    "$lang_dir/proofs/natural-deduction/double-negation.kurt" \
    "$lang_dir/proofs/natural-deduction/de-morgan.kurt" \
