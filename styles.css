@@ -200,7 +200,7 @@ textarea#editor {
 .editor-highlight,
 textarea#editor {
 	grid-area: 1 / 1;
-	padding: 12px 12px 12px 10px;
+	padding: 12px 12px 12px 11px;
 }
 .editor-highlight {
 	padding-right: 36px;       /* wider than the textarea's text, so the textarea never scrolls */
@@ -226,7 +226,6 @@ textarea#editor {
 	text-align: right;
 	color: var(--muted);
 	background: var(--gutter-bg);
-	border-right: 1px solid var(--border);
 	pointer-events: none;
 	user-select: none;
 }
@@ -278,7 +277,8 @@ textarea#editor {
 	padding: 12px 12px 12px 0;
 	/* the line numbers of the editor, in a gutter like the editor's (app.js numberOutputLines) */
 	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
-	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) var(--gutter), var(--border) calc(var(--gutter) + 1px), var(--code-bg) calc(var(--gutter) + 1px));
+	/* the gutter by its color only: a 1px line at a width like `2ch + 18px` falls between pixels */
+	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--code-bg) var(--gutter));
 	height: clamp(160px, 60vh, 680px);
 	width: 100%;
 	max-width: 100%;
@@ -295,7 +295,7 @@ textarea#editor {
 	position: sticky; left: 0;
 	width: var(--gutter);
 	padding-right: 8px;
-	margin-right: 11px;        /* the line of the output's background, then the gap before the text */
+	margin-right: 11px;        /* the gap before the text, as in the editor */
 	text-align: right;
 	color: var(--muted);
 	background: var(--gutter-bg);

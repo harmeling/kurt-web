@@ -218,7 +218,10 @@ test('numbers the lines of the output that echo a line of the editor', async ({ 
   // the gutter is the background of the whole output, not only of the numbers (both themes)
   for (const theme of ['dark', 'light']) {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
-    expect(await page.locator('#output').evaluate(o => getComputedStyle(o).backgroundImage)).toContain('linear-gradient');
+    const image = await page.locator('#output').evaluate(o => getComputedStyle(o).backgroundImage);
+    expect(image).toContain('linear-gradient');
+    const border = await page.evaluate(() => { const d = document.createElement('div'); d.style.color = 'var(--border)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; });
+    expect(image).not.toContain(border);                                          // no dividing line (it fell between pixels)
   }
   expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
 });

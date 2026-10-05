@@ -134,3 +134,5 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - The gutter of the output like the editor's: the number's box has the gutter's color only (the
   dividing line comes from the output's background), and a hovered or marked row is colored from
   after the gutter and the gap on, not behind the number.
+- The gutters (editor and output) without their 1px dividing line: at a width like `2ch + 18px` it
+  fell between pixels and showed as gray streaks on the rows of the output without a number.
