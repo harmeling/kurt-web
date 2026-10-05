@@ -122,3 +122,5 @@ Operational log for agent-session setup and activity on the `agent` branch.
   in the dark theme the editor, the output and the symbol bar had no background of their own, and
   the gradient of the output's gutter was invalid (`none`) in both themes. The test of the themes
   checks that the variables are defined and the backgrounds not transparent.
+- Loading another file (a menu, Upload, a shared link) clears the output and the certificate of
+  the old one (`clearOutput`, also the Clear button). New Playwright test.

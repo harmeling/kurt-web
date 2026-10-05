@@ -100,7 +100,14 @@ function persistDraft() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder })), 250);
 }
+// a new file in the editor: the output (and the certificate) of the old one go
+function clearOutput() {
+  output.textContent = ''; outputPanel.classList.add('hidden'); lastOutputText = '';
+  lastCertificate = null; $('#certificateBtn').disabled = true;
+  refLines = new Set(); selfLines = new Set();
+}
 function setEditor(code, filename = 'proof.kurt', folder = null) {
+  clearOutput();
   editor.value = code; currentFilename = filename; currentFolder = folder; renderEditorHighlight(); persistDraft();
 }
 
@@ -423,7 +430,7 @@ function setupUI() {
   editor.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); } });
   runBtn.onclick = runProof; cancelBtn.onclick = cancelRun; $('#shareBtn').onclick = shareProof;
   $('#copyBtn').onclick = async () => { await navigator.clipboard.writeText(lastOutputText); setStatus('Output copied'); };
-  $('#clearBtn').onclick = () => { output.textContent = ''; outputPanel.classList.add('hidden'); };
+  $('#clearBtn').onclick = clearOutput;
   $('#outputDownloadBtn').onclick = () => download('kurt-output.txt', lastOutputText);
   $('#certificateBtn').onclick = () => lastCertificate && download('proof.kurtc', lastCertificate, 'application/json');
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);

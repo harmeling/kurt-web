@@ -222,3 +222,15 @@ test('has the symbols below the editor', async ({ page }) => {
   const bar = await page.locator('#symbolBar').boundingBox(), editor = await page.locator('#editorWrap').boundingBox();
   expect(bar.y).toBeGreaterThanOrEqual(editor.y + editor.height - 1);
 });
+
+test('clears the output when another file is loaded', async ({ page }) => {
+  await page.locator('#editor').fill('bool A\nuse A\nA\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  await expect(page.locator('#outputPanel')).toBeVisible();
+  await page.locator('.menu-wrapper button', { hasText: 'tutorial' }).click();
+  await page.locator('.menu-wrapper', { hasText: 'tutorial' }).locator('.dropdown-menu .item').first().click();
+  await expect(page.locator('#outputPanel')).toBeHidden();
+  await expect(page.locator('#output')).toHaveText('');
+  await expect(page.locator('#certificateBtn')).toBeDisabled();
+});
