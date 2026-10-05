@@ -284,7 +284,7 @@ textarea#editor {
 	padding: 12px 12px 12px 0;
 	/* the line numbers of the editor, in a gutter like the editor's (app.js numberOutputLines) */
 	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
-	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) var(--gutter) calc(var(--gutter) + 1px), var(--code-bg) 0);
+	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) var(--gutter), var(--border) calc(var(--gutter) + 1px), var(--code-bg) calc(var(--gutter) + 1px));
 	height: clamp(160px, 60vh, 680px);
 	width: 100%;
 	max-width: 100%;

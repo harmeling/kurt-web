@@ -197,6 +197,7 @@ test('numbers the lines of the output that echo a line of the editor', async ({ 
   // the gutter is the background of the whole output, not only of the numbers (both themes)
   for (const theme of ['dark', 'light']) {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
+    console.log(await page.locator('#output').evaluate(o => { const s = getComputedStyle(o); return [s.getPropertyValue('--gutter'), s.getPropertyValue('--line-digits'), s.getPropertyValue('--gutter-bg'), s.backgroundImage, s.background].join(' | '); }));
     expect(await page.locator('#output').evaluate(o => getComputedStyle(o).backgroundImage)).toContain('linear-gradient');
   }
   expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
