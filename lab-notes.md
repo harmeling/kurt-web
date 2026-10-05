@@ -136,3 +136,10 @@ Operational log for agent-session setup and activity on the `agent` branch.
   after the gutter and the gap on, not behind the number.
 - The gutters (editor and output) without their 1px dividing line: at a width like `2ch + 18px` it
   fell between pixels and showed as gray streaks on the rows of the output without a number.
+
+## 2026-10-05: Kurt 0.7.3
+
+- `./update.sh ../kurt-lang`: kurt.py 0.7.3 (block results numbered by their lines, `or-elim-3/4`,
+  `iff-true-elim`, comma lists as written, the `expect` fix), lessons 02 (blocks) and 04 (three
+  cases). New Playwright test: hovering a block's result marks its lines; hovering a step that
+  uses results marks them (`by or-elim(3, 6-7, 8-9)`).

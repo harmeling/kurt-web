@@ -258,3 +258,17 @@ test('clears the output when another file is loaded', async ({ page }) => {
   await expect(page.locator('#output')).toHaveText('');
   await expect(page.locator('#certificateBtn')).toBeDisabled();
 });
+
+test('marks the block a result comes from, and the block a step uses', async ({ page }) => {
+  await page.locator('#editor').fill('load prop\nbool A, B, C\nuse A or B\nuse A implies C\nuse B implies C\ncase A\n    C\ncase B\n    C\nC\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  const result = page.locator('#output .output-line', { hasText: '; 6-7 by impl-intro' });
+  await result.hover();
+  await expect(page.locator('#lineNumbers .ref-num')).toHaveText(['6', '7']);     // its block
+  const step = page.locator('#output .output-line', { hasText: 'by or-elim' });
+  await step.hover();
+  await expect(page.locator('#output .output-line.ref', { hasText: '; 6-7 by impl-intro' })).toHaveCount(1);
+  await expect(page.locator('#output .output-line.ref', { hasText: '; 8-9 by impl-intro' })).toHaveCount(1);
+  await expect(page.locator('#lineNumbers .self-num')).toHaveText('10');
+});
