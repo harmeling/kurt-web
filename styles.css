@@ -14,9 +14,9 @@
 	--warn: #ffcc66;
 	--err: #ff6b6b;
 	--shadow: 0 8px 24px rgba(0,0,0,0.4);
-	--code-bg: var(--code-bg);
-	--gutter-bg: var(--gutter-bg);
-	--bar-bg: var(--bar-bg);
+	--code-bg: #0e1320;
+	--gutter-bg: #0b101b;
+	--bar-bg: #101522;
 	--btn-bg: #1c2333;
 	--btn-hover: #232c41;
 	--menu-hover: #151a28;

@@ -197,7 +197,6 @@ test('numbers the lines of the output that echo a line of the editor', async ({ 
   // the gutter is the background of the whole output, not only of the numbers (both themes)
   for (const theme of ['dark', 'light']) {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
-    console.log(await page.locator('#output').evaluate(o => { const s = getComputedStyle(o); return [s.getPropertyValue('--gutter'), s.getPropertyValue('--line-digits'), s.getPropertyValue('--gutter-bg'), s.backgroundImage, s.background].join(' | '); }));
     expect(await page.locator('#output').evaluate(o => getComputedStyle(o).backgroundImage)).toContain('linear-gradient');
   }
   expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
@@ -207,9 +206,13 @@ test('switches between the dark and the light theme, and remembers it', async ({
   const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
   const background = () => page.locator('.editor-wrap').evaluate(e => getComputedStyle(e).backgroundColor);
   const first = await theme(), before = await background();
+  expect(before).not.toBe('rgba(0, 0, 0, 0)');                                    // every color is defined
+  for (const name of ['--code-bg', '--gutter-bg', '--bar-bg', '--btn-bg', '--mark-self', '--tok-kw1'])
+    expect(await page.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)).not.toBe('');
   await page.locator('#themeBtn').click();
   expect(await theme()).not.toBe(first);
   expect(await background()).not.toBe(before);
+  expect(await background()).not.toBe('rgba(0, 0, 0, 0)');
   await page.reload();
   expect(await theme()).not.toBe(first);
   await expect(page.locator('#themeBtn')).toHaveText(first === 'dark' ? 'Dark' : 'Light');

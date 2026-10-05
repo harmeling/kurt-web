@@ -117,3 +117,8 @@ Operational log for agent-session setup and activity on the `agent` branch.
   the output that has references is a crosshair (was a question mark). The hover understands the
   numbering of block results by their lines (`; 11-13 by impl-intro`, `by or-elim(14-15, 11-13, 25)`,
   kurt-lang 15125dd, after the next update of kurt.py) and still the old one.
+- Fix: the replacement of the colors by variables had also replaced three definitions of the dark
+  theme by themselves (`--code-bg: var(--code-bg)`, the same for `--gutter-bg` and `--bar-bg`), so
+  in the dark theme the editor, the output and the symbol bar had no background of their own, and
+  the gradient of the output's gutter was invalid (`none`) in both themes. The test of the themes
+  checks that the variables are defined and the backgrounds not transparent.
