@@ -254,9 +254,11 @@ function alignPanels() {
 }
 // Each line of the output ends with its reason, e.g. `; 33 by equal-elim(33a, 32)`: its own line
 // (33) and the lines its step uses (33a, 32; also ranges `21-35`, and labels of this proof, `K7`).
+// The result of a block is numbered by the lines of the block, `; 21-35 by impl-intro`, and used
+// by them, `by or-elim(21-35, 36-40)`.
 // Hovering a line of the output marks those lines in the output and in the editor.
 function reasonOf(text) {
-  const found = text.match(/;\s+(\d+[a-z]?)(?:\s+(.*))?$/); if (!found) return null;
+  const found = text.match(/;\s+(\d+[a-z]?(?:-\d+[a-z]?)?)(?:\s+(.*))?$/); if (!found) return null;
   const [, id, rest = ''] = found;
   const label = rest.match(/"([^"]+)"\s*$/)?.[1] || null;
   const refs = [];
@@ -281,10 +283,14 @@ function linkReasons() {
   });
   const lineOf = id => Number(String(id).match(/^\d+/)?.[0]);
   info.forEach(item => {
-    const ids = new Set(), lines = new Set();
-    for (const ref of item.refs) {
-      const range = ref.match(/^(\d+)-(\d+)$/);
-      if (range) { for (let n = Number(range[1]); n <= Number(range[2]); n++) { ids.add(String(n)); lines.add(n); } continue; }
+    const ids = new Set(), lines = new Set(), own = item.id.includes('-');
+    for (const ref of own ? [...item.refs, item.id] : item.refs) {
+      const range = ref.match(/^(\d+)[a-z]?-(\d+)[a-z]?$/);
+      if (range) {
+        if (ref !== item.id) ids.add(ref);          // the result of that block
+        for (let n = Number(range[1]); n <= Number(range[2]); n++) { ids.add(String(n)); lines.add(n); }
+        continue;
+      }
       const id = /^\d+[a-z]?$/.test(ref) ? ref : byLabel.get(ref);
       if (id && id !== item.id) { ids.add(id); lines.add(lineOf(id)); }
     }
@@ -295,7 +301,7 @@ function linkReasons() {
       if (on) {
         ids.forEach(id => (byId.get(id) || []).forEach(x => x.classList.add('ref')));
         item.rows.forEach(x => x.classList.add('self'));
-        refLines = lines; selfLines = new Set([lineOf(item.id)]);
+        refLines = lines; selfLines = own ? new Set() : new Set([lineOf(item.id)]);
       }
       renderEditorHighlight();
     };

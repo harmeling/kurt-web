@@ -112,3 +112,8 @@ Operational log for agent-session setup and activity on the `agent` branch.
   other way round before), and their line numbers are colored too, in the editor and the output.
 - The symbol bar is below the editor, so the editor's first line is right below its toolbar, at
   the height of the output's first line.
+- Fix: the gutter of the output was only behind the numbers (a later `background` in `.output`
+  replaced its gradient); now it is the whole height, like the editor's. The pointer on a line of
+  the output that has references is a crosshair (was a question mark). The hover understands the
+  numbering of block results by their lines (`; 11-13 by impl-intro`, `by or-elim(14-15, 11-13, 25)`,
+  kurt-lang 15125dd, after the next update of kurt.py) and still the old one.

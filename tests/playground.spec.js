@@ -194,6 +194,11 @@ test('numbers the lines of the output that echo a line of the editor', async ({ 
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
   const numbered = page.locator('#output .output-line[data-line]');
   const lines = await numbered.evaluateAll(rows => rows.map(r => [r.dataset.line, r.textContent.split(';')[0].trim()]));
+  // the gutter is the background of the whole output, not only of the numbers (both themes)
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
+    expect(await page.locator('#output').evaluate(o => getComputedStyle(o).backgroundImage)).toContain('linear-gradient');
+  }
   expect(lines).toEqual([['3', 'show A implies A'], ['4', 'proof'], ['5', 'assume A'], ['6', 'A'], ['7', 'qed']]);
 });
 

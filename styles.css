@@ -285,7 +285,6 @@ textarea#editor {
 	/* the line numbers of the editor, in a gutter like the editor's (app.js numberOutputLines) */
 	--line-digits: 2; --gutter: calc(var(--line-digits) * 1ch + 18px);
 	background: linear-gradient(to right, var(--gutter-bg) var(--gutter), var(--border) var(--gutter) calc(var(--gutter) + 1px), var(--code-bg) 0);
-	background: var(--code-bg);
 	height: clamp(160px, 60vh, 680px);
 	width: 100%;
 	max-width: 100%;
@@ -407,7 +406,7 @@ input[type="range"]::-moz-range-track {
 .output-line { display: block; width: max-content; min-width: 100%; min-height: 1.5em; color: inherit; font: inherit; white-space: pre; text-align: left; }
 button.output-line { padding: 0; border: 0; background: transparent; cursor: pointer; }
 button.output-line:hover { background: var(--row-hover); }
-.output-line.has-refs { cursor: help; }
+.output-line.has-refs { cursor: crosshair; }
 .output-line.self { background: var(--mark-self); }
 .output-line.ref { background: var(--mark-ref); }
 .editor-highlight .self-line { background: var(--mark-self); display: inline-block; min-width: 100%; }
