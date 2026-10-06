@@ -10,6 +10,16 @@ async function initialize() {
   pyodide.FS.writeFile('/kurt.py', source, { encoding: 'utf8' });
   try { pyodide.FS.mkdir('/play'); } catch {}
   pyodide.FS.chdir('/play');
+  // Kurt as a module: a run is a `kurt.Shell`, which then continues where the check stopped
+  pyodide.runPython(`
+import sys, json
+sys.path.insert(0, '/')
+import kurt
+shell = None
+def shell_state():
+    return json.dumps({'stopped': shell.stopped, 'line': shell.line, 'indent': shell.indentation(),
+                       'next': shell.next_steps(), 'summary': shell.summary(), 'accepted': shell.accepted})
+`);
   const version = source.match(/version\s*=\s*['"]([^'"]+)/)?.[1] || 'unknown';
   postMessage({ type: 'ready', version });
 }
@@ -21,40 +31,41 @@ async function runProof({ code, indent, files }) {
     if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
   }
   try { pyodide.FS.unlink('/play/proof.kurtc'); } catch {}
-  const result = await pyodide.runPythonAsync(`
-import sys, runpy, io, contextlib
-sys.argv = ['kurt.py', '--no-kurtc', '-r', '${Number(indent)}', '/play/proof.kurt']
-buf_out, buf_err = io.StringIO(), io.StringIO()
-exit_code = 0
-with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
-    try:
-        runpy.run_path('/kurt.py', run_name='__main__')
-    except SystemExit as exc:
-        exit_code = exc.code if isinstance(exc.code, int) else 0
-(buf_out.getvalue(), buf_err.getvalue(), exit_code)
+  // one run: the output, and the certificate (a complete proof writes `proof.kurtc`)
+  pyodide.globals.set('comment_indent', Number(indent));
+  const result = pyodide.runPython(`
+shell = kurt.Shell(kurt.RunConfig(comment_indent=comment_indent, kurtc=True))
+result = shell.start_file('/play/proof.kurt')
+output = kurt.hello() + '\\n' + result.output.rstrip('\\n') + ('\\n' + result.error if result.error else '')
+json.dumps({'output': output, 'ok': result.ok, 'shell': json.loads(shell_state())})
 `);
-  const [stdout, stderr, exitCode] = result.toJs();
-  result.destroy?.();
-  const output = `${stdout || ''}${stdout && stderr && !String(stdout).endsWith('\n') ? '\n' : ''}${stderr || ''}`.trimEnd();
-
-  // Generate a certificate-enabled run after success, then return its contents if Kurt wrote one.
+  const data = JSON.parse(result);
   let certificate = null;
-  if (exitCode === 0) {
-    await pyodide.runPythonAsync(`
-import sys, runpy, io, contextlib
-sys.argv = ['kurt.py', '-r', '${Number(indent)}', '/play/proof.kurt']
-with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-    try: runpy.run_path('/kurt.py', run_name='__main__')
-    except SystemExit: pass
+  if (data.ok) { try { certificate = pyodide.FS.readFile('/play/proof.kurtc', { encoding: 'utf8' }); } catch {} }
+  postMessage({ type: 'result', output: data.output, exitCode: data.ok ? 0 : 1, certificate, shell: data.shell });
+}
+
+function shellLine({ text }) {
+  // a line (or several) in the shell, where the run stopped
+  pyodide.globals.set('shell_text', text);
+  const result = pyodide.runPython(`
+json.dumps({'output': shell.feed(shell_text), 'shell': json.loads(shell_state())}) if shell else json.dumps({'output': '', 'shell': None})
 `);
-    try { certificate = pyodide.FS.readFile('/play/proof.kurtc', { encoding: 'utf8' }); } catch {}
-  }
-  postMessage({ type: 'result', output, exitCode, certificate });
+  postMessage({ type: 'shell-output', ...JSON.parse(result) });
+}
+
+function complete({ line, word }) {
+  pyodide.globals.set('complete_line', line); pyodide.globals.set('complete_word', word);
+  const result = pyodide.runPython(`json.dumps(shell.completions(complete_line, complete_word) if shell else [])`);
+  postMessage({ type: 'completions', items: JSON.parse(result), line, word });
 }
 
 self.onmessage = async ({ data }) => {
-  if (data.type !== 'run' || !pyodide) return;
-  try { await runProof(data); }
-  catch (error) { postMessage({ type: 'error', message: error?.message || String(error) }); }
+  if (!pyodide) return;
+  try {
+    if (data.type === 'run') await runProof(data);
+    else if (data.type === 'shell') shellLine(data);
+    else if (data.type === 'complete') complete(data);
+  } catch (error) { postMessage({ type: 'error', message: error?.message || String(error) }); }
 };
 initialize().catch(error => postMessage({ type: 'error', message: error?.message || String(error) }));

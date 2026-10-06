@@ -79,9 +79,18 @@
             <button id="certificateBtn" class="item" role="menuitem" disabled>Download certificate (.kurtc)</button>
           </div>
         </div>
+        <button id="shellBtn" class="btn small" aria-pressed="false" disabled title="Continue in a shell where the check stopped">Shell</button>
         <button id="clearBtn" class="btn small">Clear</button>
       </div></div>
       <pre id="output" class="output" tabindex="0"></pre>
+      <div id="shellBar" class="shell-bar hidden">
+        <div id="shellHint" class="shell-hint"></div>
+        <div class="shell-row">
+          <span id="shellPrompt" class="shell-prompt">;[1]</span>
+          <textarea id="shellInput" class="shell-input" rows="1" spellcheck="false" aria-label="Kurt shell: a line to check (Enter checks it, Shift+Enter a new line, Tab completes)"></textarea>
+          <button id="shellCopyBtn" class="btn small" disabled title="Insert the lines the shell accepted into the editor, where the check stopped">Copy to editor</button>
+        </div>
+      </div>
     </section>
   </main>
   <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
@@ -105,6 +114,12 @@
       <code>B ; 5 by 3(4)</code> says that line 5 follows by the rule of line 3 from the fact of line 4, and
       <code>Proof checked</code> means every line holds. If a line doesn't follow, Kurt stops there and says why;
       click the error to jump to that line. <strong>Cancel</strong> stops a check that takes too long.</p>
+      <p><strong>Shell</strong>, above the output: after a check, a line under the output continues where the
+      check stopped -- at a <code>breakpoint</code> line (which opens it by itself), at the failing line, or after
+      the last line -- with the open blocks and the facts there. A line typed there (Enter) is checked at once;
+      Shift+Enter starts a new line, Tab completes (the next step, the value after <code>=</code> with
+      <code>calc on</code>, <code>\forall</code>, names). <strong>Copy to editor</strong> inserts the accepted
+      lines into the proof, where the shell started.</p>
 
       <h3>Writing</h3>
       <ul>

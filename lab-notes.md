@@ -164,3 +164,14 @@ Operational log for agent-session setup and activity on the `agent` branch.
   reach from the header to the footer (the editor and the output scroll inside); stacked, they
   have the whole width. A first visit (no link, no draft) shows tutorial lesson 00 instead of the
   built-in modus ponens. The mafi1 test skips itself until the menu is there. Playwright tests.
+
+## 2026-10-06: the shell in the playground (with the next update of kurt.py)
+
+- The worker loads kurt.py once as a module; a run is a `kurt.Shell` (one run instead of two:
+  `start_file` with `kurtc=True` gives the output and the certificate), which then continues where
+  the check stopped. A "Shell" button in the output pane opens an input line under the output:
+  Enter checks a line (`shell.feed`), Shift+Enter a new line, Tab completes (`shell.completions`:
+  the next step, the value after `=`, `\forall`, names), the hint shows where the shell continues
+  and the next step; "Copy to editor" inserts the accepted lines where the shell started. A
+  `breakpoint` opens it by itself. A first visit shows tutorial lesson 01 (00 is about the command
+  line). Playwright tests. Not pushed yet: it needs kurt.py after 0.7.4 (`kurt.Shell`).

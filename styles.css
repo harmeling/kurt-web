@@ -453,3 +453,13 @@ button.output-line:hover { background: linear-gradient(to right, transparent cal
 .output-line.ref::before { background: linear-gradient(var(--mark-ref), var(--mark-ref)), var(--gutter-bg); }
 .theme-btn { margin-left: 8px; }
 .header-right { display: flex; align-items: center; }
+
+/* the shell under the output: it continues where the check stopped (app.js, `kurt.Shell`) */
+.shell-bar { border-top: 1px solid var(--border); padding: 6px 12px 10px; background: var(--code-bg); }
+.shell-bar.hidden { display: none; }
+.shell-hint { color: var(--muted); font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.9); white-space: pre-wrap; min-height: 1.2em; margin-bottom: 4px; }
+.shell-row { display: flex; align-items: flex-start; gap: 8px; }
+.shell-prompt { color: var(--muted); font-family: var(--code-font-family); font-size: var(--code-font-size); line-height: 1.5; padding-top: 4px; }
+.shell-input { flex: 1; resize: vertical; min-height: calc(1.5em + 10px); background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font-family: var(--code-font-family); font-size: var(--code-font-size); line-height: 1.5; white-space: pre; tab-size: 4; }
+.shell-input:focus { outline: 1px solid var(--accent); }
+#shellBtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-2); }

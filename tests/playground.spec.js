@@ -287,7 +287,7 @@ test('has the proofs of the course mafi1 in a menu of their own', async ({ page 
 });
 
 test('shows the first lesson of the tutorial on a first visit', async ({ page }) => {
-  await expect(page.locator('#editor')).toHaveValue(/00-check-a-proof-file/);
+  await expect(page.locator('#editor')).toHaveValue(/01-apply-an-implication-modus-ponens/);
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
 });
@@ -307,4 +307,35 @@ test('fills the window: side by side the whole height, stacked the whole width',
   expect(narrowEditor.width).toBeGreaterThan(700 - 30);                           // the whole width (12px margins)
   expect(narrowOutput.width).toBeGreaterThan(700 - 30);
   expect(narrowOutput.y).toBeGreaterThan(narrowEditor.y + narrowEditor.height - 1);   // below it
+});
+
+test('continues in the shell where the check stopped', async ({ page }) => {
+  await page.locator('#editor').fill('load prop\nbool A, B\nuse A\nuse A implies B\nshow A and B\nproof\n    B\n    A and C\nqed\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof rejected', { timeout: 60000 });
+  await page.locator('#shellBtn').click();
+  await expect(page.locator('#shellPrompt')).toHaveText(';[8]');                      // the failing line
+  await expect(page.locator('#shellHint')).toContainText('at the failing line');
+  await expect(page.locator('#shellHint')).toContainText('A and B');                   // the next step
+  await expect(page.locator('#shellInput')).toHaveValue('    ');                       // inside the proof
+  await page.locator('#shellInput').pressSequentially('A and B');
+  await page.locator('#shellInput').press('Enter');
+  await expect(page.locator('#output')).toContainText('8 by and-intro');
+  await expect(page.locator('#shellPrompt')).toHaveText(';[9]');
+  await page.locator('#shellInput').fill('qed');
+  await page.locator('#shellInput').press('Enter');
+  await expect(page.locator('#output')).toContainText('9 by 8');
+  await page.locator('#shellCopyBtn').click();                                          // before the failing line
+  await expect(page.locator('#editor')).toHaveValue(/    B\n    A and B\nqed\n    A and C/);
+});
+
+test('opens the shell at a breakpoint, and completes with Tab', async ({ page }) => {
+  await page.locator('#editor').fill('load numbers\ncalc on\nbreakpoint\n1 + 1 = 2\n');
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  await expect(page.locator('#shellBar')).toBeVisible();                               // opened by itself
+  await expect(page.locator('#shellHint')).toContainText('at the breakpoint');
+  await page.locator('#shellInput').fill('17*42=');
+  await page.locator('#shellInput').press('Tab');
+  await expect(page.locator('#shellInput')).toHaveValue('17*42=714');
 });

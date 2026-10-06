@@ -37,6 +37,13 @@ function spawnWorker() {
       showOutput(data.output || (data.exitCode ? `Exited with code ${data.exitCode}` : 'Proof checked.'));
       setStatus(data.exitCode ? 'Proof rejected' : 'Proof checked');
       setRunning(false);
+      shellStarted(data.shell);
+    } else if (data.type === 'shell-output') {
+      showOutput(`${lastOutputText}\n${shellEcho}\n${(data.output || '').trimEnd()}`.replace(/\n+$/, ''));
+      output.scrollTop = output.scrollHeight;
+      shellUpdate(data.shell);
+    } else if (data.type === 'completions') {
+      shellCompleted(data.items, data.line, data.word);
     } else if (data.type === 'error') {
       showOutput(`Runtime error: ${data.message}`); setStatus('Runtime error'); setRunning(false);
     }
@@ -81,6 +88,67 @@ async function runProof() {
   worker.postMessage({ type: 'run', code: editor.value, indent: settings().indent, files });
 }
 
+// The shell under the output (the Shell button): after a run, it continues where the check stopped
+// -- at its first `breakpoint`, its failing line, or after its last line -- as `kurt -i` does. A line
+// typed there is checked at once; Tab completes; "Copy to editor" inserts the accepted lines there.
+let shellState = null, shellEcho = '', shellStartLine = 1;
+function shellStarted(state) {
+  shellState = state; $('#shellBtn').disabled = !state;
+  shellStartLine = state ? state.line : 1;
+  if (state && state.stopped === 'breakpoint') setShell(true);       // a `breakpoint` opens it
+  else if (shellOpen()) shellUpdate(state);
+}
+function shellOpen() { return $('#shellBtn').getAttribute('aria-pressed') === 'true'; }
+function setShell(on) {
+  $('#shellBtn').setAttribute('aria-pressed', String(on));
+  $('#shellBar').classList.toggle('hidden', !on);
+  if (on) { shellUpdate(shellState); $('#shellInput').focus(); }
+  alignPanels();
+}
+function shellUpdate(state) {
+  if (!state) return;
+  shellState = state;
+  const where = { breakpoint: 'at the breakpoint', error: 'at the failing line', end: 'after the last line' }[state.stopped] || '';
+  $('#shellPrompt').textContent = `;[${state.line}]`;
+  const next = state.next && state.next.length ? `next, e.g.: ${state.next.join('  or  ')}  (Tab writes it)` : '';
+  $('#shellHint').textContent = [where && `; the shell continues ${where}`, next && `; ${next}`].filter(Boolean).join('\n');
+  $('#shellInput').value = ' '.repeat(state.indent || 0);
+  $('#shellCopyBtn').disabled = !(state.accepted && state.accepted.length);
+}
+function shellSubmit() {
+  const text = $('#shellInput').value;
+  if (!text.trim() || !shellState) return;
+  shellEcho = `;[${shellState.line}] ${text.replace(/\n/g, '\n; ')}`;
+  worker.postMessage({ type: 'shell', text });
+}
+function shellComplete() {
+  const input = $('#shellInput'), line = input.value.slice(0, input.selectionStart);
+  const word = line.match(/[^\s()\[\]{},=]*$/)[0];
+  worker.postMessage({ type: 'complete', line, word });
+}
+function shellCompleted(items, line, word) {
+  const input = $('#shellInput');
+  if (input.value.slice(0, input.selectionStart) !== line) return;          // typed on meanwhile
+  if (items.length === 1) {
+    const before = line.slice(0, line.length - word.length), after = input.value.slice(line.length);
+    input.value = before + items[0] + after;
+    input.selectionStart = input.selectionEnd = (before + items[0]).length;
+  } else if (items.length > 1) {
+    $('#shellHint').textContent = `; ${items.slice(0, 20).join('  ')}${items.length > 20 ? '  …' : ''}`;
+  }
+}
+function shellCopy() {
+  // the accepted lines go where the shell started: before the failing line or after the breakpoint, else at the end
+  const accepted = (shellState && shellState.accepted) || [];
+  if (!accepted.length) return;
+  const lines = editor.value.split('\n');
+  const at = shellState.stopped === 'end' ? lines.length : Math.max(0, Math.min(lines.length, shellStartLine - 1));
+  if (shellState.stopped === 'end' && lines.length && lines[lines.length - 1] === '') lines.pop();
+  lines.splice(shellState.stopped === 'end' ? lines.length : at, 0, ...accepted);
+  editor.value = lines.join('\n'); renderEditorHighlight(); persistDraft();
+  setStatus(`${accepted.length} line${accepted.length > 1 ? 's' : ''} copied into the editor`);
+}
+
 function changeFontSize(step) {
   // step -1 or +1, or 0 for the default size (the View menu, and Cmd/Ctrl - / + / 0)
   updateSettings({ fontSize: step === 0 ? 15 : Math.max(10, Math.min(24, settings().fontSize + step)) });
@@ -103,6 +171,7 @@ function persistDraft() {
 // a new file in the editor: the output (and the certificate) of the old one go
 function clearOutput() {
   output.textContent = ''; outputPanel.classList.add('hidden'); lastOutputText = '';
+  shellStarted(null); setShell(false);
   lastCertificate = null; $('#certificateBtn').disabled = true;
   refLines = new Set(); selfLines = new Set();
 }
@@ -128,7 +197,7 @@ async function shareProof() {
 }
 // what the editor shows at start: a shared link, else the last draft (you continue where you
 // were), else -- on a first visit -- the first lesson of the tutorial
-const FIRST_LESSON = ['proofs/tutorial/', '00-check-a-proof-file.kurt'];
+const FIRST_LESSON = ['proofs/tutorial/', '01-apply-an-implication-modus-ponens.kurt'];   // (00 is about the command line)
 async function loadInitialDraft() {
   const shared = location.hash.match(/^#proof=(.+)$/);
   if (shared) { try { return setEditor(decodeShare(shared[1]), 'shared-proof.kurt'); } catch {} }
@@ -442,6 +511,12 @@ function setupUI() {
   runBtn.onclick = runProof; cancelBtn.onclick = cancelRun; $('#shareBtn').onclick = shareProof;
   $('#copyBtn').onclick = async () => { await navigator.clipboard.writeText(lastOutputText); setStatus('Output copied'); };
   $('#clearBtn').onclick = clearOutput;
+  $('#shellBtn').onclick = () => setShell(!shellOpen());
+  $('#shellCopyBtn').onclick = shellCopy;
+  $('#shellInput').addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); shellSubmit(); }
+    else if (event.key === 'Tab') { event.preventDefault(); shellComplete(); }
+  });
   $('#outputDownloadBtn').onclick = () => download('kurt-output.txt', lastOutputText);
   $('#certificateBtn').onclick = () => lastCertificate && download('proof.kurtc', lastCertificate, 'application/json');
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);
