@@ -48,10 +48,10 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
   const box = await menu.boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(500);
   expect(await menu.evaluate(m => m.scrollHeight > m.clientHeight)).toBeTruthy();
-  const last = menu.locator('.item', { hasText: '48-groups.kurt' });
+  const last = menu.locator('.item', { hasText: '45-cert.kurt' });
   await last.scrollIntoViewIfNeeded();
   await last.click();
-  await expect(page.locator('#editor')).toHaveValue(/48-groups/);
+  await expect(page.locator('#editor')).toHaveValue(/45-cert/);
 });
 
 test('runs a lesson that loads a file next to it', async ({ page }) => {
