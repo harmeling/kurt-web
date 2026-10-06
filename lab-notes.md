@@ -175,3 +175,9 @@ Operational log for agent-session setup and activity on the `agent` branch.
   and the next step; "Copy to editor" inserts the accepted lines where the shell started. A
   `breakpoint` opens it by itself. A first visit shows tutorial lesson 01 (00 is about the command
   line). Playwright tests. Not pushed yet: it needs kurt.py after 0.7.4 (`kurt.Shell`).
+
+## 2026-10-06: Kurt 0.7.5
+
+- `./update.sh ../kurt-lang`: kurt.py 0.7.5, with `kurt.Shell` -- the shell in the output pane
+  and the mafi1 menu are live now; the lessons (tutorial 25, keywords 46-breakpoint), theories
+  field, vectorspace, matrix.

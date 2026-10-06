@@ -1,5 +1,5 @@
 {
-  "kurtVersion": "0.7.4",
+  "kurtVersion": "0.7.5",
   "declarations": [
     "var",
     "const",
@@ -46,7 +46,7 @@
     "sandbox",
     "expect",
     "break",
-    "inspect"
+    "breakpoint"
   ],
   "helpers": [
     "with"

@@ -47,7 +47,27 @@
       "43-verbose.kurt",
       "44-calc.kurt",
       "45-cert.kurt",
+      "46-breakpoint.kurt",
       "local-helper.kurt"
+    ],
+    "mafi1": [
+      "001-two-equal-sets.kurt",
+      "03-formulas.kurt",
+      "06-subspaces.kurt",
+      "07-groups.kurt",
+      "08-linear-span.kurt",
+      "10-linear-maps.kurt",
+      "11a-proofs.kurt",
+      "15-inverse-matrix.kurt",
+      "18-det-matrix-product.kurt",
+      "24-orthogonal-vectors.kurt",
+      "25-orthogonal-matrices.kurt",
+      "26-eigenvalues.kurt",
+      "28-self-adjoint.kurt",
+      "30-principal-axes.kurt",
+      "matrices.kurt",
+      "scalar-product.kurt",
+      "tautologies.kurt"
     ],
     "tutorial": [
       "00-check-a-proof-file.kurt",
@@ -75,21 +95,25 @@
       "22-prove-a-law-of-logic.kurt",
       "23-work-with-pairs-and-tuples.kurt",
       "24-use-a-structure-groups.kurt",
+      "25-compute-with-vectors-and-matrices.kurt",
       "my-theory.kurt"
     ]
   },
   "theories": [
     "analysis.kurt",
     "equality.kurt",
+    "field.kurt",
     "group.kurt",
     "integer.kurt",
     "logic.kurt",
+    "matrix.kurt",
     "minimal.kurt",
     "modal.kurt",
     "natural.kurt",
     "numbers.kurt",
     "prop.kurt",
     "rational.kurt",
-    "set.kurt"
+    "set.kurt",
+    "vectorspace.kurt"
   ]
 }
