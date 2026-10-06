@@ -272,3 +272,14 @@ test('marks the block a result comes from, and the block a step uses', async ({ 
   await expect(page.locator('#output .output-line.ref', { hasText: '; 8-9 by impl-intro' })).toHaveCount(1);
   await expect(page.locator('#lineNumbers .self-num')).toHaveText('10');
 });
+
+test('has the proofs of the course mafi1 in a menu of their own', async ({ page }) => {
+  await page.locator('.menu-wrapper button', { hasText: 'mafi1' }).click();
+  const menu = page.locator('.menu-wrapper', { hasText: 'mafi1' }).locator('.dropdown-menu');
+  const lesson = menu.locator('.item', { hasText: '06-subspaces.kurt' });
+  await lesson.scrollIntoViewIfNeeded();
+  await lesson.click();
+  await expect(page.locator('#editor')).toHaveValue(/load vectorspace/);
+  await page.locator('#runBtn').click();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 120000 });
+});

@@ -153,3 +153,10 @@ Operational log for agent-session setup and activity on the `agent` branch.
   23 pairs and tuples, 24 groups; modus ponens, contradiction, de Morgan were 01, 03, 21 already).
   `update.sh` also removes theories that are gone (arith.kurt). The tests: `load numbers`, lesson
   12 loads `my-theory`.
+
+## 2026-10-06: a menu for the course mafi1 (with the next update)
+
+- `update.sh` copies proofs/mafi1/*.kurt into proofs/mafi1/, so a menu "mafi1" appears (after the
+  tutorial and the keywords); help text and a Playwright test. Not deployed yet: the mafi1 files
+  `load field` / `load vectorspace` from the theories, which come with Kurt only after 0.7.4 --
+  the menu comes with the next `./update.sh` (and its test would fail before that).

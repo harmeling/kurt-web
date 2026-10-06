@@ -338,8 +338,9 @@ async function listDirectory(path) {
   const folder = path.match(/^proofs\/([^/]+)\/$/)?.[1]; return folder ? manifest.proofs[folder] || [] : [];
 }
 async function buildExamplesUI() {
-  // the tutorial first, then the lessons on the keywords (the examples are lessons of the tutorial now)
-  const order = ['tutorial/', 'keywords/'];
+  // the tutorial first, then the lessons on the keywords, then the course mafi1 (the examples are
+  // lessons of the tutorial now)
+  const order = ['tutorial/', 'keywords/', 'mafi1/'];
   const rank = folder => (order.indexOf(folder) + order.length + 1) % (order.length + 1);
   const folders = (await listDirectory('proofs/')).filter(x => x.endsWith('/')).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   for (const folder of folders) await createMenu(folder.slice(0, -1), `proofs/${folder}`);
