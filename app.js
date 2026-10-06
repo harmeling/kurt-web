@@ -432,7 +432,10 @@ function setupUI() {
   setupTheme();
   setupDivider();
   window.addEventListener('resize', alignPanels);
-  new ResizeObserver(alignPanels).observe($('.editor-panel'));
+  // (the toolbar too: while a check runs, it shows Cancel and is higher -- with the panels as high as
+  // the window, the panel itself doesn't change then)
+  const observer = new ResizeObserver(alignPanels);
+  observer.observe($('.editor-panel')); observer.observe($('.editor-panel .toolbar'));
   loadInitialDraft(); const saved = settings(); updateSettings(saved);
   editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); }); editor.addEventListener('scroll', keepEditorUnscrolled);
   editor.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); } });

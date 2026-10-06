@@ -195,9 +195,6 @@ test('fills the window, aligns the first lines, and moves the divider', async ({
   const box = async sel => page.locator(sel).boundingBox();
   const [editor, output, divider] = [await box('#editorWrap'), await box('#output'), await box('#divider')];
   expect(editor.x).toBeLessThan(20); expect(output.x + output.width).toBeGreaterThan(1580);
-  console.log('ALIGN', JSON.stringify(await page.evaluate(() => Object.fromEntries(['.editor-panel', '.toolbar', '#editorWrap', '#outputPanel', '#outputPanel .panel-header', '#output'].map(sel => {
-    const r = document.querySelector(sel).getBoundingClientRect(); const cs = getComputedStyle(document.querySelector(sel));
-    return [sel, [r.y, r.height, cs.minHeight, cs.flexShrink]]; })))));
   expect(Math.abs(editor.y - output.y)).toBeLessThan(1.5);                        // the first lines
   const [left, right] = [await box('.editor-panel'), await box('#outputPanel')];
   expect(Math.abs(left.y + left.height - right.y - right.height)).toBeLessThan(1.5); // the bottoms
