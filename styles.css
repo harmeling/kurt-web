@@ -304,6 +304,11 @@ textarea#editor {
 /* two columns: the output reaches down as far as the editor (its first line is aligned by app.js) */
 @media (min-width: 961px) {
 	.output { flex: 1 1 auto; height: 0; min-height: 160px; }
+	/* side by side: the panels take the whole window between the header and the footer, the
+	   editor and the output scroll inside them (the page scrolls only in a very low window) */
+	body { display: flex; flex-direction: column; height: 100vh; }
+	.layout { flex: 1 1 auto; min-height: 420px; grid-template-rows: minmax(0, 1fr); }
+	.editor-wrap { flex: 1 1 auto; height: 0; min-height: 200px; }
 }
 .hidden { display: none; }
 

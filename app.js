@@ -126,11 +126,19 @@ async function shareProof() {
   try { await navigator.clipboard.writeText(url.href); setStatus('Link to this proof copied'); }
   catch { prompt('Copy this proof link:', url.href); }
 }
-function loadInitialDraft() {
+// what the editor shows at start: a shared link, else the last draft (you continue where you
+// were), else -- on a first visit -- the first lesson of the tutorial
+const FIRST_LESSON = ['proofs/tutorial/', '00-check-a-proof-file.kurt'];
+async function loadInitialDraft() {
   const shared = location.hash.match(/^#proof=(.+)$/);
   if (shared) { try { return setEditor(decodeShare(shared[1]), 'shared-proof.kurt'); } catch {} }
   try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) return setEditor(draft.code, draft.filename, draft.folder || null); } catch {}
   setEditor(DEFAULT_PROOF);
+  try {
+    const [folder, file] = FIRST_LESSON;
+    const response = await fetch(`${folder}${file}`);
+    if (response.ok && editor.value === DEFAULT_PROOF) setEditor(await response.text(), file, folder);
+  } catch {}
 }
 
 function download(name, text, type = 'text/plain;charset=utf-8') {

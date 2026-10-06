@@ -160,3 +160,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
   tutorial and the keywords); help text and a Playwright test. Not deployed yet: the mafi1 files
   `load field` / `load vectorspace` from the theories, which come with Kurt only after 0.7.4 --
   the menu comes with the next `./update.sh` (and its test would fail before that).
+- The window filled: side by side (from 961px), the page is exactly the window, and the panels
+  reach from the header to the footer (the editor and the output scroll inside); stacked, they
+  have the whole width. A first visit (no link, no draft) shows tutorial lesson 00 instead of the
+  built-in modus ponens. The mafi1 test skips itself until the menu is there. Playwright tests.
