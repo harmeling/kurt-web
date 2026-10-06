@@ -1,13 +1,5 @@
 {
   "proofs": {
-    "examples": [
-      "contraposition.kurt",
-      "de-morgan.kurt",
-      "double-negation.kurt",
-      "excluded-middle.kurt",
-      "modus-ponens.kurt",
-      "proof-by-contradiction.kurt"
-    ],
     "keywords": [
       "00-true.kurt",
       "01-bool.kurt",
@@ -26,7 +18,6 @@
       "14-todo.kurt",
       "15-sandbox.kurt",
       "16-expect.kurt",
-      "17-local-helper.kurt",
       "17-local.kurt",
       "18-assume.kurt",
       "19-let.kurt",
@@ -55,10 +46,8 @@
       "42-hint.kurt",
       "43-verbose.kurt",
       "44-calc.kurt",
-      "45-worked-proof.kurt",
-      "46-cert.kurt",
-      "47-tuples.kurt",
-      "48-groups.kurt"
+      "45-cert.kurt",
+      "local-helper.kurt"
     ],
     "tutorial": [
       "00-check-a-proof-file.kurt",
@@ -73,7 +62,6 @@
       "09-use-an-existential-witness.kurt",
       "10-use-exact-arithmetic-with-calc.kurt",
       "11-prove-a-statement-by-induction.kurt",
-      "12-my-theory.kurt",
       "12-write-and-load-a-reusable-theory.kurt",
       "13-check-that-a-bad-proof-is-rejected.kurt",
       "14-develop-an-unfinished-proof-safely.kurt",
@@ -81,12 +69,17 @@
       "16-diagnose-can-not-derive.kurt",
       "17-grade-student-proofs-with-strict-mode.kurt",
       "18-choose-the-theory-to-load.kurt",
-      "19-common-mistakes.kurt"
+      "19-common-mistakes.kurt",
+      "20-constants-variables-and-declarations.kurt",
+      "21-worked-proof.kurt",
+      "22-prove-a-law-of-logic.kurt",
+      "23-work-with-pairs-and-tuples.kurt",
+      "24-use-a-structure-groups.kurt",
+      "my-theory.kurt"
     ]
   },
   "theories": [
     "analysis.kurt",
-    "arith.kurt",
     "equality.kurt",
     "group.kurt",
     "integer.kurt",
@@ -94,6 +87,7 @@
     "minimal.kurt",
     "modal.kurt",
     "natural.kurt",
+    "numbers.kurt",
     "prop.kurt",
     "rational.kurt",
     "set.kurt"

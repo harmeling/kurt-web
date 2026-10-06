@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('checks a proof and loads a standard theory', async ({ page }) => {
-  await page.locator('#editor').fill('load arith\ncalc on\n1 + 1 = 2\n');
+  await page.locator('#editor').fill('load numbers\ncalc on\n1 + 1 = 2\n');
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
   await expect(page.locator('#output')).toContainText('Proof checked');
@@ -55,14 +55,14 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
 });
 
 test('runs a lesson that loads a file next to it', async ({ page }) => {
-  // lesson 12 of the tutorial loads `12-my-theory.kurt` from its folder -- the playground has to
+  // lesson 12 of the tutorial loads `my-theory.kurt` from its folder -- the playground has to
   // give it to the worker along with the proof
   await page.locator('.menu-wrapper button', { hasText: 'tutorial' }).click();
   const menu = page.locator('.menu-wrapper', { hasText: 'tutorial' }).locator('.dropdown-menu');
   const lesson = menu.locator('.item', { hasText: '12-write-and-load-a-reusable-theory.kurt' });
   await lesson.scrollIntoViewIfNeeded();
   await lesson.click();
-  await expect(page.locator('#editor')).toHaveValue(/load 12-my-theory/);
+  await expect(page.locator('#editor')).toHaveValue(/load my-theory/);
   await page.locator('#runBtn').click();
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
 });

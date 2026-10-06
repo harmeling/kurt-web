@@ -143,3 +143,13 @@ Operational log for agent-session setup and activity on the `agent` branch.
   `iff-true-elim`, comma lists as written, the `expect` fix), lessons 02 (blocks) and 04 (three
   cases). New Playwright test: hovering a block's result marks its lines; hovering a step that
   uses results marks them (`by or-elim(3, 6-7, 8-9)`).
+
+## 2026-10-06: Kurt 0.7.4
+
+- `./update.sh ../kurt-lang`: kurt.py 0.7.4 (`numbers.kurt`, formerly arith; a symbol is declared
+  by one file only; binders store their variable; `def` with new symbols on the right), the
+  lessons (tutorial 20-24, keywords one per keyword, helper files without a number).
+- No "examples" menu any more: the examples are lessons of the tutorial now (22 contraposition,
+  23 pairs and tuples, 24 groups; modus ponens, contradiction, de Morgan were 01, 03, 21 already).
+  `update.sh` also removes theories that are gone (arith.kurt). The tests: `load numbers`, lesson
+  12 loads `my-theory`.

@@ -1,4 +1,18 @@
-; contraposition.kurt
+; 22-prove-a-law-of-logic.kurt
+;
+; Prove a law of logic
+;
+; Contraposition, (A ⇒ B) ≡ (¬B ⇒ ¬A), from the rules of prop.kurt alone. First a lemma,
+; (A ⇒ B) ≡ (¬A ∨ B): an equivalence is proven as two implications (`iff-intro`), each in a
+; `show` / `proof` / `qed` of its own. Inside, the lessons so far come together: an implication by
+; `assume` (lesson 02), cases (`or-elim`, lesson 04), a contradiction (lesson 03) -- and the
+; excluded middle, A ∨ ¬A, which is proven here as well: assuming its negation leads to a
+; contradiction, and `not-elim` removes the double negation. Then the theorem is a chain of
+; equivalences, each line one rewrite with a law (`iff-subst`).
+;
+; `var A, B` makes the two propositions variables: the theorem holds for every A and B, and
+; another file that loads this one can use it with any formulas for them.
+
 load prop
 var A, B
 
@@ -47,3 +61,6 @@ proof
            ≡  ¬¬B ∨ ¬A
            ≡  ¬B ⇒ ¬A
 qed
+
+; The same proofs, and the other laws of the natural deduction (double negation, de Morgan, the
+; excluded middle on its own), are in proofs/natural-deduction/.

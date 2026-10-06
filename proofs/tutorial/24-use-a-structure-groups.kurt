@@ -1,0 +1,47 @@
+; 24-use-a-structure-groups.kurt
+;
+; Use a structure: groups
+;
+; The theorems of group.kurt hold for every group: here for the numbers with `+`, and for an
+; abstract group `G` with the operation `∘`. group.kurt defines what a group is,
+; `group(G, (∘), e, inv)`: a set `G`, an operation `∘` on it, the identity `e`, and the inverse
+; `inv`. There, `∘` is an *operator variable* -- declared with `var ∘` and `infix ∘` -- so its
+; rules and theorems hold for every operation. To pass an operator as an argument, put it into
+; parentheses: `(∘)`, `(+)`, `(-)`.
+;
+; A structure like this takes its operation as an argument, so it goes together with numbers.kurt
+; (`(+)` here). A structure that declares its own `+` (a field, a vector space) does not: a symbol is
+; declared by one file only (lesson 18).
+load group, numbers
+
+; the numbers (a set `R` of them) with `+`, `0` and `-`
+const R, x, y
+use group(R, (+), 0, (-))
+use x ∈ R
+use y ∈ R
+x + 0 = x                             ; by group-right-identity
+-(-x) = x                             ; by inverse-inverse
+x + y ∈ R                             ; by group-closed
+
+; an abstract group: `∘` is an operation here (group.kurt declares it infix)
+const G, e, inv, a, b, c
+arity inv 1
+use group(G, (∘), e, inv)
+use a ∈ G
+use b ∈ G
+inv (inv a) = a                       ; by inverse-inverse
+inv b ∈ G                             ; by group-inverse-in
+(a ∘ b) ∘ inv b = a ∘ (b ∘ inv b)     ; by group-associative
+b ∘ inv b = e                         ; by group-right-inverse
+a ∘ e = a                             ; by group-right-identity
+(a ∘ b) ∘ inv b = a ∘ (b ∘ inv b)
+                = a ∘ e
+                = a
+; an inverse from the equation it solves
+use c ∈ G
+use c ∘ a = e
+c = inv a                             ; by inverse-unique
+
+; `∘` is not commutative: nothing says so
+expect "ProofError"
+    a ∘ b = b ∘ a
