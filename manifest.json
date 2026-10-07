@@ -44,10 +44,10 @@
       "40-format.kurt",
       "41-help.kurt",
       "42-hint.kurt",
-      "43-verbose.kurt",
-      "44-calc.kurt",
-      "45-cert.kurt",
-      "46-breakpoint.kurt",
+      "43-calc.kurt",
+      "44-cert.kurt",
+      "45-breakpoint.kurt",
+      "46-list.kurt",
       "local-helper.kurt"
     ],
     "mafi1": [
@@ -96,6 +96,7 @@
       "23-work-with-pairs-and-tuples.kurt",
       "24-use-a-structure-groups.kurt",
       "25-compute-with-vectors-and-matrices.kurt",
+      "26-inspect-a-loaded-theory.kurt",
       "my-theory.kurt"
     ]
   },

@@ -181,3 +181,8 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - `./update.sh ../kurt-lang`: kurt.py 0.7.5, with `kurt.Shell` -- the shell in the output pane
   and the mafi1 menu are live now; the lessons (tutorial 25, keywords 46-breakpoint), theories
   field, vectorspace, matrix.
+
+## 2026-10-07: Kurt 0.7.6
+
+- `./update.sh /Users/harmeling/git/kurt-lang-dev`: kurt.py 0.7.6, the `list` command and source-location metadata, keyword lesson 46, tutorial lesson 26, updated theories and proof manifest, cache `kurt-playground-c252c231465f`.
+- Updated the browser test for the renumbered `44-cert.kurt` lesson. The update smoke test and all 24 Playwright tests pass.

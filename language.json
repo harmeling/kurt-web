@@ -1,5 +1,5 @@
 {
-  "kurtVersion": "0.7.5",
+  "kurtVersion": "0.7.6",
   "declarations": [
     "var",
     "const",
@@ -19,7 +19,6 @@
   "commands": [
     "help",
     "hint",
-    "verbose",
     "parse",
     "tokenize",
     "format",
@@ -28,6 +27,7 @@
     "context",
     "trail",
     "load",
+    "list",
     "save",
     "syntax",
     "local",
