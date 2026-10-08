@@ -1380,49 +1380,44 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '; schemata. It covers box (□, necessity), diamond (◇, '
                'possibility), their duality, distribution\n'
                '; over and/or, the K distribution axiom, and the T axiom in '
-               'its dual form `%p implies ◇%p`.\n'
+               'its dual form `p implies ◇p`.\n'
                ';\n'
                '; This is not a complete proof system for normal modal logic K '
                'or T: Kurt cannot currently\n'
-               '; express the necessitation rule "from a theorem %p infer '
-               '□%p". In particular, do not describe\n'
+               '; express the necessitation rule "from a theorem p infer □p". '
+               'In particular, do not describe\n'
                '; `load modal` as implementing system K or T. There are also '
                'no 4/5 axioms or\n'
                '; accessibility-relation semantics. See proofs/modal-logic/ '
                'for executable examples.\n'
                ';\n'
-               '; With classical propositional logic and the duality below, '
-               '`%p implies ◇%p` is equivalent to\n'
-               '; the standard T axiom `□%p implies %p`. It is not the '
-               'seriality axiom D (`□%p implies ◇%p`).\n'
+               '; With classical propositional logic and the duality below, `p '
+               'implies ◇p` is equivalent to\n'
+               '; the standard T axiom `□p implies p`. It is not the seriality '
+               'axiom D (`□p implies ◇p`).\n'
                'load prop\n'
                'prefix b 20, d 20          ; box and diamond\n'
                'bool b, d\n'
                'alias □ b\n'
                'alias ◇ d\n'
                '\n'
-               "; every axiom below is a schema (`%p`/`%q`, like prop.kurt's "
-               '`%A`/`%B`) so it applies to *any*\n'
-               '; boolean expression, not just to two specific hardcoded '
-               'propositions -- earlier versions of\n'
-               '; this file wrote `p`/`q`/`A`/`B` without the `%` prefix, '
-               'which silently pinned every axiom to\n'
-               '; those exact declared constants and made it impossible to '
-               'apply K (etc.) to anything else;\n'
-               '; confirmed the difference directly: `use □(X ⇒ Y)` + `use □X` '
-               'could never derive `□Y` before\n'
-               '; this fix, only the literal `□(p ⇒ q)` + `□p` could ever '
-               'derive `□q`.\n'
-               'use ◇%p ≡ ¬□¬%p   "diamond-def"\n'
-               'use □%p ≡ ¬◇¬%p   "box-def"\n'
-               'use ◇%p ∨ ◇%q ≡ ◇(%p ∨ %q)   "diamond-distrib-or"\n'
-               'use □%p ∧ □%q ≡ □(%p ∧ %q)   "box-distrib-and"\n'
+               '; p and q are declared variables once instead of carrying a '
+               '`%` on every occurrence. Every\n'
+               '; stored formula renames its free variables to fresh internal '
+               'schema names, so these rules stay\n'
+               "; general after `load` and cannot capture an importer's p or "
+               'q.\n'
+               'var p, q\n'
+               'use ◇p ≡ ¬□¬p   "diamond-def"\n'
+               'use □p ≡ ¬◇¬p   "box-def"\n'
+               'use ◇p ∨ ◇q ≡ ◇(p ∨ q)   "diamond-distrib-or"\n'
+               'use □p ∧ □q ≡ □(p ∧ q)   "box-distrib-and"\n'
                '\n'
                '; K distribution axiom\n'
-               'use □(%p ⇒ %q) ⇒ (□%p ⇒ □%q)    "K"\n'
+               'use □(p ⇒ q) ⇒ (□p ⇒ □q)    "K"\n'
                '\n'
                '; T axiom, in its dual form\n'
-               'use %p ⇒ ◇%p   "T"\n',
+               'use p ⇒ ◇p   "T"\n',
  'natural.kurt': '; natural numbers\n'
                  ';\n'
                  '; covers: `Nat` membership (0 is a natural number, and the '
@@ -4037,6 +4032,15 @@ def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula
     symbols: set[str] = set()
     for f in exported:
         symbols |= free_symbols(f.expr, child)
+    # A declared variable's occurrences have already been replaced in `simplified_expr` by
+    # fresh `$$`/`%%` schema names. Its printed source name and inferred bool signature are not
+    # part of the exported rule's meaning and must not occupy that name in the loading file.
+    # Parser-facing syntax is the exception: group.kurt deliberately exports `infix ∘` so a
+    # loader can write the same notation, while `var ∘` itself remains local. The same applies
+    # to a variable function's arity and to prefix/postfix operators.
+    variable_syntax = child.var & (set(child.infix) | set(child.prefix) | set(child.postfix) |
+                                   set(child.arity))
+    symbols -= child.var - variable_syntax
     # a symbol bound to the calculator (`calc + add`) is exported like an axiom about it -- e.g.
     # matrix.kurt's literals `[ ]`, `det`, `transpose`, which no fact of its own mentions
     symbols |= set(child.calc_ops)
