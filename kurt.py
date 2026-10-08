@@ -4224,7 +4224,9 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
         if isinstance(token.value, str)
         for sort in child.variable_sorts(token.value)
     }
-    sorts = set(sort_sigs) | schema_sorts
+    # A top-level sort declaration is part of a theory's public vocabulary in its own right.
+    # Export it even before an exported fact or signature happens to use it.
+    sorts = set(child.sorts) | set(sort_sigs) | schema_sorts
     chains = [list(c) for c in child.chain if all(op in symbols for op in c)]
     origin_keys: dict[str, set[str]] = {}
     for keyword in ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'bindop', 'flat', 'sym',

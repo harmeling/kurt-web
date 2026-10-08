@@ -198,3 +198,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
 
 - Synchronized kurt-lang-dev commit 8713768: standalone Kurt now embeds 17 theories, including lambda.kurt; added keyword lesson 47 and tutorial lessons 27–28; refreshed language metadata, manifest, modal-deep.kurt, and service-worker cache.
 - update.sh smoke tests passed. Playwright: 25 browser tests passed.
+
+## 2026-10-08 — export bare sort names
+
+- Synchronized kurt-lang-dev commit 42309e8 so a top-level sort declaration is exported as theory vocabulary even before a retained fact uses it. update.sh smoke tests and all 25 Playwright tests passed.
