@@ -1,0 +1,53 @@
+; SIMPLY TYPED LAMBDA CALCULUS
+;
+; `term`, `type`, `index`, and `ctx` are optional Kurt sorts. They make malformed typing
+; judgments fail during checking, while `has Γ M A` and `M ↦ N` are the Boolean judgments Kurt
+; can prove.
+;
+; The fully general typing rules use de Bruijn terms: `at zero`, `at (succ zero)`, and
+; `abs A M`. This keeps context extension and abstraction entirely in ordinary Kurt rules.
+;
+; The theory additionally offers readable named terms `λ x M`. `λ` is a real Kurt binder, so
+; alpha-equivalent terms match, and beta uses Kurt's capture-avoiding `sub`. The current pure-Kurt
+; rule language does not express the full hypothetical premise of named abstraction conveniently;
+; the named typing conveniences below are therefore deliberately limited to sound cases.
+
+sort type, term, index, ctx
+
+arity fun 2, app 2, has 3, λ 2, succ 1, at 1, abs 2, extend 2
+infix ↦ 15 15
+bindop λ
+
+const fun, app, has, ↦, succ, at, abs, extend, zero, empty, base, unit
+
+type fun 0 1 2, has 3, base
+type abs 1, extend 2
+term app 0 1 2, λ 0 1 2, at 0, abs 0 2, has 2, ↦ 1 2, unit
+index zero, succ 0 1, at 1
+ctx empty, extend 0 1, has 1
+bool has 0, ↦ 0
+
+var Γ, M, N, F, x, n, A, B, C
+ctx Γ
+term M, N, F, x
+index n
+type A, B, C
+
+; A closed inhabitant makes the examples executable without choosing another object theory.
+use has empty unit base "unit-type"
+
+; Complete syntax-directed typing rules for the de Bruijn representation.
+use has (extend Γ A) (at zero) A "variable-zero"
+use (has Γ (at n) A) implies (has (extend Γ B) (at (succ n)) A) "variable-successor"
+use (has (extend Γ A) M B) implies (has Γ (abs A M) (fun A B)) "abstraction"
+
+use (has Γ M (fun A B)) and (has Γ N A) implies (has Γ (app M N) B) "application"
+
+; Sound named-term conveniences. Binder matching guarantees that M/F do not acquire the bound x
+; in the constant/application-abstraction rules. Identity is the dependent base case explicitly.
+use has Γ (λ x x) (fun A A) "named-identity"
+use (has Γ M B) implies (has Γ (λ x M) (fun A B)) "named-constant-abstraction"
+use (has Γ F (fun A B)) implies (has Γ (λ x (app F x)) (fun A B)) "named-application-abstraction"
+
+; Object-level beta reduction. `sub` computes capture-avoiding substitution and respects nested λ.
+use (app (λ x M) N) ↦ (sub x N M) "beta"

@@ -16,7 +16,12 @@ infix ⊢ 10 10
 const →, □, ⊢, empty
 bool ⊢ 0
 
+; Optional sort declarations keep object formulas from being asserted directly as Kurt claims.
+sort formula
+formula → 0 1 2, □ 0 1
+
 var A, B, C
+formula A, B, C
 
 ; Prefix theoremhood is the empty-context case of the binary sequent notation.
 use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"

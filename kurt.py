@@ -1084,6 +1084,79 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '        $z ∈ Nat\n'
                  'qed\n'
                  '\n',
+ 'lambda.kurt': '; SIMPLY TYPED LAMBDA CALCULUS\n'
+                ';\n'
+                '; `term`, `type`, `index`, and `ctx` are optional Kurt sorts. '
+                'They make malformed typing\n'
+                '; judgments fail during checking, while `has Γ M A` and `M ↦ '
+                'N` are the Boolean judgments Kurt\n'
+                '; can prove.\n'
+                ';\n'
+                '; The fully general typing rules use de Bruijn terms: `at '
+                'zero`, `at (succ zero)`, and\n'
+                '; `abs A M`. This keeps context extension and abstraction '
+                'entirely in ordinary Kurt rules.\n'
+                ';\n'
+                '; The theory additionally offers readable named terms `λ x '
+                'M`. `λ` is a real Kurt binder, so\n'
+                "; alpha-equivalent terms match, and beta uses Kurt's "
+                'capture-avoiding `sub`. The current pure-Kurt\n'
+                '; rule language does not express the full hypothetical '
+                'premise of named abstraction conveniently;\n'
+                '; the named typing conveniences below are therefore '
+                'deliberately limited to sound cases.\n'
+                '\n'
+                'sort type, term, index, ctx\n'
+                '\n'
+                'arity fun 2, app 2, has 3, λ 2, succ 1, at 1, abs 2, extend '
+                '2\n'
+                'infix ↦ 15 15\n'
+                'bindop λ\n'
+                '\n'
+                'const fun, app, has, ↦, succ, at, abs, extend, zero, empty, '
+                'base, unit\n'
+                '\n'
+                'type fun 0 1 2, has 3, base\n'
+                'type abs 1, extend 2\n'
+                'term app 0 1 2, λ 0 1 2, at 0, abs 0 2, has 2, ↦ 1 2, unit\n'
+                'index zero, succ 0 1, at 1\n'
+                'ctx empty, extend 0 1, has 1\n'
+                'bool has 0, ↦ 0\n'
+                '\n'
+                'var Γ, M, N, F, x, n, A, B, C\n'
+                'ctx Γ\n'
+                'term M, N, F, x\n'
+                'index n\n'
+                'type A, B, C\n'
+                '\n'
+                '; A closed inhabitant makes the examples executable without '
+                'choosing another object theory.\n'
+                'use has empty unit base "unit-type"\n'
+                '\n'
+                '; Complete syntax-directed typing rules for the de Bruijn '
+                'representation.\n'
+                'use has (extend Γ A) (at zero) A "variable-zero"\n'
+                'use (has Γ (at n) A) implies (has (extend Γ B) (at (succ n)) '
+                'A) "variable-successor"\n'
+                'use (has (extend Γ A) M B) implies (has Γ (abs A M) (fun A '
+                'B)) "abstraction"\n'
+                '\n'
+                'use (has Γ M (fun A B)) and (has Γ N A) implies (has Γ (app M '
+                'N) B) "application"\n'
+                '\n'
+                '; Sound named-term conveniences. Binder matching guarantees '
+                'that M/F do not acquire the bound x\n'
+                '; in the constant/application-abstraction rules. Identity is '
+                'the dependent base case explicitly.\n'
+                'use has Γ (λ x x) (fun A A) "named-identity"\n'
+                'use (has Γ M B) implies (has Γ (λ x M) (fun A B)) '
+                '"named-constant-abstraction"\n'
+                'use (has Γ F (fun A B)) implies (has Γ (λ x (app F x)) (fun A '
+                'B)) "named-application-abstraction"\n'
+                '\n'
+                '; Object-level beta reduction. `sub` computes '
+                'capture-avoiding substitution and respects nested λ.\n'
+                'use (app (λ x M) N) ↦ (sub x N M) "beta"\n',
  'logic.kurt': '; first order logic\n'
                ';\n'
                '; covers: forall-elim (instantiate a universal at a specific '
@@ -1398,7 +1471,13 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     'const →, □, ⊢, empty\n'
                     'bool ⊢ 0\n'
                     '\n'
+                    '; Optional sort declarations keep object formulas from '
+                    'being asserted directly as Kurt claims.\n'
+                    'sort formula\n'
+                    'formula → 0 1 2, □ 0 1\n'
+                    '\n'
                     'var A, B, C\n'
+                    'formula A, B, C\n'
                     '\n'
                     '; Prefix theoremhood is the empty-context case of the '
                     'binary sequent notation.\n'
@@ -3492,6 +3571,7 @@ keywords: dict[str, str] = {
     'bindop':      'declare a constant binding operator',
     'flat':        'declare a constant infix operator to be flat',
     'sym':         'declare a constant infix operator to be symmetric',
+    'sort':        'declare optional term sorts; each sort name then declares positional signatures like `bool`',
     'bool':        'declare symbols to have output type boolean',
     'calc':        'give constant symbols fixed calculator meanings, or switch calculation on/off',
     'chain':       'declare constant boolean relations as a chain, with automatic transitivity',
@@ -4071,6 +4151,8 @@ class ExportBundle:
     led: dict[str, 'Led']
     const: set[str]
     bool: dict[str, list[int]]
+    sorts: set[str]
+    sort_sigs: dict[str, dict[str, list[int]]]
     calc_ops: dict[str, list[str]]
     chain: list[list[str]]
     frozen: set[str]                         # the symbols a trusted theory declared (`is_trusted_file`)
@@ -4128,19 +4210,38 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
         assert isinstance(value, set), f'BUG: unexpected type for {attr}: {type(value)}'
         return {s for s in value if s in symbols}
     selected = {attr: select(attr) for attr in EXPORTED_SYMBOL_ATTRS}
+    sort_sigs = {
+        sort: {symbol: list(positions) for symbol, positions in signatures.items() if symbol in symbols}
+        for sort, signatures in child.sort_sigs.items()
+    }
+    sort_sigs = {sort: signatures for sort, signatures in sort_sigs.items() if signatures}
+    # A sort used only to constrain an exported schema variable is still part of that rule's
+    # meaning, even though the variable's source spelling itself is deliberately not exported.
+    schema_sorts = {
+        sort
+        for formula in exported
+        for token in get_token_set(formula.simplified_expr)
+        if isinstance(token.value, str)
+        for sort in child.variable_sorts(token.value)
+    }
+    sorts = set(sort_sigs) | schema_sorts
     chains = [list(c) for c in child.chain if all(op in symbols for op in c)]
     origin_keys: dict[str, set[str]] = {}
     for keyword in ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'bindop', 'flat', 'sym',
                     'alias', 'const', 'bool'):
         value = selected[keyword]
         origin_keys[keyword] = set(value)
+    origin_keys['sort'] = sorts
+    for sort, signatures in sort_sigs.items():
+        origin_keys[sort] = set(signatures)
     origin_keys['chain'] = {' '.join(c) for c in chains}
     property_origins = {
         keyword: {key: origin for key, origin in origins.items() if key in origin_keys.get(keyword, set())}
         for keyword, origins in child.property_origins.items()
     }
     property_origins = {keyword: origins for keyword, origins in property_origins.items() if origins}
-    return ExportBundle(theory=list(exported), symbols=set(symbols), **selected, chain=chains,
+    return ExportBundle(theory=list(exported), symbols=set(symbols), **selected, sorts=sorts,
+                        sort_sigs=sort_sigs, chain=chains,
                         property_origins=property_origins, libs=list(child.libs))
 
 def validate_exports(bundle: ExportBundle, child: 'KnowledgeBase', parent: 'KnowledgeBase', own_file: Optional[str]) -> None:
@@ -4166,6 +4267,9 @@ def apply_exports(parent: 'KnowledgeBase', bundle: ExportBundle) -> None:
     parent.theory.extend(f for f in bundle.theory if (f.filename, f.line, f.label) not in known)
     for attr in EXPORTED_SYMBOL_ATTRS:
         getattr(parent, attr).update(getattr(bundle, attr))
+    parent.sorts.update(bundle.sorts)
+    for sort, signatures in bundle.sort_sigs.items():
+        parent.sort_sigs.setdefault(sort, {}).update({symbol: list(positions) for symbol, positions in signatures.items()})
     for keyword, origins in bundle.property_origins.items():
         parent.property_origins.setdefault(keyword, {}).update(origins)
     symbols_changed()
@@ -4243,6 +4347,10 @@ class KnowledgeBase:
 
         # types
         self.bool:     dict[str, list[int]]      = {}     # dict of symbols declared to have boolean output
+        # Optional, lightweight term sorts. `bool` keeps its established storage and inference;
+        # every user sort has the same sparse symbol -> positions representation here.
+        self.sorts: set[str] = set()
+        self.sort_sigs: dict[str, dict[str, list[int]]] = {}
 
         # theory
         self.theory: list[Formula] = []                   # list of formulas (axioms added by 'use' or 'todo', 
@@ -4366,6 +4474,7 @@ class KnowledgeBase:
         elif keyword == 'flat':     return f'flat {key}'
         elif keyword == 'sym':      return f'sym {key}'
         elif keyword == 'bindop':   return f'bindop {key}'
+        elif keyword == 'sort':     return f'sort {key}'
         elif keyword == 'bool':     
             assert isinstance(value, list), f'BUG!  Unexpected value for `bool`, got {value}'
             # A bool declaration written for a left bracket is stored on the combined internal
@@ -4373,6 +4482,10 @@ class KnowledgeBase:
             # spelling so listings and `save` output can be read back.
             shown_key = key.split('$$$', 1)[0] if '$$$' in key else key
             return f'bool {shown_key} {" ".join(map(str, value))}'
+        elif self.is_sort_name(keyword):
+            assert isinstance(value, list), f'BUG! Unexpected signature for sort `{keyword}`, got {value}'
+            shown_key = key.split('$$$', 1)[0] if '$$$' in key else key
+            return f'{keyword} {shown_key} {" ".join(map(str, value))}'
         elif keyword == 'var':      return f'var {key}'
         elif keyword == 'const':
             if key == ' ':
@@ -4445,6 +4558,32 @@ class KnowledgeBase:
         ambiguous = self._ambiguous_origin_basenames()
         return '\n'.join(node.dict_or_set_str(keyword, ambiguous=ambiguous, source=source) for node in levels)
 
+    def sort_names_str_all_levels(self, source: Optional[str] = None) -> str:
+        ambiguous = self._ambiguous_origin_basenames()
+        lines = [] if source is not None else [f'{"sort bool":<{comment_indent}}; level 0, builtin']
+        for node in reversed(list(self.levels())):
+            for sort in sorted(node.sorts):
+                origin = node.property_origins.get('sort', {}).get(sort)
+                if source is not None and (origin is None or origin[0] != source):
+                    continue
+                lines.append(f'{f"sort {sort}":<{comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
+        return '\n'.join(lines)
+
+    def sort_signature_str_all_levels(self, sort: str, source: Optional[str] = None) -> str:
+        if sort == 'bool':
+            return self.dict_or_set_str_all_levels('bool', source=source)
+        ambiguous = self._ambiguous_origin_basenames()
+        lines: list[str] = []
+        for node in reversed(list(self.levels())):
+            signatures = node.sort_sigs.get(sort, {})
+            for symbol in sorted(signatures):
+                origin = node.property_origins.get(sort, {}).get(node._property_key(symbol))
+                if source is not None and (origin is None or origin[0] != source):
+                    continue
+                entry = node._entry_str(sort, symbol, signatures[symbol])
+                lines.append(f'{entry:<{comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
+        return '\n'.join(lines)
+
     # SYNTAX RELATED
     def info(self, t: Token) -> str:
         label, value = t.label, t.value
@@ -4467,6 +4606,24 @@ class KnowledgeBase:
             all_syntax = [node.dict_or_set_str(keyword, key, ambiguous, source) for keyword in
                           ('prefix', 'infix', 'postfix', 'arity', 'chain', 'bindop', 'brackets',
                            'flat', 'sym', 'alias', 'var', 'const', 'bool')]
+            if key is None:
+                sort_lines = []
+                for sort in sorted(node.sorts):
+                    origin = node.property_origins.get('sort', {}).get(sort)
+                    if source is None or (origin is not None and origin[0] == source):
+                        sort_lines.append(f'{f"sort {sort}":<{comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
+                all_syntax.append('\n'.join(sort_lines))
+            for sort, signatures in sorted(node.sort_sigs.items()):
+                lines = []
+                for symbol, positions in sorted(signatures.items()):
+                    if key is not None and key != symbol:
+                        continue
+                    origin = node.property_origins.get(sort, {}).get(node._property_key(symbol))
+                    if source is not None and (origin is None or origin[0] != source):
+                        continue
+                    entry = node._entry_str(sort, symbol, positions)
+                    lines.append(f'{entry:<{comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
+                all_syntax.append('\n'.join(lines))
             section = '\n'.join(syntax for syntax in all_syntax if syntax)
             if section:
                 sections.append(section)
@@ -4631,6 +4788,8 @@ class KnowledgeBase:
         # every symbol declared on this level (not the parents)
         symbols = set(self.infix) | set(self.prefix) | set(self.postfix) | set(self.bindop) | set(self.const)
         symbols |= set(self.bool) | set(self.arity) | self.flat | self.sym | set(self.alias)
+        for signatures in self.sort_sigs.values():
+            symbols |= set(signatures)
         return symbols
 
     def is_used(self, s: str) -> bool:
@@ -4645,6 +4804,35 @@ class KnowledgeBase:
         if self.parent is None:
             return []
         return self.parent.bool_sig(s)
+
+    def is_sort_name(self, sort: str) -> bool:
+        return sort == 'bool' or sort in self.sorts or (self.parent is not None and self.parent.is_sort_name(sort))
+
+    def all_sort_names(self) -> list[str]:
+        names = {'bool'}
+        for node in self.levels():
+            names.update(node.sorts)
+        return sorted(names)
+
+    def sort_sig(self, sort: str, symbol: str) -> list[int]:
+        if sort == 'bool':
+            return self.bool_sig(symbol)
+        signatures = self.sort_sigs.get(sort)
+        if signatures is not None and symbol in signatures:
+            return signatures[symbol]
+        if self.parent is None:
+            return []
+        return self.parent.sort_sig(sort, symbol)
+
+    def position_sorts(self, symbol: str, position: int) -> set[str]:
+        return {sort for sort in self.all_sort_names() if position in self.sort_sig(sort, symbol)}
+
+    def variable_sorts(self, symbol: str) -> set[str]:
+        """Optional sorts constraining a schema variable, including its fresh internal name."""
+        if symbol in internal_variable_sorts:
+            return set(internal_variable_sorts[symbol])
+        return {sort for sort in self.all_sort_names()
+                if sort != 'bool' and 0 in self.sort_sig(sort, symbol)}
 
     def is_bool(self, s: str) -> bool:
         return 0 in self.bool_sig(s)  or  s[0] == '%'
@@ -4668,7 +4856,7 @@ class KnowledgeBase:
 
     def is_declared(self, s: str) -> bool:
         # declared in some way before its first use, e.g. by `bool A`, `arity f 1`, `infix + 60 60`
-        return (self.is_var(s) or self.is_const(s) or len(self.bool_sig(s)) > 0 or self.is_arity_set(s)
+        return (self.is_var(s) or self.is_const(s) or any(self.sort_sig(sort, s) for sort in self.all_sort_names()) or self.is_arity_set(s)
                 or self.is_operator(s) or self.is_bindop(s) or self.is_alias(s))
 
     def is_operator(self, s: str) -> bool:
@@ -4768,10 +4956,10 @@ class KnowledgeBase:
         else: assert False, f'BUG: call "_find_symbol" only for existing symbols'
 
     def check_bool_sig_max(self, op: str, nargs: int) -> None:   # might raise exceptions
-        bool_sig = self.bool_sig(op)
-        if len(bool_sig) > 0:
-            if max(bool_sig) > nargs:
-                raise KurtException(f'EvalError: existing `bool` signature of `{op}` has more than {nargs} arg(s)')
+        for sort in self.all_sort_names():
+            signature = self.sort_sig(sort, op)
+            if signature and max(signature) > nargs:
+                raise KurtException(f'EvalError: existing `{sort}` signature of `{op}` has more than {nargs} arg(s)')
 
     def add_prefix(self, op: str, rbp: int) -> None:
         if self.is_used(op):
@@ -4909,15 +5097,15 @@ class KnowledgeBase:
         self.nud[fun] = lambda ts, kb, t: bindop_nud(ts, kb, t)   # (defined further below)
 
     def check_bool_sig_sym_flat(self, op: str) -> None:    # might raise exceptions, though
-        bool_sig = self.bool_sig(op)
-        # cases:
-        # 1. len(bool_sig) == 0, fine
-        # 2. (1 in bool_sig  iff  2 in bool_sig) and max(bool_sig) < 3
-        if len(bool_sig) > 0:
-            if (2 in bool_sig and 1 not in bool_sig) or (1 in bool_sig and 2 not in bool_sig):
-                raise KurtException(f'EvalError: existing `bool` signature does not work for flat operator')
-            if max(bool_sig) > 2:
-                raise KurtException(f'EvalError: existing `bool` signature contains info for more than two args')
+        # A flat/symmetric infix applies one argument declaration to every operand. Therefore
+        # positions 1 and 2 must be present together, with no fixed later argument position.
+        for sort in self.all_sort_names():
+            signature = self.sort_sig(sort, op)
+            if signature:
+                if (2 in signature and 1 not in signature) or (1 in signature and 2 not in signature):
+                    raise KurtException(f'EvalError: existing `{sort}` signature does not work for flat operator')
+                if max(signature) > 2:
+                    raise KurtException(f'EvalError: existing `{sort}` signature contains info for more than two args')
 
     def add_flat(self, op: str) -> None:
         if not self.is_infix(op):
@@ -5019,6 +5207,8 @@ class KnowledgeBase:
         self.lbp[rbracket] = bracket_lbp
 
     def add_var(self, s: str) -> None:
+        if self.is_sort_name(s):
+            raise KurtException(f'EvalError: sort name `{s}` cannot also be a variable')
         if self.is_used(s):
             raise KurtException(f'EvalError: symbol `{s}` has been already used in a formula')
         if self.is_const(s):
@@ -5034,6 +5224,8 @@ class KnowledgeBase:
     def add_const(self, s: str) -> None:
         # a constant is automatically declared if a new symbol is used or when it is explicitly declared
         # declaring is only allowed, if it doesn't yet exist as a variable or constant
+        if self.is_sort_name(s):
+            raise KurtException(f'EvalError: sort name `{s}` cannot also be a constant')
         if self.is_used(s):
             raise KurtException(f'EvalError: symbol `{s}` has been already used in a formula')
         if self.is_local_var(s):
@@ -5073,6 +5265,11 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` is already declared bool')
         if len(v) != len(set(v)):
             raise KurtException(f'EvalError: `bool` positions of `{s}` must be different')
+        if (self.is_flat(s) or self.is_sym(s)) and ((1 in v) != (2 in v) or (v and max(v) > 2)):
+            raise KurtException(f'EvalError: `bool` signature does not work for flat or symmetric operator `{s}`')
+        conflicts = {sort for position in v for sort in self.position_sorts(s, position) if sort != 'bool'}
+        if conflicts:
+            raise KurtException(f'EvalError: `{s}` already has sort {", ".join(sorted(conflicts))} at one of these positions')
         calc_ops = self.get_calc_ops(s)
         if calc_ops:
             expected_boolean = all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in calc_ops)
@@ -5095,6 +5292,60 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: first position of binding operator `{s}` can not be declared boolean')
         self.bool[s] = v          # add a key and set the value to the tuple of positions that are bool
         self.record_property_origin('bool', s)
+
+    def add_sort(self, sort: str) -> None:
+        if sort == 'bool':
+            raise KurtException('EvalError: `bool` is the built-in judgment sort and cannot be redeclared')
+        if sort in keywords or sort in helper_keywords:
+            raise KurtException(f'EvalError: `{sort}` is a Kurt keyword and cannot name a sort')
+        if not re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', sort):
+            raise KurtException(f'EvalError: sort names must be ASCII identifiers, got `{sort}`')
+        if self.is_sort_name(sort):
+            raise KurtException(f'EvalError: sort `{sort}` is already declared')
+        if self.is_known(sort) or self.is_used(sort):
+            raise KurtException(f'EvalError: `{sort}` is already a term symbol and cannot also name a sort')
+        self.sorts.add(sort)
+        self.sort_sigs[sort] = {}
+        self.record_property_origin('sort', sort)
+
+    def add_sort_signature(self, sort: str, symbol: str, positions: list[int]) -> None:
+        if sort == 'bool':
+            self.add_bool(symbol, positions)
+            return
+        if not self.is_sort_name(sort):
+            raise KurtException(f'EvalError: sort `{sort}` is not declared')
+        if self.is_used(symbol):
+            raise KurtException(f'EvalError: symbol `{symbol}` has been already used in a formula')
+        if self.sort_sig(sort, symbol):
+            raise KurtException(f'EvalError: symbol `{symbol}` already has a `{sort}` signature')
+        if len(positions) != len(set(positions)):
+            raise KurtException(f'EvalError: `{sort}` positions of `{symbol}` must be different')
+        if not positions:
+            positions = [0]
+        if any(position < 0 for position in positions):
+            raise KurtException(f'EvalError: `{sort}` positions of `{symbol}` must not be negative')
+        if (self.is_flat(symbol) or self.is_sym(symbol)) and (
+                (1 in positions) != (2 in positions) or (positions and max(positions) > 2)):
+            raise KurtException(f'EvalError: `{sort}` signature does not work for flat or symmetric operator `{symbol}`')
+        if self.is_bracket_placeholder(symbol):
+            max_args = 1
+        elif self.is_infix(symbol):
+            max_args = 2
+        elif self.is_prefix(symbol) or self.is_postfix(symbol):
+            max_args = 1
+        elif self.is_arity_set(symbol):
+            max_args = self.get_arity(symbol)
+        else:
+            max_args = None
+        if max_args is not None and any(position > max_args for position in positions):
+            raise KurtException(f'EvalError: `{sort}` position of `{symbol}` must be between 0 and its arity {max_args}')
+        for position in positions:
+            conflicts = self.position_sorts(symbol, position) - {sort}
+            if conflicts:
+                other = ', '.join(sorted(conflicts))
+                raise KurtException(f'EvalError: position {position} of `{symbol}` already has sort {other}')
+        self.sort_sigs.setdefault(sort, {})[symbol] = list(positions)
+        self.record_property_origin(sort, symbol)
 
     def get_nud(self, token: Token) -> Nud:
         if token.label == 'SYMBOL':
@@ -6249,7 +6500,8 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
     keyword: str = ''
     label: str = ''
     local: bool = False
-    if ts.peek.label == 'SYMBOL' and ts.peek.value in keywords:
+    if ts.peek.label == 'SYMBOL' and (ts.peek.value in keywords or (
+            isinstance(ts.peek.value, str) and kb.is_sort_name(ts.peek.value))):
         keyword = ts.peek.value
         keyword_token = next(ts)                              # remove a keyword right away early
     if ts.peek.label == 'END':
@@ -6276,7 +6528,8 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
                 raise e      # reraise it
     else:
         expr_list = split_by_comma(list(ts)[:-1], kb)         # [:-1] removes end_token
-        check_no_keyword(expr_list)             # don't check the `keyword` and the `label`
+        if keyword != 'sort':
+            check_no_keyword(expr_list)         # don't check the `keyword` and the `label`
     return keyword_token, expr_list, label, local
 
 def parse_let_with(tokens: list[Token], kb: KnowledgeBase) -> Expr:
@@ -6953,21 +7206,22 @@ SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'list', 
                     'tokenize', 'parse', 'breakpoint', 'format'}
 # ... and those that only list something when they come without arguments
 LISTING_KEYWORDS = {'load', 'use', 'def', 'show', 'prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop',
-                    'flat', 'sym', 'bool', 'chain', 'var', 'const', 'alias'}
+                    'flat', 'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias'}
 LIST_PROPERTY_KEYWORDS = ('prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop', 'flat',
-                          'sym', 'bool', 'chain', 'var', 'const', 'alias')
+                          'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias')
 LIST_CATEGORIES = {'files', 'theory', 'use', 'def', 'syntax', 'symbols', 'declarations',
                    *LIST_PROPERTY_KEYWORDS}
 
-def is_showing_statement(first_line: str) -> bool:
+def is_showing_statement(first_line: str, kb: Optional[KnowledgeBase] = None) -> bool:
     words = first_line.split(';')[0].split()
     if not words:
         return False
-    return words[0] in SHOWING_KEYWORDS or (words[0] in LISTING_KEYWORDS and len(words) == 1)
+    return words[0] in SHOWING_KEYWORDS or ((words[0] in LISTING_KEYWORDS or (
+        kb is not None and kb.is_sort_name(words[0]))) and len(words) == 1)
 
-def accept_statement(name: str, lines: list[str]) -> None:
+def accept_statement(name: str, lines: list[str], kb: Optional[KnowledgeBase] = None) -> None:
     # the lines of a statement that was accepted -- unless it only shows something
-    if lines and not is_showing_statement(lines[0]):
+    if lines and not is_showing_statement(lines[0], kb):
         accepted_lines.setdefault(name, []).extend(lines)
 
 def save_str(filename: str) -> str:
@@ -7004,11 +7258,15 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     assert isinstance(keyword, str)
     assert isinstance(args, list)
 
-    if keyword in ('infix', 'prefix', 'postfix', 'bool', 'arity', 'bindop', 'brackets', 'alias'):
+    if keyword in ('infix', 'prefix', 'postfix', 'bool', 'arity', 'bindop', 'brackets', 'alias') or (
+            kb.is_sort_name(keyword) and keyword != 'bool'):
         # a declaration changes how a symbol is read: not for the symbols of a theory of Kurt
         # (`infix Nat 50 50`, `bool Nat`, found in the soundness review of 2026-09-29)
         declared = [t.value for a in args for t in (a if isinstance(a, list) else [a])[:2 if keyword == 'brackets' else 1]
                     if isinstance(t, Token) and isinstance(t.value, str)]
+        reserved = sorted(symbol for symbol in declared if kb.is_sort_name(symbol))
+        if reserved:
+            raise KurtException(f'EvalError: sort name(s) {", ".join(f"`{symbol}`" for symbol in reserved)} cannot also be term symbols')
         check_not_frozen(declared, keyword, filename, kb)
 
     # GENERAL STUFF
@@ -7063,7 +7321,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         source_selector: Optional[str] = None
         if not words:
             category = 'files'
-        elif words[0] in LIST_CATEGORIES:
+        elif words[0] in LIST_CATEGORIES or kb.is_sort_name(words[0]):
             category = words[0]
             source_selector = words[1] if len(words) == 2 else None
         elif len(words) == 1:
@@ -7077,7 +7335,11 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             msg = kb.loaded_files_str().strip()
         else:
             source = kb.resolve_loaded_file(source_selector) if source_selector is not None else None
-            if category in LIST_PROPERTY_KEYWORDS:
+            if category == 'sort':
+                msg = kb.sort_names_str_all_levels(source=source).strip()
+            elif category is not None and kb.is_sort_name(category):
+                msg = kb.sort_signature_str_all_levels(category, source=source).strip()
+            elif category in LIST_PROPERTY_KEYWORDS:
                 msg = kb.dict_or_set_str_all_levels(category, source=source).strip()
             elif category in ('syntax', 'symbols', 'declarations'):
                 msg = kb.syntax_str_all_levels(source=source).strip()
@@ -7407,6 +7669,40 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             check_strict(keyword, filename)     # a claim about the operator, like an axiom
         check_not_frozen(new_stuff, keyword, filename, kb)
         apply_declaration_batch(kb, lambda target: [target.add_sym(op) for op in new_stuff], tuple(new_stuff))
+    elif keyword == 'sort':
+        if len(args) == 0:
+            log(kb, kb.sort_names_str_all_levels())
+        new_sorts: list[str] = []
+        for arg in args:
+            match arg:
+                case [Token(label='SYMBOL', value=sort)] if isinstance(sort, str):
+                    new_sorts.append(sort)
+                case _:
+                    msg = create_usage(keyword, [[], ['SYMBOL']])
+                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+        apply_declaration_batch(kb, lambda target: [target.add_sort(sort) for sort in new_sorts])
+
+    elif kb.is_sort_name(keyword) and keyword != 'bool':
+        if len(args) == 0:
+            log(kb, kb.sort_signature_str_all_levels(keyword))
+        new_stuff: list[tuple[str, list[int]]] = []
+        for arg in args:
+            if not arg or not isinstance(arg[0], Token) or arg[0].label not in ('STRING', 'SYMBOL') or not isinstance(arg[0].value, str):
+                raise KurtException(f'EvalError: `{keyword}` expects a symbol followed by zero or more positions', keyword_token.column)
+            op = arg[0].value
+            if any(not isinstance(position, Token) or position.label != 'INT' or not isinstance(position.value, int)
+                   for position in arg[1:]):
+                raise KurtException(f'EvalError: `{keyword}` positions must be integers', keyword_token.column)
+            positions = [position.value for position in arg[1:]]
+            if kb.is_rbracket(op):
+                raise KurtException(f'EvalError: declare `{keyword}` on the left bracket of a bracket pair, not `{op}`')
+            if kb.is_lbracket(op):
+                right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
+                op = f'{op}$$${right}'
+            new_stuff.append((op, positions or [0]))
+        apply_declaration_batch(kb, lambda target: [target.add_sort_signature(keyword, op, positions)
+                                                    for op, positions in new_stuff])
+
     elif keyword == 'bool':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7958,6 +8254,25 @@ def bool_expr(expr: Expr, kb: KnowledgeBase, strict: bool=True) -> bool:
             return bool_expr(expr[0], kb, strict)
     return False
 
+def sort_expr(expr: Expr, sort: str, kb: KnowledgeBase, strict: bool = True,
+              bound_sorts: Optional[dict[str, set[str]]] = None) -> bool:
+    """Whether the top of ``expr`` has an explicitly declared optional sort.
+
+    `bool` retains its established first-use inference. User sorts are deliberately sparse and
+    never inferred: an unconstrained expression simply has no user sort information.
+    """
+    if sort == 'bool':
+        return bool_expr(expr, kb, strict)
+    match expr:
+        case Token(label='SYMBOL', value=value) if isinstance(value, str):
+            return ((bound_sorts is not None and sort in bound_sorts.get(value, set()))
+                    or sort in kb.variable_sorts(value) or 0 in kb.sort_sig(sort, value))
+        case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
+            return sort_expr(body, sort, kb, strict, bound_sorts)
+        case [Token(label='SYMBOL', value=op), *_] if isinstance(op, str):
+            return 0 in kb.sort_sig(sort, op)
+    return False
+
 def expr_column(expr : Expr) -> int:
     match expr:
         case Token():
@@ -7969,7 +8284,8 @@ def expr_column(expr : Expr) -> int:
             assert len(children) > 0
             return expr_column(children[0])
 
-def type_check_expression(expr: Expr, kb: KnowledgeBase) -> None:
+def type_check_expression(expr: Expr, kb: KnowledgeBase,
+                          bound_sorts: Optional[dict[str, set[str]]] = None) -> None:
     # this uses the declared boolean-ness of some symbols via `kb.bool` and `bool_expr`
     # and in contrast to `bool_expr` it goes done the expression tree
     match expr:
@@ -7986,17 +8302,41 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase) -> None:
                 raise KurtException(f'TypeError: first arg of `sub` is boolean variable, but second is not', column=expr_column(a))
             if be and not bv:
                 raise KurtException(f'TypeError: first arg of `sub` is variable, but second is boolean expression', column=expr_column(a))
-            type_check_expression(A, kb)
+            if isinstance(var_x, Token) and isinstance(var_x.value, str):
+                for sort in kb.all_sort_names():
+                    if sort == 'bool':
+                        continue
+                    var_has_sort = (bound_sorts is not None and sort in bound_sorts.get(var_x.value, set())) \
+                                   or 0 in kb.sort_sig(sort, var_x.value)
+                    if var_has_sort and not sort_expr(a, sort, kb, bound_sorts=bound_sorts):
+                        raise KurtException(f'TypeError: first arg of `sub` has sort `{sort}`, but its replacement does not', column=expr_column(a))
+            type_check_expression(A, kb, bound_sorts)
 
         # most expressions: prefix, postfix, infix, bindop (but not `sub`, see above), ...
         case [Token(label='SYMBOL', value=op), *tail]:
             assert isinstance(op, str)
-            # (1) do the args fit the declared type in `bool_sig`
+            if kb.is_sort_name(op):
+                raise KurtException(f'TypeError: sort name `{op}` cannot be used as a term symbol')
+            # (1) do the args fit the declared sparse sort signatures?
+            inner_bound_sorts = {name: set(sorts) for name, sorts in (bound_sorts or {}).items()}
+            binder_name: Optional[str] = None
+            if kb.is_bindop(op) and tail:
+                try:
+                    binder_name, _ = unpack_condition(tail[0], kb)
+                except KurtException:
+                    binder_name = None
             for idx in range(1, len(expr)):
                 ei = expr[idx]
-                if idx in kb.bool_sig(op) and not bool_expr(ei, kb, strict=False):
-                    if ei != LHS_token:
-                        raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(expr[idx], kb)}` must be boolean', column=expr_column(expr[idx]))
+                for sort in kb.all_sort_names():
+                    signature = kb.sort_sig(sort, op)
+                    required = 1 in signature if kb.is_flat(op) and idx >= 1 else idx in signature
+                    binds_this_position = kb.is_bindop(op) and idx == 1 and binder_name is not None \
+                                          and isinstance(ei, Token) and ei.value == binder_name
+                    sort_environment = inner_bound_sorts if kb.is_bindop(op) and idx in (1, len(expr) - 1) else bound_sorts
+                    if required and binds_this_position:
+                        inner_bound_sorts.setdefault(binder_name, set()).add(sort)
+                    elif required and not sort_expr(ei, sort, kb, strict=False, bound_sorts=sort_environment) and ei != LHS_token:
+                        raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` must have sort `{sort}`', column=expr_column(ei))
             # (2) additional checks for binding operators
             if kb.is_bindop(op):
                 # check that the first argument is either a variable or a boolean expression
@@ -8020,8 +8360,19 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase) -> None:
                     case _:     # e.g. a number, `∀ 1 (P 1)`
                         raise KurtException(f'TypeError: first arg of binding operator must be a variable or a condition, got `{expr_str(tail[0], kb)}`', column=expr_column(tail[0]))
             # (3) recursively go deep and check
-            for e in tail:
-                type_check_expression(e, kb)
+            if kb.is_bindop(op) and tail:
+                middle, body = binder_scope(tail[1:])
+                type_check_expression(tail[0], kb, inner_bound_sorts)
+                for e in middle:
+                    type_check_expression(e, kb, bound_sorts)
+                for e in body:
+                    type_check_expression(e, kb, inner_bound_sorts)
+            else:
+                for e in tail:
+                    type_check_expression(e, kb, bound_sorts)
+
+        case Token(label='SYMBOL', value=value) if isinstance(value, str) and kb.is_sort_name(value):
+            raise KurtException(f'TypeError: sort name `{value}` cannot be used as a term symbol')
 
 #################
 ## kurt prover ##
@@ -8225,10 +8576,15 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
 # the name each internal variable stands for, e.g. `$$07` for the `$x` of a rule -- to show
 # certificates with the names as written (see `readable_names`)
 origin_names: dict[str, str] = {}
+# Optional user-sort constraints follow the globally unique internal variables made from a
+# schema. This is proof meaning, unlike the source variable name, so it must survive freshening.
+internal_variable_sorts: dict[str, frozenset[str]] = {}
 
 def note_origin(new: str, origin: Optional[str]) -> str:
     if origin is not None:
         origin_names[new] = origin_names.get(origin, origin)
+        if origin in internal_variable_sorts:
+            internal_variable_sorts[new] = internal_variable_sorts[origin]
     return new
 
 # new variable names just for internal use
@@ -8480,6 +8836,9 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
                 else:
                     raise KurtException(f'BUG: variable `{var}` is neither a variable nor a boolean variable, but appears in the expression `{expr_str(expr, kb)}`')
                 new_expr = Token(label='SYMBOL', value=new_var, column=expr.column, origin=expr.origin)
+                sorts = kb.variable_sorts(var)
+                if sorts:
+                    internal_variable_sorts[new_var] = frozenset(sorts)
             return new_expr, s.bind(var, new_expr)  # extend the state with the new binding
 
         # any other token is not modified
@@ -8498,6 +8857,11 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
 
             # `cond` and `body` are processed in the context, that `bind_var in bound_vars` hold
             head2, s = rename_all_vars_rec(cond, kb, s, new_bound_vars)
+            renamed_bound, _ = unpack_condition(head2, kb)
+            binder_sorts = kb.position_sorts(bind_op, 1) - {'bool'}
+            if binder_sorts:
+                internal_variable_sorts[renamed_bound] = frozenset(
+                    internal_variable_sorts.get(renamed_bound, frozenset()) | binder_sorts)
 
             # the body gets the new scope including the bound variable, the middle arguments not
             # (they are outside the scope, see `binder_scope`)
@@ -9002,6 +9366,10 @@ def is_bool_var_token(e:Expr, kb) -> bool:
     assert isinstance(e.value, str)
     return kb.is_var(e.value) and kb.is_bool(e.value)
 
+def variable_sorts_allow(variable: str, value: Expr, kb: KnowledgeBase) -> bool:
+    """Whether ``value`` satisfies every optional sort declared for ``variable``."""
+    return all(sort_expr(value, sort, kb, strict=False) for sort in kb.variable_sorts(variable))
+
 # the non-recursive calls are having a single expr and a single pattern, the recursive calls then might have more
 # each "case" with a recursive call loops over all generated local substitutions
 # `exprs_patterns`:   [(e1, p1), (e2, p2), ...] = zip([e1, e2, ...], [p1, p2, ...])
@@ -9062,7 +9430,10 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                 assert s.lookup(v) is None
                 bp = kb.is_bool(v)
                 be = bool_expr(expr, kb)
-                if ((bp and be) or (not bp and not be and (not s.contains_blocked_as_range(expr) or may_capture(v, expr, s)) and not s.contains_eigen(expr))):
+                compatible = ((bp and be) or (not bp and not be and
+                              (not s.contains_blocked_as_range(expr) or may_capture(v, expr, s))
+                              and not s.contains_eigen(expr)))
+                if variable_sorts_allow(v, expr, kb) and compatible:
                     if not s.occurs(v, expr) and not s.is_blocked_as_domain(v):
                         # we can safely assign `v` without creating infinite substitutions
                         s = s.bind(v, expr)   # extend the substitution
@@ -9074,8 +9445,10 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                 u = expr.value
                 assert s.lookup(u) is None
                 be = kb.is_bool(u)
-                bp = bool_expr(expr, kb)
-                if ((bp and be) or (not bp and not be and (not s.contains_blocked_as_range(pattern) or may_capture(u, pattern, s)))):
+                bp = bool_expr(pattern, kb)
+                compatible = ((bp and be) or (not bp and not be and
+                              (not s.contains_blocked_as_range(pattern) or may_capture(u, pattern, s))))
+                if variable_sorts_allow(u, pattern, kb) and compatible:
                     if not s.occurs(u, pattern) and not s.is_blocked_as_domain(u):
                         # we can safely assign `u` without creating infinite substitutions
                         s = s.bind(u, pattern)   # extend the substitution
@@ -10075,6 +10448,17 @@ def k_evaluate(e: Expr, kb: KnowledgeBase) -> Expr:
 def k_instance(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: KnowledgeBase) -> Expr:
     return normalize_expr(k_evaluate(k_instantiate(e, values, deps, kb), kb), kb)
 
+def k_has_sort(e: Expr, sort: str, kb: KnowledgeBase) -> bool:
+    """Kernel-side check of an optional result sort, independent of the search type checker."""
+    match e:
+        case Token(label='SYMBOL', value=value) if isinstance(value, str):
+            return sort in kb.variable_sorts(value) or 0 in kb.sort_sig(sort, value)
+        case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
+            return k_has_sort(body, sort, kb)
+        case [Token(label='SYMBOL', value=op), *_] if isinstance(op, str):
+            return 0 in kb.sort_sig(sort, op)
+    return False
+
 def k_strip(e: Expr, names: tuple[str, ...], also: Optional[Expr] = None) -> tuple[Expr, Optional[Expr]]:
     # remove outer `∀`s (without condition) of `e`, one per name, renaming the bound variable to
     # the name -- also in `also` (the conclusion, for the `∀`s of a premise)
@@ -10121,7 +10505,8 @@ class KernelEnv:
     # it (doc/kurt-soundness.md §9)
     READS = frozenset({
         # the symbols
-        'is_var', 'is_bool', 'bool_sig', 'is_bindop', 'is_const', 'is_known', 'is_used', 'is_fixed_var',
+        'is_var', 'is_bool', 'bool_sig', 'variable_sorts', 'all_sort_names', 'sort_sig',
+        'is_bindop', 'is_const', 'is_known', 'is_used', 'is_fixed_var',
         'is_vocabulary_symbol', 'is_arity_set', 'get_arity', 'is_flat', 'is_sym', 'all_flat', 'get_calc_ops',
         'calculate', 'is_operator', 'is_infix', 'is_prefix', 'is_postfix', 'is_bracket_placeholder',
         'get_infix', 'get_prefix', 'get_postfix', 'get_lbracket', 'is_lbracket', 'is_rbracket', 'get_alias',
@@ -10317,6 +10702,12 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         not_variables = sorted(v for v in cert.values if not kb.is_var(v))
         if not_variables:
             return f'only variables get values, not {", ".join(f"`{v}`" for v in not_variables)}'
+        bad_sorts = [(v, sort) for v, value in cert.values.items()
+                     for sort in kb.variable_sorts(v)
+                     if not k_has_sort(value, sort, kb)]
+        if bad_sorts:
+            v, sort = bad_sorts[0]
+            return f'the value of `{v}` does not have its declared sort `{sort}`'
         deps = k_dependencies(cert.expr, kb)
         if cert.form == 'fact':
             if cert.premise_fresh or cert.conclusion_fresh or cert.facts:
@@ -11412,10 +11803,16 @@ def checked_exports_now(fname: str, f: TextIO, candidate, loader: KnowledgeBase,
 def symbol_declarations(kb: 'KnowledgeBase | ExportBundle', s: str) -> tuple:
     # how `s` is read: everything a `load` must not change about a symbol that both sides know
     if isinstance(kb, ExportBundle):
+        custom_sorts = tuple(sorted((sort, tuple(signatures.get(s, [])))
+                                    for sort, signatures in kb.sort_sigs.items() if signatures.get(s)))
         return (kb.infix.get(s), kb.prefix.get(s), kb.postfix.get(s), kb.arity.get(s, 0), tuple(kb.bool.get(s, [])),
-                s in kb.bindop, s in kb.flat, s in kb.sym, kb.alias.get(s), tuple(kb.calc_ops.get(s, [])), kb.brackets.get(s))
+                custom_sorts, s in kb.bindop, s in kb.flat, s in kb.sym, kb.alias.get(s),
+                tuple(kb.calc_ops.get(s, [])), kb.brackets.get(s))
+    custom_sorts = tuple(sorted((sort, tuple(kb.sort_sig(sort, s)))
+                                for sort in kb.all_sort_names() if sort != 'bool' and kb.sort_sig(sort, s)))
     return (kb.get_infix(s), kb.get_prefix(s), kb.get_postfix(s), kb.get_arity(s), tuple(kb.bool_sig(s)),
-            kb.is_bindop(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s), tuple(kb.get_calc_ops(s)), kb.get_lbracket(s))
+            custom_sorts, kb.is_bindop(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s),
+            tuple(kb.get_calc_ops(s)), kb.get_lbracket(s))
 
 def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname: str) -> None:
     # the file was checked on its own: a symbol it shares with its loader must mean the same on
@@ -11424,6 +11821,17 @@ def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname
     clash = sorted(sym for sym in bundle.symbols if sym in bundle.const and loader.is_var(sym) and sym[0] not in '$%')
     if clash:
         raise KurtException(f'EvalError: {", ".join(f"`{c}`" for c in clash)} is a constant of the loaded file, but a variable here -- load the file before `var`, or rename the variable')
+    for sort in sorted(bundle.sorts):
+        if not loader.is_sort_name(sort) and (loader.is_known(sort) or loader.is_used(sort)):
+            raise KurtException(f'EvalError: `{sort}` is a term symbol here but a sort in `{fname}`')
+        incoming = bundle.property_origins.get('sort', {}).get(sort)
+        existing = next((node.property_origins.get('sort', {}).get(sort) for node in loader.levels()
+                         if sort in node.sorts), None)
+        if existing is not None and incoming is not None and existing[0] != incoming[0]:
+            raise KurtException(f'EvalError: sort `{sort}` is declared in `{os.path.basename(existing[0])}` and in `{os.path.basename(incoming[0])}`')
+    symbol_sort_clash = sorted(symbol for symbol in bundle.symbols if loader.is_sort_name(symbol))
+    if symbol_sort_clash:
+        raise KurtException(f'EvalError: {", ".join(f"`{symbol}`" for symbol in symbol_sort_clash)} is a sort here but a term symbol in `{fname}`')
     def key(f: 'Formula') -> tuple[str, str, str]:
         return (f.filename, f.line, f.label)
     # a symbol is declared by one file only (`declare_origin`): two theories with their own `+`
@@ -11536,7 +11944,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
 # certificates or caches, also when their calls alternate. One check at a time per process:
 # for checks in parallel, use processes.
 RUN_STATE_NAMES = ('strict_mode', 'trusted_paths', 'untrusted_names', 'source_overlays', 'theory_path', 'kurtc_enabled', 'comment_indent',
-                   'new_symbols', 'implicit_constants', 'implicit_bool_signatures', 'space_suspended', 'accepted_lines', 'current_comment', 'origin_names',
+                   'new_symbols', 'implicit_constants', 'implicit_bool_signatures', 'space_suspended', 'accepted_lines', 'current_comment', 'origin_names', 'internal_variable_sorts',
                    'dependent_vars', 'certificates_by_line', 'current_line', 'replay_hints',
                    'load_dependencies', '_loading_in_progress', '_checked_exports', '_load_resolutions', 'event_sink', 'shell_start')
 RUN_STATE_COUNTERS = (new_var_name, new_bool_var_name)      # their `counter` attribute
@@ -11589,7 +11997,7 @@ def _fresh_run_state(config: RunConfig) -> dict:
             'theory_path': [*untrusted, Path.cwd(), *paths, *packaged_theory_paths], 'kurtc_enabled': config.kurtc,
             'comment_indent': config.comment_indent, 'new_symbols': [], 'implicit_constants': [],
             'implicit_bool_signatures': [], 'space_suspended': [False],
-            'accepted_lines': {}, 'current_comment': [None], 'origin_names': {}, 'dependent_vars': {},
+            'accepted_lines': {}, 'current_comment': [None], 'origin_names': {}, 'internal_variable_sorts': {}, 'dependent_vars': {},
             'certificates_by_line': {}, 'current_line': [None], 'replay_hints': {},
             'load_dependencies': {}, '_loading_in_progress': set(), '_checked_exports': {}, '_load_resolutions': [], 'event_sink': None, 'shell_start': [None],
             'counters': [0 for _ in RUN_STATE_COUNTERS]}
@@ -12121,7 +12529,7 @@ def completions(line: str, word: str, kb: KnowledgeBase, lexer_state: Optional['
     if word.startswith('"'):
         labels = {f'"{f.label}"' for f in kb.all_theory() if f.label}
         return sorted(l for l in labels if l.startswith(word))
-    names = set(keywords) | {s for node in kb.levels() for s in node.declared_symbols() | node.used}
+    names = set(keywords) | set(kb.all_sort_names()) | {s for node in kb.levels() for s in node.declared_symbols() | node.used}
     names |= {f.label for f in kb.all_theory() if f.label}
     return sorted(n for n in names if n.startswith(word) and '$$$' not in n)
 
@@ -12284,10 +12692,10 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
             pending.append(new_line)
             try:
                 kb, lexer_state = scan_parse_check_eval(rows_by_line(input_line, matrix_brackets(kb)), lexer_state, kb, line, input_stream.name, mainstream)
-                accept_statement(input_stream.name, pending)
+                accept_statement(input_stream.name, pending, kb)
                 pending = []
             except BreakpointReached as b:
-                accept_statement(input_stream.name, pending)
+                accept_statement(input_stream.name, pending, kb)
                 pending = []
                 b.lexer_state, b.line = lexer_state, line
                 main_file = len(_loading_in_progress) <= 1          # not in a file it loads
@@ -12337,7 +12745,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                         if mainstream:
                             log(kb, f'expect "{expected_kind}"', f'{line} confirmed', kb.level)
                         if count_leading_spaces(input_line) > expect_indent:
-                            accept_statement(input_stream.name, pending)   # part of the confirmed block
+                            accept_statement(input_stream.name, pending, kb)   # part of the confirmed block
                             pending = []
                             skip_deeper_than = expect_indent    # skip the rest of the block
                             input_line = ''
@@ -12349,7 +12757,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                             # (again through the loop, so that its own errors are handled as usual)
                             input_line = ''
                             continued = False
-                            accept_statement(input_stream.name, pending[:-1])
+                            accept_statement(input_stream.name, pending[:-1], kb)
                             pending = []
                             replay = new_line
                         continue

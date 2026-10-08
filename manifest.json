@@ -48,6 +48,7 @@
       "44-cert.kurt",
       "45-breakpoint.kurt",
       "46-list.kurt",
+      "47-sort.kurt",
       "local-helper.kurt"
     ],
     "mafi1": [
@@ -97,6 +98,8 @@
       "24-use-a-structure-groups.kurt",
       "25-compute-with-vectors-and-matrices.kurt",
       "26-inspect-a-loaded-theory.kurt",
+      "27-type-and-reduce-lambda-terms.kurt",
+      "28-prove-with-deep-modal-logic.kurt",
       "my-theory.kurt"
     ]
   },
@@ -106,6 +109,7 @@
     "field.kurt",
     "group.kurt",
     "integer.kurt",
+    "lambda.kurt",
     "logic.kurt",
     "matrix.kurt",
     "minimal.kurt",

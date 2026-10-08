@@ -193,3 +193,8 @@ Operational log for agent-session setup and activity on the `agent` branch.
   shows contextual hints below the editor for empty proof lines, `load`, LaTeX shortcuts, and
   calculator expressions ending in `=`; Tab inserts a unique result. This does not alter the
   checked output shell. A Playwright regression covers the computed-value hint and insertion.
+
+## 2026-10-08 — optional sorts and lambda theory
+
+- Synchronized kurt-lang-dev commit 8713768: standalone Kurt now embeds 17 theories, including lambda.kurt; added keyword lesson 47 and tutorial lessons 27–28; refreshed language metadata, manifest, modal-deep.kurt, and service-worker cache.
+- update.sh smoke tests passed. Playwright: 25 browser tests passed.

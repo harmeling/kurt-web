@@ -1,0 +1,29 @@
+; Prove with deeply embedded modal logic
+;
+; Modal formulas are object terms. `⊢ A` is the Boolean Kurt judgment saying
+; that the object formula A is a theorem. This separation makes necessitation
+; expressible as an ordinary Kurt rule.
+
+load modal-deep
+
+const P, Q
+formula P, Q
+
+; The implicational K axiom is an object-level theorem.
+
+⊢ (P → (Q → P))
+
+; Necessitation turns an object theorem into its boxed theorem.
+
+⊢ □(P → (Q → P))
+
+; Prefix theoremhood and the empty-context sequent notation are connected by
+; explicit rules in modal-deep.kurt.
+
+empty ⊢ □(P → (Q → P))
+
+; Modus ponens also lives at the Kurt meta level. First instantiate the
+; implication axiom with the theorem above as its antecedent, then apply it.
+
+⊢ ((P → (Q → P)) → (Q → (P → (Q → P))))
+⊢ (Q → (P → (Q → P)))
