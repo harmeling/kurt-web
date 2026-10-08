@@ -1373,6 +1373,52 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'implies that forall/exists are constants\n'
                  'alias  ∀ forall\n'
                  'alias  ∃ exists\n',
+ 'modal-deep.kurt': '; DEEPLY EMBEDDED NORMAL MODAL LOGIC K (IMPLICATION '
+                    'FRAGMENT)\n'
+                    ';\n'
+                    '; Modal formulas are Kurt terms. `$A → $B` and `□$A` are '
+                    'object-language syntax and are not\n'
+                    '; Boolean Kurt formulas. Only the judgment `⊢ $A` is '
+                    'Boolean. Consequently `and` and `implies`\n'
+                    "; below belong to Kurt's metalogic and combine premises "
+                    'and conclusions of object-level rules.\n'
+                    ';\n'
+                    "; This is deliberately separate from modal.kurt's shallow "
+                    'encoding. It also owns `→`, which\n'
+                    '; set.kurt uses for function spaces, so the two theories '
+                    'cannot be loaded together without\n'
+                    '; namespaces: the same printed symbol would have two '
+                    'meanings.\n'
+                    '\n'
+                    'infix → 30 29\n'
+                    'prefix □ 80\n'
+                    'prefix ⊢ 90\n'
+                    'infix ⊢ 10 10\n'
+                    '\n'
+                    'const →, □, ⊢, empty\n'
+                    'bool ⊢ 0\n'
+                    '\n'
+                    'var A, B, C\n'
+                    '\n'
+                    '; Prefix theoremhood is the empty-context case of the '
+                    'binary sequent notation.\n'
+                    'use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"\n'
+                    'use (empty ⊢ A) implies (⊢ A) "empty-sequent-to-theorem"\n'
+                    '\n'
+                    '; A classical implicational Hilbert basis.\n'
+                    'use ⊢ (A → (B → A)) "implication-K"\n'
+                    'use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) '
+                    '"implication-S"\n'
+                    'use ⊢ (((A → B) → A) → A) "Peirce"\n'
+                    '\n'
+                    '; Object-level modus ponens and modal necessitation, '
+                    "stated entirely in Kurt's metalogic.\n"
+                    'use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"\n'
+                    'use (⊢ A) implies (⊢ □A) "necessitation"\n'
+                    '\n'
+                    '; The characteristic distribution axiom of normal modal '
+                    'logic K.\n'
+                    'use ⊢ (□(A → B) → (□A → □B)) "modal-K"\n',
  'modal.kurt': '; EXPERIMENTAL EXAMPLE: a modal-logic fragment\n'
                ';\n'
                '; This file demonstrates that Kurt theories can introduce '
@@ -3278,6 +3324,9 @@ REPLACEMENTS: dict[str, str] = {
     # first order logic
     '\\forall':  '∀',
     '\\exists':  '∃',
+
+    # proof judgments
+    '\\vdash':   '⊢',
 
     # modal logic
     '\\box':     '□',      # necessity
@@ -5642,6 +5691,9 @@ todo_token:  Token = Token('TODO', '')              # for empty todo expressions
 
 # extract all special symbols from the replacement values
 SPECIAL_SYMBOLS = ''.join(sorted(set(''.join(REPLACEMENTS.values()))))
+# Greek letters are already accepted as individual symbols. They may also name explicit
+# variables (`$Γ`, `%φ`, `$Γ2`), without making arbitrary operator glyphs valid identifiers.
+GREEK_VARIABLE_LETTERS = ''.join(c for c in SPECIAL_SYMBOLS if c.isalpha() and not c.isascii())
 
 # scanner based on regular expressions (let's support unicode!)
 # note that the ordering of the expressions here is important
@@ -5652,7 +5704,8 @@ scanner: re.Pattern = re.compile(fr'''
   (?P<FLOAT>   [0-9]+\.[0-9]+)                    | # floating point literals
   (?P<INT>     [0-9]+)                            | # integer literals
   (?P<STRING>  ["][^"]*["])                       | # string literals
-  (?P<SYMBOL>  [$%]?[A-Za-z][A-Za-z0-9]*          | # symbols 1: identifiers with at most one leading '$' or '%'
+  (?P<SYMBOL>  [$%](?:[A-Za-z][A-Za-z0-9]*|[{re.escape(GREEK_VARIABLE_LETTERS)}][0-9]*) | # variables: ASCII identifiers or one Greek letter, optionally numbered
+               [A-Za-z][A-Za-z0-9]*               | # symbols 1: plain identifiers stay ASCII
                [(){{}}\[\]]                       | # symbols 2: round/curly/square brackets -- always single char, never
                                                      # merge with each other or with symbols 4 (custom `brackets X Y`
                                                      # pairs need this: adjacent punctuation like three dots must not
@@ -8324,7 +8377,9 @@ def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -
 
     def source_identifier(origin: str) -> Optional[str]:
         stripped = origin[1:] if origin.startswith(('$', '%')) else origin
-        return stripped if re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', stripped) else None
+        valid = (re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', stripped)
+                 or re.fullmatch(fr'[{re.escape(GREEK_VARIABLE_LETTERS)}][0-9]*', stripped))
+        return stripped if valid else None
 
     desired: dict[str, str] = {}
     for internal_name in internal:

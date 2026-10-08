@@ -1,0 +1,35 @@
+; DEEPLY EMBEDDED NORMAL MODAL LOGIC K (IMPLICATION FRAGMENT)
+;
+; Modal formulas are Kurt terms. `$A → $B` and `□$A` are object-language syntax and are not
+; Boolean Kurt formulas. Only the judgment `⊢ $A` is Boolean. Consequently `and` and `implies`
+; below belong to Kurt's metalogic and combine premises and conclusions of object-level rules.
+;
+; This is deliberately separate from modal.kurt's shallow encoding. It also owns `→`, which
+; set.kurt uses for function spaces, so the two theories cannot be loaded together without
+; namespaces: the same printed symbol would have two meanings.
+
+infix → 30 29
+prefix □ 80
+prefix ⊢ 90
+infix ⊢ 10 10
+
+const →, □, ⊢, empty
+bool ⊢ 0
+
+var A, B, C
+
+; Prefix theoremhood is the empty-context case of the binary sequent notation.
+use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"
+use (empty ⊢ A) implies (⊢ A) "empty-sequent-to-theorem"
+
+; A classical implicational Hilbert basis.
+use ⊢ (A → (B → A)) "implication-K"
+use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) "implication-S"
+use ⊢ (((A → B) → A) → A) "Peirce"
+
+; Object-level modus ponens and modal necessitation, stated entirely in Kurt's metalogic.
+use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"
+use (⊢ A) implies (⊢ □A) "necessitation"
+
+; The characteristic distribution axiom of normal modal logic K.
+use ⊢ (□(A → B) → (□A → □B)) "modal-K"
