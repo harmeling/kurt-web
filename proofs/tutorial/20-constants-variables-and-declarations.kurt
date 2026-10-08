@@ -27,6 +27,10 @@ const b
 var y
 use y = y
 
+;    A declared name keeps the file readable, but a `use` stores each free variable as a fresh
+;    schema variable. Normal output shows that effective form after `schema:`. Boolean variables
+;    get `%` names; term, function, and operator variables get `$` names.
+
 ; 4. Shape/type declarations (`infix`, `prefix`, `postfix`, `arity`, `bool`) do not choose
 ;    constant or variable. Semantic declarations (`bindop`, `flat`, `sym`, `chain`, and a
 ;    calculator binding) do choose a fixed operator and therefore imply `const`.
@@ -37,7 +41,8 @@ use c ∘ c = c                   ; `∘` is a constant now
 
 infix · 50 50
 var ·
-use b · b = b · b               ; `·` is a variable: this holds for every operator `·`
+use b · b = b · b               ; schema names the symbolic operator `$op`
+                                  ; `·` is a variable: this holds for every operator `·`
 
 infix plus 50 50
 flat plus                         ; prints `const plus`: associativity belongs to this operator

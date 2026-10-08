@@ -3536,6 +3536,8 @@ class Formula:
         self.reason: str           = reason             # the reason for this formula, e.g., "axiom", "assumption", "def", "by"
         self.keyword: str          = keyword            # one of `use`, `assume`, `show`, `todo`
         self.local: bool           = local              # `label local "..."`: not exported when this file is `load`ed elsewhere
+        self.schema_vars: set[str] = set()              # named free variables captured before freshening
+        self.schema: str           = ''                 # stable rendering of the freshened schema
         self.def_symbol: Optional[str] = None           # for `def`-created formulas: the symbol it defines (see `eval_def`)
         self.direction_of: Optional[Expr] = None        # for `L ⇒ R` made from an `iff`: that `iff` (see `impl_elim`)
         self.id: int               = Formula.next_id    # a unique id for every formula
@@ -3565,6 +3567,8 @@ class Formula:
         )
         cloned_f.id = self.id
         cloned_f.def_symbol = self.def_symbol
+        cloned_f.schema_vars = set(self.schema_vars)
+        cloned_f.schema = self.schema
         return cloned_f
 
     def prefix_str(self) -> str:
@@ -3589,6 +3593,9 @@ class Formula:
             return f'{prefix}{self.input_line}'
         suffix = self.label_str() if self.keyword == 'use' and self.label else ''
         return f'{prefix}{screen_expr_str(self.expr, kb, len(prefix))}{suffix}'
+
+    def schema_str(self, kb: KnowledgeBase) -> str:
+        return self.schema if self.keyword == 'use' and kb.format == 'normal' else ''
 
 # expression
 # not a class itself, instead just a type alias
@@ -5142,10 +5149,15 @@ class KnowledgeBase:
             if (source is None or f.filename == source) and (op is None or is_op_expr(f.expr, op)):
                 if keyword is None or f.keyword==keyword:
                     text = f.formula_str(self)
+                    annotations = ([f'schema: {f.schema_str(self)}'] if f.schema_str(self) else [])
                     if locations:
                         basename = os.path.basename(f.filename)
                         shown = f.filename if basename in ambiguous else basename
-                        text = f'{text:<{comment_indent}}; {shown}:{f.line}'
+                        annotations.append(f'{shown}:{f.line}')
+                    if annotations:
+                        text = f'{text:<{comment_indent}}; {annotations[0]}'
+                        text += ''.join(f'\n{"":<{comment_indent}}; {annotation}'
+                                        for annotation in annotations[1:])
                     lines.append(text)
         if len(lines) > 0:
             s += f'; on level {self.level}\n' + ''.join(line + '\n' for line in lines)
@@ -5278,6 +5290,8 @@ class KnowledgeBase:
                 implicit_bool_signatures.append(declaration)  # shown after the line that inferred it
 
     def theory_append(self, f: Formula, symbol_level_prev: bool = False) -> None:
+        named_vars = {s for node in self.levels() for s in node.var}
+        f.schema_vars = free_symbols(f.expr, self) & named_vars
         if symbol_level_prev:
             # add the symbols to the previous level
             assert self.parent is not None, f'BUG: can not add symbols one level up, check `assume` implementation'
@@ -5286,13 +5300,17 @@ class KnowledgeBase:
             self.add_new_symbols(f.expr)
         f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
         f.simplified_expr = rename_all_vars(f.simplified_expr, self)
+        f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
         dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
         self.theory.append(f)
 
     def show_append(self, f: Formula) -> None:
+        named_vars = {s for node in self.levels() for s in node.var}
+        f.schema_vars = free_symbols(f.expr, self) & named_vars
         self.add_new_symbols(f.expr)
         f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
         f.simplified_expr = rename_all_vars(f.simplified_expr, self)
+        f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
         dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
         self.show.append(f)
 
@@ -7510,7 +7528,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             for f in formulas:
                 kb.theory_append(f)
                 if mainstream:
-                    log(kb, f.formula_str(kb), f.reason, kb.level)
+                    log(kb, f.formula_str(kb), f.reason, kb.level, schema=f.schema_str(kb))
 
     elif keyword == 'def':
         if len(args) == 0:
@@ -8032,20 +8050,28 @@ def reason_event(s: str, reason: str, level: Optional[int], comment: Optional[st
         event['kind'] = next((k for prefix, k in kinds if rest.startswith(prefix)), 'other')
     return event
 
-def log(kb: KnowledgeBase, s: str, reason: str='', level: Optional[int]=None) -> None:
+def log(kb: KnowledgeBase, s: str, reason: str='', level: Optional[int]=None, schema: str='') -> None:
         if level is not None and level > 0 and kb.tmp:
             level = level - 1
         if event_sink is not None:
-            event_sink.append(reason_event(s, reason, level, current_comment[0] if reason else None))
+            event = reason_event(s, reason, level, current_comment[0] if reason else None)
+            if schema:
+                event['schema'] = schema
+            event_sink.append(event)
         indent: str = '' if level is None else ' ' * (proof_indent * level)
         parts = s.splitlines() or ['']
         rendered = [indent + part for part in parts]
         if len(reason) == 0:
             line = '\n'.join(rendered)
-        elif current_comment[0] is not None:
-            # the user's comment stays on the line, the reason goes below it
-            rendered[0] = f'{rendered[0]:<{comment_indent}}; {current_comment[0]}'
-            line = '\n'.join(rendered) + f'\n{"":<{comment_indent}}; {reason}'
+        elif schema or current_comment[0] is not None:
+            # The generated schema stays beside the formula. A source comment and the checker's
+            # reason follow below it, so each kind of information remains distinguishable.
+            comments = ([f'schema: {schema}'] if schema else [])
+            if current_comment[0] is not None:
+                comments.append(current_comment[0])
+            rendered[0] = f'{rendered[0]:<{comment_indent}}; {comments[0]}'
+            trailing = comments[1:] + [reason]
+            line = '\n'.join(rendered) + ''.join(f'\n{"":<{comment_indent}}; {comment}' for comment in trailing)
             current_comment[0] = None
         else:
             rendered[0] = f'{rendered[0]:<{comment_indent}}; {reason}'
@@ -8270,6 +8296,110 @@ def rename_all_vars(expr: Expr, kb: KnowledgeBase) -> Expr:
     # rename all variables (yes, some are renamed again, this can be improved later (TODO))
     expr = rename_all_vars_rec(expr, kb)[0]
     return expr
+
+def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -> str:
+    """Render named free variables as stable `$`/`%` schema names.
+
+    Matching uses globally generated `$$NN`/`%%NN` names whose numbers depend on what was checked
+    earlier. Output instead uses deterministic source-like names, and gives symbolic operator
+    variables a valid name such as `$op` while preserving their fixity for rendering.
+    """
+    if not named_vars:
+        return ''
+
+    internal: list[str] = []
+    taken: set[str] = set()
+    def collect(e: Expr) -> None:
+        if isinstance(e, Token):
+            if is_internal_name(e.value):
+                value = str(e.value)
+                if value not in internal:
+                    internal.append(value)
+            elif isinstance(e.value, str):
+                taken.add(e.value)
+        else:
+            for child in e:
+                collect(child)
+    collect(expr)
+
+    def source_identifier(origin: str) -> Optional[str]:
+        stripped = origin[1:] if origin.startswith(('$', '%')) else origin
+        return stripped if re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', stripped) else None
+
+    desired: dict[str, str] = {}
+    for internal_name in internal:
+        origin = origin_names.get(internal_name, internal_name)
+        if origin in named_vars:
+            identifier = source_identifier(origin)
+            prefix = '%' if internal_name.startswith('%%') else '$'
+            desired[internal_name] = prefix + (identifier if identifier is not None else 'op')
+        elif isinstance(origin, str) and not is_internal_name(origin):
+            desired[internal_name] = origin
+        else:
+            desired[internal_name] = '%A' if internal_name.startswith('%%') else '$v'
+
+    # Explicit `$x`/`%A` keep their spelling if a named variable wants the same name.
+    def explicit_schema_name(internal_name: str) -> bool:
+        origin = origin_names.get(internal_name, internal_name)
+        return isinstance(origin, str) and origin.startswith(('$', '%'))
+
+    order = sorted(internal, key=lambda v: 0 if explicit_schema_name(v) else 1)
+    names: dict[str, str] = {}
+    for internal_name in order:
+        base = desired[internal_name]
+        candidate = base
+        number = 1
+        while candidate in taken:
+            number += 1
+            candidate = f'{base}{number}'
+        names[internal_name] = candidate
+        taken.add(candidate)
+
+    rendered_expr = rename_for_display(expr, names)
+    display_kb = copy.copy(kb)
+    display_kb.infix = dict(kb.infix)
+    display_kb.prefix = dict(kb.prefix)
+    display_kb.postfix = dict(kb.postfix)
+    for internal_name, shown in names.items():
+        origin = origin_names.get(internal_name, internal_name)
+        if not isinstance(origin, str) or origin not in named_vars:
+            continue
+        infix = kb.get_infix(origin)
+        prefix = kb.get_prefix(origin)
+        postfix = kb.get_postfix(origin)
+        if infix is not None:
+            display_kb.infix[shown] = infix
+        if prefix is not None:
+            display_kb.prefix[shown] = prefix
+        if postfix is not None:
+            display_kb.postfix[shown] = postfix
+    display_kb.format = 'normal'
+    return schema_expr_str(rendered_expr, display_kb)
+
+def schema_expr_str(expr: Expr, kb: KnowledgeBase) -> str:
+    """Render a schema compactly while retaining the expression's grouping.
+
+    The ordinary source renderer deliberately parenthesizes every nested node for reliable
+    round trips. A schema is explanatory screen output, so a tighter-binding infix operand may
+    be shown without those construction parentheses: `$x $op $y = $y $op $x`.
+    """
+    match expr:
+        case [Token(label='SYMBOL', value=op), left, right] if isinstance(op, str) and kb.is_infix(op):
+            parent_lbp, parent_rbp = kb.get_infix(op) or (0, 0)
+
+            def operand(e: Expr, side: str) -> str:
+                rendered = expr_normal(e, kb)
+                match e:
+                    case [Token(label='SYMBOL', value=child_op), _, _] if isinstance(child_op, str) and kb.is_infix(child_op):
+                        child_lbp, _ = kb.get_infix(child_op) or (0, 0)
+                        safe = child_lbp >= parent_lbp if side == 'left' else child_lbp > parent_rbp
+                        if safe and rendered.startswith('(') and rendered.endswith(')'):
+                            return rendered[1:-1]
+                return rendered
+
+            return f'{operand(left, "left")} {expr_sexpr(expr[0], kb)} {operand(right, "right")}'
+        case _:
+            return screen_expr_str(expr, kb)
 
 def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None, bound_vars: set[str]|None = None) -> tuple[Expr, State]:
     # initialize the bound_vars if not given (don't put `set()` as the default value into the signature, since it is only called once and then modified, THIS LEADS TO A VERY SUBTLE BUG)
