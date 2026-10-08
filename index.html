@@ -62,10 +62,11 @@
           <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
           <div class="editor-code">
             <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
-            <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor" wrap="off"></textarea>
+            <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor; Tab completes" wrap="off"></textarea>
           </div>
         </div>
       </div>
+      <div id="editorHint" class="editor-hint" role="status" aria-live="polite"></div>
       <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
     </section>
     <div id="divider" class="divider" role="separator" aria-orientation="vertical" aria-label="Drag to resize the editor and the output" title="Drag to resize; double-click for half and half"></div>
@@ -128,6 +129,8 @@
         <li>Blocks are indented by four spaces: <code>assume A</code>, then the indented lines; dedenting closes the
         block and gives <code>A implies …</code>.</li>
         <li>Comments start with <code>;</code>.</li>
+        <li>Tab completes at the caret. On an empty line it suggests a next proof step; after <code>=</code>
+        with <code>calc on</code> it inserts the computed value. A hint appears below the editor in these contexts.</li>
         <li>Symbols: tap them in the bar above the editor, or type a LaTeX-style name followed by a space, e.g.
         <code>\forall</code> → ∀, <code>\exists</code> → ∃, <code>\implies</code> → ⇒, <code>\and</code> → ∧,
         <code>\or</code> → ∨, <code>\not</code> → ¬, <code>\in</code> → ∈.</li>
@@ -147,7 +150,7 @@
         values that Kurt's kernel checked. Put it next to the same <code>proof.kurt</code>, and the command-line
         <code>kurt</code> checks it again without searching. <strong>Clear</strong> closes the output.</li>
       </ul>
-      <p>With a keyboard, Cmd/Ctrl+Enter checks and Cmd/Ctrl + / − / 0 changes the text size. Your draft stays in
+      <p>With a keyboard, Tab completes, Cmd/Ctrl+Enter checks, and Cmd/Ctrl + / − / 0 changes the text size. Your draft stays in
       this browser, and the playground also works offline after the first visit.</p>
 
       <h3>More</h3>

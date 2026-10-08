@@ -5,6 +5,7 @@ false ; never load this theory, this file is just for reference
 ;; syntax
 brackets ( )                                 ; for grouping during parsing
 infix    ,    5  4                           ; for lists and tuples, right associative: `(a, b, c)` is `(a, (b, c))`
+const    ","                                 ; the fixed tuple/list constructor (quoted because comma separates declarations)
 infix    " " 90 90                           ; space for function applications, binds most tightly
                                              ; (`f(x)` without a space binds more tightly still, 95:
                                              ; `inv det(A)` is `inv (det A)`)
@@ -79,6 +80,6 @@ bindop forall, exists                        ; with a condition, `∀ x > 0 ...`
                                              ; the condition that is new or a variable, decided (and
                                              ; stored) when the line is read
 bool   forall 0 2, exists 0 2                ; position 2 (the body) must be boolean
-const  forall, exists
+                                             ; `bindop` implies that forall/exists are constants
 alias  ∀ forall
 alias  ∃ exists

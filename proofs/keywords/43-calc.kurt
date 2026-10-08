@@ -13,6 +13,7 @@
 load equality
 infix "+" 30 30
 calc + add            ; `+` is the calculator's addition
+                      ; fixed calculator meaning also makes `+` a constant
 
 calc on
 1 + 1 = 2             ; computed to `2 = 2`, then "equal-intro"

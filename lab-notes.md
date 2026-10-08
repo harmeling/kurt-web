@@ -186,3 +186,10 @@ Operational log for agent-session setup and activity on the `agent` branch.
 
 - `./update.sh /Users/harmeling/git/kurt-lang-dev`: kurt.py 0.7.6, the `list` command and source-location metadata, keyword lesson 46, tutorial lesson 26, updated theories and proof manifest, cache `kurt-playground-c252c231465f`.
 - Updated the browser test for the renumbered `44-cert.kurt` lesson. The update smoke test and all 24 Playwright tests pass.
+
+## 2026-10-08: completion in the proof editor
+
+- The main proof editor now uses a temporary Kurt `Shell` at the caret for Tab completion. It
+  shows contextual hints below the editor for empty proof lines, `load`, LaTeX shortcuts, and
+  calculator expressions ending in `=`; Tab inserts a unique result. This does not alter the
+  checked output shell. A Playwright regression covers the computed-value hint and insertion.

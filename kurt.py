@@ -45,6 +45,7 @@ import copy        # copy.deepcopy, for the fresh context of a loaded file (`loa
 import contextlib  # contextlib.contextmanager, for `users_comment`
 import dataclasses # dataclasses.dataclass, for `RunConfig`, `CheckResult`
 import time        # the dates of files, for `--deps`
+import threading   # debounced LSP checks and serialized access to session globals
 from dataclasses import dataclass, field
 from typing import TypeAlias, Literal, Callable, TypeVar, Generic, Iterator, TextIO, Optional, get_args
 from pathlib import Path
@@ -152,6 +153,7 @@ CALCULATOR_SETS: dict[str, Callable[[Fraction], bool]] = {
     'rationals': lambda v: True,
 }
 CALCULATOR_MEMBERSHIP = 'element'
+CALCULATOR_BOOLEAN_RESULTS = frozenset((*CALCULATOR_RELATIONS, CALCULATOR_MEMBERSHIP))
 
 # `_EMBEDDED_THEORIES` is populated (from `theories/*.kurt`) only in the generated single-file
 # bundle produced by `scripts/build_standalone.py` -- empty here, in the real source file. It
@@ -1236,6 +1238,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'during parsing\n'
                  'infix    ,    5  4                           ; for lists and '
                  'tuples, right associative: `(a, b, c)` is `(a, (b, c))`\n'
+                 'const    ","                                 ; the fixed '
+                 'tuple/list constructor (quoted because comma separates '
+                 'declarations)\n'
                  'infix    " " 90 90                           ; space for '
                  'function applications, binds most tightly\n'
                  '                                             ; (`f(x)` '
@@ -1364,7 +1369,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'the line is read\n'
                  'bool   forall 0 2, exists 0 2                ; position 2 '
                  '(the body) must be boolean\n'
-                 'const  forall, exists\n'
+                 '                                             ; `bindop` '
+                 'implies that forall/exists are constants\n'
                  'alias  ∀ forall\n'
                  'alias  ∃ exists\n',
  'modal.kurt': '; EXPERIMENTAL EXAMPLE: a modal-logic fragment\n'
@@ -3171,12 +3177,30 @@ def is_packaged_path(path) -> bool:
 strict_mode: bool = False
 trusted_paths: list = []       # the `-p`/`--path` directories, e.g. with a teacher's theories
 untrusted_names: set[str] = set()   # the names of texts being checked (`check_text`, the shell): never trusted
+source_overlays: dict[str, str] = {} # absolute file names whose current text comes from an editor
+
+def source_name(path: object) -> str:
+    try:
+        return str(Path(str(path)).resolve())
+    except (OSError, ValueError):
+        return str(path)
+
+def source_is_file(path: object) -> bool:
+    return source_name(path) in source_overlays or bool(getattr(path, 'is_file', lambda: False)())
+
+def source_open(path: object) -> TextIO:
+    name = source_name(path)
+    if name in source_overlays:
+        stream = io.StringIO(source_overlays[name])
+        stream.name = name
+        return stream
+    return path.open(encoding='utf-8') # type: ignore[union-attr]
 
 def is_trusted_file(fname: str) -> bool:
     # a theory that comes with Kurt, or one from a `-p` directory -- the symbols they declare
     # are frozen (see `KnowledgeBase.frozen`), and under `--strict` only they may use `use` --
     # trust comes from where a file was read, never from the name of a text
-    if fname in untrusted_names or fname in ('<stdin>', '<shell>'):
+    if fname in untrusted_names or source_name(fname) in untrusted_names or fname in ('<stdin>', '<shell>'):
         return False
     if fname.startswith('<embedded>/') or fname.startswith('<chain transitivity'):
         return True
@@ -3397,7 +3421,7 @@ class KurtException(Exception):
 # types
 Label:  TypeAlias = Literal['SYMBOL', 'INT', 'FLOAT', 'STRING', 'END', 'TODO']
 Value:  TypeAlias = str | int | Fraction      # a number is an `int`, or an exact `Fraction` (a decimal like `0.1`)
-Format: TypeAlias = Literal['sexpr', 'normal', 'original']
+Format: TypeAlias = Literal['sexpr', 'normal', 'source']
 format_options: list[Format] = list(get_args(Format))  # sexpr: (+ 1 (* 3 4)), normal: (1 + (3 * 4))
 
 ## the syntax is stored in a hierarchical knowledge base called `KnowledgeBase`
@@ -3419,14 +3443,14 @@ keywords: dict[str, str] = {
     'prefix':      'add prefix operator with right binding power',
     'infix':       'add infix operator with left/right binding powers (lhb, rhb), note: lhb > rhb means right associative',
     'postfix':     'add postfix operator with left binding power',
-    'brackets':    'declare brackets',
+    'brackets':    'declare brackets (the delimiter symbols become constants)',
     'arity':       'set arity of a symbol (default is 0)',
-    'bindop':      'declare a binding operator',
-    'flat':        'declare infix operator to be flat',
-    'sym':         'declare infix operator to be symmetric',
+    'bindop':      'declare a constant binding operator',
+    'flat':        'declare a constant infix operator to be flat',
+    'sym':         'declare a constant infix operator to be symmetric',
     'bool':        'declare symbols to have output type boolean',
-    'calc':        'declare symbols to trigger calculations if applied to numbers',
-    'chain':       'declare a chain of symbols, for automatic transitivity',
+    'calc':        'give constant symbols fixed calculator meanings, or switch calculation on/off',
+    'chain':       'declare constant boolean relations as a chain, with automatic transitivity',
     'var':         'declare symbols as variable',
     'const':       'declare symbols as fresh constants, i.e., they have not been used or declared before',
     'alias':       'add some aliases for a symbol',
@@ -3565,11 +3589,11 @@ class Formula:
 
     # this function is necessary, since it requires the knowledgebase
     def formula_str(self, kb: KnowledgeBase) -> str:
-        if kb.format == 'original':
-            s = self.input_line
-        else:
-            s = expr_str(self.expr, kb)
-        return f'{self.prefix_str()}{s}'
+        prefix = self.prefix_str()
+        if kb.format == 'source':
+            return f'{prefix}{self.input_line}'
+        suffix = self.label_str() if self.keyword == 'use' and self.label else ''
+        return f'{prefix}{screen_expr_str(self.expr, kb, len(prefix))}{suffix}'
 
 # expression
 # not a class itself, instead just a type alias
@@ -4192,6 +4216,19 @@ class KnowledgeBase:
         return None
 
     def bind_calc(self, symbol: str, operation: str) -> None:
+        if self.is_bindop(symbol):
+            raise KurtException(f'EvalError: binding operator `{symbol}` can not also be a calculator operation')
+        if self.is_var(symbol):
+            raise KurtException(f'EvalError: variable `{symbol}` can not have a fixed calculator meaning')
+        if not self.is_const(symbol) and not self.is_bracket_placeholder(symbol):
+            self.add_const(symbol)
+        signature = self.bool_sig(symbol)
+        boolean_result = operation in CALCULATOR_BOOLEAN_RESULTS
+        if signature and (0 in signature) != boolean_result:
+            result_kind = 'boolean' if boolean_result else 'non-boolean'
+            raise KurtException(f'EvalError: calculator operation `{operation}` has a {result_kind} result, inconsistent with `bool {symbol} {" ".join(map(str, signature))}`')
+        if boolean_result and not signature:
+            self.add_bool(symbol, [0])
         # one operation per symbol -- and a unary one, `negate`, besides (like `-`); `calc q power,
         # q add` silently computed `add` (found in the soundness review of 2026-09-29)
         others = [op for op in self.get_calc_ops(symbol) if op != operation and (op == 'negate') == (operation == 'negate')]
@@ -4271,7 +4308,11 @@ class KnowledgeBase:
         elif keyword == 'bindop':   return f'bindop {key}'
         elif keyword == 'bool':     
             assert isinstance(value, list), f'BUG!  Unexpected value for `bool`, got {value}'
-            return f'bool {key} {" ".join(map(str, value))}'
+            # A bool declaration written for a left bracket is stored on the combined internal
+            # bracket operator (`[$$$]`), just like its calculator binding. Print the source
+            # spelling so listings and `save` output can be read back.
+            shown_key = key.split('$$$', 1)[0] if '$$$' in key else key
+            return f'bool {shown_key} {" ".join(map(str, value))}'
         elif keyword == 'var':      return f'var {key}'
         elif keyword == 'const':
             if key == ' ':
@@ -4651,6 +4692,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: arity of brackets can not be set')
         if self.is_arity_set(fun):
             raise KurtException(f'EvalError: arity of symbol `{fun}` has been already set to {self.get_arity(fun)}')
+        self.check_bool_sig_max(fun, a)
         self.arity[fun] = a
         self.record_property_origin('arity', fun)
         self.declare_origin(fun)
@@ -4674,8 +4716,16 @@ class KnowledgeBase:
     def add_prefix(self, op: str, rbp: int) -> None:
         if self.is_used(op):
             raise KurtException(f'EvalError: symbol `{op}` has been already used in a formula, declaring it now would change what that formula means')
+        if self.is_arity_set(op):
+            raise KurtException(f'EvalError: symbol `{op}` already has explicit arity {self.get_arity(op)} and can not also be prefix')
         if self.is_operator(op) and not self.is_infix(op):    # infix and prefix at the same time is allowed
             raise KurtException(f'EvalError: symbol `{op}` already exist as {self._find_symbol(op)}')
+        if self.is_bindop(op):
+            raise KurtException(f'EvalError: binding operator `{op}` can not also be prefix')
+        if self.is_flat(op):
+            # A prefix and infix occurrence have the same AST head. Flattening would erase a
+            # unary prefix around an infix expression: `f (a f b)` became `a f b`.
+            raise KurtException(f'EvalError: flat infix operator `{op}` can not also be prefix')
         self.check_bool_sig_max(op, 1)
         self.prefix[op] = rbp
         self.record_property_origin('prefix', op)
@@ -4685,6 +4735,8 @@ class KnowledgeBase:
     def add_infix(self, op: str, lbp: int, rbp: int) -> None:
         if self.is_used(op):
             raise KurtException(f'EvalError: symbol `{op}` has been already used in a formula, declaring it now would change what that formula means')
+        if self.is_arity_set(op):
+            raise KurtException(f'EvalError: symbol `{op}` already has explicit arity {self.get_arity(op)} and can not also be infix')
         if self.is_operator(op) and not self.is_prefix(op):   # infix and prefix at the same time is allowed
             raise KurtException(f'EvalError: symbol `{op}` already exist as {self._find_symbol(op)}')
         self.check_bool_sig_max(op, 2)
@@ -4697,6 +4749,8 @@ class KnowledgeBase:
     def add_postfix(self, op: str, lbp: int) -> None:
         if self.is_used(op):
             raise KurtException(f'EvalError: symbol `{op}` has been already used in a formula, declaring it now would change what that formula means')
+        if self.is_arity_set(op):
+            raise KurtException(f'EvalError: symbol `{op}` already has explicit arity {self.get_arity(op)} and can not also be postfix')
         if self.is_operator(op):
             raise KurtException(f'EvalError: symbol `{op}` already exist as {self._find_symbol(op)}')
         self.check_bool_sig_max(op, 1)
@@ -4739,18 +4793,42 @@ class KnowledgeBase:
         for op in c:
             if not self.is_infix(op):
                 raise KurtException(f'EvalError: all operators of a chain must be infix, operator `{op}` is not')
+            if self.is_var(op):
+                raise KurtException(f'EvalError: variable operator `{op}` can not be in a chain with fixed transitivity rules')
+            if self.is_bindop(op):
+                raise KurtException(f'EvalError: binding operator `{op}` can not be in a chain')
         self.check_with_other_chains(c)
         if len(c) < 1:
             raise KurtException(f'EvalError: chain of operators must have at least one element')
+        for op in c:
+            signature = self.bool_sig(op)
+            if signature and 0 not in signature:
+                raise KurtException(f'EvalError: operator `{op}` in a chain must have boolean output (`bool {op} 0`)')
+            if not self.is_const(op):
+                self.add_const(op)
+            if not signature:
+                self.add_bool(op, [0])
         self.chain.append(c)
         self.record_property_origin('chain', c)
 
     def add_bindop(self, fun: str) -> None:
+        if self.is_flat(fun) or self.is_sym(fun) or self.is_chainable(fun):
+            # Flattening/sorting a binder changes which token is bound and what its scope is;
+            # chain rules treat the two operands as ordinary relation arguments.
+            raise KurtException(f'EvalError: operator `{fun}` is already `flat`, `sym`, or in a `chain` and can not be a binding operator')
+        if self.get_calc_ops(fun):
+            raise KurtException(f'EvalError: calculator operator `{fun}` can not also be a binding operator')
+        if self.is_var(fun):
+            raise KurtException(f'EvalError: variable operator `{fun}` can not define a fixed binding scope')
         if self.is_used(fun):
             raise KurtException(f'EvalError: symbol `{fun}` has been already used in a formula')
+        if 1 in self.bool_sig(fun):
+            raise KurtException(f'EvalError: first position of binding operator `{fun}` can not be declared boolean')
         if self.is_infix(fun) and not self.is_prefix(fun):
             # an infix binder, e.g. set.kurt's `|` in `{ $z ∈ $A | P $z }`: its left operand is
             # the condition with the bound variable, its right operand the body
+            if not self.is_const(fun):
+                self.add_const(fun)
             self.bindop.add(fun)
             symbols_changed()
             self.record_property_origin('bindop', fun)
@@ -4762,6 +4840,8 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: before declaring symbol `{fun}` as variable binding, you must set its arity')
         if self.get_arity(fun) < 2:
             raise KurtException(f'EvalError: arity of binding operators must be at least 2')
+        if not self.is_const(fun):
+            self.add_const(fun)
         self.bindop.add(fun)
         symbols_changed()
         self.record_property_origin('bindop', fun)
@@ -4782,11 +4862,19 @@ class KnowledgeBase:
     def add_flat(self, op: str) -> None:
         if not self.is_infix(op):
             raise KurtException(f'EvalError: operator `{op}` must be infix operator to declare flatness')
+        if self.is_prefix(op):
+            raise KurtException(f'EvalError: prefix/infix operator `{op}` can not be `flat` -- flattening would confuse its unary and binary forms')
+        if self.is_bindop(op):
+            raise KurtException(f'EvalError: binding operator `{op}` can not be `flat`')
+        if self.is_var(op):
+            raise KurtException(f'EvalError: variable operator `{op}` can not be declared `flat`; flatness belongs to the concrete operator it matches')
         if self.is_used(op):
             raise KurtException(f'EvalError: operator `{op}` has been already used in a formula, declaring it "flat" now would change what that formula means')
         if self.is_flat(op):
             raise KurtException(f'EvalError: operator `{op}` is already declared "flat"')
         self.check_bool_sig_sym_flat(op)
+        if not self.is_const(op):
+            self.add_const(op)
         self.flat.add(op)
         self.record_property_origin('flat', op)
         self.declare_origin(op)
@@ -4795,11 +4883,17 @@ class KnowledgeBase:
     def add_sym(self, op) -> None:
         if not self.is_infix(op):
             raise KurtException(f'EvalError: operator `{op}` must be infix operator to declare symmetry')
+        if self.is_bindop(op):
+            raise KurtException(f'EvalError: binding operator `{op}` can not be `sym` -- swapping its arguments changes the bound variable and scope')
+        if self.is_var(op):
+            raise KurtException(f'EvalError: variable operator `{op}` can not be declared `sym`; symmetry belongs to the concrete operator it matches')
         if self.is_used(op):
             raise KurtException(f'EvalError: operator `{op}` has been already used in a formula, declaring it "sym" now would change what that formula means')
         if self.is_sym(op):
             raise KurtException(f'EvalError: operator `{op}` is already declared "sym"')
         self.check_bool_sig_sym_flat(op)
+        if not self.is_const(op):
+            self.add_const(op)
         self.sym.add(op)
         self.record_property_origin('sym', op)
         self.declare_origin(op)
@@ -4820,6 +4914,9 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{lbracket}` has been already used in a formula')
         if self.is_used(rbracket):
             raise KurtException(f'EvalError: symbol `{rbracket}` has been already used in a formula')
+        for bracket in (lbracket, rbracket):
+            if self.is_arity_set(bracket) or self.bool_sig(bracket) or self.get_calc_ops(bracket):
+                raise KurtException(f'EvalError: bracket symbol `{bracket}` already has an `arity`, `bool`, or `calc` declaration')
         if self.is_operator(lbracket) or self.is_const(lbracket) or self.is_var(lbracket):
             raise KurtException(f'EvalError: symbol `{lbracket}` already exist as {self._find_symbol(lbracket)}')
         if self.is_operator(rbracket) or self.is_const(rbracket) or self.is_var(rbracket):
@@ -4866,6 +4963,10 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` has been already used in a formula')
         if self.is_const(s):
             raise KurtException(f'EvalError: symbol `{s}` is already used as a constant')
+        if self.get_calc_ops(s):
+            raise KurtException(f'EvalError: calculator symbol `{s}` has a fixed meaning and can not be a variable')
+        if self.is_flat(s) or self.is_sym(s) or self.is_chainable(s) or self.is_bindop(s):
+            raise KurtException(f'EvalError: symbol `{s}` has a fixed semantic property and can not be a variable')
         self.var.add(s)
         self.record_property_origin('var', s)
         symbols_changed()
@@ -4894,6 +4995,8 @@ class KnowledgeBase:
             # an alias is a new name: it takes over everything of its symbol, so it can't have
             # declarations of its own (`bool ∈ 0`, then `alias ∈ in`), which might differ
             raise KurtException(f'EvalError: symbol `{s}` is already declared -- an alias must be a new name')
+        if self.get_calc_ops(s):
+            raise KurtException(f'EvalError: calculator symbol `{s}` already has a meaning -- an alias must be a new name')
         # (found in the soundness review of 2026-09-29: `alias Q $x`, and cycles `alias q r`, `alias r q`)
         if self.is_var(t) or self.is_fixed_var(t):
             raise KurtException(f'EvalError: an alias is another name for a symbol, not for the variable `{t}`')
@@ -4908,6 +5011,26 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` has been already used in a formula')
         if len(self.bool_sig(s)) > 0:
             raise KurtException(f'EvalError: symbol `{s}` is already declared bool')
+        if len(v) != len(set(v)):
+            raise KurtException(f'EvalError: `bool` positions of `{s}` must be different')
+        calc_ops = self.get_calc_ops(s)
+        if calc_ops:
+            expected_boolean = all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in calc_ops)
+            if (0 in v) != expected_boolean:
+                result_kind = 'boolean' if expected_boolean else 'non-boolean'
+                raise KurtException(f'EvalError: calculator symbol `{s}` has a {result_kind} result')
+        if self.is_bracket_placeholder(s):
+            max_args = 1
+        elif self.is_infix(s):
+            max_args = 2
+        elif self.is_prefix(s) or self.is_postfix(s):
+            max_args = 1
+        elif self.is_arity_set(s):
+            max_args = self.get_arity(s)
+        else:
+            max_args = None
+        if max_args is not None and any(position < 0 or position > max_args for position in v):
+            raise KurtException(f'EvalError: `bool` position of `{s}` must be between 0 and its arity {max_args}')
         if self.is_bindop(s) and 1 in v:
             raise KurtException(f'EvalError: first position of binding operator `{s}` can not be declared boolean')
         self.bool[s] = v          # add a key and set the value to the tuple of positions that are bool
@@ -5207,6 +5330,7 @@ initial_kb.add_bool  (TRUE_SYMBOL, [0])                    # true is bool
 initial_kb.add_bool  (IMPL_SYMBOL, [0, 1, 2])              # implies is bool with bool input
 initial_kb.add_bool  (AND_SYMBOL,  [0, 1, 2])              # and is bool with bool inputs
 initial_kb.add_const (TRUE_SYMBOL)                         # true is const symbol
+initial_kb.add_const (COMMA_SYMBOL)                        # comma is the fixed tuple/list constructor
 initial_kb.add_const (IMPL_SYMBOL)                         # implies is const symbol
 initial_kb.add_const (AND_SYMBOL)                          # and is const symbol
 initial_kb.add_flat  (AND_SYMBOL)                          # and is flat
@@ -5236,14 +5360,8 @@ initial_kb.add_bindop(FORALL_SYMBOL)                       # forall is a binding
 initial_kb.add_bindop(EXISTS_SYMBOL)                       # exists is a binding operator
 initial_kb.add_bool  (FORALL_SYMBOL, [0, 2])               # forall is bool, its body must be bool
 initial_kb.add_bool  (EXISTS_SYMBOL, [0, 2])               # exists is bool, its body must be bool
-initial_kb.add_const (FORALL_SYMBOL)                       # forall is const (like true/implies/and above --
-initial_kb.add_const (EXISTS_SYMBOL)                       # exists is const  not `.used`-only like `sub`: a
-                                                            # `def`'s RHS scan (`extract_by_condition`, no
-                                                            # bindop-awareness) or any other "is this symbol
-                                                            # already classified" check must recognize forall/
-                                                            # exists as already-settled vocabulary; `sub` gets
-                                                            # away without this only because it's essentially
-                                                            # never written out literally in ordinary formulas
+# `add_bindop` also classifies `sub`, `forall`, and `exists` as constants: a binding scope is
+# fixed semantics, not a property that can follow a variable operator during matching.
 initial_kb.add_alias('∀', FORALL_SYMBOL)                   # alias for forall
 initial_kb.add_alias('∃', EXISTS_SYMBOL)                   # alias for exists
 initial_kb.frozen = initial_kb.declared_symbols()          # the core can't be changed, e.g. by `sym implies`
@@ -5260,13 +5378,76 @@ core_kb: KnowledgeBase = copy.deepcopy(initial_kb)         # the core only: ever
 def expr_str(expr: Expr, kb: KnowledgeBase) -> str:
     if kb.format == 'sexpr':
         return expr_sexpr(expr, kb)
-    elif kb.format in ['normal', 'original']:
+    elif kb.format in ('normal', 'source'):
         s: str = expr_normal(expr, kb)
         if len(s) > 0  and  s[0] == '(' and s[-1] == ')':
             s = s[1:-1]         # the brackets are useful during construction, but on the top level we have to omit them
         return s
     else:
         assert False, f'BUG: unknown expression format, got {kb.format}'
+
+def _matrix_rows(expr: Expr, kb: KnowledgeBase) -> Optional[list[list[str]]]:
+    """Return printable cells when ``expr`` is a matrix literal with at least two rows."""
+    if not (isinstance(expr, list) and len(expr) >= 2 and isinstance(expr[0], Token)
+            and isinstance(expr[0].value, str) and kb.is_bracket_placeholder(expr[0].value)
+            and 'matrix' in kb.get_calc_ops(expr[0].value)):
+        return None
+    entries = comma_items(expr[1]) if len(expr) == 2 and is_comma_separated_list(expr[1]) else expr[1:]
+    if len(entries) < 2:
+        return None                         # a row vector stays compact on one line
+    rows: list[list[str]] = []
+    for row in entries:
+        if not (isinstance(row, list) and len(row) >= 2 and isinstance(row[0], Token)
+                and row[0].value == expr[0].value):
+            return None
+        cells = comma_items(row[1]) if len(row) == 2 and is_comma_separated_list(row[1]) else row[1:]
+        rendered = [expr_normal(cell, kb) for cell in cells]
+        if not rendered or any('\n' in cell for cell in rendered):
+            return None
+        rows.append(rendered)
+    if len({len(row) for row in rows}) != 1:
+        return None                         # malformed/ragged literals are left to the calculator
+    return rows
+
+def _pretty_matrix(expr: Expr, kb: KnowledgeBase) -> Optional[str]:
+    rows = _matrix_rows(expr, kb)
+    if rows is None:
+        return None
+    widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
+    rendered_rows = [f'[{", ".join(cell.rjust(width) for cell, width in zip(row, widths))}]'
+                     for row in rows]
+    return '[' + ',\n '.join(rendered_rows) + ']'
+
+def screen_expr_str(expr: Expr, kb: KnowledgeBase, initial_column: int = 0) -> str:
+    """Format an expression for people, with aligned matrix rows in normal mode.
+
+    ``expr_str`` remains the stable, one-line representation used to build source and internal
+    text. Screen output alone gets line breaks; ``sexpr`` deliberately exposes one stored tree.
+    """
+    text = expr_str(expr, kb)
+    if kb.format != 'normal':
+        return text
+
+    matrices: list[tuple[Expr, str]] = []
+    def collect(node: Expr) -> None:
+        pretty = _pretty_matrix(node, kb)
+        if pretty is not None:
+            matrices.append((node, pretty))       # outermost matrix; don't collect its rows
+        elif isinstance(node, list):
+            for child in node:
+                collect(child)
+    collect(expr)
+
+    for node, pretty in matrices:
+        compact = expr_normal(node, kb)
+        index = text.find(compact)
+        if index < 0:
+            continue
+        line_start = text.rfind('\n', 0, index) + 1
+        column = (initial_column if line_start == 0 else 0) + index - line_start
+        replacement = pretty.replace('\n', '\n' + ' ' * column)
+        text = text[:index] + replacement + text[index + len(compact):]
+    return text
 
 def expr_sexpr(expr: Expr, kb: KnowledgeBase) -> str:                      # create s-expression
     if is_bound_condition(expr):
@@ -6722,6 +6903,27 @@ def save_str(filename: str) -> str:
               f'{time.strftime("%Y-%m-%d %H:%M")}: the lines that were accepted', '']
     return '\n'.join(header + lines) + '\n'
 
+def apply_declaration_batch(kb: KnowledgeBase, apply: Callable[[KnowledgeBase], object],
+                            implicit_symbols: tuple[str, ...] = ()) -> None:
+    """Validate a whole declaration line before changing ``kb``.
+
+    Several declaration methods can reject a later item because an earlier item on the same
+    line changed the symbol table. Running the batch first in a disposable child keeps a failed
+    shell/LSP line from leaking its successful prefix into subsequent input.
+    """
+    before = {symbol: (kb.is_const(symbol), tuple(kb.bool_sig(symbol))) for symbol in implicit_symbols}
+    trial = kb.push_level('sandbox', [])
+    apply(trial)
+    apply(kb)
+    for symbol in implicit_symbols:
+        was_const, old_signature = before[symbol]
+        if not was_const and kb.is_const(symbol) and symbol not in implicit_constants:
+            implicit_constants.append(symbol)
+        signature = tuple(kb.bool_sig(symbol))
+        declaration = (symbol, signature)
+        if not old_signature and signature and declaration not in implicit_bool_signatures:
+            implicit_bool_signatures.append(declaration)
+
 def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label: str, kb: KnowledgeBase, line: int, filename: str, mainstream: bool, local: bool = False) -> KnowledgeBase:
     keyword = keyword_token.value
     assert isinstance(keyword, str)
@@ -6748,26 +6950,32 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 # ...), so not with `--strict` outside the trusted theories, and not for the
                 # symbols of a trusted theory
                 check_strict(keyword, filename)
-                bindings: list[tuple[str, str]] = []
+                bindings: list[tuple[str, str, str]] = []
                 for arg in args:
                     match arg:
                         case [Token(label='SYMBOL', value=symbol), Token(label='SYMBOL', value=operation)] if isinstance(symbol, str) and isinstance(operation, str):
+                            shown_symbol = symbol
                             known = CALCULATOR_OPERATIONS + tuple(CALCULATOR_RELATIONS) + (CALCULATOR_MEMBERSHIP,) + tuple(CALCULATOR_SETS) + CALCULATOR_LITERALS
                             if operation not in known:
                                 raise KurtException(f'EvalError: `{operation}` is not an operation of the calculator, one of {", ".join(known)}', keyword_token.column)
+                            if kb.is_rbracket(symbol):
+                                raise KurtException(f'EvalError: declare `calc` on the left bracket of a bracket pair, not `{symbol}`', keyword_token.column)
                             if kb.is_lbracket(symbol):
                                 # `calc [ matrix`: the bracket pair, whose terms are `[$$$]` nodes
                                 right = next(r for node in kb.levels() for r, l in node.brackets.items() if l == symbol)
                                 symbol = f'{symbol}$$${right}'
-                            bindings.append((symbol, operation))
+                            bindings.append((symbol, operation, shown_symbol))
                         case _:
                             msg = create_usage(keyword, [[], ['on'], ['off'], ['SYMBOL', 'OPERATION']])
                             raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}', keyword_token.column)
-                check_not_frozen([symbol for symbol, _ in bindings], keyword, filename, kb)
-                for symbol, operation in bindings:
-                    kb.bind_calc(symbol, operation)
+                check_not_frozen([symbol for symbol, _, _ in bindings], keyword, filename, kb)
+                def bind_all(target: KnowledgeBase) -> None:
+                    for symbol, operation, _ in bindings:
+                        target.bind_calc(symbol, operation)
+                apply_declaration_batch(kb, bind_all, tuple(symbol for symbol, _, _ in bindings))
+                for _, operation, shown_symbol in bindings:
                     if mainstream:
-                        log(kb, f'calc {symbol} {operation}', f'computed by the calculator', kb.level)
+                        log(kb, f'calc {shown_symbol} {operation}', f'computed by the calculator', kb.level)
     elif keyword == 'list':
         if len(args) > 1 or (args and not all(isinstance(t, Token) and t.label == 'STRING' for t in args[0])):
             raise KurtException('ParseError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
@@ -6971,8 +7179,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT']])
                     raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (op, rbp) in new_stuff:
-            kb.add_prefix(op, rbp)
+        apply_declaration_batch(kb, lambda target: [target.add_prefix(op, rbp) for op, rbp in new_stuff])
     elif keyword == 'postfix':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -6986,8 +7193,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT']])
                     raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (op, lbp) in new_stuff:
-            kb.add_postfix(op, lbp)
+        apply_declaration_batch(kb, lambda target: [target.add_postfix(op, lbp) for op, lbp in new_stuff])
     elif keyword == 'infix':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7002,8 +7208,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT', 'INT']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (op, lbp, rbp) in new_stuff:
-            kb.add_infix(op, lbp, rbp)
+        apply_declaration_batch(kb, lambda target: [target.add_infix(op, lbp, rbp) for op, lbp, rbp in new_stuff])
     elif keyword == 'arity':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7017,8 +7222,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (op, arity) in new_stuff:
-            kb.add_arity(op, arity)
+        apply_declaration_batch(kb, lambda target: [target.add_arity(op, arity) for op, arity in new_stuff])
     elif keyword == 'brackets':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7032,8 +7236,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'STRING']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (lbracket, rbracket) in new_stuff:
-            kb.add_brackets(lbracket, rbracket)
+        bracket_symbols = tuple(symbol for pair in new_stuff for symbol in pair)
+        apply_declaration_batch(kb, lambda target: [target.add_brackets(left, right) for left, right in new_stuff], bracket_symbols)
     elif keyword == 'bindop':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7046,8 +7250,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for op in new_stuff:
-            kb.add_bindop(op)
+        apply_declaration_batch(kb, lambda target: [target.add_bindop(op) for op in new_stuff], tuple(new_stuff))
     elif keyword == 'chain':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7073,8 +7276,15 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             check_chain_not_frozen(chain, filename, kb)
             check_strict(keyword, filename)   # a chain generates transitivity axioms
             new_stuff.append(chain)    # first collect
+        # Validate the chains together: two individually valid chains on one line may conflict.
+        chain_symbols = tuple(dict.fromkeys(op for chain in new_stuff for op in chain))
+        apply_declaration_batch(kb, lambda target: [target.add_chain(chain) for chain in new_stuff], chain_symbols)
+        # Generating each transitivity fact runs the normal line evaluator, which owns these
+        # per-line reporting buffers. Preserve the declarations implied by the user's `chain`
+        # line so they are still reported after its implementation-detail formulas are made.
+        chain_implicit_constants = list(implicit_constants)
+        chain_implicit_bool_signatures = list(implicit_bool_signatures)
         for chain in new_stuff:
-            kb.add_chain(chain)
             kb = generate_chain_transitivity(kb, chain)
             # The generated rules are an implementation detail of this `chain` line. If they
             # make one of its operators a constant or infer its boolean signature, cite the
@@ -7087,6 +7297,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         origin = origins.get(op)
                         if origin is not None and origin[0].startswith('<chain transitivity'):
                             origins[op] = location
+        implicit_constants[:] = chain_implicit_constants
+        implicit_bool_signatures[:] = chain_implicit_bool_signatures
 
     elif keyword == 'flat':
         if len(args) == 0:
@@ -7103,8 +7315,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if new_stuff:
             check_strict(keyword, filename)     # a claim about the operator, like an axiom
         check_not_frozen(new_stuff, keyword, filename, kb)
-        for op in new_stuff:
-            kb.add_flat(op)
+        apply_declaration_batch(kb, lambda target: [target.add_flat(op) for op in new_stuff], tuple(new_stuff))
     elif keyword == 'sym':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7120,33 +7331,54 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if new_stuff:
             check_strict(keyword, filename)     # a claim about the operator, like an axiom
         check_not_frozen(new_stuff, keyword, filename, kb)
-        for op in new_stuff:
-            kb.add_sym(op)
+        apply_declaration_batch(kb, lambda target: [target.add_sym(op) for op in new_stuff], tuple(new_stuff))
     elif keyword == 'bool':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        new_stuff: list[tuple[str, list[int]]] = []
         for args_i in args:
             match args_i:
                 case []:
                     assert False, f'BUG: empty args in `bool` should have been caught earlier'
                 case [Token(label='STRING'|'SYMBOL', value=op)]:
                     assert isinstance(op, str)
-                    kb.add_bool(op, [0])
+                    if kb.is_rbracket(op):
+                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                    if kb.is_lbracket(op):
+                        right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
+                        op = f'{op}$$${right}'
+                    new_stuff.append((op, [0]))
                 case [Token(label='STRING'|'SYMBOL', value=op), Token(label='INT', value=a)]:
                     assert isinstance(op, str)
                     assert isinstance(a, int)
-                    kb.add_bool(op, [a])
+                    if kb.is_rbracket(op):
+                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                    if kb.is_lbracket(op):
+                        right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
+                        op = f'{op}$$${right}'
+                    new_stuff.append((op, [a]))
                 case [Token(label='STRING'|'SYMBOL', value=op), Token(label='INT', value=a), Token(label='INT', value=b)]:
                     assert isinstance(op, str)
                     assert isinstance(a, int) and isinstance(b, int)
-                    kb.add_bool(op, [a, b])
+                    if kb.is_rbracket(op):
+                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                    if kb.is_lbracket(op):
+                        right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
+                        op = f'{op}$$${right}'
+                    new_stuff.append((op, [a, b]))
                 case [Token(label='STRING'|'SYMBOL', value=op), Token(label='INT', value=a), Token(label='INT', value=b), Token(label='INT', value=c)]:
                     assert isinstance(op, str)
                     assert isinstance(a, int) and isinstance(b, int) and isinstance(c, int)
-                    kb.add_bool(op, [a, b, c])
+                    if kb.is_rbracket(op):
+                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                    if kb.is_lbracket(op):
+                        right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
+                        op = f'{op}$$${right}'
+                    new_stuff.append((op, [a, b, c]))
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT'], ['STRING', 'INT', 'INT'], ['STRING', 'INT', 'INT', 'INT']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+        apply_declaration_batch(kb, lambda target: [target.add_bool(op, positions) for op, positions in new_stuff])
     elif keyword == 'var':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7161,8 +7393,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+        apply_declaration_batch(kb, lambda target: [target.add_var(op) for op in new_stuff])
         for op in new_stuff:
-            kb.add_var(op)
             if mainstream:
                 log(kb, f'var {op}', f'added variable', kb.level)
     elif keyword == 'const':
@@ -7179,11 +7411,13 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+        def add_constants(target: KnowledgeBase) -> None:
+            for op in new_stuff:
+                if op[0] in ['$', '%']:
+                    raise KurtException(f'EvalError: symbol `{op}` starts with `{op[0]}`, so it is always a variable and can not be declared a constant', keyword_token.column)
+                target.add_const(op)
+        apply_declaration_batch(kb, add_constants)
         for op in new_stuff:
-            if op[0] in ['$', '%']:
-                # (inside a `let`, such a symbol does become a fixed, arbitrary constant)
-                raise KurtException(f'EvalError: symbol `{op}` starts with `{op[0]}`, so it is always a variable and can not be declared a constant', keyword_token.column)
-            kb.add_const(op)
             if mainstream:
                 log(kb, f'const {op}', f'added constant', kb.level)
     elif keyword == 'alias':
@@ -7200,8 +7434,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'STRING']])
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
-        for (s, t) in new_stuff:
-            kb.add_alias(s, t)
+        apply_declaration_batch(kb, lambda target: [target.add_alias(source, destination) for source, destination in new_stuff])
     # THEORY AND PROOF RELATED
     elif keyword == 'cert':
         wanted: list[int] = []
@@ -7630,6 +7863,9 @@ def bool_expr(expr: Expr, kb: KnowledgeBase, strict: bool=True) -> bool:
             return True                    # boolean variables (also when fixed by an assumption, or a constant by `let %E`)
         case Token(label='SYMBOL', value=v):
             assert isinstance(v, str)
+            calc_ops = kb.get_calc_ops(v)
+            if calc_ops:
+                return all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in calc_ops)
             if strict or kb.is_used(v):
                 return 0 in kb.bool_sig(v)
             else:
@@ -7798,14 +8034,18 @@ def log(kb: KnowledgeBase, s: str, reason: str='', level: Optional[int]=None) ->
         if event_sink is not None:
             event_sink.append(reason_event(s, reason, level, current_comment[0] if reason else None))
         indent: str = '' if level is None else ' ' * (proof_indent * level)
+        parts = s.splitlines() or ['']
+        rendered = [indent + part for part in parts]
         if len(reason) == 0:
-            line = indent+s
+            line = '\n'.join(rendered)
         elif current_comment[0] is not None:
             # the user's comment stays on the line, the reason goes below it
-            line = f'{(indent+s):<{comment_indent}}; {current_comment[0]}\n{"":<{comment_indent}}; {reason}'
+            rendered[0] = f'{rendered[0]:<{comment_indent}}; {current_comment[0]}'
+            line = '\n'.join(rendered) + f'\n{"":<{comment_indent}}; {reason}'
             current_comment[0] = None
         else:
-            line = f'{(indent+s):<{comment_indent}}; {reason}'
+            rendered[0] = f'{rendered[0]:<{comment_indent}}; {reason}'
+            line = '\n'.join(rendered)
         print(line, file=sys.stdout)
 
 # how to derive a formula?
@@ -9166,6 +9406,9 @@ replay_hints: dict[str, dict[int, list[dict]]] = {}      # file -> line -> its s
 load_dependencies: dict[str, list[str]] = {}              # file -> the files it loads
 
 def source_hash(fname: str) -> Optional[str]:
+    name = source_name(fname)
+    if name in source_overlays:
+        return hashlib.sha256(source_overlays[name].encode('utf-8')).hexdigest() if hashlib is not None else None
     try:
         with open(fname, 'rb') as f:
             return hashlib.sha256(f.read()).hexdigest() if hashlib is not None else None
@@ -10853,7 +11096,8 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
                 log(kb, f'const {symbol}', 'added constant', kb.level)
             for symbol, signature in implicit_bool_signatures:
                 positions = ' '.join(str(position) for position in signature)
-                log(kb, f'bool {symbol} {positions}', 'added boolean signature', kb.level)
+                shown_symbol = symbol.split('$$$', 1)[0] if '$$$' in symbol else symbol
+                log(kb, f'bool {shown_symbol} {positions}', 'added boolean signature', kb.level)
         implicit_constants.clear()
         implicit_bool_signatures.clear()
 
@@ -10885,7 +11129,7 @@ def is_already_loaded(filename: str, kb: KnowledgeBase, search_paths) -> bool:
         candidate = path / filename
         if kb.get_load_level(str(candidate)) is not None:
             return True
-        if candidate.is_file():
+        if source_is_file(candidate):
             return False
     return False
 
@@ -10924,7 +11168,7 @@ def load_resolution_now(filename: str, search_paths) -> Optional[str]:
         search_paths = packaged_theory_paths
     for path in search_paths:
         candidate = path / filename
-        if candidate.is_file():
+        if source_is_file(candidate):
             return file_identity(candidate)
     return None
 
@@ -11062,7 +11306,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
         # e.g. `read_eval_loop` needing an input stream's `.name`, as a confusing "unable to
         # open" message pointing at every search path instead of the real exception)
         try:
-            candidate_file = candidate.open(encoding='utf-8')
+            candidate_file = source_open(candidate)
         except (FileNotFoundError, NotADirectoryError, AttributeError):
             continue    # try next path
 
@@ -11102,7 +11346,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
 # (and the one before back afterwards), so that sessions don't see each other's names, options,
 # certificates or caches, also when their calls alternate. One check at a time per process:
 # for checks in parallel, use processes.
-RUN_STATE_NAMES = ('strict_mode', 'trusted_paths', 'untrusted_names', 'theory_path', 'kurtc_enabled', 'comment_indent',
+RUN_STATE_NAMES = ('strict_mode', 'trusted_paths', 'untrusted_names', 'source_overlays', 'theory_path', 'kurtc_enabled', 'comment_indent',
                    'new_symbols', 'implicit_constants', 'implicit_bool_signatures', 'space_suspended', 'accepted_lines', 'current_comment', 'origin_names',
                    'dependent_vars', 'certificates_by_line', 'current_line', 'replay_hints',
                    'load_dependencies', '_loading_in_progress', '_checked_exports', '_load_resolutions', 'event_sink', 'shell_start')
@@ -11115,6 +11359,8 @@ class RunConfig:
     paths: tuple[str, ...] = ()           # directories with theories for `load`, after the working directory (trusted, like `-p`)
     kurtc: bool = False                   # write and use `.kurtc` certificate files (`check_file` only)
     comment_indent: int = 42              # the column where the reasons start
+    untrusted_paths: tuple[str, ...] = () # source directories searched before `paths`, without granting trust
+    overlays: tuple[tuple[str, str], ...] = () # current editor text by absolute source filename
 
 @dataclasses.dataclass
 class CheckResult:
@@ -11147,9 +11393,11 @@ def _run_state_put(state: dict) -> None:
 
 def _fresh_run_state(config: RunConfig) -> dict:
     paths = [Path(p) for p in config.paths]
+    untrusted = [Path(p) for p in config.untrusted_paths]
+    overlays = {source_name(name): text for name, text in config.overlays}
     return {'strict_mode': config.strict, 'trusted_paths': list(paths),
-            'untrusted_names': set(),
-            'theory_path': [Path.cwd(), *paths, *packaged_theory_paths], 'kurtc_enabled': config.kurtc,
+            'untrusted_names': set(overlays), 'source_overlays': overlays,
+            'theory_path': [*untrusted, Path.cwd(), *paths, *packaged_theory_paths], 'kurtc_enabled': config.kurtc,
             'comment_indent': config.comment_indent, 'new_symbols': [], 'implicit_constants': [],
             'implicit_bool_signatures': [], 'space_suspended': [False],
             'accepted_lines': {}, 'current_comment': [None], 'origin_names': {}, 'dependent_vars': {},
@@ -11316,19 +11564,58 @@ def log_summary(kb: KnowledgeBase) -> None:
 
 def lsp_uri_path(uri: str) -> str:
     from urllib.parse import unquote, urlparse
-    return unquote(urlparse(uri).path) if uri.startswith('file:') else uri
+    from urllib.request import url2pathname
+    if not uri.startswith('file:'):
+        return uri
+    parsed = urlparse(uri)
+    path = url2pathname(unquote(parsed.path))
+    if parsed.netloc and parsed.netloc not in ('', 'localhost'):
+        path = f'//{parsed.netloc}{path}'
+    # url2pathname does not remove the URI slash before a Windows drive on POSIX, which matters
+    # in protocol tests and for a server launched through WSL/MSYS.
+    if re.match(r'^/[A-Za-z]:[\\/]', path):
+        path = path[1:]
+    return path
+
+def lsp_utf16_to_python(line: str, character: int) -> int:
+    """Translate an LSP UTF-16 code-unit offset to a Python string index."""
+    units = 0
+    for index, char in enumerate(line):
+        width = len(char.encode('utf-16-le')) // 2
+        if units + width > character:
+            return index
+        units += width
+        if units == character:
+            return index + 1
+    return len(line)
+
+def lsp_python_to_utf16(line: str, index: int) -> int:
+    return len(line[:index].encode('utf-16-le')) // 2
 
 class LanguageServer:
     def __init__(self, reader, writer) -> None:
         self.reader, self.writer = reader, writer
         self.texts: dict[str, str] = {}               # uri -> the text in the editor
         self.results: dict[str, CheckResult] = {}     # uri -> the last check of the saved/opened text
+        self.versions: dict[str, Optional[int]] = {}
+        self.extra_paths: tuple[str, ...] = ()
+        self.strict = False
+        self.check_on_change = False
+        self.check_delay = 0.3
+        self.client_refreshes_hints = False
+        self.timers: dict[str, threading.Timer] = {}
+        self.state_lock = threading.RLock()            # timer checks share document maps with the protocol loop
+        self.work_lock = threading.Lock()             # Session swaps module state; one operation at a time
+        self.send_lock = threading.Lock()
+        self.server_request_id = 0
+        self.shutdown_requested = False
         self.running = True
 
     def send(self, message: dict) -> None:
         body = json.dumps(message, ensure_ascii=False).encode('utf-8')
-        self.writer.write(f'Content-Length: {len(body)}\r\n\r\n'.encode('ascii') + body)
-        self.writer.flush()
+        with self.send_lock:
+            self.writer.write(f'Content-Length: {len(body)}\r\n\r\n'.encode('ascii') + body)
+            self.writer.flush()
 
     def read(self) -> Optional[dict]:
         length = None
@@ -11345,26 +11632,66 @@ class LanguageServer:
 
     def session_for(self, uri: str) -> Session:
         folder = os.path.dirname(lsp_uri_path(uri)) or '.'
-        return Session(RunConfig(paths=(folder,)))
+        with self.state_lock:
+            overlays = tuple((lsp_uri_path(open_uri), text) for open_uri, text in self.texts.items()
+                             if open_uri.startswith('file:') and open_uri != uri)
+        return Session(RunConfig(paths=self.extra_paths, untrusted_paths=(folder,),
+                                 overlays=overlays, strict=self.strict))
 
-    def check(self, uri: str) -> None:
-        text = self.texts.get(uri, '')
+    def publish_diagnostics(self, uri: str, diagnostics: list[dict], version: Optional[int]) -> None:
+        params: dict[str, object] = {'uri': uri, 'diagnostics': diagnostics}
+        if version is not None:
+            params['version'] = version
+        self.send({'jsonrpc': '2.0', 'method': 'textDocument/publishDiagnostics', 'params': params})
+
+    def refresh_inlay_hints(self) -> None:
+        if not self.client_refreshes_hints:
+            return
+        self.server_request_id += 1
+        self.send({'jsonrpc': '2.0', 'id': f'kurt-refresh-{self.server_request_id}',
+                   'method': 'workspace/inlayHint/refresh', 'params': {}})
+
+    def check(self, uri: str, expected_version: Optional[int] = None) -> None:
+        with self.state_lock:
+            text = self.texts.get(uri, '')
+            version = self.versions.get(uri)
+            if expected_version is not None and version != expected_version:
+                return
+            session = self.session_for(uri)
         # Keep the source directory: sibling loads must precede the server's launch directory.
         # check_text treats this name as untrusted even if it happens to name a trusted file.
-        result = self.session_for(uri).check_text(text, lsp_uri_path(uri) or 'proof.kurt')
-        self.results[uri] = result
+        with self.work_lock:
+            result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt')
+        with self.state_lock:
+            if uri not in self.texts or self.texts[uri] != text or self.versions.get(uri) != version:
+                return                          # a newer edit superseded this check
+            self.results[uri] = result
         diagnostics = []
+        lines = text.split('\n')
         if result.error is not None:
             line = max(0, (result.error_line or 1) - 1)
             message = result.error.split('\n')[-1] if result.error_kind else result.error
-            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': 1000}},
+            end = lsp_python_to_utf16(lines[line], len(lines[line])) if line < len(lines) else 0
+            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
                                 'severity': 1, 'source': 'kurt', 'message': message})
         for todo in result.todos:
             found = re.search(r':(\d+)', todo)
             line = int(found.group(1)) - 1 if found else 0
-            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': 1000}},
+            end = lsp_python_to_utf16(lines[line], len(lines[line])) if line < len(lines) else 0
+            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
                                 'severity': 2, 'source': 'kurt', 'message': f'todo: {todo}'})
-        self.send({'jsonrpc': '2.0', 'method': 'textDocument/publishDiagnostics', 'params': {'uri': uri, 'diagnostics': diagnostics}})
+        self.publish_diagnostics(uri, diagnostics, version)
+        self.refresh_inlay_hints()
+
+    def schedule_check(self, uri: str) -> None:
+        previous = self.timers.pop(uri, None)
+        if previous is not None:
+            previous.cancel()
+        version = self.versions.get(uri)
+        timer = threading.Timer(self.check_delay, self.check, args=(uri, version))
+        timer.daemon = True
+        self.timers[uri] = timer
+        timer.start()
 
     def line_events(self, uri: str) -> dict[int, list[dict]]:
         # the reasons of the checked lines, by their line (0-based)
@@ -11390,58 +11717,98 @@ class LanguageServer:
         for n, events in sorted(self.line_events(uri).items()):
             if first <= n <= last and n < len(lines):
                 reason = '; '.join(e['reason'] for e in events)
-                hints.append({'position': {'line': n, 'character': len(lines[n])}, 'label': f'  ; {reason}',
+                character = lsp_python_to_utf16(lines[n], len(lines[n]))
+                hints.append({'position': {'line': n, 'character': character}, 'label': f'  ; {reason}',
                               'paddingLeft': True})
         return hints
 
     def completion(self, params: dict) -> list[dict]:
         uri = params['textDocument']['uri']
         lines = self.texts.get(uri, '').split('\n')
-        n, col = params['position']['line'], params['position']['character']
-        prefix = lines[n][:col] if n < len(lines) else ''
+        n, lsp_col = params['position']['line'], params['position']['character']
+        line = lines[n] if n < len(lines) else ''
+        col = lsp_utf16_to_python(line, lsp_col)
+        prefix = line[:col]
         word = re.search(r'[^\s()\[\]{},=]*$', prefix).group(0)
-        shell = Shell(RunConfig(paths=(os.path.dirname(lsp_uri_path(uri)) or '.',)))
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        shell = Shell(self.session_for(uri).config)
+        with self.work_lock, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             shell.start_text('\n'.join(lines[:n]) + '\n', lsp_uri_path(uri) or 'proof.kurt')
             items = shell.completions(prefix, word)
         start = col - len(word)
+        lsp_start = lsp_python_to_utf16(line, start)
         return [{'label': item, 'kind': 14 if item in keywords else 1,
-                 'textEdit': {'range': {'start': {'line': n, 'character': start}, 'end': {'line': n, 'character': col}},
+                 'textEdit': {'range': {'start': {'line': n, 'character': lsp_start}, 'end': {'line': n, 'character': lsp_col}},
                               'newText': item}} for item in items]
 
     def handle(self, message: dict) -> None:
         method, params, ident = message.get('method'), message.get('params') or {}, message.get('id')
+        if method is None:                           # response to a server-initiated refresh request
+            return
         result: object = None
         if method == 'initialize':
+            options = params.get('initializationOptions') or {}
+            self.extra_paths = tuple(os.path.abspath(os.path.expanduser(path)) for path in options.get('theoryPaths', []))
+            self.strict = bool(options.get('strict', False))
+            self.check_on_change = bool(options.get('checkOnChange', options.get('checkOnType', False)))
+            self.check_delay = max(0.05, float(options.get('checkOnChangeDelay', 0.3)))
+            capabilities = params.get('capabilities') or {}
+            self.client_refreshes_hints = bool(capabilities.get('workspace', {}).get('inlayHint', {}).get('refreshSupport'))
             result = {'capabilities': {'textDocumentSync': {'openClose': True, 'change': 1, 'save': True},
                                        'hoverProvider': True, 'inlayHintProvider': True,
                                        'completionProvider': {'triggerCharacters': ['\\', '=', ' ']}},
                       'serverInfo': {'name': 'kurt', 'version': version}}
         elif method == 'textDocument/didOpen':
             uri = params['textDocument']['uri']
-            self.texts[uri] = params['textDocument']['text']
+            with self.state_lock:
+                self.texts[uri] = params['textDocument']['text']
+                self.versions[uri] = params['textDocument'].get('version')
             self.check(uri)
         elif method == 'textDocument/didChange':
-            self.texts[params['textDocument']['uri']] = params['contentChanges'][-1]['text']
+            uri = params['textDocument']['uri']
+            with self.state_lock:
+                self.texts[uri] = params['contentChanges'][-1]['text']
+                self.versions[uri] = params['textDocument'].get('version')
+            if self.check_on_change:
+                self.schedule_check(uri)
         elif method == 'textDocument/didSave':
             uri = params['textDocument']['uri']
             if 'text' in params:
-                self.texts[uri] = params['text']
+                with self.state_lock:
+                    self.texts[uri] = params['text']
+            timer = self.timers.pop(uri, None)
+            if timer is not None:
+                timer.cancel()
             self.check(uri)
         elif method == 'textDocument/didClose':
-            self.texts.pop(params['textDocument']['uri'], None)
+            uri = params['textDocument']['uri']
+            timer = self.timers.pop(uri, None)
+            if timer is not None:
+                timer.cancel()
+            with self.state_lock:
+                document_version = self.versions.pop(uri, None)
+                self.texts.pop(uri, None)
+                self.results.pop(uri, None)
+            self.publish_diagnostics(uri, [], document_version)
         elif method == 'textDocument/hover':
             result = self.hover(params)
         elif method == 'textDocument/inlayHint':
             result = self.inlay_hints(params)
         elif method == 'textDocument/completion':
             result = self.completion(params)
+        elif method == 'kurt/check':
+            uri = params['textDocument']['uri']
+            self.check(uri)
+            result = {'ok': self.results.get(uri).ok if uri in self.results else False}
+        elif method == 'shutdown':
+            self.shutdown_requested = True
         elif method == 'exit':
+            for timer in self.timers.values():
+                timer.cancel()
             self.running = False
         if ident is not None:
             self.send({'jsonrpc': '2.0', 'id': ident, 'result': result})
 
-    def serve(self) -> None:
+    def serve(self) -> int:
         while self.running:
             message = self.read()
             if message is None:
@@ -11451,6 +11818,7 @@ class LanguageServer:
             except Exception as e:          # a request that fails must not stop the server
                 if message.get('id') is not None:
                     self.send({'jsonrpc': '2.0', 'id': message['id'], 'error': {'code': -32603, 'message': f'{type(e).__name__}: {e}'}})
+        return 0 if self.shutdown_requested else 1
 
 ###########################
 ## commandline interface ##
@@ -11908,8 +12276,7 @@ def main() -> None:
 
     # a language server for editors
     if args.lsp:
-        LanguageServer(sys.stdin.buffer, sys.stdout.buffer).serve()
-        sys.exit(0)
+        sys.exit(LanguageServer(sys.stdin.buffer, sys.stdout.buffer).serve())
 
     # the result as JSON (with the options of the command line, in a session of its own)
     if args.json:

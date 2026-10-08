@@ -13,6 +13,7 @@ const DRAFT_KEY = 'kurt.draft';
 const SETTINGS_KEY = 'kurt.settings';
 let worker, ready = false, running = false, currentFilename = 'proof.kurt', currentFolder = null;
 let replacements = {}, language = {}, lastCertificate = null, lastOutputText = '', saveTimer;
+let editorHintTimer, editorCompletionId = 0, editorCompletionPending = null;
 
 function setStatus(message) { statusEl.textContent = message; }
 function setRunning(value) {
@@ -30,7 +31,7 @@ function spawnWorker() {
       ready = true; setRunning(false);
       const hash = await runtimeFingerprint();
       $('#version').textContent = `Kurt ${data.version} · ${hash}`;
-      setStatus('Ready');
+      setStatus('Ready'); scheduleEditorHint();
     } else if (data.type === 'result') {
       lastCertificate = data.certificate;
       $('#certificateBtn').disabled = !lastCertificate;
@@ -44,6 +45,8 @@ function spawnWorker() {
       shellUpdate(data.shell);
     } else if (data.type === 'completions') {
       shellCompleted(data.items, data.line, data.word);
+    } else if (data.type === 'editor-completions') {
+      editorCompleted(data.items, data.requestId);
     } else if (data.type === 'error') {
       showOutput(`Runtime error: ${data.message}`); setStatus('Runtime error'); setRunning(false);
     }
@@ -137,6 +140,49 @@ function shellCompleted(items, line, word) {
     $('#shellHint').textContent = `; ${items.slice(0, 20).join('  ')}${items.length > 20 ? '  …' : ''}`;
   }
 }
+
+function editorContext() {
+  const position = editor.selectionStart;
+  const before = editor.value.slice(0, position);
+  const start = before.lastIndexOf('\n') + 1;
+  const line = before.slice(start);
+  const word = line.match(/[^\s()\[\]{},=]*$/)[0];
+  return { position, before, prefix: before.slice(0, start), line, word };
+}
+function usefulEditorHint({ line }) {
+  const stripped = line.trim();
+  return !stripped || stripped.endsWith('=') || /\\[A-Za-z]*$/.test(line) || /^\s*load(?:\s+\S*)?$/.test(line);
+}
+async function requestEditorCompletion(mode) {
+  if (!ready || running) return;
+  const context = editorContext();
+  if (mode === 'hint' && !usefulEditorHint(context)) return;
+  const requestId = ++editorCompletionId;
+  editorCompletionPending = { ...context, mode, requestId };
+  const files = await loadedFiles(editor.value);
+  if (!editorCompletionPending || editorCompletionPending.requestId !== requestId ||
+      editor.selectionStart !== context.position || editor.value.slice(0, context.position) !== context.before) return;
+  worker.postMessage({ type: 'editor-complete', prefix: context.prefix, line: context.line,
+                       word: context.word, files, requestId });
+}
+function scheduleEditorHint() {
+  clearTimeout(editorHintTimer);
+  editorCompletionPending = null;
+  $('#editorHint').textContent = '';
+  const context = editorContext();
+  if (usefulEditorHint(context)) editorHintTimer = setTimeout(() => requestEditorCompletion('hint'), 250);
+}
+function editorCompleted(items, requestId) {
+  const pending = editorCompletionPending;
+  if (!pending || pending.requestId !== requestId || editor.selectionStart !== pending.position ||
+      editor.value.slice(0, pending.position) !== pending.before) return;
+  const shown = items.slice(0, 8).join('  or  ');
+  $('#editorHint').textContent = shown ? `Tab: ${shown}${items.length > 8 ? '  …' : ''}` : '';
+  if (pending.mode !== 'tab' || items.length !== 1) return;
+  const start = pending.position - pending.word.length;
+  editor.setRangeText(items[0], start, pending.position, 'end');
+  renderEditorHighlight(); persistDraft(); scheduleEditorHint();
+}
 function shellCopy() {
   // the accepted lines go where the shell started: before the failing line or after the breakpoint, else at the end
   const accepted = (shellState && shellState.accepted) || [];
@@ -177,7 +223,7 @@ function clearOutput() {
 }
 function setEditor(code, filename = 'proof.kurt', folder = null) {
   clearOutput();
-  editor.value = code; currentFilename = filename; currentFolder = folder; renderEditorHighlight(); persistDraft();
+  editor.value = code; currentFilename = filename; currentFolder = folder; renderEditorHighlight(); persistDraft(); scheduleEditorHint();
 }
 
 function encodeShare(text) {
@@ -506,8 +552,13 @@ function setupUI() {
   const observer = new ResizeObserver(alignPanels);
   observer.observe($('.editor-panel')); observer.observe($('.editor-panel .toolbar'));
   loadInitialDraft(); const saved = settings(); updateSettings(saved);
-  editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); }); editor.addEventListener('scroll', keepEditorUnscrolled);
-  editor.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); } });
+  editor.addEventListener('input', () => { expandReplacement(); renderEditorHighlight(); persistDraft(); scheduleEditorHint(); }); editor.addEventListener('scroll', keepEditorUnscrolled);
+  editor.addEventListener('click', scheduleEditorHint);
+  editor.addEventListener('keyup', event => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) scheduleEditorHint(); });
+  editor.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runProof(); }
+    else if (event.key === 'Tab') { event.preventDefault(); requestEditorCompletion('tab'); }
+  });
   runBtn.onclick = runProof; cancelBtn.onclick = cancelRun; $('#shareBtn').onclick = shareProof;
   $('#copyBtn').onclick = async () => { await navigator.clipboard.writeText(lastOutputText); setStatus('Output copied'); };
   $('#clearBtn').onclick = clearOutput;

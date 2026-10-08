@@ -27,9 +27,9 @@ const b
 var y
 use y = y
 
-; 4. Declarations of the grammar (`infix`, `prefix`, `postfix`, `arity`, `bool`, `bindop`, ...)
-;    only give properties. The symbol becomes a constant at its first use -- or a variable, an
-;    operator variable, with `var` before that use:
+; 4. Shape/type declarations (`infix`, `prefix`, `postfix`, `arity`, `bool`) do not choose
+;    constant or variable. Semantic declarations (`bindop`, `flat`, `sym`, `chain`, and a
+;    calculator binding) do choose a fixed operator and therefore imply `const`.
 
 infix ∘ 50 50
 const c
@@ -38,6 +38,9 @@ use c ∘ c = c                   ; `∘` is a constant now
 infix · 50 50
 var ·
 use b · b = b · b               ; `·` is a variable: this holds for every operator `·`
+
+infix plus 50 50
+flat plus                         ; prints `const plus`: associativity belongs to this operator
 
 ; 5. Declare before the first use: afterwards, the formulas were already read with what was known
 ;    then, so a declaration would change what they mean.

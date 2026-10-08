@@ -10,6 +10,7 @@ parse a + b + c            ; (+ (+ a b) c)
 ; `flat OP` tells Kurt that `OP` doesn't need that nesting -- a run of `OP`s
 ; is really one operator applied to all of its arguments at once, which is
 ; how mathematicians usually think of `+`, `and`, `or`, etc.:
+; This is fixed semantic behavior, so `flat` also declares `+` constant.
 
 flat "+"
 parse a + b + c            ; (+ a b c)

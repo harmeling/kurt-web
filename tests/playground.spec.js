@@ -339,3 +339,11 @@ test('opens the shell at a breakpoint, and completes with Tab', async ({ page })
   await page.locator('#shellInput').press('Tab');
   await expect(page.locator('#shellInput')).toHaveValue('17*42=714');
 });
+
+test('hints and completes in the proof editor with Tab', async ({ page }) => {
+  const editor = page.locator('#editor');
+  await editor.fill('load numbers\ncalc on\n17*42=');
+  await expect(page.locator('#editorHint')).toContainText('714', { timeout: 60000 });
+  await editor.press('Tab');
+  await expect(editor).toHaveValue('load numbers\ncalc on\n17*42=714');
+});

@@ -60,12 +60,30 @@ function complete({ line, word }) {
   postMessage({ type: 'completions', items: JSON.parse(result), line, word });
 }
 
+function editorComplete({ prefix, line, word, files, requestId }) {
+  // Reconstruct the proof state immediately before the caret. This is deliberately a separate
+  // Session from the output shell: asking for a hint must not change a checked run.
+  for (const [name, text] of Object.entries(files || {})) {
+    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+  }
+  pyodide.globals.set('editor_prefix', prefix);
+  pyodide.globals.set('editor_line', line);
+  pyodide.globals.set('editor_word', word);
+  const result = pyodide.runPython(`
+editor_shell = kurt.Shell()
+editor_shell.start_text(editor_prefix, '/play/proof.kurt')
+json.dumps(editor_shell.completions(editor_line, editor_word))
+`);
+  postMessage({ type: 'editor-completions', items: JSON.parse(result), requestId });
+}
+
 self.onmessage = async ({ data }) => {
   if (!pyodide) return;
   try {
     if (data.type === 'run') await runProof(data);
     else if (data.type === 'shell') shellLine(data);
     else if (data.type === 'complete') complete(data);
+    else if (data.type === 'editor-complete') editorComplete(data);
   } catch (error) { postMessage({ type: 'error', message: error?.message || String(error) }); }
 };
 initialize().catch(error => postMessage({ type: 'error', message: error?.message || String(error) }));

@@ -5,6 +5,8 @@
 ; declares which infix operators may be strung together this way, and in
 ; which order; the loaded theories already declare the usual ones (`=`,
 ; `<=`, `<`, and `iff`/`implies` for one-directional reasoning).
+; It generates transitivity rules, so every member becomes a constant relation
+; with boolean output (`bool OP 0`) if those declarations were not present.
 
 load equality
 infix < 20 20

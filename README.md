@@ -3,6 +3,7 @@
 A minimal, dark-mode playground for the [Kurt proof language](https://github.com/harmeling/kurt-lang) that runs fully in the browser using Pyodide. Kurt is developed by Stefan Harmeling (TU Dortmund).
 
 - Write a proof on the left, click Run (or press Cmd/Ctrl+Enter) to execute `kurt.py` client-side.
+- Tab completes in the proof editor; contextual hints include next proof steps and calculated values.
 - Output appears on the right (or below on small screens).
 - No server required.
 

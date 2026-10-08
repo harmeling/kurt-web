@@ -454,6 +454,8 @@ button.output-line:hover { background: linear-gradient(to right, transparent cal
 .theme-btn { margin-left: 8px; }
 .header-right { display: flex; align-items: center; }
 
+.editor-hint { min-height: 1.25em; padding: 3px 12px; color: var(--muted); background: var(--code-bg); border-top: 1px solid var(--border); font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* the shell under the output: it continues where the check stopped (app.js, `kurt.Shell`) */
 .shell-bar { border-top: 1px solid var(--border); padding: 6px 12px 10px; background: var(--code-bg); }
 .shell-bar.hidden { display: none; }
