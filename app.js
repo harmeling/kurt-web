@@ -460,8 +460,12 @@ function toggleMenu(event, menu) {
   document.querySelectorAll('.dropdown-menu').forEach(x => x !== menu && x.classList.add('hidden'));
   menu.classList.toggle('hidden');
   if (!menu.classList.contains('hidden')) {
-    // fit the menu into the window below its button, so a long one scrolls instead of running off the screen
-    menu.style.maxHeight = `${Math.max(160, window.innerHeight - menu.getBoundingClientRect().top - 12)}px`;
+    // fit the menu into the window below its button, so a long one scrolls instead of running off the
+    // screen -- and into its panel, which cuts off what sticks out (`overflow: hidden`; side by side,
+    // the panel ends above the footer)
+    const panel = menu.closest('.panel');
+    const bottom = Math.min(window.innerHeight, panel ? panel.getBoundingClientRect().bottom : Infinity);
+    menu.style.maxHeight = `${Math.max(160, bottom - menu.getBoundingClientRect().top - 12)}px`;
     menu.scrollTop = 0;
     // ... and inside it horizontally: on a phone, a menu opening to the left of its button
     // (`align-right`) can stick out of the screen

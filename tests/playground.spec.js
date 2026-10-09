@@ -40,6 +40,20 @@ test('offers touch symbols and registers its offline worker', async ({ page }) =
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.getRegistration().then(Boolean))).toBeTruthy();
 });
 
+test('a long menu ends inside its panel, above the footer (side by side)', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 700 });
+  await page.locator('.menu-wrapper button', { hasText: 'keywords' }).click();
+  const menu = page.locator('.menu-wrapper', { hasText: 'keywords' }).locator('.dropdown-menu');
+  await expect(menu).toBeVisible();
+  const box = await menu.boundingBox();
+  const panel = await page.locator('.editor-panel').boundingBox();
+  expect(box.y + box.height).toBeLessThanOrEqual(panel.y + panel.height);
+  // scrolled to its end, the last item is inside the panel too, not cut off by it
+  await menu.evaluate(m => { m.scrollTop = m.scrollHeight; });
+  const last = await menu.locator('.item', { hasText: '45-builtin.kurt' }).boundingBox();
+  expect(last.y + last.height).toBeLessThanOrEqual(panel.y + panel.height);
+});
+
 test('scrolls a long menu that does not fit into the window', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 500 });
   await page.locator('.menu-wrapper button', { hasText: 'keywords' }).click();
