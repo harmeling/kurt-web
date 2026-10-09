@@ -100,7 +100,6 @@ def file_fingerprint() -> str:
 
 # config: the indentation for the different blocks
 proof_indent   =  4       # how much to indent for a `proof` block
-comment_indent = 42       # how much the reason is indented
 tab_indent     =  4       # tabs get converted to four spaces
 
 # config: the basic symbols of the kurt language as constants
@@ -1551,19 +1550,17 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; another meaning.\n',
  'modal.kurt': '; CLASSICAL NORMAL MODAL LOGIC T\n'
                ';\n'
-               '; Modal formulas are Kurt terms. The operators `¬`, `∧`, `∨`, '
-               '`⇔`, `→`, `□`, and `◇` are\n'
-               '; object-language constructors and are not Boolean Kurt '
-               'formulas. Only the judgment `⊢ A` is\n'
-               '; Boolean. Consequently the words `and` and `implies` below '
-               "are Kurt's metalogic: they combine\n"
-               '; premises and conclusions of object-level rules.\n'
+               '; The formulas of modal logic are built from propositional '
+               'letters (`formula P`) with `¬`, `∧`,\n'
+               '; `∨`, `→`, `⇔`, `⊥`, `□` (necessarily) and `◇` (possibly). `⊢ '
+               'A` says that A is a theorem; the\n'
+               '; axioms below are theorems, and the rules (modus ponens, '
+               'necessitation, ...) say which theorems\n'
+               '; follow from which: `(⊢ A) and (⊢ (A → B)) implies (⊢ B)`.\n'
                ';\n'
-               '; This theory owns its notation. In particular, `prop.kurt` '
-               'gives the same propositional glyphs\n'
-               '; their meta-level meanings, and `set.kurt` uses `→` for '
-               'function spaces; those theories cannot\n'
-               '; be loaded together without future namespaces.\n'
+               '; prop.kurt and set.kurt use some of these symbols for '
+               "something else, so they can't be loaded\n"
+               '; together with modal.kurt.\n'
                '\n'
                'infix → 30 29\n'
                'infix ⇔ 20 20\n'
@@ -1578,8 +1575,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'const →, ⇔, ∧, ∨, ¬, □, ◇, ⊢, ⊥, empty\n'
                'bool ⊢ 0\n'
                '\n'
-               '; Optional sort declarations keep object formulas from being '
-               'asserted directly as Kurt claims.\n'
+               '; the formulas of modal logic -- a formula is no claim by '
+               'itself, `⊢ A` is\n'
                'sort formula\n'
                'formula → 0 1 2, ⇔ 0 1 2, ∧ 0 1 2, ∨ 0 1 2\n'
                'formula ¬ 0 1, □ 0 1, ◇ 0 1, ⊥\n'
@@ -1597,7 +1594,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) "implication-S"\n'
                'use ⊢ (((A → B) → A) → A) "Peirce"\n'
                '\n'
-               "; Object-level modus ponens is stated in Kurt's metalogic.\n"
+               '; modus ponens\n'
                'use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"\n'
                '\n'
                '; A first derived theorem. Keeping the intermediate Hilbert '
@@ -1613,13 +1610,10 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '    ⊢ (A → A)\n'
                'qed\n'
                '\n'
-               "; Modal necessitation is likewise stated entirely in Kurt's "
-               'metalogic.\n'
+               '; necessitation: from a theorem A follows the theorem □A\n'
                'use (⊢ A) implies (⊢ □A) "necessitation"\n'
                '\n'
-               '; Object-level propositional rules. Their premises are '
-               'theoremhood judgments, never arbitrary\n'
-               '; Kurt assumptions, so they remain inside the embedded logic.\n'
+               '; the propositional rules, for theorems\n'
                'use (⊢ A) and (⊢ B) implies (⊢ (A ∧ B)) "and-intro"\n'
                'use (⊢ (A ∧ B)) implies (⊢ A) "and-elim-left"\n'
                'use (⊢ (A ∧ B)) implies (⊢ B) "and-elim-right"\n'
@@ -3437,21 +3431,57 @@ except (ModuleNotFoundError, ValueError):
     # `importlib.resources` under WebAssembly -- but cheap to guard against regardless, since
     # this fallback already has a sensible default either way).
     _packaged_theories = Path(__file__).resolve().parent / "theories"
-theory_path = [Path.cwd(),                             # current working directory
+# the state of a run -- the options of a session, what it learned (the theories it checked, the
+# certificates), and what the line being checked needs -- in one object, `run_state`: a `Session`
+# swaps it as a whole (see `Session._active`), so a new field is automatically part of a session
+@dataclass
+class RunState:
+    theory_path: list = field(default_factory=list)   # where `load` looks: the working directory, `-p`, the theories of Kurt
+    strict_mode: bool = False
+    trusted_paths: list = field(default_factory=lambda: [])   # the `-p`/`--path` directories, e.g. with a teacher's theories
+    untrusted_names: set[str] = field(default_factory=lambda: set())   # the names of texts being checked (`check_text`, the shell): never trusted
+    source_overlays: dict[str, str] = field(default_factory=lambda: {})   # absolute file names whose current text comes from an editor
+    kurtc_enabled: bool = False   # write and use `.kurtc` files (`kurt` on the command line does)
+    comment_indent: int = 42   # how much the reason is indented
+    new_symbols: list[str] = field(default_factory=lambda: [])
+    implicit_constants: list[str] = field(default_factory=lambda: [])
+    implicit_bool_signatures: list[tuple[str, tuple[int, ...]]] = field(default_factory=lambda: [])
+    space_suspended: list[bool] = field(default_factory=lambda: [False])
+    accepted_lines: dict[str, list[str]] = field(default_factory=lambda: {})
+    current_comment: list[Optional[str]] = field(default_factory=lambda: [None])
+    origin_names: dict[str, str] = field(default_factory=lambda: {})
+    internal_variable_sorts: dict[str, frozenset[str]] = field(default_factory=lambda: {})
+    dependent_vars: dict[str, str] = field(default_factory=lambda: {})
+    certificates_by_line: 'dict[tuple[str, int], list[tuple[Certificate, Optional[str]]]]' = field(default_factory=lambda: {})
+    current_line: list[Optional[tuple[str, int]]] = field(default_factory=lambda: [None])   # the line being evaluated (see `scan_parse_check_eval`)
+    replay_hints: dict[str, dict[int, list[dict]]] = field(default_factory=lambda: {})   # file -> line -> its stored certificates
+    load_dependencies: dict[str, list[str]] = field(default_factory=lambda: {})   # file -> the files it loads
+    _loading_in_progress: set[str] = field(default_factory=lambda: set())
+    _checked_exports: 'dict[tuple, tuple[ExportBundle, list[tuple[str, Optional[str]]], list[tuple]]]' = field(default_factory=lambda: {})
+    _load_resolutions: list[list[tuple]] = field(default_factory=lambda: [])
+    event_sink: Optional[list[dict]] = None
+    shell_start: list[Optional[tuple]] = field(default_factory=lambda: [None])
+    current_lexer_state: list[Optional['LexerState']] = field(default_factory=lambda: [None])
+    used_symbols: set[str] = field(default_factory=lambda: set())
+    indirect_noted: dict[str, set[str]] = field(default_factory=lambda: {})
+    indirect_report: dict[str, dict[str, set[str]]] = field(default_factory=lambda: {})   # file -> theory -> its symbols (`kurt --deps`)
+    quiet: list[int] = field(default_factory=lambda: [0])
+    var_counter: int = 0          # the fresh variables (`new_var_name`)
+    bool_var_counter: int = 0     # ... and formula variables (`new_bool_var_name`)
+
+run_state = RunState()            # the state of the command line, and of calls without a `Session`
+
+run_state.theory_path = [Path.cwd(),                             # current working directory
                           _packaged_theories]
 packaged_theory_paths: list = [_packaged_theories]    # the theories that come with Kurt, see `packaged_theory_file`
 if _EMBEDDED_THEORIES:
-    theory_path.append(EmbeddedTheories(_EMBEDDED_THEORIES))   # last resort, only in the standalone bundle
-    packaged_theory_paths.append(theory_path[-1])
+    run_state.theory_path.append(EmbeddedTheories(_EMBEDDED_THEORIES))   # last resort, only in the standalone bundle
+    packaged_theory_paths.append(run_state.theory_path[-1])
 
 def is_packaged_path(path) -> bool:
     return any(str(path) == str(p) for p in packaged_theory_paths)
 
 # `--strict` (for grading): only trusted theory files may contain unproven statements
-strict_mode: bool = False
-trusted_paths: list = []       # the `-p`/`--path` directories, e.g. with a teacher's theories
-untrusted_names: set[str] = set()   # the names of texts being checked (`check_text`, the shell): never trusted
-source_overlays: dict[str, str] = {} # absolute file names whose current text comes from an editor
 
 def source_name(path: object) -> str:
     try:
@@ -3460,12 +3490,12 @@ def source_name(path: object) -> str:
         return str(path)
 
 def source_is_file(path: object) -> bool:
-    return source_name(path) in source_overlays or bool(getattr(path, 'is_file', lambda: False)())
+    return source_name(path) in run_state.source_overlays or bool(getattr(path, 'is_file', lambda: False)())
 
 def source_open(path: object) -> TextIO:
     name = source_name(path)
-    if name in source_overlays:
-        stream = io.StringIO(source_overlays[name])
+    if name in run_state.source_overlays:
+        stream = io.StringIO(run_state.source_overlays[name])
         stream.name = name
         return stream
     return path.open(encoding='utf-8') # type: ignore[union-attr]
@@ -3474,7 +3504,7 @@ def is_trusted_file(fname: str) -> bool:
     # a theory that comes with Kurt, or one from a `-p` directory -- the symbols they declare
     # are frozen (see `KnowledgeBase.frozen`), and under `--strict` only they may use `use` --
     # trust comes from where a file was read, never from the name of a text
-    if fname in untrusted_names or source_name(fname) in untrusted_names or fname in ('<stdin>', '<shell>'):
+    if fname in run_state.untrusted_names or source_name(fname) in run_state.untrusted_names or fname in ('<stdin>', '<shell>'):
         return False
     if fname.startswith('<embedded>/') or fname.startswith('<chain transitivity'):
         return True
@@ -3485,7 +3515,7 @@ def is_trusted_file(fname: str) -> bool:
         parent = Path(fname).resolve().parent
     except (OSError, ValueError):
         return False
-    return any(parent == Path(str(p)).resolve() for p in trusted_paths)
+    return any(parent == Path(str(p)).resolve() for p in run_state.trusted_paths)
 
 def check_not_frozen(ops: list[str], keyword: str, filename: str, kb: 'KnowledgeBase') -> None:
     # e.g. `sym -` or `chain ≠` would change what `-` or `≠` mean, which a trusted theory declared
@@ -3513,7 +3543,7 @@ def check_chain_not_frozen(chain: list[str], filename: str, kb: 'KnowledgeBase')
                 raise KurtException(f'EvalError: `chain {" ".join(chain)}` would change the meaning of `{a}` and `{b}`, which come with a theory of Kurt -- they aren\'t chained that way there')
 
 def check_strict(keyword: str, filename: str) -> None:
-    if strict_mode and not is_trusted_file(filename):
+    if run_state.strict_mode and not is_trusted_file(filename):
         raise KurtException(f'EvalError: `{keyword}` is not allowed with `--strict` -- everything must be proven from the theories that come with Kurt (or the ones given with `-p`)')
 
 CORE_FILE = 'minimal.kurt'     # the core: read when Kurt starts (`read_core`), never loaded
@@ -3680,7 +3710,7 @@ class KurtException(Exception):
     # `.kind` is derived from that prefix here, once, so callers get a reliable
     # attribute to match on (see `expect`) without needing to touch the ~130
     # existing raise sites or parse `msg` themselves.
-    KNOWN_KINDS = ('ProofError', 'ParseError', 'EvalError', 'SyntaxError', 'TypeError')
+    KNOWN_KINDS = ('ProofError', 'ParseError', 'EvalError', 'ScanError', 'TypeError')
 
     def __init__(self, msg:str, column:Optional[int]=None, line:Optional[int]=None, filename:Optional[str]=None,
                  kind:Optional[str]=None, details:Optional[dict]=None) -> None:
@@ -3756,7 +3786,7 @@ keywords: dict[str, str] = {
     'let':         'fix a new constant, possibly with an assumption (made for "forall-intro"), block must be indented',
     'pick':        'pick a new constant "with" assumption (made for "exists-elim"), block must be indented',
     'sandbox':     'open a temporary block, useful for trying out things; discarded when closed, whether by dedenting or by `break`',
-    'expect':      'open a block whose content must raise the named kind of error (one of ProofError, ParseError, EvalError, SyntaxError, TypeError), optionally with a text its message contains (`expect "ProofError" "can not derive"`), to succeed -- anywhere inside, including in nested blocks and while they close; the block is discarded either way',
+    'expect':      'open a block whose content must raise the named kind of error (one of ScanError, ParseError, EvalError, TypeError, ProofError), optionally with a text its message contains (`expect "ProofError" "can not derive"`), to succeed -- anywhere inside, including in nested blocks and while they close; the block is discarded either way',
 
     # closing a block explicitly (besides just dedenting, which works everywhere and is enough on its own)
     'break':       'discard the current block immediately (no proof step, no dedent needed)',
@@ -3809,6 +3839,48 @@ def clean_up(line: str) -> str:
     if pieces[0] in keywords:
         line = ' '.join(pieces[1:])  # remove the keyword
     return line
+
+@dataclass
+class Reason:
+    # why a line holds, as Kurt prints it after the `;` -- `5 by 3(4)`, `11-13 by impl-intro`,
+    # `3 without proof "label"`, `added constant` -- and as data for the events of `--json`, the
+    # editors and the playground (`event_fields`): its number, its kind, and for a step the rule
+    # and the lines it uses (one per step: `qed` may close several)
+    id: str = ''                  # the line(s): '5', '5a', '11-13' (none for e.g. `added constant`)
+    words: str = ''               # what is said about it: 'without proof', 'claim', 'loaded', ... (a step: its steps)
+    kind: str = 'other'           # 'step', 'claim', 'open', 'close', 'assumed', 'load', 'declaration', 'expect', 'other'
+    steps: list[tuple[str, list[str], bool]] = field(default_factory=list)   # a step: (rule, used lines, in brackets) of each
+    label: str = ''
+
+    def __str__(self) -> str:
+        # the text Kurt prints -- the only place where a reason becomes text (with `render_step`)
+        words = self.words or ', '.join(render_step(rule, uses, parens) for rule, uses, parens in self.steps)
+        text = f'{self.id} {words}' if self.id else words
+        return text + (f' "{self.label}"' if self.label else '')
+
+    def event_fields(self) -> dict:
+        fields: dict = {'id': self.id or None, 'kind': self.kind}
+        if self.label:
+            fields['label'] = self.label
+        if self.kind == 'step' and self.steps:
+            fields['rule'], fields['uses'] = self.steps[0][0], list(self.steps[0][1])
+            if len(self.steps) > 1:
+                fields['steps'] = [{'rule': rule, 'uses': list(uses)} for rule, uses, _ in self.steps]
+        return fields
+
+def step_reason(certs: 'list[Certificate]', filename: str, line_id: str, label: str = '',
+                own_lines: bool = False) -> Reason:
+    # the reason of a checked line: its number and the step(s) of its certificate(s)
+    return Reason(line_id, '', 'step', [c.step(filename, own_lines) for c in certs], label)
+
+def render_step(rule: str, uses: list[str], parens: bool) -> str:
+    return f'by {rule}({", ".join(uses)})' if parens else f'by {rule}'
+
+def line_ref(f: 'Formula', filename: str, quoted: bool = False) -> str:
+    # how a reason names a fact: its label, or its line -- with the file, for a line of another file
+    if f.label:
+        return f'"{f.label}"' if quoted else f.label
+    return f.line if f.filename == filename else f'{os.path.basename(f.filename)}:{f.line}'
 
 class Formula:
     next_id: int = 0
@@ -4536,7 +4608,7 @@ class KnowledgeBase:
         if len(self.show) > 0:                  # any planned formulas inside the current proof?
             s = '\nNot shown:\n'
             for f in self.show:
-                s += f'    {f.formula_str(self):<{comment_indent-4}}; {os.path.basename(f.filename)}:{f.line}'
+                s += f'    {f.formula_str(self):<{run_state.comment_indent-4}}; {os.path.basename(f.filename)}:{f.line}'
             raise KurtException(f'{s}\n\nEvalError: not all promised formulas were proven.')
 
     def get_builtins(self, symbol: str) -> list[str]:
@@ -4653,7 +4725,7 @@ class KnowledgeBase:
 
     def _loaded_files_lines(self) -> list[str]:
         lines = self.parent._loaded_files_lines() if self.parent is not None else []
-        return lines + [f'load {lib:<{comment_indent}}; level {self.level}' for lib in self.libs]
+        return lines + [f'load {lib:<{run_state.comment_indent}}; level {self.level}' for lib in self.libs]
 
     def _entry_str(self, keyword:str, key:str, value:str|int|tuple[int,int]|list[int]|list[str]|None = None) -> str:
         if   keyword == 'prefix':   return f'prefix {key} {value}'
@@ -4744,7 +4816,7 @@ class KnowledgeBase:
         # put the level at the `comment_indent` column
         if ambiguous is None:
             ambiguous = self._ambiguous_origin_basenames()
-        lines = [f'{line:<{comment_indent}}; level {self.level}{self._property_origin_str(keyword, entry_key, ambiguous)}'
+        lines = [f'{line:<{run_state.comment_indent}}; level {self.level}{self._property_origin_str(keyword, entry_key, ambiguous)}'
                  for line, entry_key in lines]
         lines.sort()
         return '\n'.join(lines)
@@ -4756,13 +4828,13 @@ class KnowledgeBase:
 
     def sort_names_str_all_levels(self, source: Optional[str] = None) -> str:
         ambiguous = self._ambiguous_origin_basenames()
-        lines = [] if source is not None else [f'{"sort bool":<{comment_indent}}; level 0, builtin']
+        lines = [] if source is not None else [f'{"sort bool":<{run_state.comment_indent}}; level 0, builtin']
         for node in reversed(list(self.levels())):
             for sort in sorted(node.sorts):
                 origin = node.property_origins.get('sort', {}).get(sort)
                 if source is not None and (origin is None or origin[0] != source):
                     continue
-                lines.append(f'{f"sort {sort}":<{comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
+                lines.append(f'{f"sort {sort}":<{run_state.comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
         return '\n'.join(lines)
 
     def sort_signature_str_all_levels(self, sort: str, source: Optional[str] = None) -> str:
@@ -4777,7 +4849,7 @@ class KnowledgeBase:
                 if source is not None and (origin is None or origin[0] != source):
                     continue
                 entry = node._entry_str(sort, symbol, signatures[symbol])
-                lines.append(f'{entry:<{comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
+                lines.append(f'{entry:<{run_state.comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
         return '\n'.join(lines)
 
     # SYNTAX RELATED
@@ -4807,7 +4879,7 @@ class KnowledgeBase:
                 for sort in sorted(node.sorts):
                     origin = node.property_origins.get('sort', {}).get(sort)
                     if source is None or (origin is not None and origin[0] == source):
-                        sort_lines.append(f'{f"sort {sort}":<{comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
+                        sort_lines.append(f'{f"sort {sort}":<{run_state.comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
                 all_syntax.append('\n'.join(sort_lines))
             for sort, signatures in sorted(node.sort_sigs.items()):
                 lines = []
@@ -4818,7 +4890,7 @@ class KnowledgeBase:
                     if source is not None and (origin is None or origin[0] != source):
                         continue
                     entry = node._entry_str(sort, symbol, positions)
-                    lines.append(f'{entry:<{comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
+                    lines.append(f'{entry:<{run_state.comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
                 all_syntax.append('\n'.join(lines))
             section = '\n'.join(syntax for syntax in all_syntax if syntax)
             if section:
@@ -5025,8 +5097,8 @@ class KnowledgeBase:
 
     def variable_sorts(self, symbol: str) -> set[str]:
         """Optional sorts constraining a schema variable, including its fresh internal name."""
-        if symbol in internal_variable_sorts:
-            return set(internal_variable_sorts[symbol])
+        if symbol in run_state.internal_variable_sorts:
+            return set(run_state.internal_variable_sorts[symbol])
         return {sort for sort in self.all_sort_names()
                 if sort != 'bool' and 0 in self.sort_sig(sort, symbol)}
 
@@ -5213,7 +5285,7 @@ class KnowledgeBase:
         # The exact line that established this property. This is separate from `declared_in`,
         # which enforces one owning file for a symbol as a whole: `infix ∘` and the later
         # first formula use that makes `∘` a `const` are two properties and often two lines.
-        location = globals().get('current_line', [None])[0]  # unavailable while the core is built
+        location = run_state.current_line[0]  # unavailable while the core is built
         if location is not None:
             self.property_origins.setdefault(keyword, {})[self._property_key(key)] = location
 
@@ -5222,7 +5294,7 @@ class KnowledgeBase:
         # and the `+` of a structure (field.kurt) are two different things, and loading both would
         # make the laws of one apply to the other -- a second file declaring `+` is an error, here
         # or when the two meet by `load` (`validate_against_loader`)
-        line = globals().get('current_line', [None])[0]     # (not yet defined while the core is built)
+        line = run_state.current_line[0]     # (not yet defined while the core is built)
         here = line[0] if line is not None else None
         if here is None:
             return                              # the core itself (minimal.kurt)
@@ -5386,17 +5458,17 @@ class KnowledgeBase:
                     next(ts)
                     return op_token
                 ts.prepend(op_token)
-            suspended = space_suspended[0]
-            space_suspended[0] = False           # inside brackets, `f x` is application again
+            suspended = run_state.space_suspended[0]
+            run_state.space_suspended[0] = False           # inside brackets, `f x` is application again
             try:
                 expr: Expr = parse_expression(ts, kb, bracket_rbp)
             finally:
-                space_suspended[0] = suspended
+                run_state.space_suspended[0] = suspended
             token: Token = next(ts)
             if token.label == 'END':
                 raise StopIteration
             if token.value != rbracket:
-                raise KurtException(f'SyntaxError: expected `{rbracket}`', column=token.column)
+                raise KurtException(f'ParseError: expected `{rbracket}`', column=token.column)
             token.value = f'{lbracket}$$${rbracket}'    # use a value that can not come from the tokenizer, avoid space for readability
             return [token, expr]
         self.nud[lbracket] = nud
@@ -5564,7 +5636,7 @@ class KnowledgeBase:
             def led(ts: PeekableGenerator, kb: KnowledgeBase, left: Expr, op_token: Token) -> Expr:
                 return [op_token, left]
             return led              # same as for postfix
-        raise KurtException(f'SyntaxError: infix or postfix operator expected, got {token.value}', token.column)
+        raise KurtException(f'ParseError: infix or postfix operator expected, got {token.value}', token.column)
 
     def get_lbp(self, token: Optional[Token]) -> int:
         if token is None:
@@ -5581,7 +5653,7 @@ class KnowledgeBase:
         elif token.label == 'END':
             return end_lbp           # this is to finish the while loop in 'expression'
         # the default value
-        if space_suspended[0]:
+        if run_state.space_suspended[0]:
             return 0                 # inside a quantifier's condition, see `bindop_nud`
         return space_lbp             # this is used for 'f x y'
 
@@ -5652,8 +5724,8 @@ class KnowledgeBase:
                         shown = f.filename if basename in ambiguous else basename
                         annotations.append(f'{shown}:{f.line}')
                     if annotations:
-                        text = f'{text:<{comment_indent}}; {annotations[0]}'
-                        text += ''.join(f'\n{"":<{comment_indent}}; {annotation}'
+                        text = f'{text:<{run_state.comment_indent}}; {annotations[0]}'
+                        text += ''.join(f'\n{"":<{run_state.comment_indent}}; {annotation}'
                                         for annotation in annotations[1:])
                     lines.append(text)
         if len(lines) > 0:
@@ -5664,10 +5736,10 @@ class KnowledgeBase:
     # we ignore all bound vars, since they are temporary
 
     def add_new_symbols(self, e: Expr) -> None:
-        used_symbols.update(t.value for t in get_token_set(e) if t.label == 'SYMBOL' and isinstance(t.value, str))
+        run_state.used_symbols.update(t.value for t in get_token_set(e) if t.label == 'SYMBOL' and isinstance(t.value, str))
         for sym in undeclared_symbols(e, self):
-            if sym not in new_symbols:
-                new_symbols.append(sym)   # noted (or, with `--strict`, rejected) in `scan_parse_check_eval`
+            if sym not in run_state.new_symbols:
+                run_state.new_symbols.append(sym)   # noted (or, with `--strict`, rejected) in `scan_parse_check_eval`
         self._add_new_bools(e, True)
         self._add_new_symbols(e, None)
 
@@ -5684,8 +5756,8 @@ class KnowledgeBase:
                         # if s contains '$$$' (it is from brackets) do not add it as a new constant
                         if '$$$' not in s:
                             self.add_const(s)     # 1. add a new constant if it is not a bound var
-                            if s not in implicit_constants:
-                                implicit_constants.append(s)  # shown after the line that fixed its role
+                            if s not in run_state.implicit_constants:
+                                run_state.implicit_constants.append(s)  # shown after the line that fixed its role
                         self.used.add(s)      # 2. add it to the used symbols
             case [*children]:
                 match children:
@@ -5784,8 +5856,8 @@ class KnowledgeBase:
         for s in bool_sig:
             self.add_bool(s, bool_sig[s])
             declaration = (s, tuple(bool_sig[s]))
-            if bool_sig[s] and declaration not in implicit_bool_signatures:
-                implicit_bool_signatures.append(declaration)  # shown after the line that inferred it
+            if bool_sig[s] and declaration not in run_state.implicit_bool_signatures:
+                run_state.implicit_bool_signatures.append(declaration)  # shown after the line that inferred it
 
     def theory_append(self, f: Formula, symbol_level_prev: bool = False) -> None:
         named_vars = {s for node in self.levels() for s in node.var}
@@ -5799,7 +5871,7 @@ class KnowledgeBase:
         f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
         f.simplified_expr = rename_all_vars(f.simplified_expr, self)
         f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
-        dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
+        run_state.dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
         self.theory.append(f)
 
     def show_append(self, f: Formula) -> None:
@@ -5809,7 +5881,7 @@ class KnowledgeBase:
         f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
         f.simplified_expr = rename_all_vars(f.simplified_expr, self)
         f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
-        dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
+        run_state.dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
         self.show.append(f)
 
     def show_str(self) -> str:
@@ -5833,7 +5905,7 @@ def local_led(ts: PeekableGenerator, kb: KnowledgeBase, left: Expr, op_token: To
     # expected next token, rather than recursing through `parse_expression` for it
     string_token = next(ts)
     if string_token.label != 'STRING':
-        raise KurtException(f'SyntaxError: `{LOCAL_SYMBOL}` must be immediately followed by a string label', string_token.column)
+        raise KurtException(f'ParseError: `{LOCAL_SYMBOL}` must be immediately followed by a string label', string_token.column)
     return [op_token, string_token, left]
 
 initial_kb.lbp[LOCAL_SYMBOL] = string_lbp                  # `local` binds as loosely as a label itself
@@ -6173,7 +6245,7 @@ def split_list_args(s: str) -> list[str]:
     while pos < len(s):
         match = list_args_pattern.match(s, pos)
         if match is None:
-            raise KurtException(f'SyntaxError: malformed argument to `list`', pos)
+            raise KurtException(f'ScanError: malformed argument to `list`', pos)
         quoted, unquoted = match.groups()
         out.append(quoted if quoted is not None else unquoted)
         pos = match.end()
@@ -6218,7 +6290,7 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
         elif label in ('INT', 'FLOAT'):
             assert isinstance(value, str)
             if len(value) > MAX_NUMBER_DIGITS:
-                raise KurtException(f'SyntaxError: a number with more than {MAX_NUMBER_DIGITS} digits', column)
+                raise KurtException(f'ScanError: a number with more than {MAX_NUMBER_DIGITS} digits', column)
             number = Fraction(value)                         # exact: `0.1` is 1/10
             if number.denominator == 1:
                 yield Token('INT', int(number), column)      # `1.0` is the number `1`
@@ -6243,7 +6315,7 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             for name in split_list_args(body):
                 yield Token('STRING', name, column + 5)
         elif label == 'ERROR':  # error
-            raise KurtException(f'SyntaxError: scanning error while scanning `{value}`', column)
+            raise KurtException(f'ScanError: scanning error while scanning `{value}`', column)
         else:
             assert False, f'BUG: unknown label, got {label}'
     yield end_token
@@ -6292,14 +6364,8 @@ def is_relation(op: Value, kb: KnowledgeBase) -> bool:
 # Symbols used without being declared first, collected by `add_new_symbols`. The first list is
 # specifically for `--strict`; the other two record every declaration inferred by formula use,
 # including a symbol whose syntax was declared already (`infix ∘ ...` then `$a ∘ $b`).
-new_symbols: list[str] = []
 # the symbols of the formulas of the line being checked, and per file the files whose symbols it
 # uses without loading them itself, noted once (see `note_indirect_symbols`)
-used_symbols: set[str] = set()
-indirect_noted: dict[str, set[str]] = {}
-indirect_report: dict[str, dict[str, set[str]]] = {}    # file -> theory -> its symbols (`kurt --deps`)
-implicit_constants: list[str] = []
-implicit_bool_signatures: list[tuple[str, tuple[int, ...]]] = []
 
 def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str] = frozenset()) -> list[str]:
     # the symbols in `expr` that are neither declared nor used before (so, e.g., not `$x`,
@@ -6325,7 +6391,6 @@ def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str]
     return found
 
 # whether function application is switched off while parsing, see `bindop_nud`
-space_suspended: list[bool] = [False]
 
 def bindop_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
     # a binding operator with a condition, e.g. `∀ $n ∈ Nat P $n` or `∃ $d > 0 ...`: since
@@ -6341,12 +6406,12 @@ def bindop_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
         ts.prepend(v)
         return t
     next(ts)
-    suspended = space_suspended[0]
-    space_suspended[0] = True
+    suspended = run_state.space_suspended[0]
+    run_state.space_suspended[0] = True
     try:
         rhs = parse_expression(ts, kb, kb.get_infix_rbp(op.value))
     finally:
-        space_suspended[0] = suspended
+        run_state.space_suspended[0] = suspended
     return [space_token, t, [op, v, rhs]]
 
 def chain_relations(kb: KnowledgeBase, left: Expr, op_token: Token, right: Expr) -> Expr:
@@ -6372,7 +6437,7 @@ def chain_relations(kb: KnowledgeBase, left: Expr, op_token: Token, right: Expr)
 def parse_expression(ts: PeekableGenerator, kb: KnowledgeBase, rbp: int) -> Expr:
     t: Token = next(ts)                           # get next token
     if not is_nud_token(t, kb):
-        raise KurtException(f'SyntaxError: token `{t.value}` cannot start an expression', t.column)
+        raise KurtException(f'ParseError: token `{t.value}` cannot start an expression', t.column)
     nud: Nud = kb.get_nud(t)                      # get the correct 'nud' function
     left: Expr = nud(ts, kb, t)                   # nud == "null denotation"
     peek_lbp: int = kb.get_lbp(ts.peek)           # peek at lbp of the next token
@@ -6628,9 +6693,9 @@ def check_for_helper_keywords(e: Expr, top_level:bool = True):
 def check_no_keyword(expr: Expr, top_level:bool = True) -> None:
     match expr:
         case Token(label='SYMBOL', value=v) if v in keywords:
-            raise KurtException(f'SyntaxError: keywords not allowed inside expressions', expr.column)
+            raise KurtException(f'ParseError: keywords not allowed inside expressions', expr.column)
         case Token(label='SYMBOL', value=v) if v in helper_keywords and not top_level:
-            raise KurtException(f'SyntaxError: keywords not allowed inside expressions', expr.column)
+            raise KurtException(f'ParseError: keywords not allowed inside expressions', expr.column)
         case [*_]:
             for e in expr:
                 check_no_keyword(e)
@@ -6743,15 +6808,9 @@ def create_usage(keyword: str, arg_labels: list[list[Label]]) -> str:
 def strip_keyword(s: str, column: int) -> str:
     return s[(1+column):]                  # get rid of the keyword at the beginning
 
-# create a good reference string for a formula `f`
-def formula_ref(f: Formula, filename: str, mainstream: bool) -> str:
-    if mainstream and f.filename==filename:
-        return f'{f.line}' if len(f.label)==0 else f'"{f.label}"'
-    else:
-        return f'{os.path.basename(f.filename)}:{f.line}' if len(f.label)==0 else f'"{f.label}"'
-
-def decorate_reason(mainstream: bool, reason: str, filename: str, line_str: str) -> str:
-    if mainstream:
+def decorate_reason(plain: bool, reason: str, filename: str, line_str: str) -> str:
+    # `5 ...`, or with the file, `prop.kurt:5 ...` (a warning or a `todo` of a loaded file)
+    if plain:
         return f'{line_str} {reason}'
     else:
         return f'{os.path.basename(filename)}:{line_str} {reason}'
@@ -6793,34 +6852,29 @@ def bare_bool_schema_axiom_warning(expr: Expr, kb: KnowledgeBase) -> Optional[st
                     return f'Warning: `{expr_str(expr, kb)}` makes `{expr_str(other, kb)}` exactly as unconstrained as `{var}`, so it becomes trivially provable -- see doc/kurt-soundness.md #6'
     return None
 
-def eval_use(kb: KnowledgeBase, expr: Expr, input_line: str,label: str, filename: str, line: int, mainstream: bool, keyword: str, local: bool = False) -> Formula:
+def eval_use(kb: KnowledgeBase, expr: Expr, input_line: str,label: str, filename: str, line: int, keyword: str, local: bool = False) -> Formula:
     if not bool_expr(expr, kb, strict=False):    # not strict, since we are possibly adding new symbols
         raise KurtException(f'EvalError: must evaluate to boolean, got `{expr_str(expr, kb)}`')
     warning = bare_bool_schema_axiom_warning(expr, kb)
     if warning is not None:
-        print(decorate_reason(mainstream, warning, filename, str(line)), file=sys.stderr)
-    reason = 'without proof'
-    if len(label) > 0:
-        reason += f' "{label}"'
-    reason = decorate_reason(mainstream, reason, filename, str(line))
+        print(decorate_reason(printing(), warning, filename, str(line)), file=sys.stderr)
+    reason = Reason(str(line), 'without proof', 'assumed', label=label)
     return Formula(kb, expr, input_line, str(line), filename, label, reason, keyword, local=local)
 
-def eval_show(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, mainstream: bool, local: bool = False) -> KnowledgeBase:
+def eval_show(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, local: bool = False) -> KnowledgeBase:
     if not bool_expr(expr, kb, strict=False):   # not strict, since we are possibly adding new symbols
         raise KurtException(f'EvalError: must evaluate to boolean, got `{expr_str(expr, kb)}`')
-    reason = decorate_reason(mainstream, 'claim', filename, str(line))
-    if len(label) > 0:
-        reason += f' "{label}"'
+    reason = Reason(str(line), 'claim', 'claim', label=label)
     f = Formula(kb, expr, input_line, str(line), filename, label, reason, keyword='show', local=local)
     kb.show_append(f)
-    if mainstream:
+    if printing():
         log(kb, f'show {expr_str(expr, kb)}', reason, kb.level)
     return kb
 
-def eval_proof(kb: KnowledgeBase, mainstream: bool) -> KnowledgeBase:
+def eval_proof(kb: KnowledgeBase) -> KnowledgeBase:
     if len(kb.show) == 0:
         raise KurtException(f'ProofError: can not start proof since there is no planned formula on current level')
-    if mainstream:
+    if printing():
         log(kb, 'proof', '', kb.level)
     kb = kb.push_level('proof', [])          # add a new level/scope to the knowledgebase
     return kb
@@ -6831,7 +6885,7 @@ def eval_proof(kb: KnowledgeBase, mainstream: bool) -> KnowledgeBase:
 # theories that come with Kurt
 DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'prop'}     # (for the message only)
 
-def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, mainstream: bool, local: bool = False) -> tuple[Formula, str]:
+def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, local: bool = False) -> tuple[Formula, str]:
     # `def` defines with the equality or the equivalence of a trusted theory (`builtin = equality`,
     # `builtin iff equivalence`) -- a relation that merely has the name `=` or `iff` could mean
     # anything
@@ -6880,7 +6934,7 @@ def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filenam
                 raise KurtException(f'EvalError: `def` needs a new symbol without a meaning, but `{lhs_const}` {meaning}')
         case _:
             raise KurtException(f'EvalError: `def` only allowed with `{EQUAL_SYMBOL}` and `{IFF_SYMBOL}`, got `{expr_str(expr, kb)}`')
-    f = eval_use(kb, expr, input_line, label, filename, line, keyword='def', mainstream=False, local=local)
+    f = eval_use(kb, expr, input_line, label, filename, line, keyword='def', local=local)
     f.def_symbol = lhs_const
     return f, lhs_const
 
@@ -6959,7 +7013,7 @@ def free_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str] = fro
         case _:
             return set()
 
-def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> KnowledgeBase:
+def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     # a DEDENT (or `qed`) is closing a block opened by `assume`, `let`, `pick`, `proof`,
     # `sandbox`, or `expect`, hereby triggering `not-intro`, `forall-intro`, `impl-intro`,
     # `exists-elim`, `qed`'s own check, a silent discard, or an expected-error check
@@ -6973,8 +7027,8 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
         # nothing to derive -- a `sandbox` is scratch space, dedenting out of it (like `break`
         # would) just discards everything inside it, no formula is added anywhere
         kb = kb.pop_level()
-        if mainstream:
-            log(kb, 'sandbox', f'{line} closed, its content is discarded', kb.level)
+        if printing():
+            log(kb, 'sandbox', Reason(str(line), 'closed, its content is discarded', 'close'), kb.level)
         return kb
     if kb.mode_str == 'expect':
         assert len(kb.mode_args) in (1, 2) and isinstance(kb.mode_args[0], Token)
@@ -7018,7 +7072,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
             if contains(expr, pick_not_allowed, kb):
                 raise KurtException(f'ProofError: the line (its conclusion) of the `pick` block may not contain constant symbols from the current level, got `{expr_str(expr, kb)}`')
         case 'proof':
-            return eval_qed(kb, filename, line, mainstream)
+            return eval_qed(kb, filename, line)
         case 'root':
             raise KurtException(f'ProofError: no block to close, already at the top level')
 
@@ -7050,18 +7104,19 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
     rule_name = {'assume': 'impl-intro', 'case': 'impl-intro', 'let': 'forall-intro', 'pick': 'exists-elim'}[mode_str]
     # the result is numbered by the lines of the block (the next line has a number of its own)
     lines = block_lines(block, kb.theory[-1])
-    reason = record_certificate(Certificate(rule_name, expr, frozenset(), kb.theory[-1], block=block), block).short(filename, mainstream, own_lines=True)
-    not_reason = ''
+    reason = step_reason([record_certificate(Certificate(rule_name, expr, frozenset(), kb.theory[-1], block=block), block)],
+                         filename, lines, own_lines=True)
+    not_reason: Optional[Reason] = None
     not_expr = negation_of(kb.mode_args[0], kb) if mode_str == 'assume' and is_falsum(last_expr, kb) else None
     if not_expr is not None:
-        not_reason = record_certificate(Certificate('not-intro', not_expr, frozenset(), kb.theory[-1], block=block), block).short(filename, mainstream, own_lines=True)
+        not_reason = step_reason([record_certificate(Certificate('not-intro', not_expr, frozenset(), kb.theory[-1], block=block), block)],
+                                 filename, lines, own_lines=True)
 
     # add a the new formula to the theory
-    reason = decorate_reason(mainstream, reason, filename, lines)
     f = Formula(kb, expr, '', lines, filename, '', reason, keyword='')
     kb = kb.pop_level(keep_todos=True)     # drop current level and perform some checks
     kb.theory_append(f)                    # add a copy to the theory
-    if mainstream:
+    if printing():
         log(kb, f.formula_str(kb), reason, kb.level)
 
     # can we infer further with "not-intro"?
@@ -7070,11 +7125,11 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
                 case Token(label='SYMBOL', value=v) if not_expr is not None:
                     # not-intro, some extra formula!
                     expr: Expr = negation_of(assumption, kb)  # type: ignore[assignment]
+                    assert not_reason is not None
                     reason = not_reason
-                    reason = decorate_reason(mainstream, reason, filename, lines)
                     f = Formula(kb, expr, '', lines, filename, '', reason, keyword='')
                     kb.theory_append(f)                    # add a copy to the theory
-                    if mainstream:
+                    if printing():
                         log(kb, f.formula_str(kb), reason, kb.level)
 
     return kb
@@ -7121,7 +7176,7 @@ def binder_reading_changes(block: KnowledgeBase, result: Expr, last: Expr) -> Op
 def _first_or_none(xs: Iterator[State]) -> Optional[State]:
     return next(iter(xs), None)
 
-def eval_qed(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> KnowledgeBase:
+def eval_qed(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     parent = kb.parent
     if not kb.mode_str == 'proof'  or  parent is None:
         raise KurtException(f'EvalError: no proof to finish, `qed` can only appear at the end of a `proof` block')
@@ -7133,13 +7188,13 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> K
     proven_f = kb.theory[-1]               # check the last formula
     proven_expr  = proven_f.simplified_expr         # what actually has been proven
     if proven_expr == todo_token:
-        reason = decorate_reason(mainstream, 'by todo', filename, str(line))
+        reason = Reason(str(line), '', 'step', [('todo', [], False)])
     else:
         # block all free variables of the planned expression, since they are universally quantified
         blocked_as_domain = frozenset(free_vars_only(planned_expr, kb))
         s = State({}, blocked_as_domain, frozenset())
-        certs, _ = derive_expr(planned_expr, filename, mainstream, s, kb)  # this might raise ProofError exceptions
-        reason = decorate_reason(mainstream, ', '.join(c.short(filename, mainstream) for c in certs), filename, str(line))
+        certs, _ = derive_expr(planned_expr, filename, s, kb)  # this might raise ProofError exceptions
+        reason = step_reason(certs, filename, str(line))
     # carry the `show`'s own label/local marker forward -- a proved, named theorem must stay
     # exportable exactly like a labelled `use`/`def` axiom would be (see doc/kurt-doc.md's
     # `load` section); this used to be silently dropped (`label = ''` unconditionally) here
@@ -7147,7 +7202,7 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> K
     kb = kb.pop_level(keep_todos=True)         # drop current level and perform some checks
     kb.show.pop()                              # pop the last planned formula off the show stack, since it is proved now
     kb.theory_append(f)                        # add a copy to the current theory
-    if mainstream:
+    if printing():
         log(kb, 'qed', reason, kb.level)
     return kb
 
@@ -7227,7 +7282,7 @@ def unpack_condition(expr: Expr, kb: KnowledgeBase) -> tuple[str, Optional[Expr]
 
 # in the block that is opened, `x` will be constant
 # `x` can not be an existing constant
-def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line: int, mainstream: bool) -> KnowledgeBase:
+def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line: int) -> KnowledgeBase:
     new_const, condition = unpack_condition(expr, kb)
     if kb.is_fixed_var(new_const):
         # `assume P $x` / `let $x` would turn the fixed `$x` of the assumption into "for all x"
@@ -7241,7 +7296,7 @@ def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line
         kb.fixed_vars |= fixed
         kb.all_fixed_vars = kb.all_fixed_vars | fixed
         symbols_changed()
-        f = eval_use(kb, expr, input_line, 'let', filename, line, keyword='use', mainstream=False)  # use the expression as an assumption
+        f = eval_use(kb, expr, input_line, 'let', filename, line, keyword='use')  # use the expression as an assumption
         kb.theory_append(f)
     return kb
 
@@ -7258,7 +7313,7 @@ def pick_instance(existential: Expr, witness: Expr, kb: KnowledgeBase) -> Option
             return normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(condition, x, witness, kb), k_replace(body, x, witness, kb)], kb)
     return None
 
-def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_line, filename: str, line: int, mainstream: bool) -> tuple[KnowledgeBase, Expr]:
+def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_line, filename: str, line: int) -> tuple[KnowledgeBase, Expr]:
     assert isinstance(new_const_expr, Token) and new_const_expr.label=='SYMBOL'
     new_const = new_const_expr.value
     assert isinstance(new_const, str)
@@ -7305,9 +7360,9 @@ def eval_global_format(keyword: str, args: list[Expr], kb: KnowledgeBase) -> Non
                     kb.format = option
             case _:
                 options = '\n    format '.join(format_options)   # (no backslash inside an f-string's braces before Python 3.12)
-                raise KurtException(f'ParseError: wrong argument, possible is:\n    format {options}')
+                raise KurtException(f'EvalError: wrong argument, possible is:\n    format {options}')
     else:
-        raise KurtException(f'ParseError: wrong arguments, possible is:\n    format {" | ".join(format_options)}')
+        raise KurtException(f'EvalError: wrong arguments, possible is:\n    format {" | ".join(format_options)}')
 
 def eval_global_toggle(keyword: str, args: list[Expr], kb: KnowledgeBase) -> None:
     value: bool = getattr(kb, keyword)   # the current value
@@ -7321,9 +7376,9 @@ def eval_global_toggle(keyword: str, args: list[Expr], kb: KnowledgeBase) -> Non
                     setattr(node, keyword, v == 'on')
                     node = node.parent
             case _:
-                raise KurtException(f'ParseError: wrong argument, possible is:\n    {keyword} on\n    {keyword} off')
+                raise KurtException(f'EvalError: wrong argument, possible is:\n    {keyword} on\n    {keyword} off')
     else:
-        raise KurtException(f'ParseError: wrong arguments, possible is:\n    {keyword} on\n    {keyword} off')
+        raise KurtException(f'EvalError: wrong arguments, possible is:\n    {keyword} on\n    {keyword} off')
 
 def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> KnowledgeBase:
     # for a declared `chain [op_0, ..., op_{n-1}]` (weakest to strongest, e.g. `chain = <= <`),
@@ -7352,7 +7407,8 @@ def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> Knowledg
     source = '\n'.join(lines) + '\n'
     stream = io.StringIO(source)
     stream.name = f'<chain transitivity for {chain}>'   # read_eval_loop needs a real `.name`
-    return read_eval_loop(stream, kb, mainstream=False)
+    with quietly():
+        return read_eval_loop(stream, kb)
 
 def inside_sandbox_or_expect(kb: KnowledgeBase) -> bool:
     # inside a (user-opened) `sandbox` or `expect` of the current file, whose content is discarded
@@ -7381,7 +7437,6 @@ def block_forbidding_use(kb: KnowledgeBase) -> Optional[str]:
     return innermost
 
 # the input lines of each file or shell session that were accepted, for `save` (see `read_eval_loop`)
-accepted_lines: dict[str, list[str]] = {}
 
 # the statements that declare how symbols are read (`sub` may appear in them, e.g. `arity sub 3`)
 DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'bool',
@@ -7410,12 +7465,12 @@ def accept_statement(name: str, lines: list[str], kb: Optional[KnowledgeBase] = 
     # `expect` it stays (its error may be the expected one, and the block must keep its body)
     in_expect = in_expect or (kb is not None and enclosing_expect(kb) is not None)
     if lines and (in_expect or not is_showing_statement(lines[0], kb)):
-        accepted_lines.setdefault(name, []).extend(lines)
+        run_state.accepted_lines.setdefault(name, []).extend(lines)
 
 def save_str(filename: str) -> str:
     # `save`: the input lines accepted so far -- the source itself, which proves its results again
     # when it is checked (and gets its certificates in a `.kurtc`)
-    lines = accepted_lines.get(filename, [])
+    lines = run_state.accepted_lines.get(filename, [])
     header = [f'; saved by `save` from {"the shell" if filename == "<stdin>" else os.path.basename(filename)}, '
               f'{time.strftime("%Y-%m-%d %H:%M")}: the lines that were accepted', '']
     return '\n'.join(header + lines) + '\n'
@@ -7434,14 +7489,14 @@ def apply_declaration_batch(kb: KnowledgeBase, apply: Callable[[KnowledgeBase], 
     apply(kb)
     for symbol in implicit_symbols:
         was_const, old_signature = before[symbol]
-        if not was_const and kb.is_const(symbol) and symbol not in implicit_constants:
-            implicit_constants.append(symbol)
+        if not was_const and kb.is_const(symbol) and symbol not in run_state.implicit_constants:
+            run_state.implicit_constants.append(symbol)
         signature = tuple(kb.bool_sig(symbol))
         declaration = (symbol, signature)
-        if not old_signature and signature and declaration not in implicit_bool_signatures:
-            implicit_bool_signatures.append(declaration)
+        if not old_signature and signature and declaration not in run_state.implicit_bool_signatures:
+            run_state.implicit_bool_signatures.append(declaration)
 
-def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label: str, kb: KnowledgeBase, line: int, filename: str, mainstream: bool, local: bool = False) -> KnowledgeBase:
+def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label: str, kb: KnowledgeBase, line: int, filename: str, local: bool = False) -> KnowledgeBase:
     keyword = keyword_token.value
     assert isinstance(keyword, str)
     assert isinstance(args, list)
@@ -7468,10 +7523,10 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 eval_global_toggle(keyword, args, kb)
             case _:
                 msg = create_usage(keyword, [[], ['on'], ['off']])
-                raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}\n(a symbol is bound to the calculator with `builtin`, e.g. `builtin + add`)', keyword_token.column)
+                raise KurtException(f'EvalError: wrong arguments, possible is:\n{msg}\n(a symbol is bound to the calculator with `builtin`, e.g. `builtin + add`)', keyword_token.column)
     elif keyword == 'builtin':
         if len(args) == 0:
-            if mainstream:
+            if printing():
                 bound = sorted({s: kb.all_builtins.get(s, []) + kb.all_roles.get(s, []) for s in {*kb.all_builtins, *kb.all_roles}}.items())
                 log(kb, '\n'.join(f'builtin {shown_builtin_symbol(sym)} {", ".join(roles)}' for sym, roles in bound) or '; no builtins')
         else:
@@ -7498,23 +7553,23 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         bindings.append((symbol, role, shown_symbol))
                     case _:
                         msg = create_usage(keyword, [[], ['SYMBOL', 'ROLE']])
-                        raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}', keyword_token.column)
+                        raise KurtException(f'EvalError: wrong arguments, possible is:\n{msg}', keyword_token.column)
             check_not_frozen([symbol for symbol, _, _ in bindings], keyword, filename, kb)
             def bind_all(target: KnowledgeBase) -> None:
                 for symbol, role, _ in bindings:
                     target.bind_builtin(symbol, role)
             apply_declaration_batch(kb, bind_all, tuple(symbol for symbol, _, _ in bindings))
             for _, role, shown_symbol in bindings:
-                if mainstream:
+                if printing():
                     what = 'computed by the calculator' if role in CALCULATOR_ROLES else f'the engine\'s {role}'
-                    log(kb, f'builtin {shown_symbol} {role}', what, kb.level)
+                    log(kb, f'builtin {shown_symbol} {role}', Reason('', what), kb.level)
     elif keyword == 'list':
         if len(args) > 1 or (args and not all(isinstance(t, Token) and t.label == 'STRING' for t in args[0])):
-            raise KurtException('ParseError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
+            raise KurtException('EvalError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
         words = [t.value for t in args[0]] if args else []
         assert all(isinstance(word, str) for word in words)
         if len(words) > 2:
-            raise KurtException('ParseError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
+            raise KurtException('EvalError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
 
         category: Optional[str] = None
         source_selector: Optional[str] = None
@@ -7526,11 +7581,11 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         elif len(words) == 1:
             source_selector = words[0]
         else:
-            raise KurtException(f'ParseError: `{words[0]}` is not a list category; write `list CATEGORY SOURCE`')
+            raise KurtException(f'EvalError: `{words[0]}` is not a list category; write `list CATEGORY SOURCE`')
 
         if category == 'files':
             if source_selector is not None:
-                raise KurtException('ParseError: `list files` does not take a source')
+                raise KurtException('EvalError: `list files` does not take a source')
             msg = kb.loaded_files_str().strip()
         else:
             source = kb.resolve_loaded_file(source_selector) if source_selector is not None else None
@@ -7558,7 +7613,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 msg = f'; retained content from {shown}\n{msg}' if msg else f'; no retained content from {shown}'
             elif not msg:
                 msg = f'; no {category}'
-        if mainstream:
+        if printing():
             log(kb, msg)
 
     elif keyword == 'load':
@@ -7574,23 +7629,23 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 match arg[0]:
                     case Token(label='STRING', value=fname):
                         assert isinstance(fname, str)
-                        s_paths = [Path(filename).parent.resolve()] + theory_path
+                        s_paths = [Path(filename).parent.resolve()] + run_state.theory_path
                         already_loaded = is_already_loaded(fname, kb, s_paths)
                         try:
-                            kb = load_file(fname, kb, search_paths=s_paths, mainstream=False)
+                            kb = load_file(fname, kb, search_paths=s_paths, main=False)
                         except KurtException as e:
                             if e.column is None:
                                 e.column = arg[0].column
                             raise
-                        if mainstream:
-                            reason = decorate_reason(mainstream, 'already loaded, skipped' if already_loaded else 'loaded', filename, str(line))
+                        if printing():
+                            reason = Reason(str(line), 'already loaded, skipped' if already_loaded else 'loaded', 'other' if already_loaded else 'load')
                             log(kb, f'load {fname}', reason, kb.level)
                     case _:
                         assert False, f'BUG: `load` was scanned with wrong args'
 
     elif keyword == 'save':
         if len(args) != 1:
-            raise KurtException(f'ParseError: `save` expects exactly one filename, e.g. `save "state.kurt"`', keyword_token.column)
+            raise KurtException(f'EvalError: `save` expects exactly one filename, e.g. `save "state.kurt"`', keyword_token.column)
         arg = args[0]
         assert isinstance(arg, list) and len(arg) == 1, f'BUG: `save` expects [[fname]]'
         match arg[0]:
@@ -7598,9 +7653,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 assert isinstance(fname, str)
                 # `save` writes a Kurt file of the checked one or the shell, nothing else (found in
                 # the soundness review of 2026-09-29: it could overwrite any file, also when grading)
-                if strict_mode:
+                if run_state.strict_mode:
                     raise KurtException(f'EvalError: no `save` with `--strict`', keyword_token.column)
-                if len(_loading_in_progress) > 1:
+                if len(run_state._loading_in_progress) > 1:
                     raise KurtException(f'EvalError: `save` only in the file that is checked (or the shell), not in a loaded one', keyword_token.column)
                 if not fname.endswith('.kurt'):
                     raise KurtException(f'EvalError: `save` writes a Kurt file, its name must end with `.kurt`, e.g. `save "state.kurt"`', arg[0].column)
@@ -7616,8 +7671,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         fh.write(content)
                 except OSError as e:
                     raise KurtException(f'EvalError: `save` could not write `{fname}`: {e}', arg[0].column)
-                if mainstream:
-                    log(kb, f'save "{fname}"', f'wrote {fname}', kb.level)
+                if printing():
+                    log(kb, f'save "{fname}"', Reason('', f'wrote {fname}'), kb.level)
             case _:
                 assert False, f'BUG: `save` was scanned with wrong args'
 
@@ -7635,7 +7690,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     info += '\n' + kb.info(t)
             info = '\n'.join(sorted([line for line in info.split('\n') if len(line) > 0]))
             msg += f'\n{info}'
-            if mainstream:
+            if printing():
                 log(kb, msg)
     elif keyword == 'tokenize':
         if len(args) > 0:
@@ -7645,15 +7700,15 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 ts: PeekableGenerator = PeekableGenerator((t for t in tokenlist))  # turn list into peekable generator
                 parts.append("  ".join([str(t) for t in ts]))
             msg = '\n'.join(parts)
-            if mainstream:
+            if printing():
                 log(kb, msg)
     elif keyword == 'format':
         eval_global_format(keyword, args, kb)
     elif keyword == 'summary':
         if len(args) > 0:
-            raise KurtException(f'ParseError: `{keyword}` does not take any arguments', keyword_token.column)
-        if mainstream:
-            log(kb, state_summary(kb, current_lexer_state[0]))
+            raise KurtException(f'EvalError: `{keyword}` does not take any arguments', keyword_token.column)
+        if printing():
+            log(kb, state_summary(kb, run_state.current_lexer_state[0]))
 
 
     # SYNTAX RELATED
@@ -7671,9 +7726,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                             msg += info + '\n'
                     case _:
                         msg = create_usage(keyword, [[], ['STRING'], ['SYMBOL']])
-                        raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                        raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
             msg = '\n'.join(sorted([line for line in msg.split('\n') if len(line) > 0]))
-        if mainstream:
+        if printing():
             log(kb, msg)
     elif keyword == 'prefix':
         if len(args) == 0:
@@ -7687,7 +7742,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     new_stuff.append((op, rbp))    # first collect
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT']])
-                    raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
         apply_declaration_batch(kb, lambda target: [target.add_prefix(op, rbp) for op, rbp in new_stuff])
     elif keyword == 'postfix':
         if len(args) == 0:
@@ -7701,7 +7756,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     new_stuff.append((op, lbp))    # first collect
                 case _:
                     msg = create_usage(keyword, [[], ['STRING', 'INT']])
-                    raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
         apply_declaration_batch(kb, lambda target: [target.add_postfix(op, lbp) for op, lbp in new_stuff])
     elif keyword == 'infix':
         if len(args) == 0:
@@ -7772,7 +7827,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             assert isinstance(arg, list)
             chain: list[str] = []
             if len(arg) < 1:
-                raise KurtException(f'ParseError: chains must contain at least one infix operator')
+                raise KurtException(f'EvalError: chains must contain at least one infix operator')
             for op_token in arg:
                 match op_token:
                     case Token(label='STRING'|'SYMBOL', value=op):
@@ -7791,14 +7846,14 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         # Generating each transitivity fact runs the normal line evaluator, which owns these
         # per-line reporting buffers. Preserve the declarations implied by the user's `chain`
         # line so they are still reported after its implementation-detail formulas are made.
-        chain_implicit_constants = list(implicit_constants)
-        chain_implicit_bool_signatures = list(implicit_bool_signatures)
+        chain_implicit_constants = list(run_state.implicit_constants)
+        chain_implicit_bool_signatures = list(run_state.implicit_bool_signatures)
         for chain in new_stuff:
             kb = generate_chain_transitivity(kb, chain)
             # The generated rules are an implementation detail of this `chain` line. If they
             # make one of its operators a constant or infer its boolean signature, cite the
             # source declaration rather than `<chain transitivity ...>:N` in property listings.
-            location = current_line[0]
+            location = run_state.current_line[0]
             if location is not None:
                 for property_name in ('const', 'bool'):
                     origins = kb.property_origins.get(property_name, {})
@@ -7806,8 +7861,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         origin = origins.get(op)
                         if origin is not None and origin[0].startswith('<chain transitivity'):
                             origins[op] = location
-        implicit_constants[:] = chain_implicit_constants
-        implicit_bool_signatures[:] = chain_implicit_bool_signatures
+        run_state.implicit_constants[:] = chain_implicit_constants
+        run_state.implicit_bool_signatures[:] = chain_implicit_bool_signatures
 
     elif keyword == 'flat':
         if len(args) == 0:
@@ -7938,8 +7993,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
         apply_declaration_batch(kb, lambda target: [target.add_var(op) for op in new_stuff])
         for op in new_stuff:
-            if mainstream:
-                log(kb, f'var {op}', f'added variable', kb.level)
+            if printing():
+                log(kb, f'var {op}', Reason('', 'added variable', 'declaration'), kb.level)
     elif keyword == 'const':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7961,8 +8016,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 target.add_const(op)
         apply_declaration_batch(kb, add_constants)
         for op in new_stuff:
-            if mainstream:
-                log(kb, f'const {op}', f'added constant', kb.level)
+            if printing():
+                log(kb, f'const {op}', Reason('', 'added constant', 'declaration'), kb.level)
     elif keyword == 'alias':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -7989,27 +8044,27 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case [Token(label='INT', value=a), Token(label='SYMBOL', value='-'), Token(label='INT', value=b)]:
                     blocks.append(f'{a}-{b}')
                 case _:
-                    raise KurtException(f'ParseError: `cert` takes line numbers, e.g. `cert 17`, or the lines of a block, `cert 12-15`', keyword_token.column)
+                    raise KurtException(f'EvalError: `cert` takes line numbers, e.g. `cert 17`, or the lines of a block, `cert 12-15`', keyword_token.column)
         if not wanted and not blocks:
-            earlier = [n for (f, n) in certificates_by_line if f == filename and n < line]
+            earlier = [n for (f, n) in run_state.certificates_by_line if f == filename and n < line]
             wanted = [max(earlier)] if earlier else []
         msgs = []
         for n in wanted:
-            certs = certificates_by_line.get((filename, n), [])
+            certs = run_state.certificates_by_line.get((filename, n), [])
             if not certs:
                 msgs.append(f'; line {n}: no certificate (no step, or not a line of this file)')
             for i, (cert, problem) in enumerate(certs):
                 part = f' ({i+1} of {len(certs)})' if len(certs) > 1 else ''
                 msgs.append(f'; line {n}{part}:\n' + certificate_str(cert, problem, kb, filename))
         for lines in blocks:
-            certs = [(c, p) for (f, _), cs in certificates_by_line.items() if f == filename for (c, p) in cs
+            certs = [(c, p) for (f, _), cs in run_state.certificates_by_line.items() if f == filename for (c, p) in cs
                      if c.block is not None and c.rule is not None and c.kind != 'qed' and block_lines(c.block, c.rule) == lines]
             if not certs:
                 msgs.append(f'; lines {lines}: no certificate (no block with these lines)')
             for i, (cert, problem) in enumerate(certs):
                 part = f' ({i+1} of {len(certs)})' if len(certs) > 1 else ''
                 msgs.append(f'; lines {lines}{part}:\n' + certificate_str(cert, problem, kb, filename))
-        if mainstream:
+        if printing():
             log(kb, '\n'.join(msgs) if msgs else '; no certificate yet')
 
     elif keyword == 'theory':
@@ -8026,7 +8081,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                             msg += info + '\n'
                     case _:
                         msg = create_usage(keyword, [[], ['STRING'], ['SYMBOL']])
-                        raise KurtException(f'ParseError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                        raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
             msg = '\n'.join(sorted([line for line in msg.split('\n') if len(line) > 0]))
             log(kb, msg)
 
@@ -8035,20 +8090,20 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             log(kb, kb.theory_str(keyword=keyword).strip())
         else:
             proof_block = block_forbidding_use(kb)
-            if strict_mode and proof_block is None and not inside_sandbox_or_expect(kb):
+            if run_state.strict_mode and proof_block is None and not inside_sandbox_or_expect(kb):
                 check_strict(keyword, filename)
             if proof_block is not None:
                 raise KurtException(f'EvalError: `use` is not allowed inside `{proof_block}` -- the result would look proven although it relies on this axiom; state it before the proof, or use `todo`', keyword_token.column)
             formulas = []
             for expr in args:
                 try:
-                    formulas.append(eval_use(kb, expr, input_line, label, filename, line, mainstream, keyword, local))  # use the expression as an assumption
+                    formulas.append(eval_use(kb, expr, input_line, label, filename, line, keyword, local))  # use the expression as an assumption
                 except KurtException:
                     # let's forget about the new `formulas` and raise an exception
                     raise
             for f in formulas:
                 kb.theory_append(f)
-                if mainstream:
+                if printing():
                     log(kb, f.formula_str(kb), f.reason, kb.level, schema=f.schema_str(kb))
 
     elif keyword == 'def':
@@ -8066,33 +8121,33 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             pending = kb.push_level('sandbox', [])
             formulas = []
             lhs_consts = []
-            symbols_before = list(new_symbols)
-            constants_before = list(implicit_constants)
-            bool_signatures_before = list(implicit_bool_signatures)
+            symbols_before = list(run_state.new_symbols)
+            constants_before = list(run_state.implicit_constants)
+            bool_signatures_before = list(run_state.implicit_bool_signatures)
             try:
                 for expr in args:
                     type_check_expression(expr, pending)
-                    f, lc = eval_def(pending, expr, input_line, label, filename, line, mainstream, local)
+                    f, lc = eval_def(pending, expr, input_line, label, filename, line, local)
                     unknown = [s for s in undeclared_symbols(expr, pending) if s != lc]
-                    if unknown and strict_mode and not is_trusted_file(filename):
+                    if unknown and run_state.strict_mode and not is_trusted_file(filename):
                         raise KurtException(f'EvalError: {", ".join(f"`{s}`" for s in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
                     pending.add_new_symbols(expr)
                     formulas.append(f)
                     lhs_consts.append(lc)
             finally:
-                new_symbols[:] = symbols_before
-                implicit_constants[:] = constants_before
-                implicit_bool_signatures[:] = bool_signatures_before
+                run_state.new_symbols[:] = symbols_before
+                run_state.implicit_constants[:] = constants_before
+                run_state.implicit_bool_signatures[:] = bool_signatures_before
             for (f, lc) in zip(formulas, lhs_consts):
                 kb.theory_append(f)
-                if lc in new_symbols:
-                    new_symbols.remove(lc)    # `def` is how it gets declared
-                if lc in implicit_constants:
-                    implicit_constants.remove(lc)  # the `def` line below already declares it
-                implicit_bool_signatures[:] = [declaration for declaration in implicit_bool_signatures
+                if lc in run_state.new_symbols:
+                    run_state.new_symbols.remove(lc)    # `def` is how it gets declared
+                if lc in run_state.implicit_constants:
+                    run_state.implicit_constants.remove(lc)  # the `def` line below already declares it
+                run_state.implicit_bool_signatures[:] = [declaration for declaration in run_state.implicit_bool_signatures
                                                 if declaration[0] != lc]
-                if mainstream:
-                    reason = f'{line} defining `{lc}`'
+                if printing():
+                    reason = Reason(str(line), f'defining `{lc}`')
                     log(kb, f'def {expr_str(f.expr, kb)}', reason, kb.level-1)  # log the new constant
 
     elif keyword == 'todo':
@@ -8100,20 +8155,20 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         # works like a joker!  however, what to store in the theory?  add a todo token
         if len(args) == 0:
             # `todo` inside proofs, a joker for the next statement, even a `qed`
-            kb.theory_append(eval_use(kb, todo_token, input_line, label, filename, line, mainstream, keyword))  # use the expression as an assumption
+            kb.theory_append(eval_use(kb, todo_token, input_line, label, filename, line, keyword))  # use the expression as an assumption
             todo = decorate_reason(False, f'todo', filename, str(line))
             kb.todo_add(todo)
-            if mainstream:
-                log(kb, 'todo', decorate_reason(mainstream, 'admits the next step, still to do', filename, str(line)), kb.level)
+            if printing():
+                log(kb, 'todo', Reason(str(line), 'admits the next step, still to do'), kb.level)
         else:
             for expr in args:
                 # `todo F`, adds `F` like an axiom and takes a note of the todo
-                f = eval_use(kb, expr, input_line, label, filename, line, mainstream, keyword)
+                f = eval_use(kb, expr, input_line, label, filename, line, keyword)
                 kb.theory_append(f)  # use the expression as an assumption
                 todo = decorate_reason(False, f'todo {expr_str(expr, kb)}', filename, str(line))
                 kb.todo_add(todo)
-                if mainstream:
-                    log(kb, f'todo {expr_str(expr, kb)}', decorate_reason(mainstream, 'admitted, still to do', filename, str(line)), kb.level)
+                if printing():
+                    log(kb, f'todo {expr_str(expr, kb)}', Reason(str(line), 'admitted, still to do'), kb.level)
 
     elif keyword == 'qed':            # closes the last block (scope) and checks that the last promised formula has been proved
         assert False, '`qed` should have been handled in `scan_parse_check_eval`'
@@ -8131,20 +8186,20 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             log(kb, kb.show_str().strip())
         elif len(args) == 1:
             expr = args[0] if len(args) == 1 else args  # allow single expression or a list of expressions
-            kb = eval_show(kb, expr, input_line, label, filename, line, mainstream, local)
+            kb = eval_show(kb, expr, input_line, label, filename, line, local)
         else:
-            raise KurtException(f'ParseError: `show` takes only one formula, no comma-separated list allowed')
+            raise KurtException(f'EvalError: `show` takes only one formula, no comma-separated list allowed')
 
     elif keyword == 'proof':                  # opens a new block (scope)
         if len(args) > 0:
             raise KurtException(f'EvalError: `{keyword}` takes no arguments')
-        kb = eval_proof(kb, mainstream)
+        kb = eval_proof(kb)
 
     elif keyword == 'sandbox':
         if len(args) > 0:
             raise KurtException(f'EvalError: `{keyword}` takes no arguments')
         kb = kb.push_level('sandbox', [])
-        log(kb, f'sandbox', f'{line} open sandbox, close with `break`', kb.level-1)  # log the new constant
+        log(kb, f'sandbox', Reason(str(line), 'open sandbox, close with `break`', 'open'), kb.level-1)  # log the new constant
 
     elif keyword == 'expect':
         msg = 'EvalError: `expect` takes a string naming the expected error kind, and optionally a text its message must contain, e.g. `expect "ProofError" "can not derive"`'
@@ -8167,9 +8222,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 case _:
                     raise KurtException(msg)
         kb = kb.push_level('expect', expected_args)
-        if mainstream:
+        if printing():
             text = f' "{expected_args[1].value}"' if len(expected_args) == 2 else ''
-            log(kb, f'expect "{expected_kind}"{text}', f'{line} open block, expect a `{expected_kind}` inside', kb.level-1)
+            log(kb, f'expect "{expected_kind}"{text}', Reason(str(line), f'open block, expect a `{expected_kind}` inside', 'open'), kb.level-1)
 
     elif keyword == 'assume'  or  keyword == 'case':
         if len(args) != 1:
@@ -8182,13 +8237,13 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         kb.all_fixed_vars = kb.all_fixed_vars | fixed
         symbols_changed()
         try:
-            f = eval_use(kb, expr, input_line, label, filename, line, mainstream=False, keyword='use')  # use the expression as an assumption
+            f = eval_use(kb, expr, input_line, label, filename, line, keyword='use')  # use the expression as an assumption
             kb.theory_append(f, symbol_level_prev=True)
         except KurtException:
             kb = kb.pop_level()
             raise
-        if mainstream:
-            reason = f'{line} open block with assumption'
+        if printing():
+            reason = Reason(str(line), 'open block with assumption', 'open')
             assumptions_str = ', '.join([expr_str(arg, kb) for arg in args])
             log(kb, f'{keyword} {assumptions_str}', reason, kb.level-1)  # log the new constant
 
@@ -8203,12 +8258,12 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         kb = kb.push_level('let', args)  # open a new block
         for expr in args:  # args is a list of expressions
             try:
-                kb = eval_let(kb, expr, input_line, filename, line, mainstream)
+                kb = eval_let(kb, expr, input_line, filename, line)
             except KurtException:
                 kb = kb.pop_level()  # close the block on error
                 raise      # the same exception again
-        if mainstream:
-            reason = f'{line} open local scope with (possibly constrained) new constants'
+        if printing():
+            reason = Reason(str(line), 'open local scope with (possibly constrained) new constants', 'open')
             args_str = [expr_str(expr, kb) for expr in args]
             log(kb, f'{keyword} {", ".join(args_str)}', reason, kb.level-1)  # log the new constants
 
@@ -8264,7 +8319,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                             raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
                         if kb.is_fixed_var(new_const):
                             raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
-                        kb, fact = eval_pick(kb, new_const_expr, fact_expr, input_line, filename, line, mainstream)
+                        kb, fact = eval_pick(kb, new_const_expr, fact_expr, input_line, filename, line)
                     case [*tail] if tail and not any(is_helper_keyword(t) for t in tail):
                         # `pick C`, like `let C`: the new constant is the one `C` is about
                         # (`unpack_condition`), and then it is `pick x with C`
@@ -8278,18 +8333,18 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                         if kb.is_fixed_var(new_const):
                             raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
                         new_const_expr = next(t for t in tail if isinstance(t, Token) and t.value == new_const)
-                        kb, fact = eval_pick(kb, new_const_expr, tail, input_line, filename, line, mainstream)
+                        kb, fact = eval_pick(kb, new_const_expr, tail, input_line, filename, line)
                     case _:
                         raise KurtException(msg)
             except KurtException:
                 if kb.level > level_before:
                     kb = kb.pop_level()
                 raise
-        if mainstream:
-            reason = f'{line} open local scope with new constant `{new_const}`'
+        if printing():
+            reason = Reason(str(line), f'open local scope with new constant `{new_const}`', 'open')
             log(kb, f'{keyword} {new_const} with {expr_str(fact, kb)}', reason, kb.level-1)  # log the new constants
     elif keyword == LOCAL_SYMBOL:
-        raise KurtException(f'SyntaxError: `{LOCAL_SYMBOL}` marks a label and comes after the formula, e.g. `use A implies A {LOCAL_SYMBOL} "a"`')
+        raise KurtException(f'ParseError: `{LOCAL_SYMBOL}` marks a label and comes after the formula, e.g. `use A implies A {LOCAL_SYMBOL} "a"`')
     else:
         assert False, f'BUG: unknown keyword, got `{keyword}`'
 
@@ -8339,7 +8394,7 @@ def split_by_comma(e: Expr, kb: Optional[KnowledgeBase] = None) -> list[Expr]:
         args.append(current_arg)
     return args
 
-def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input_line: str, label: str, kb: KnowledgeBase, line: int, filename: str, mainstream: bool, local: bool = False) -> KnowledgeBase:
+def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input_line: str, label: str, kb: KnowledgeBase, line: int, filename: str, local: bool = False) -> KnowledgeBase:
     if keyword_token is None:
         # expression without keyword: try to derive the formula and add it to the theory
         if len(expr_list) == 0:
@@ -8351,55 +8406,52 @@ def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input
                 last_formula = kb.theory[-1]
                 if equal_expr(last_formula.expr, expr, kb):
                     # short-cut to avoid duplicates: restating the last formula is logged, not added again
-                    if mainstream:
-                        reason = decorate_reason(mainstream, f'by {formula_ref(last_formula, filename, mainstream)}', filename, str(line))
+                    if printing():
+                        reason = Reason(str(line), f'by {line_ref(last_formula, filename, quoted=True)}', 'step',
+                                        [(line_ref(last_formula, filename), [], False)])
                         restated = Formula(kb, expr, input_line, str(line), filename, label, reason, keyword='')
                         log(kb, restated.formula_str(kb), reason, kb.level)
                     kb.restated_line = str(line)
                     continue
             unknown = undeclared_symbols(expr, kb)
-            if len(unknown) > 0 and strict_mode and not is_trusted_file(filename):
+            if len(unknown) > 0 and run_state.strict_mode and not is_trusted_file(filename):
                 raise KurtException(f'EvalError: {", ".join(f"`{n}`" for n in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
             try:
-                certs, _ = derive_expr(expr, filename, mainstream, State.empty(), kb)  # this might raise ProofError exceptions
-                reasons = [c.short(filename, mainstream) for c in certs]
+                certs, _ = derive_expr(expr, filename, State.empty(), kb)  # this might raise ProofError exceptions
             except KurtException as e:
                 if len(unknown) > 0:
                     e.msg += f' -- note: {", ".join(f"`{n}`" for n in unknown)} {"was" if len(unknown) == 1 else "were"} never declared or used before, a typo?'
                 raise
-            if len(reasons) == 1:
-                reason = reasons[0]
+            if len(certs) == 1:
+                reason = step_reason(certs, filename, str(line), label)
             else:
-                assert len(reasons) > 1
+                assert len(certs) > 1
                 assert isinstance(expr, list) and len(expr) > 2
-                assert len(expr) == len(reasons) + 1
+                assert len(expr) == len(certs) + 1
                 line_strs: list[str] = []
-                for clause, reason, letter in zip(expr[1:], reasons, letter_generator()):
+                for clause, cert, letter in zip(expr[1:], certs, letter_generator()):
                     line_str = str(line) + letter
                     line_strs.append(line_str)
-                    reason = decorate_reason(mainstream, reason, filename, line_str)
+                    reason = step_reason([cert], filename, line_str)
                     # each conjunct is its own, unlabelled intermediate step -- `label` (the
                     # claim's own label, if any) belongs on the *combined* formula below, not
                     # here; a same-named local would clobber the outer `label` this loop runs
                     # before reaching, silently discarding the combined formula's label
                     sub_f = Formula(kb, clause, input_line, line_str, filename, '', reason, keyword='')
                     kb.theory_append(sub_f)                         # add sub to the knowledge base
-                    if mainstream:
+                    if printing():
                         log(kb, sub_f.formula_str(kb), reason, kb.level)
-                reason = f'by and-intro({", ".join(line_strs)})'
-            # a bare claim can be labelled too, exactly like `use`/`show` -- same mechanism,
-            # since every statement (bare or keyworded) shares `check_expr_label`/`post_process`
-            if len(label) > 0:
-                reason += f' "{label}"'
-            reason = decorate_reason(mainstream, reason, filename, str(line))
+                # a bare claim can be labelled too, exactly like `use`/`show` -- same mechanism,
+                # since every statement (bare or keyworded) shares `check_expr_label`/`post_process`
+                reason = Reason(str(line), '', 'step', [('and-intro', line_strs, True)], label)
             f = Formula(kb, expr, input_line, str(line), filename, label, reason, keyword='', local=local)
             kb.theory_append(f)                         # add it to the knowledge base
-            if mainstream:
+            if printing():
                 log(kb, f.formula_str(kb), reason, kb.level)
         return kb
     else:
         # expression with a keyword
-        return eval_keyword_expression(keyword_token, expr_list, input_line, label, kb, line, filename, mainstream, local)
+        return eval_keyword_expression(keyword_token, expr_list, input_line, label, kb, line, filename, local)
 
 ########################
 ## kurt type checking ##
@@ -8576,7 +8628,6 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
 
 # the comment the user wrote on the line being evaluated: shown by the first output line with a
 # reason, whose reason then goes on the next line (see `log`)
-current_comment: list[Optional[str]] = [None]
 
 def comment_of(line: str) -> Optional[str]:
     # what follows the first `;` outside of a string, if anything
@@ -8591,74 +8642,72 @@ def comment_of(line: str) -> Optional[str]:
 
 @contextlib.contextmanager
 def users_comment(line: str) -> Iterator[None]:
-    outer = current_comment[0]
-    current_comment[0] = comment_of(line)
+    outer = run_state.current_comment[0]
+    run_state.current_comment[0] = comment_of(line)
     try:
         yield
     finally:
-        current_comment[0] = outer
+        run_state.current_comment[0] = outer
 
 # the events of a check (a `Session` collects them, see `CheckResult.events`): each line that
 # `log` prints, also as a record -- the line, its id, what kind of line, the rule and what it uses
-event_sink: Optional[list[dict]] = None
 
-def reason_event(s: str, reason: str, level: Optional[int], comment: Optional[str]) -> dict:
+# while a file is loaded (`load_file` of a file that isn't the main one), nothing is printed:
+# `log` asks `printing()`, and code that only builds what is printed can ask it too
+
+def printing() -> bool:
+    return run_state.quiet[0] == 0
+
+@contextlib.contextmanager
+def quietly() -> Iterator[None]:
+    run_state.quiet[0] += 1
+    try:
+        yield
+    finally:
+        run_state.quiet[0] -= 1
+
+def reason_event(s: str, reason: 'str | Reason', level: Optional[int], comment: Optional[str]) -> dict:
     # `s` and its reason as an event, e.g. `B` with `5 by 3(4)`: a step with id 5, by the
-    # (unlabelled) rule of line 3, used with line 4; `11-13 by impl-intro` closes a block
-    event: dict = {'line': current_line[0][1] if current_line[0] is not None else None,
-                   'id': None, 'kind': 'text' if not reason else 'other', 'level': level or 0,
-                   'text': s.strip(), 'reason': reason}
+    # (unlabelled) rule of line 3, used with line 4; `11-13 by impl-intro` closes a block -- the
+    # data comes from the `Reason`, the text is rendered from it (`str`), nothing is parsed
+    assert isinstance(reason, Reason) or not reason, f'BUG: a reason must be a `Reason`, got `{reason}`'
+    event: dict = {'line': run_state.current_line[0][1] if run_state.current_line[0] is not None else None,
+                   'id': None, 'kind': 'text' if not str(reason) else 'other', 'level': level or 0,
+                   'text': s.strip(), 'reason': str(reason)}
     if comment is not None:
         event['comment'] = comment
-    found = re.match(r'(\d+[a-z]?(?:-\d+[a-z]?)?)?\s*(.*)$', reason)
-    if not reason or found is None:
-        return event
-    event['id'], rest = found.group(1), found.group(2)
-    label = re.search(r'\s"([^"]*)"$', rest)
-    if label:
-        event['label'], rest = label.group(1), rest[:label.start()]
-    if rest.startswith('by '):
-        event['kind'] = 'step'
-        steps = []
-        for part in re.split(r',\s*(?=by\s)', rest):         # `qed` may name several steps
-            call = re.match(r'by\s+([^(\s]+)(?:\((.*)\))?\s*$', part.strip())
-            if call:
-                steps.append({'rule': call.group(1), 'uses': [u.strip() for u in call.group(2).split(',')] if call.group(2) else []})
-        if steps:
-            event['rule'], event['uses'] = steps[0]['rule'], steps[0]['uses']
-        if len(steps) > 1:
-            event['steps'] = steps
-    else:
-        kinds = [('claim', 'claim'), ('open', 'open'), ('without proof', 'assumed'), ('loaded', 'load'),
-                 ('confirmed', 'expect'), ('added', 'declaration'), ('closed', 'close')]
-        event['kind'] = next((k for prefix, k in kinds if rest.startswith(prefix)), 'other')
+    if isinstance(reason, Reason):
+        event.update(reason.event_fields())
     return event
 
-def log(kb: KnowledgeBase, s: str, reason: str='', level: Optional[int]=None, schema: str='') -> None:
+def log(kb: KnowledgeBase, s: str, reason: 'str | Reason'='', level: Optional[int]=None, schema: str='') -> None:
+        if not printing():
+            return                  # (a loaded file prints nothing, see `quietly`)
         if level is not None and level > 0 and kb.tmp:
             level = level - 1
-        if event_sink is not None:
-            event = reason_event(s, reason, level, current_comment[0] if reason else None)
+        if run_state.event_sink is not None:
+            event = reason_event(s, reason, level, run_state.current_comment[0] if str(reason) else None)
             if schema:
                 event['schema'] = schema
-            event_sink.append(event)
+            run_state.event_sink.append(event)
         indent: str = '' if level is None else ' ' * (proof_indent * level)
         parts = s.splitlines() or ['']
         rendered = [indent + part for part in parts]
+        reason = str(reason)
         if len(reason) == 0:
             line = '\n'.join(rendered)
-        elif schema or current_comment[0] is not None:
+        elif schema or run_state.current_comment[0] is not None:
             # The generated schema stays beside the formula. A source comment and the checker's
             # reason follow below it, so each kind of information remains distinguishable.
             comments = ([f'schema: {schema}'] if schema else [])
-            if current_comment[0] is not None:
-                comments.append(current_comment[0])
-            rendered[0] = f'{rendered[0]:<{comment_indent}}; {comments[0]}'
+            if run_state.current_comment[0] is not None:
+                comments.append(run_state.current_comment[0])
+            rendered[0] = f'{rendered[0]:<{run_state.comment_indent}}; {comments[0]}'
             trailing = comments[1:] + [reason]
-            line = '\n'.join(rendered) + ''.join(f'\n{"":<{comment_indent}}; {comment}' for comment in trailing)
-            current_comment[0] = None
+            line = '\n'.join(rendered) + ''.join(f'\n{"":<{run_state.comment_indent}}; {comment}' for comment in trailing)
+            run_state.current_comment[0] = None
         else:
-            rendered[0] = f'{rendered[0]:<{comment_indent}}; {reason}'
+            rendered[0] = f'{rendered[0]:<{run_state.comment_indent}}; {reason}'
             line = '\n'.join(rendered)
         print(line, file=sys.stdout)
 
@@ -8755,33 +8804,27 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
 
 # the name each internal variable stands for, e.g. `$$07` for the `$x` of a rule -- to show
 # certificates with the names as written (see `readable_names`)
-origin_names: dict[str, str] = {}
 # Optional user-sort constraints follow the globally unique internal variables made from a
 # schema. This is proof meaning, unlike the source variable name, so it must survive freshening.
-internal_variable_sorts: dict[str, frozenset[str]] = {}
 
 def note_origin(new: str, origin: Optional[str]) -> str:
     if origin is not None:
-        origin_names[new] = origin_names.get(origin, origin)
-        if origin in internal_variable_sorts:
-            internal_variable_sorts[new] = internal_variable_sorts[origin]
+        run_state.origin_names[new] = run_state.origin_names.get(origin, origin)
+        if origin in run_state.internal_variable_sorts:
+            run_state.internal_variable_sorts[new] = run_state.internal_variable_sorts[origin]
     return new
 
 # new variable names just for internal use
 def new_var_name(origin: Optional[str] = None) -> str:
-    if not hasattr(new_var_name, "counter"):
-        new_var_name.counter = 0            # static variable of the function
-    new_var_name.counter += 1               # get a new number
+    run_state.var_counter += 1              # a new number, of the run (`RunState`)
     # use format like this: $$07
-    return note_origin(f'$${new_var_name.counter:02d}', origin)   # the `$$` ensures that it is not a kurt variable that the user can define
+    return note_origin(f'$${run_state.var_counter:02d}', origin)   # the `$$` ensures that it is not a kurt variable that the user can define
 
 # new boolean variable names just for internal use
 def new_bool_var_name(origin: Optional[str] = None) -> str:
-    if not hasattr(new_bool_var_name, "counter"):
-        new_bool_var_name.counter = 0             # static variable of the function
-    new_bool_var_name.counter += 1                # get a new number
+    run_state.bool_var_counter += 1               # a new number, of the run (`RunState`)
     # use format like this: %%07
-    return note_origin(f'%%{new_bool_var_name.counter:02d}', origin)   # the `%%` ensures that it is not a kurt variable that the user can define
+    return note_origin(f'%%{run_state.bool_var_counter:02d}', origin)   # the `%%` ensures that it is not a kurt variable that the user can define
 
 def replace_token_value(expr: Expr, old_value: str, new_token: Token) -> Expr:
     # pure structural replacement of every occurrence of a specific token value -- unlike
@@ -8918,7 +8961,7 @@ def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -
 
     desired: dict[str, str] = {}
     for internal_name in internal:
-        origin = origin_names.get(internal_name, internal_name)
+        origin = run_state.origin_names.get(internal_name, internal_name)
         if origin in named_vars:
             identifier = source_identifier(origin)
             prefix = '%' if internal_name.startswith('%%') else '$'
@@ -8930,7 +8973,7 @@ def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -
 
     # Explicit `$x`/`%A` keep their spelling if a named variable wants the same name.
     def explicit_schema_name(internal_name: str) -> bool:
-        origin = origin_names.get(internal_name, internal_name)
+        origin = run_state.origin_names.get(internal_name, internal_name)
         return isinstance(origin, str) and origin.startswith(('$', '%'))
 
     order = sorted(internal, key=lambda v: 0 if explicit_schema_name(v) else 1)
@@ -8951,7 +8994,7 @@ def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -
     display_kb.prefix = dict(kb.prefix)
     display_kb.postfix = dict(kb.postfix)
     for internal_name, shown in names.items():
-        origin = origin_names.get(internal_name, internal_name)
+        origin = run_state.origin_names.get(internal_name, internal_name)
         if not isinstance(origin, str) or origin not in named_vars:
             continue
         infix = kb.get_infix(origin)
@@ -9017,7 +9060,7 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
                 new_expr = Token(label='SYMBOL', value=new_var, column=expr.column, origin=expr.origin)
                 sorts = kb.variable_sorts(var)
                 if sorts:
-                    internal_variable_sorts[new_var] = frozenset(sorts)
+                    run_state.internal_variable_sorts[new_var] = frozenset(sorts)
             return new_expr, s.bind(var, new_expr)  # extend the state with the new binding
 
         # any other token is not modified
@@ -9039,8 +9082,8 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
             renamed_bound, _ = unpack_condition(head2, kb)
             binder_sorts = kb.position_sorts(bind_op, 1) - {'bool'}
             if binder_sorts:
-                internal_variable_sorts[renamed_bound] = frozenset(
-                    internal_variable_sorts.get(renamed_bound, frozenset()) | binder_sorts)
+                run_state.internal_variable_sorts[renamed_bound] = frozenset(
+                    run_state.internal_variable_sorts.get(renamed_bound, frozenset()) | binder_sorts)
 
             # the body gets the new scope including the bound variable, the middle arguments not
             # (they are outside the scope, see `binder_scope`)
@@ -9421,7 +9464,6 @@ def restore_blocked(s_new: State, x: str, s_old: State) -> State:
 # the axiom only ever uses `$T` for the bound `$i` or with something substituted for it, as in
 # `(sum $i ($a, $a) $T) = sub $i $a $T` -- then `$T` may depend on `$i`. `dependent_vars` maps
 # each such (renamed, so globally unique) `$T` to its `$i`.
-dependent_vars: dict[str, str] = {}
 
 def find_dependent_vars(expr: Expr, kb: KnowledgeBase) -> dict[str, str]:
     # the non-boolean schema variables of `expr` that may depend on a bound variable: those that
@@ -9466,7 +9508,7 @@ def find_dependent_vars(expr: Expr, kb: KnowledgeBase) -> dict[str, str]:
 def may_capture(v: str, expr: Expr, s: State) -> bool:
     # whether the schema variable `v` may take the value `expr`, which contains a bound variable
     # (blocked as range): only a dependent variable, and only its own bound variable
-    b = dependent_vars.get(v)
+    b = run_state.dependent_vars.get(v)
     return b is not None and blocked_range_vars(expr, s) <= {b}
 
 def blocked_range_vars(expr: Expr, s: State) -> set[str]:
@@ -9956,37 +9998,35 @@ class Certificate:
     fact_fresh: list[tuple[str, ...]] = field(default_factory=list)  # fresh names for `∀` parts of the premise, matched without their `∀`s
     block: Optional[KnowledgeBase] = None   # for closing a block ('impl-intro', 'not-intro', 'forall-intro', 'exists-elim'): its level
 
-    def short(self, filename: str, mainstream: bool, own_lines: bool = False) -> str:
-        # the reason Kurt prints for a step: the rule applied to the facts, e.g.
-        # `by equal-elim(11, 10)`, `by 2(3)` (the implication of line 2 with the fact of line 3),
-        # `by forall-intro(13-14)` (the lines of the block; without them if the step is numbered
-        # by them, `own_lines`) -- `cert` shows the long form
-        def ref(f: Formula) -> str:
-            if f.label:
-                return f.label
-            return f.line if mainstream and f.filename == filename else f'{os.path.basename(f.filename)}:{f.line}'
+    def step(self, filename: str, own_lines: bool = False) -> tuple[str, list[str], bool]:
+        # the rule and the lines (or labels) it is applied to, e.g. `equal-elim` with `11`, `10`;
+        # `2` with `3` (the implication of line 2 with the fact of line 3); `forall-intro` with
+        # `13-14` (the lines of the block; without them if the step is numbered by them,
+        # `own_lines`) -- and whether they are written in brackets (`Reason` renders it, `cert`
+        # shows the long form)
+        ref = lambda f: line_ref(f, filename)
         match self.kind:
             case 'rule':
                 assert self.rule is not None
                 if self.form == 'fact':
-                    return f'by {ref(self.rule)}'
-                return f'by {ref(self.rule)}({", ".join(ref(f) for f in self.facts)})'
+                    return ref(self.rule), [], False
+                return ref(self.rule), [ref(f) for f in self.facts], True
             case 'top':
-                return 'by top-intro'
+                return 'top-intro', [], False
             case 'calc':
-                return 'by calc'
+                return 'calc', [], False
             case 'calc-fact':
                 assert self.rule is not None
-                return f'by calc({ref(self.rule)})'
+                return 'calc', [ref(self.rule)], True
             case 'todo':
-                return 'by todo'
+                return 'todo', [], False
             case 'case-elim':
-                return f'by case-elim({", ".join(ref(f) for f in self.facts)})'
+                return 'case-elim', [ref(f) for f in self.facts], True
         assert self.block is not None and self.rule is not None
         lines = block_lines(self.block, self.rule)
         if self.kind == 'exists-elim' and self.block.pick_source is not None:
-            return f'by exists-elim({ref(self.block.pick_source)})' if own_lines else f'by exists-elim({ref(self.block.pick_source)}, {lines})'
-        return f'by {self.kind}' if own_lines else f'by {self.kind}({lines})'
+            return 'exists-elim', [ref(self.block.pick_source)] + ([] if own_lines else [lines]), True
+        return self.kind, ([] if own_lines else [lines]), not own_lines
 
 def block_lines(block: 'KnowledgeBase', last: 'Formula') -> str:
     # the lines of a closed block, `15-23`, from its first formula to its last one (whose own
@@ -10006,8 +10046,6 @@ class KernelError(KurtException):
         super().__init__(msg, kind='KernelError')
 
 # the certificates of each line (file name, line number), with the kernel's verdict -- for `cert`
-certificates_by_line: dict[tuple[str, int], list[tuple[Certificate, Optional[str]]]] = {}
-current_line: list[Optional[tuple[str, int]]] = [None]      # the line being evaluated (see `scan_parse_check_eval`)
 
 def record_certificate(cert: Certificate, kb: KnowledgeBase) -> Certificate:
     # the kernel checks every step; `cert` shows the certificates of a line
@@ -10018,8 +10056,8 @@ def record_certificate(cert: Certificate, kb: KnowledgeBase) -> Certificate:
     if problem is not None:
         raise KernelError(f'KernelError: the kernel rejects the step to `{expr_str(cert.goal, kb)}`: {problem} -- '
                           f'the search accepted it, so this is a bug in Kurt; please report it, with this file')
-    if current_line[0] is not None:
-        certificates_by_line.setdefault(current_line[0], []).append((cert, problem))
+    if run_state.current_line[0] is not None:
+        run_state.certificates_by_line.setdefault(run_state.current_line[0], []).append((cert, problem))
     return cert
 
 def formula_place(f: Formula, filename: str) -> str:
@@ -10048,7 +10086,7 @@ def readable_names(exprs: list[Expr]) -> dict[str, str]:
     for e in exprs:
         walk(e)
     def base(v: str) -> str:
-        b = origin_names.get(v, v)
+        b = run_state.origin_names.get(v, v)
         return b if not is_internal_name(b) else ('%A' if v.startswith('%') else '$v')
     counts: dict[str, int] = {}
     for v in internal:
@@ -10151,14 +10189,11 @@ def certificate_str(cert: Certificate, problem: Optional[str], kb: KnowledgeBase
 # stored goal, rule and facts with the current ones.
 
 KURTC_VERSION = 1
-kurtc_enabled: bool = False       # write and use `.kurtc` files (`kurt` on the command line does)
-replay_hints: dict[str, dict[int, list[dict]]] = {}      # file -> line -> its stored certificates
-load_dependencies: dict[str, list[str]] = {}              # file -> the files it loads
 
 def source_hash(fname: str) -> Optional[str]:
     name = source_name(fname)
-    if name in source_overlays:
-        return hashlib.sha256(source_overlays[name].encode('utf-8')).hexdigest() if hashlib is not None else None
+    if name in run_state.source_overlays:
+        return hashlib.sha256(run_state.source_overlays[name].encode('utf-8')).hexdigest() if hashlib is not None else None
     try:
         with open(fname, 'rb') as f:
             return hashlib.sha256(f.read()).hexdigest() if hashlib is not None else None
@@ -10214,14 +10249,14 @@ def certificate_to_json(cert: Certificate) -> dict:
 def write_kurtc(fname: str) -> None:
     # the certificates of the claims of `fname`, by line (block closings and `calc` need none)
     steps: dict[str, list[dict]] = {}
-    for (f, line), certs in certificates_by_line.items():
+    for (f, line), certs in run_state.certificates_by_line.items():
         if f == fname:
             rules = [certificate_to_json(c) for c, _ in certs if c.kind == 'rule']
             if rules:
                 steps[str(line)] = rules
     content = {'kurtc': KURTC_VERSION, 'kurt': file_fingerprint(), 'source': os.path.basename(fname),
                'sha256': source_hash(fname),
-               'depends': [{'file': d, 'sha256': source_hash(d)} for d in load_dependencies.get(fname, [])],
+               'depends': [{'file': d, 'sha256': source_hash(d)} for d in run_state.load_dependencies.get(fname, [])],
                'steps': steps}
     try:
         with open(fname + 'c', 'w', encoding='utf-8') as out:
@@ -10231,7 +10266,7 @@ def write_kurtc(fname: str) -> None:
 
 def read_kurtc(fname: str) -> None:
     # the stored certificates of `fname`, if its `.kurtc` belongs to the file as it is now
-    replay_hints.pop(fname, None)
+    run_state.replay_hints.pop(fname, None)
     try:
         with open(fname + 'c', encoding='utf-8') as f:
             content = json.load(f)
@@ -10240,15 +10275,15 @@ def read_kurtc(fname: str) -> None:
     if not isinstance(content, dict) or content.get('kurtc') != KURTC_VERSION or content.get('sha256') != source_hash(fname):
         return
     try:
-        replay_hints[fname] = {int(line): list(certs) for line, certs in content['steps'].items()}
+        run_state.replay_hints[fname] = {int(line): list(certs) for line, certs in content['steps'].items()}
     except (KeyError, ValueError, AttributeError, TypeError):
-        replay_hints.pop(fname, None)
+        run_state.replay_hints.pop(fname, None)
 
 def resolve_load(name: str, from_file: str) -> Optional[str]:
     # the file that `load name` in `from_file` loads (as `load_file` finds it), or `None`
     if not name.endswith('.kurt'):
         name += '.kurt'
-    paths = packaged_theory_paths if packaged_theory_file(name) is not None else [Path(from_file).parent.resolve()] + theory_path
+    paths = packaged_theory_paths if packaged_theory_file(name) is not None else [Path(from_file).parent.resolve()] + run_state.theory_path
     for path in paths:
         candidate = path / name
         try:
@@ -10285,11 +10320,11 @@ def certificates_text(fname: str) -> tuple[str, bool]:
     except OSError:
         return f'no file `{fname}`', False
     try:
-        kb = load_file(fname, copy.deepcopy(initial_kb), mainstream=False)
+        kb = load_file(fname, copy.deepcopy(initial_kb), main=False)
     except KurtException as e:
         return '\n'.join(lines_out + ['', e.msg.strip()]), False
     path = str(Path(fname).resolve())
-    for (f, n), certs in sorted(((k, v) for k, v in certificates_by_line.items() if str(Path(k[0]).resolve()) == path), key=lambda kv: kv[0][1]):
+    for (f, n), certs in sorted(((k, v) for k, v in run_state.certificates_by_line.items() if str(Path(k[0]).resolve()) == path), key=lambda kv: kv[0][1]):
         written = source[n - 1].strip() if 0 < n <= len(source) else ''
         lines_out += ['', f'line {n}: {written}']
         for i, (cert, problem) in enumerate(certs):
@@ -10349,14 +10384,14 @@ def dependencies_str(fname: str) -> str:
 def indirect_lines(fname: str) -> list[str]:
     # the symbols that `fname` uses from theories it doesn't load itself (by checking it, quietly)
     path = str(Path(fname))
-    for f in [f for f in indirect_report if Path(f).resolve() == Path(path).resolve()]:
-        del indirect_report[f]          # (from an earlier check of the same file)
+    for f in [f for f in run_state.indirect_report if Path(f).resolve() == Path(path).resolve()]:
+        del run_state.indirect_report[f]          # (from an earlier check of the same file)
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            load_file(path, copy.deepcopy(initial_kb), mainstream=True)
+            load_file(path, copy.deepcopy(initial_kb), main=True)
     except KurtException:
         return ['', 'used without loading: (not known -- the file has an error)']
-    report = next((r for f, r in indirect_report.items() if Path(f).resolve() == Path(path).resolve()), {})
+    report = next((r for f, r in run_state.indirect_report.items() if Path(f).resolve() == Path(path).resolve()), {})
     if not report:
         return ['', 'used without loading: nothing -- the file loads every theory whose symbols it uses']
     lines = ['', 'used without loading (`load` them to be independent of what the other files load):']
@@ -10430,10 +10465,10 @@ def rebuild_certificate(h: dict, names: dict[str, str], goal: Expr, fixed: froze
 def replay_certificate(goal: Expr, fixed: frozenset[str], kb: KnowledgeBase) -> tuple[Optional[Certificate], bool]:
     # a stored certificate of the current line for `goal`, accepted by the kernel -- and whether
     # the line has stored certificates at all
-    key = current_line[0]
-    if key is None or key[0] not in replay_hints:
+    key = run_state.current_line[0]
+    if key is None or key[0] not in run_state.replay_hints:
         return None, False
-    hints = replay_hints[key[0]].get(key[1])
+    hints = run_state.replay_hints[key[0]].get(key[1])
     if not hints:
         return None, False
     for i, h in enumerate(hints):
@@ -10447,7 +10482,7 @@ def replay_certificate(goal: Expr, fixed: frozenset[str], kb: KnowledgeBase) -> 
         except Exception:       # a damaged `.kurtc`: only a hint that doesn't work
             continue
         del hints[i]
-        certificates_by_line.setdefault(key, []).append((cert, None))
+        run_state.certificates_by_line.setdefault(key, []).append((cert, None))
         return cert, True
     return None, True
 
@@ -11215,7 +11250,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
 #    free vars in `conclusion` can be matched against anything in `expr`
 # 4. match `premises` against the theory (but allow substitutions in both directions)
 #    free vars in `premises` 
-def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formula, filename: str, mainstream: bool, s: State, kb: KnowledgeBase) -> tuple[Optional[Certificate], State]:
+def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formula, filename: str, s: State, kb: KnowledgeBase) -> tuple[Optional[Certificate], State]:
 
     #debug(f'impl_elim: trying to prove `{expr_str(expr, kb)}` using `{expr_str(proven_formula.expr, kb)}`')
 
@@ -11253,13 +11288,13 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
         # first attempt: LHS implies RHS
         LHSimpliesRHS = proven_formula.clone([op_token.clone(IMPL_SYMBOL), LHS, RHS], kb)
         LHSimpliesRHS.direction_of = formula_expr
-        cert, s_local = impl_elim(expr, expr_free_vars, LHSimpliesRHS, filename, mainstream, s, kb)
+        cert, s_local = impl_elim(expr, expr_free_vars, LHSimpliesRHS, filename, s, kb)
         if cert is not None:
             return cert, s_local
         # second attempt: RHS implies LHS
         RHSimpliesLHS = proven_formula.clone([op_token.clone(IMPL_SYMBOL), RHS, LHS], kb)
         RHSimpliesLHS.direction_of = formula_expr
-        cert, s_local = impl_elim(expr, expr_free_vars, RHSimpliesLHS, filename, mainstream, s, kb)
+        cert, s_local = impl_elim(expr, expr_free_vars, RHSimpliesLHS, filename, s, kb)
         if cert is not None:
             return cert, s_local
         # third attempt: LHS iff RHS directly -- block `expr`'s own free variables here too
@@ -11568,7 +11603,7 @@ def failure_explanation_text(explanation: dict) -> str:
         lines.append(f'- `{name}`{where}: missing {missing}{found}')
     return '\n'.join(lines)
 
-def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: KnowledgeBase) -> tuple[list[Certificate], State]:
+def derive_expr(expr: Expr, filename: str, s: State, kb: KnowledgeBase) -> tuple[list[Certificate], State]:
     # the certificates of the steps (one, or one per conjunct), see `Certificate.short` for the reasons
 
     # do we have a joker?  a bare `todo` right before admits the next step (only that one)
@@ -11621,7 +11656,7 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
                 continue
             if cannot_conclude(proven_formula.simplified_expr, expr, kb):
                 continue
-            cert, s_matched = impl_elim(expr, expr_free_vars, proven_formula, filename, mainstream, s, kb)
+            cert, s_matched = impl_elim(expr, expr_free_vars, proven_formula, filename, s, kb)
             if cert is not None:
                 return [cert], s_matched
         return None
@@ -11629,8 +11664,8 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
     def generic_search() -> Optional[tuple[list[Certificate], State]]:
         # the rules with a mere schema as conclusion: first rewriting with the shortcut (cheap), then
         # those that aren't for rewriting (e.g. "and-elim"), then rewriting with the full search
-        return (guided_rewrite(expr, expr_free_vars, filename, mainstream, s, kb)
-                or conditional_rewrite(expr, expr_free_vars, filename, mainstream, s, kb)
+        return (guided_rewrite(expr, expr_free_vars, filename, s, kb)
+                or conditional_rewrite(expr, expr_free_vars, filename, s, kb)
                 or search(('generic',), rewriting=False)
                 or search(('generic',), rewriting=True))
 
@@ -11658,7 +11693,7 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
             s_clauses = s
             try:
                 for clause in clauses:
-                    more_reasons, s_clauses = derive_expr(clause, filename, mainstream, s_clauses, kb)  # this might raise an exception
+                    more_reasons, s_clauses = derive_expr(clause, filename, s_clauses, kb)  # this might raise an exception
                     reasons.extend(more_reasons)
                 return reasons, s_clauses
             except KurtException:
@@ -11679,7 +11714,7 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
         whole = rename_all_vars(written, kb)
         whole_free = free_bound_vars(whole, kb)[0]
         for proven_formula in kb.all_theory():
-            cert, s_matched = impl_elim(whole, whole_free, proven_formula, filename, mainstream, s, kb)
+            cert, s_matched = impl_elim(whole, whole_free, proven_formula, filename, s, kb)
             if cert is not None:
                 return [cert], s_matched
 
@@ -11765,7 +11800,7 @@ def differing_pairs(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> list[tuple[E
     found.append((fact, goal))
     return found
 
-def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, mainstream: bool, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
+def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
     # a rewriting step with a rule that has conditions, e.g. `$a ∈ K ⇒ 1 · $a = $a` for
     # `c · (1 · b) = c · b` with the fact `b ∈ K`: `equal-elim` needs the instance `1 · b = b` as a
     # fact. So for a place where the goal differs from one of the latest facts (`differing_pairs`),
@@ -11801,18 +11836,18 @@ def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: st
             instance_r = rename_all_vars(instance, kb)
             instance_free = free_bound_vars(instance_r, kb)[0]
             for candidate in specific:
-                cert, _ = impl_elim(instance_r, instance_free, candidate, filename, mainstream, State.empty(), kb)
+                cert, _ = impl_elim(instance_r, instance_free, candidate, filename, State.empty(), kb)
                 if cert is None:
                     continue
-                key = current_line[0]
+                key = run_state.current_line[0]
                 line_str = f'{key[1] if key is not None else 0}{next(letter_generator())}'
-                reason = decorate_reason(mainstream, cert.short(filename, mainstream), filename, line_str)
+                reason = step_reason([cert], filename, line_str)
                 step = Formula(kb, instance, expr_str(instance, kb), line_str, filename, '', reason, keyword='')
                 kb.theory_append(step)
                 if s.lookup(b_var) is None and not s.occurs(b_var, b):
-                    found, s_matched = impl_elim(expr, expr_free_vars, rule, filename, mainstream, s.bind(b_var, b), kb)
+                    found, s_matched = impl_elim(expr, expr_free_vars, rule, filename, s.bind(b_var, b), kb)
                     if found is not None:
-                        if mainstream:
+                        if printing():
                             log(kb, step.formula_str(kb), reason, kb.level)
                         return [found], s_matched
                 kb.theory.pop()             # it didn't help
@@ -11829,7 +11864,7 @@ def rewriting_relation(rule: 'Formula', b_var: str, kb: 'KnowledgeBase') -> Opti
             return p[0].value
     return None
 
-def guided_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, mainstream: bool, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
+def guided_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
     rules = [(f, b) for f in kb.all_theory() if formula_kind(f, kb) == 'generic' for b in [rewriting_variable(f, kb)] if b is not None]
     if not rules:
         return None
@@ -11843,7 +11878,7 @@ def guided_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, ma
         for rule, b in rules:
             if s.lookup(b) is not None or s.occurs(b, t):
                 continue
-            cert, s_matched = impl_elim(expr, expr_free_vars, rule, filename, mainstream, s.bind(b, t), kb)
+            cert, s_matched = impl_elim(expr, expr_free_vars, rule, filename, s.bind(b, t), kb)
             if cert is not None:
                 return [cert], s_matched
     return None
@@ -11884,12 +11919,12 @@ def count_leading_spaces(s: str) -> int:
     # (tabs are already converted to spaces by `read_eval_loop`)
     return len(s) - len(s.lstrip())
 
-def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str, mainstream:bool=False) -> tuple[KnowledgeBase, LexerState]:
+def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str) -> tuple[KnowledgeBase, LexerState]:
     # the certificates of the steps of this line are kept for `cert` -- unless the line fails
     key = (filename, line)
-    outer = current_line[0]
-    current_line[0] = key
-    certificates_by_line.pop(key, None)
+    outer = run_state.current_line[0]
+    run_state.current_line[0] = key
+    run_state.certificates_by_line.pop(key, None)
     # the indentation and chain state before the line: a line that fails (or needs more input)
     # leaves it as it was -- unless it closed blocks before failing, then it matches those
     saved = LexerState(lexer_state.initial_LHS, list(lexer_state.chained_ops), list(lexer_state.indent_stack),
@@ -11898,16 +11933,16 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
         lexer_state.initial_LHS, lexer_state.chained_ops = saved.initial_LHS, saved.chained_ops
         lexer_state.indent_stack, lexer_state.indent_requester = saved.indent_stack, saved.indent_requester
     try:
-        return scan_parse_check_eval_line(input_line, lexer_state, kb, line, filename, mainstream)
+        return scan_parse_check_eval_line(input_line, lexer_state, kb, line, filename)
     except StopIteration:
         restore()
         raise
     except RecursionError:
-        certificates_by_line.pop(key, None)
+        run_state.certificates_by_line.pop(key, None)
         restore()
         raise KurtException(f'EvalError: the expression is nested too deeply (Python\'s recursion limit) -- split it up, e.g. with `def`') from None
     except KurtException as e:
-        certificates_by_line.pop(key, None)
+        run_state.certificates_by_line.pop(key, None)
         restore()
         indent = count_leading_spaces(input_line)
         if saved.indent_requester and indent > saved.indent_stack[-1]:
@@ -11920,10 +11955,10 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
             lexer_state.initial_LHS, lexer_state.chained_ops, lexer_state.indent_requester = None, [], ''
         raise
     finally:
-        current_line[0] = outer
+        run_state.current_line[0] = outer
 
-def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str, mainstream:bool=False) -> tuple[KnowledgeBase, LexerState]:
-    current_lexer_state[0] = lexer_state      # (for `summary`: what could come next)
+def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str) -> tuple[KnowledgeBase, LexerState]:
+    run_state.current_lexer_state[0] = lexer_state      # (for `summary`: what could come next)
 
     # read some lexer state variables for chaining
     lhs: Optional[Expr] = lexer_state.initial_LHS
@@ -12034,7 +12069,7 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
     keyword = '' if keyword_token is None else keyword_token.value
     if keyword in keywords_closing_blocks:
         if len(expr_list) > 0:
-            raise KurtException(f'ParseError: `{keyword}` does not take any arguments')
+            raise KurtException(f'EvalError: `{keyword}` does not take any arguments')
     if keyword == 'break' and dedents > 0:
         raise KurtException(f'ParseError: `{keyword}` cannot create dedentation at line {line} in {filename}')
     if keyword == 'qed' and dedents == 0:
@@ -12078,8 +12113,8 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
             # still pending on the parent level and merging/closing that level later fails
             assert len(kb.show) > 0, f'BUG: breaking a `proof` block with no pending `show` on its parent'
             kb.show.pop()
-        if mainstream:
-            log(kb, 'break', f'{line} discarded the last block', kb.level)
+        if printing():
+            log(kb, 'break', Reason(str(line), 'discarded the last block'), kb.level)
     elif keyword == 'qed':
         # dry run to check the block modes and that we are not closing too many levels
         dedents_check = dedents
@@ -12100,9 +12135,9 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
             while dedents > 0:
                 if kb.mode_str == 'proof':
                     with users_comment(input_line if dedents == 1 else ''):
-                        kb = eval_qed(kb, filename, line, mainstream)   # qed with a block, yield a formula
+                        kb = eval_qed(kb, filename, line)   # qed with a block, yield a formula
                 else:
-                    kb = eval_done(kb, filename, line, mainstream)  # done with a block, yield a formula (or an `expect`'s check)
+                    kb = eval_done(kb, filename, line)  # done with a block, yield a formula (or an `expect`'s check)
                 dedents -= 1
         except KurtException as e:
             e.kb_after = e.kb_after or kb
@@ -12113,41 +12148,41 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         closed_blocks = dedents > 0
         try:
             while dedents > 0:
-                kb = eval_done(kb, filename, line, mainstream)   # closes one level: yields a formula, or discards (for `sandbox`)
+                kb = eval_done(kb, filename, line)   # closes one level: yields a formula, or discards (for `sandbox`)
                 dedents -= 1
         except KurtException as e:
             e.kb_after = e.kb_after or kb    # the blocks closed so far are closed (see `read_eval_loop`)
             raise
 
         # evaluate the expression
-        new_symbols.clear()
-        used_symbols.clear()
-        implicit_constants.clear()
-        implicit_bool_signatures.clear()
+        run_state.new_symbols.clear()
+        run_state.used_symbols.clear()
+        run_state.implicit_constants.clear()
+        run_state.implicit_bool_signatures.clear()
         try:
             with users_comment(input_line):
-                kb = eval_expression(keyword_token, expr_list, input_line, label, kb, line, filename, mainstream, local) # evaluation
+                kb = eval_expression(keyword_token, expr_list, input_line, label, kb, line, filename, local) # evaluation
         except KurtException as e:
             # the line closed blocks and then failed: they stay closed (their levels are detached,
             # so an `expect` around them is found from here, see `read_eval_loop`)
             if closed_blocks:
                 e.kb_after = e.kb_after or kb
             raise
-        if len(new_symbols) > 0:
-            names = ', '.join(f'`{n}`' for n in new_symbols)
-            if strict_mode and not is_trusted_file(filename):
+        if len(run_state.new_symbols) > 0:
+            names = ', '.join(f'`{n}`' for n in run_state.new_symbols)
+            if run_state.strict_mode and not is_trusted_file(filename):
                 raise KurtException(f'EvalError: {names} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
-            new_symbols.clear()
-        if mainstream and (keyword_token is None or keyword_token.value != 'load'):   # (a `load` checks other files)
+            run_state.new_symbols.clear()
+        if printing() and (keyword_token is None or keyword_token.value != 'load'):   # (a `load` checks other files)
             note_indirect_symbols(kb, filename)
-            for symbol in implicit_constants:
-                log(kb, f'const {symbol}', 'added constant', kb.level)
-            for symbol, signature in implicit_bool_signatures:
+            for symbol in run_state.implicit_constants:
+                log(kb, f'const {symbol}', Reason('', 'added constant', 'declaration'), kb.level)
+            for symbol, signature in run_state.implicit_bool_signatures:
                 positions = ' '.join(str(position) for position in signature)
                 shown_symbol = symbol.split('$$$', 1)[0] if '$$$' in symbol else symbol
-                log(kb, f'bool {shown_symbol} {positions}', 'added boolean signature', kb.level)
-        implicit_constants.clear()
-        implicit_bool_signatures.clear()
+                log(kb, f'bool {shown_symbol} {positions}', Reason('', 'added boolean signature', 'declaration'), kb.level)
+        run_state.implicit_constants.clear()
+        run_state.implicit_bool_signatures.clear()
 
     # update lexer state for indentation handling
     if keyword_token is not None and keyword_token.value in keywords_opening_blocks:
@@ -12167,7 +12202,6 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
 # until Python's stack blows up with an uncaught `RecursionError`. A file is only added once
 # we're about to actually read it, and always removed again in a `finally`, whether loading it
 # succeeded, failed to parse/check, or wasn't found at this particular search path.
-_loading_in_progress: set[str] = set()
 
 def is_already_loaded(filename: str, kb: KnowledgeBase, search_paths) -> bool:
     # whether `load_file` would skip `filename`, since it finds it loaded before finding it anywhere else
@@ -12184,12 +12218,10 @@ def is_already_loaded(filename: str, kb: KnowledgeBase, search_paths) -> bool:
 # the exports of the files checked so far in this run (not the main file, which prints its
 # steps): a file is checked once, not again for each file that loads it -- as long as it and the
 # files it loads didn't change, and neither did the settings that decide what is accepted
-_checked_exports: dict[tuple, tuple[ExportBundle, list[tuple[str, Optional[str]]], list[tuple]]] = {}
 
 # how the `load`s of the files being checked were resolved: (name, search paths, the file found),
 # one list per file being checked (`checked_exports`) -- a file is taken from `_checked_exports`
 # only if each of its `load`s still finds the same file (not a new one earlier in the paths)
-_load_resolutions: list[list[tuple]] = []
 
 def file_identity(candidate) -> str:
     # which file `candidate` is (a symbolic link: the file it points to)
@@ -12200,7 +12232,7 @@ def file_identity(candidate) -> str:
 
 def note_load_resolution(filename: str, search_paths, candidate) -> None:
     entry = (filename, tuple(search_paths), file_identity(candidate))
-    for resolutions in _load_resolutions:
+    for resolutions in run_state._load_resolutions:
         resolutions.append(entry)
 
 def load_resolution_now(filename: str, search_paths) -> Optional[str]:
@@ -12223,49 +12255,50 @@ def load_resolution_now(filename: str, search_paths) -> Optional[str]:
 def same_load_resolutions(resolutions: list[tuple]) -> bool:
     return all(load_resolution_now(name, paths) == found for name, paths, found in resolutions)
 
-def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, mainstream: bool) -> ExportBundle:
+def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, main: bool) -> ExportBundle:
     # check the file in a fresh context -- the core, and the files it loads itself, nothing of
     # its loader (whose facts it could otherwise use without loading them, and whose load order
     # would matter) -- and return what it exports
-    key = (fname, source_hash(fname), strict_mode, tuple(str(p) for p in trusted_paths), kurtc_enabled,
-           tuple(str(p) for p in theory_path))
-    cached = _checked_exports.get(key) if not mainstream and key[1] is not None else None
+    key = (fname, source_hash(fname), run_state.strict_mode, tuple(str(p) for p in run_state.trusted_paths), run_state.kurtc_enabled,
+           tuple(str(p) for p in run_state.theory_path))
+    cached = run_state._checked_exports.get(key) if not main and key[1] is not None else None
     if cached is not None and all(source_hash(dep) == digest for dep, digest in cached[1]) and same_load_resolutions(cached[2]):
-        for resolutions in _load_resolutions:
+        for resolutions in run_state._load_resolutions:
             resolutions.extend(cached[2])        # (the files that load this one depend on them too)
         return copy.deepcopy(cached[0])
     resolutions: list[tuple] = []
-    _load_resolutions.append(resolutions)
+    run_state._load_resolutions.append(resolutions)
     try:
-        return checked_exports_now(fname, f, candidate, loader, mainstream, key, resolutions)
+        return checked_exports_now(fname, f, candidate, loader, main, key, resolutions)
     finally:
-        _load_resolutions.remove(resolutions)
+        run_state._load_resolutions.remove(resolutions)
 
-def checked_exports_now(fname: str, f: TextIO, candidate, loader: KnowledgeBase, mainstream: bool,
+def checked_exports_now(fname: str, f: TextIO, candidate, loader: KnowledgeBase, main: bool,
                         key: tuple, resolutions: list[tuple]) -> ExportBundle:
-    load_dependencies[fname] = []
-    if kurtc_enabled:
+    run_state.load_dependencies[fname] = []
+    if run_state.kurtc_enabled:
         read_kurtc(fname)
     root = copy.deepcopy(core_kb)
     root.format, root.hint = loader.format, loader.hint   # only how it looks
     kb = root.push_level('sandbox', [])    # (the level of the file)
     kb.tmp = True
     kb.is_load_boundary = True             # `break` must not be able to close this implicit level
-    kb = read_eval_loop(f, kb, mainstream=mainstream)
+    with (contextlib.nullcontext() if main else quietly()):      # a loaded file prints nothing
+        kb = read_eval_loop(f, kb)
     if kb.level > 1:
         raise KurtException(f'\nEvalError: inside `{fname}` not all blocks closed.')
     assert kb.level == 1, f'BUG: `load_file` decreased the level from 1 to {kb.level}'
     if is_trusted_file(fname):
         kb.frozen |= kb.declared_symbols()   # only this theory may change their meaning
-    if kurtc_enabled and len(kb.todos()) == 0 and isinstance(candidate, Path):
+    if run_state.kurtc_enabled and len(kb.todos()) == 0 and isinstance(candidate, Path):
         write_kurtc(fname)       # checked completely: its certificates
     if len(kb.show) > 0:
         raise KurtException(f'EvalError: cannot merge and pop a level with promised formulas, got {len(kb.show)} formulas.')
     bundle = compute_exports(kb)
     validate_exports(bundle, kb, root, fname)
     bundle.todos = list(kb.todos())
-    if not mainstream and key[1] is not None:
-        _checked_exports[key] = (copy.deepcopy(bundle), [(dep, source_hash(dep)) for dep in bundle.libs], list(resolutions))
+    if not main and key[1] is not None:
+        run_state._checked_exports[key] = (copy.deepcopy(bundle), [(dep, source_hash(dep)) for dep in bundle.libs], list(resolutions))
     return bundle
 
 def symbol_declarations(kb: 'KnowledgeBase | ExportBundle', s: str) -> tuple:
@@ -12330,11 +12363,11 @@ def require_assertions() -> None:
     if not __debug__:
         raise RuntimeError('Kurt refuses to check under `python -O`/`-OO` -- this would silently disable internal soundness checks written as `assert`')
 
-def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = None, mainstream:bool=False, silent:bool=False) -> KnowledgeBase:
+def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = None, main:bool=False, silent:bool=False) -> KnowledgeBase:
     require_assertions()
     # files are always loaded into a new level that is dropped once everything is ok to avoid partial loads
     if search_paths is None:
-        search_paths = theory_path        # (looked up now: a `Session` has its own, see `RunState`)
+        search_paths = run_state.theory_path        # (looked up now: a `Session` has its own, see `RunState`)
     if not filename.endswith('.kurt'):
         filename += '.kurt'
     if os.path.basename(filename) == CORE_FILE:
@@ -12359,12 +12392,12 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
         if load_level is not None:
             file_level(kb).direct_loads.add(fname)     # (loaded before, by another file -- and now by this one)
             note_load_resolution(filename, requested_paths, candidate)
-            if current_line[0] is not None:
-                load_dependencies.setdefault(current_line[0][0], []).append(fname)
+            if run_state.current_line[0] is not None:
+                run_state.load_dependencies.setdefault(run_state.current_line[0][0], []).append(fname)
             return kb
 
         # is this exact file already being loaded further down the call stack? that's a cycle
-        if fname in _loading_in_progress:
+        if fname in run_state._loading_in_progress:
             raise KurtException(f'EvalError: circular `load`: `{fname}` is already being loaded (load cycle)') from None
 
         # try to open the file at this candidate path -- only *this* step's failure means
@@ -12378,13 +12411,13 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
         except (FileNotFoundError, NotADirectoryError, AttributeError):
             continue    # try next path
 
-        if current_line[0] is not None:
-            load_dependencies.setdefault(current_line[0][0], []).append(fname)
+        if run_state.current_line[0] is not None:
+            run_state.load_dependencies.setdefault(run_state.current_line[0][0], []).append(fname)
         note_load_resolution(filename, requested_paths, candidate)
         try:
-            _loading_in_progress.add(fname)
+            run_state._loading_in_progress.add(fname)
             with candidate_file as f:
-                bundle = checked_exports(fname, f, candidate, kb, mainstream)
+                bundle = checked_exports(fname, f, candidate, kb, main)
             validate_against_loader(bundle, kb, fname)
             apply_exports(kb, bundle)
             for todo in bundle.todos:
@@ -12397,7 +12430,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
             raise
 
         finally:
-            _loading_in_progress.discard(fname)
+            run_state._loading_in_progress.discard(fname)
 
     # we couldn't open the file anywhere
     if not silent:
@@ -12415,11 +12448,6 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
 # (and the one before back afterwards), so that sessions don't see each other's names, options,
 # certificates or caches, also when their calls alternate. One check at a time per process:
 # for checks in parallel, use processes.
-RUN_STATE_NAMES = ('strict_mode', 'trusted_paths', 'untrusted_names', 'source_overlays', 'theory_path', 'kurtc_enabled', 'comment_indent',
-                   'new_symbols', 'implicit_constants', 'implicit_bool_signatures', 'space_suspended', 'accepted_lines', 'current_comment', 'origin_names', 'internal_variable_sorts',
-                   'dependent_vars', 'certificates_by_line', 'current_line', 'replay_hints',
-                   'load_dependencies', '_loading_in_progress', '_checked_exports', '_load_resolutions', 'event_sink', 'shell_start', 'current_lexer_state')
-RUN_STATE_COUNTERS = (new_var_name, new_bool_var_name)      # their `counter` attribute
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
@@ -12450,33 +12478,20 @@ class CheckResult:
     def complete(self) -> bool:           # checked, and no `todo` left
         return self.ok and not self.todos
 
-def _run_state_now() -> dict:
-    state = {name: globals()[name] for name in RUN_STATE_NAMES}
-    state['counters'] = [getattr(f, 'counter', 0) for f in RUN_STATE_COUNTERS]
-    return state
-
-def _run_state_put(state: dict) -> None:
-    for name in RUN_STATE_NAMES:
-        globals()[name] = state[name]
-    for f, n in zip(RUN_STATE_COUNTERS, state['counters']):
-        f.counter = n
-
-def _fresh_run_state(config: RunConfig) -> dict:
+def _fresh_run_state(config: RunConfig) -> RunState:
     paths = [Path(p) for p in config.paths]
     untrusted = [Path(p) for p in config.untrusted_paths]
     overlays = {source_name(name): text for name, text in config.overlays}
-    return {'strict_mode': config.strict, 'trusted_paths': list(paths),
-            'untrusted_names': set(overlays), 'source_overlays': overlays,
-            'theory_path': [*untrusted, Path.cwd(), *paths, *packaged_theory_paths], 'kurtc_enabled': config.kurtc,
-            'comment_indent': config.comment_indent, 'new_symbols': [], 'used_symbols': set(), 'indirect_noted': {}, 'indirect_report': {}, 'implicit_constants': [],
-            'implicit_bool_signatures': [], 'space_suspended': [False],
-            'accepted_lines': {}, 'current_comment': [None], 'origin_names': {}, 'internal_variable_sorts': {}, 'dependent_vars': {},
-            'certificates_by_line': {}, 'current_line': [None], 'replay_hints': {},
-            'load_dependencies': {}, '_loading_in_progress': set(), '_checked_exports': {}, '_load_resolutions': [], 'event_sink': None, 'shell_start': [None], 'current_lexer_state': [None],
-            'counters': [0 for _ in RUN_STATE_COUNTERS]}
+    return RunState(theory_path=[*untrusted, Path.cwd(), *paths, *packaged_theory_paths], strict_mode=config.strict,
+                    trusted_paths=list(paths), untrusted_names=set(overlays), source_overlays=overlays,
+                    kurtc_enabled=config.kurtc, comment_indent=config.comment_indent)
+
+# a session's run state is `run_state` while it is active: one session at a time (several threads
+# take turns -- the checks are Python work, which wouldn't run in parallel anyway)
+_session_lock = threading.RLock()
 
 class Session:
-    # checks with their own options and state (see `RUN_STATE_NAMES` above); each check starts from the
+    # checks with their own options and state (a `RunState`); each check starts from the
     # core, the session keeps the cache of the theories it checked (faster the next time)
     def __init__(self, config: Optional[RunConfig] = None) -> None:
         self.config = config or RunConfig()
@@ -12485,22 +12500,21 @@ class Session:
     @contextlib.contextmanager
     def _active(self) -> Iterator[None]:
         require_assertions()        # (check_text, Shell.feed, ...: everything of a session comes here)
-        before = _run_state_now()
-        _run_state_put(self._state)
-        try:
-            yield
-        finally:
-            self._state = _run_state_now()
-            _run_state_put(before)
+        global run_state
+        with _session_lock:
+            before, run_state = run_state, self._state
+            try:
+                yield
+            finally:
+                run_state = before
 
     def _check(self, run: Callable[[KnowledgeBase], KnowledgeBase]) -> CheckResult:
-        global event_sink
         out = io.StringIO()
         kb = copy.deepcopy(initial_kb)
         events: list[dict] = []
         with self._active(), contextlib.redirect_stdout(out):
-            event_sink = events
-            shell_start[0] = None
+            run_state.event_sink = events
+            run_state.shell_start[0] = None
             try:
                 kb = run(kb)
                 log_summary(kb)
@@ -12515,11 +12529,11 @@ class Session:
                 return CheckResult(False, out.getvalue(), e.msg.strip(), e.kind,
                                    list(kb.todos()), line, events, e.details)
             finally:
-                event_sink = None
+                run_state.event_sink = None
         return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events)
 
     def check_file(self, path: str) -> CheckResult:
-        return self._check(lambda kb: load_file(str(path), kb, mainstream=True))
+        return self._check(lambda kb: load_file(str(path), kb, main=True))
 
     def check_text(self, text: str, name: str = 'proof.kurt') -> CheckResult:
         # `name` appears in the messages; `load` finds files in the working directory and `paths`
@@ -12527,19 +12541,18 @@ class Session:
         if name in ('<stdin>', '<shell>'):
             raise ValueError(f'`{name}` is the name of the shell\'s input, not of a text -- choose another name')
         def run(kb: KnowledgeBase) -> KnowledgeBase:
-            global kurtc_enabled
-            kurtc_before = kurtc_enabled
-            kurtc_enabled = False                     # no `.kurtc` for a text without a file (only now)
+            kurtc_before = run_state.kurtc_enabled
+            run_state.kurtc_enabled = False                     # no `.kurtc` for a text without a file (only now)
             stream = io.StringIO(text)
             stream.name = name
-            _loading_in_progress.add(name)        # (the main file: the files it loads are below it)
-            untrusted_names.add(name)
+            run_state._loading_in_progress.add(name)        # (the main file: the files it loads are below it)
+            run_state.untrusted_names.add(name)
             try:
-                bundle = checked_exports(name, stream, None, kb, mainstream=True)
+                bundle = checked_exports(name, stream, None, kb, main=True)
             finally:
-                _loading_in_progress.discard(name)
-                untrusted_names.discard(name)
-                kurtc_enabled = kurtc_before
+                run_state._loading_in_progress.discard(name)
+                run_state.untrusted_names.discard(name)
+                run_state.kurtc_enabled = kurtc_before
             validate_against_loader(bundle, kb, name)
             apply_exports(kb, bundle)
             for todo in bundle.todos:
@@ -12565,7 +12578,7 @@ class Shell:
         self.accepted: list[str] = []          # the lines `feed` accepted (to copy into the file)
 
     def _continue_from_check(self, result: CheckResult) -> CheckResult:
-        state = self.session._state['shell_start'][0]
+        state = self.session._state.shell_start[0]
         if state is not None:
             self.kb, self.lexer_state, self.line, self.stopped = state
         self.accepted = []
@@ -12583,9 +12596,9 @@ class Shell:
         stream = io.StringIO(text if text.endswith('\n') else text + '\n')
         stream.name = '<shell>'
         with self.session._active(), contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            self.kb = read_eval_loop(stream, self.kb, mainstream=True, lexer_state=self.lexer_state,
+            self.kb = read_eval_loop(stream, self.kb, lexer_state=self.lexer_state,
                                      first_line=self.line, shell=True)
-            self.accepted += accepted_lines.get('<shell>', [])
+            self.accepted += run_state.accepted_lines.get('<shell>', [])
         self.line += text.rstrip('\n').count('\n') + 1
         return out.getvalue()
 
@@ -12981,7 +12994,7 @@ def next_steps(kb: KnowledgeBase, lexer_state: 'LexerState') -> list[str]:
     if kb.mode_str in ('case', 'assume') and kb.parent is not None and kb.theory and kb.mode_args:   # (`case` runs as `assume`)
         done, goal, parent = kb.mode_args[0], kb.theory[-1].expr, kb.parent
         cased = [done] + [f.expr[1] for f in parent.theory if is_implication(f.expr) and equal_expr(f.expr[2], goal, kb)
-                          and 'by impl-intro' in f.reason]                      # (the results of closed cases)
+                          and isinstance(f.reason, Reason) and [rule for rule, _, _ in f.reason.steps] == ['impl-intro']]   # (the results of closed cases)
         for f in parent.all_theory():
             if is_op_expr(f.expr, 'or') and any(equal_expr(d, done, kb) for d in f.expr[1:]):
                 rest = [d for d in f.expr[1:] if not any(equal_expr(d, c, kb) for c in cased)]
@@ -13024,6 +13037,16 @@ def matrix_brackets(kb: KnowledgeBase) -> list[tuple[str, str]]:
             pairs.append((left, right))
     return pairs
 
+def without_comment(line: str) -> str:
+    # `line` without its comment (`;` up to the end) -- a `;` inside a string label stays
+    in_string = False
+    for i, c in enumerate(line):
+        if c == '"':
+            in_string = not in_string
+        elif c == ';' and not in_string:
+            return line[:i].rstrip()
+    return line
+
 def rows_by_line(text: str, pairs: list[tuple[str, str]]) -> str:
     # a statement over several lines: the line breaks are spaces -- except inside a bracket pair
     # bound to `matrix` (`pairs`, see `matrix_brackets`) without another one inside, where each
@@ -13033,6 +13056,10 @@ def rows_by_line(text: str, pairs: list[tuple[str, str]]) -> str:
     # (a comment ends at the end of its line). Without such a binding, `[` is no different.
     if '\n' not in text:
         return text
+    # a comment ends at its line: joined with the next line, it would swallow it (the comment of
+    # the last line stays, it is the user's comment of the statement)
+    lines = text.split('\n')
+    text = '\n'.join([without_comment(l) for l in lines[:-1]] + lines[-1:])
     out: list[str] = []
     i = 0
     while i < len(text):
@@ -13080,7 +13107,6 @@ def state_summary(kb: KnowledgeBase, lexer_state: Optional['LexerState'] = None)
 
 # where the main file of a check stopped, for a `Shell` to continue there: (kb, lexer state, next
 # line, why: 'breakpoint' | 'error' | 'end') -- its first `breakpoint`, else its error, else its end
-shell_start: list[Optional[tuple]] = [None]
 
 def file_level(kb: KnowledgeBase) -> KnowledgeBase:
     # the level of the file being checked (its `sandbox`, see `checked_exports`), or the shell's top
@@ -13095,12 +13121,12 @@ def note_indirect_symbols(kb: KnowledgeBase, filename: str) -> None:
     # noted once per theory file (a trusted one) and theory; for every file, `kurt --deps` lists
     # them (`indirect_report`)
     direct = file_level(kb).direct_loads
-    noted = indirect_noted.setdefault(filename, set())
+    noted = run_state.indirect_noted.setdefault(filename, set())
     by_origin: dict[str, list[str]] = {}
-    for symbol in sorted(used_symbols):
+    for symbol in sorted(run_state.used_symbols):
         origin = kb.get_declared_in(symbol)
         if origin is not None and origin != filename and origin not in direct:
-            indirect_report.setdefault(filename, {}).setdefault(origin, set()).add(symbol)
+            run_state.indirect_report.setdefault(filename, {}).setdefault(origin, set()).add(symbol)
             if origin not in noted and is_trusted_file(filename):
                 by_origin.setdefault(origin, []).append(symbol)
     for origin, symbols in sorted(by_origin.items()):
@@ -13110,9 +13136,8 @@ def note_indirect_symbols(kb: KnowledgeBase, filename: str) -> None:
         log(kb, f'; note: {names} {"comes" if len(symbols) == 1 else "come"} from `{theory}.kurt`, which this file doesn\'t load itself -- `load {theory}` makes it independent of what the other files load', '', kb.level)
 
 # the lexer state of the statement being checked (`summary` shows the next steps with it)
-current_lexer_state: list[Optional['LexerState']] = [None]
 
-def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=False,
+def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
                    lexer_state: Optional['LexerState'] = None, first_line: int = 1, shell: bool = False) -> KnowledgeBase:
     # `shell`: read the lines from `input_stream`, but as the shell does -- an error is shown, and
     # the next line is read (`Shell.feed`)
@@ -13123,7 +13148,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
     lexer_state = lexer_state or LexerState()   # lexer state for indentation management (the one of a breakpoint)
     input_line = ''
     skip_deeper_than: Optional[int] = None   # skip the rest of an `expect` block after its error
-    accepted_lines[input_stream.name] = []   # the accepted lines, for `save`
+    run_state.accepted_lines[input_stream.name] = []   # the accepted lines, for `save`
     pending: list[str] = []                  # the lines of the statement being read
     replay: Optional[str] = None             # a line to evaluate again (after an `expect` closed)
     if not from_stream and readline:
@@ -13192,7 +13217,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                 # a blank line for readability inside a `proof`/`assume` block). Only skipped
                 # when not `continued`, i.e. not already mid-statement (an unclosed bracket
                 # spanning a blank line is still part of that statement, not a new one).
-                accepted_lines[input_stream.name].append(new_line)
+                run_state.accepted_lines[input_stream.name].append(new_line)
                 line += 1
                 continue
             if not continued and skip_deeper_than is not None:
@@ -13203,22 +13228,22 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
             input_line += new_line
             pending.append(new_line)
             try:
-                kb, lexer_state = scan_parse_check_eval(rows_by_line(input_line, matrix_brackets(kb)), lexer_state, kb, line, input_stream.name, mainstream)
+                kb, lexer_state = scan_parse_check_eval(rows_by_line(input_line, matrix_brackets(kb)), lexer_state, kb, line, input_stream.name)
                 accept_statement(input_stream.name, pending, kb)
                 pending = []
             except BreakpointReached as b:
                 accept_statement(input_stream.name, pending, kb)
                 pending = []
                 b.lexer_state, b.line = lexer_state, line
-                main_file = len(_loading_in_progress) <= 1          # not in a file it loads
+                main_file = len(run_state._loading_in_progress) <= 1          # not in a file it loads
                 if is_file and main_file and breakpoint_shell[0]:
                     raise                          # `main` continues in the shell with this state
-                if is_file and main_file and mainstream:
-                    log(b.kb, 'breakpoint', f'{line} the state here', b.kb.level)
+                if is_file and main_file and printing():
+                    log(b.kb, 'breakpoint', Reason(str(line), 'the state here'), b.kb.level)
                     print(state_summary(b.kb, lexer_state))
-                if is_file and main_file and shell_start[0] is None:
+                if is_file and main_file and run_state.shell_start[0] is None:
                     # (copies: checking goes on after it)
-                    shell_start[0] = (copy.deepcopy(b.kb), copy.deepcopy(lexer_state), line + 1, 'breakpoint')
+                    run_state.shell_start[0] = (copy.deepcopy(b.kb), copy.deepcopy(lexer_state), line + 1, 'breakpoint')
                 kb = b.kb
             except StopIteration:  # while parsing: need more input, i.e., `kb` has not changed yet, `lexer_state` has not changed either
                 input_line += '\n'  # the line break (a space, except in a matrix, see `rows_by_line`)
@@ -13254,8 +13279,8 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                         lexer_state.indent_requester = ''
                         lexer_state.initial_LHS = None
                         lexer_state.chained_ops = []
-                        if mainstream:
-                            log(kb, f'expect "{expected_kind}"', f'{line} confirmed', kb.level)
+                        if printing():
+                            log(kb, f'expect "{expected_kind}"', Reason(str(line), 'confirmed', 'expect'), kb.level)
                         if count_leading_spaces(input_line) > expect_indent:
                             accept_statement(input_stream.name, pending, kb, in_expect=True)   # part of the confirmed block
                             pending = []
@@ -13289,8 +13314,8 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                     e.msg = msg + e.msg
                 if is_file:
                     e.state = (kb, lexer_state, line)   # where it stopped, for `kurt -i` to continue there
-                    if len(_loading_in_progress) <= 1 and shell_start[0] is None:
-                        shell_start[0] = (kb, lexer_state, line, 'error')
+                    if len(run_state._loading_in_progress) <= 1 and run_state.shell_start[0] is None:
+                        run_state.shell_start[0] = (kb, lexer_state, line, 'error')
                     raise e    # reraise the error, since we were called by `load_file`
                 else:
                     print(e.msg, file=sys.stderr)  # show the error and go on
@@ -13301,17 +13326,17 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
         except EOFError:
             log(kb, "\nBye!")      # this only happens when Ctrl-d is pressed in the interactive session
             break
-    if is_file and len(_loading_in_progress) <= 1 and shell_start[0] is None:
-        shell_start[0] = (kb, lexer_state, line, 'end')
+    if is_file and len(run_state._loading_in_progress) <= 1 and run_state.shell_start[0] is None:
+        run_state.shell_start[0] = (kb, lexer_state, line, 'end')
     return kb
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=f'a simple proof assistant ({made_by})')
     parser.add_argument("filename", nargs='?',                       help=f'check the proof in the file, w/o filename start interactively')
     parser.add_argument('-i', '--interactive',  action='store_true', help=f'enter read-eval-print loop after loading `filename`')
-    parser.add_argument('-r', '--comment-indent', type=int, default=comment_indent, help=f'specify the indentation for comments (default: {comment_indent})')
+    parser.add_argument('-r', '--comment-indent', type=int, default=run_state.comment_indent, help=f'specify the indentation for comments (default: {run_state.comment_indent})')
     parser.add_argument('-s', '--strict',       action='store_true', help=f'for grading: reject `use`, `todo` and `chain` outside the theories that come with Kurt or are found via `-p`')
-    parser.add_argument('-p', '--path',                              help=f'specify the path where `load` looks for theories after checking {theory_path}')
+    parser.add_argument('-p', '--path',                              help=f'specify the path where `load` looks for theories after checking {run_state.theory_path}')
     parser.add_argument('-v', '-V', '--version', action='version', version=f'kurt {version}', help=f'show the version of Kurt and exit')
     parser.add_argument('-d', '--debug',        action='store_true', help=f'show debugging information')
     parser.add_argument('--no-kurtc',           action='store_true', help=f'neither write nor use `.kurtc` files (the certificates of a checked file, see doc/kurt-doc.md)')
@@ -13344,27 +13369,20 @@ def main() -> None:
     global debug_flag
     debug_flag = args.debug
 
-    # set reason indentation
-    global comment_indent
-    comment_indent = args.comment_indent
+    # the options of the run (`-s`, `-p`, `--no-kurtc`, `-r`) make one session, in which everything
+    # below happens -- every way of checking a file (`--json`, `kurt foo.kurtc`, `--deps`, the
+    # shell) with the same options
+    config = RunConfig(strict=args.strict, paths=(args.path,) if args.path else (),
+                       kurtc=not args.no_kurtc, comment_indent=args.comment_indent)
+    if args.lsp:
+        # a language server for editors: its own sessions, one per check (not inside this one,
+        # whose lock would hold back the checks of its other threads)
+        sys.exit(LanguageServer(sys.stdin.buffer, sys.stdout.buffer).serve())
+    session = Session(config)
+    with session._active():
+        run_command_line(args, session, copy.deepcopy(kb))
 
-    # the options that decide what is accepted come first: every way of checking a file below
-    # (`--json`, `kurt foo.kurtc`, ...) checks it with them
-
-    # theory path
-    global theory_path
-    if args.path is not None:
-        theory_path.insert(1, Path(args.path))                    # user specified path
-        trusted_paths.append(Path(args.path))
-
-    # strict mode, for grading
-    global strict_mode
-    strict_mode = args.strict
-
-    # `.kurtc` files: safe also with `--strict`, since the kernel checks each stored certificate
-    global kurtc_enabled
-    kurtc_enabled = not args.no_kurtc
-
+def run_command_line(args: argparse.Namespace, session: 'Session', kb: KnowledgeBase) -> None:
     # only the files and their certificates?
     if args.deps:
         if args.filename is None:
@@ -13383,17 +13401,12 @@ def main() -> None:
         print(text)
         sys.exit(0 if ok else 1)
 
-    # a language server for editors
-    if args.lsp:
-        sys.exit(LanguageServer(sys.stdin.buffer, sys.stdout.buffer).serve())
 
     # the result as JSON (with the options of the command line, in a session of its own)
     if args.json:
         if args.filename is None:
             sys.exit('--json needs a file')
-        config = RunConfig(strict=args.strict, paths=(args.path,) if args.path else (),
-                           kurtc=not args.no_kurtc, comment_indent=args.comment_indent)
-        result = Session(config).check_file(args.filename)
+        result = session.check_file(args.filename)
         print(result.to_json())
         sys.exit(0 if result.ok else 1)
 
@@ -13422,11 +13435,11 @@ def main() -> None:
     try:
         # if there is a filename run the file
         if args.filename is not None:
-            mainstream = not args.interactive
+            shown = not args.interactive          # (`kurt -i FILE`: the file quietly, then the shell)
             assert kb.level == 0
-            kb = load_file(args.filename, kb, mainstream=mainstream)
+            kb = load_file(args.filename, kb, main=shown)
             assert kb.level == 0
-            if mainstream:
+            if shown:
                 log_summary(kb)
         else:
             args.interactive = True
@@ -13434,7 +13447,7 @@ def main() -> None:
     except BreakpointReached as b:
         # `breakpoint`: the shell continues with the state there (Ctrl-D ends it)
         log(kb, f'; breakpoint at line {b.line}: the shell continues here (Ctrl-D ends it)\n{state_summary(b.kb, b.lexer_state)}')
-        read_eval_loop(sys.stdin, b.kb, mainstream=True, lexer_state=b.lexer_state, first_line=b.line + 1)
+        read_eval_loop(sys.stdin, b.kb, lexer_state=b.lexer_state, first_line=b.line + 1)
         exit(0)
     except KurtException as e:
         print(e.msg, file=sys.stderr)
@@ -13444,12 +13457,12 @@ def main() -> None:
             # `kurt -i`: the shell continues at the failing line, with the state there
             kb_there, lexer_there, line_there = state
             log(kb, f'; the shell continues at line {line_there}, with the state there (Ctrl-D ends it)\n{state_summary(kb_there, lexer_there)}')
-            read_eval_loop(sys.stdin, kb_there, mainstream=True, lexer_state=lexer_there, first_line=line_there)
+            read_eval_loop(sys.stdin, kb_there, lexer_state=lexer_there, first_line=line_there)
             exit(1)
 
     # read-eval-print loop with exception handling
     if args.interactive:
-        kb = read_eval_loop(sys.stdin, kb, mainstream=True)
+        kb = read_eval_loop(sys.stdin, kb)
 
     # a caught KurtException while checking `args.filename` (e.g. a failed proof, a parse
     # error) must be visible in the exit code -- otherwise a script (CI, an autograder)
@@ -13467,9 +13480,10 @@ def read_core(kb: KnowledgeBase) -> KnowledgeBase:
     with path.open(encoding='utf-8') as f:
         stream = io.StringIO(f.read())
     stream.name = str(path)
-    kb = read_eval_loop(stream, kb, mainstream=False)
+    with quietly():
+        kb = read_eval_loop(stream, kb)
     kb.used.add(SUB_SYMBOL)                # `sub` can be boolean or non-boolean
-    accepted_lines.pop(stream.name, None)
+    run_state.accepted_lines.pop(stream.name, None)
     kb.declared_in.clear()                 # (the core belongs to no file, see `declare_origin`)
     kb.property_origins.clear()
     return kb

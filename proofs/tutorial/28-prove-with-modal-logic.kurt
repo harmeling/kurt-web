@@ -2,43 +2,44 @@
 ;
 ; Prove with modal logic
 ;
-; Modal formulas are object terms. `⊢ A` is the Boolean Kurt judgment saying
-; that the object formula A is a theorem. This separation makes necessitation
-; expressible as an ordinary Kurt rule.
+; modal.kurt is the classical normal modal logic T: formulas built from
+; propositional letters with `¬`, `∧`, `∨`, `→`, `⇔`, `□` (necessarily) and
+; `◇` (possibly). A line `⊢ A` says that the formula A is a theorem of T --
+; each step below is one, by an axiom of T or by one of its rules, modus ponens
+; and necessitation.
 
 load modal
 
 const P, Q
-formula P, Q
+formula P, Q           ; P and Q are propositional letters
 
-; The implicational K axiom is an object-level theorem.
+; An axiom: `A → (B → A)`, here for P and Q.
 
 ⊢ (P → (Q → P))
 
-; Necessitation turns an object theorem into its boxed theorem.
+; Necessitation: from a theorem A follows the theorem □A.
 
 ⊢ □(P → (Q → P))
 
-; Prefix theoremhood and the empty-context sequent notation are connected by
-; explicit rules in modal.kurt.
+; A theorem is what follows from no assumptions: `empty ⊢ A` says the same
+; as `⊢ A`.
 
 empty ⊢ □(P → (Q → P))
 
-; The familiar connectives are object constructors here. The deep theory includes classical
-; excluded middle and the reflexivity axiom T; neither line asserts a Kurt-level disjunction or
-; implication.
+; T is classical, and it has the axiom T, `□A → A` (what is necessary is
+; true), and its dual `A → ◇A`.
 
 ⊢ (P ∨ ¬P)
 ⊢ (□P → P)
 ⊢ (P → ◇P)
 
-; Distribution and duality are object theorems too.
+; □ distributes over ∧, and ◇ is ¬□¬.
 
 ⊢ ((□P ∧ □Q) ⇔ □(P ∧ Q))
 ⊢ (◇P ⇔ ¬□¬P)
 
-; Modus ponens also lives at the Kurt meta level. First instantiate the
-; implication axiom with the theorem above as its antecedent, then apply it.
+; Modus ponens: from the theorems A and A → B follows the theorem B. Here A is
+; the first theorem of this lesson, and A → B the axiom from above for it.
 
 ⊢ ((P → (Q → P)) → (Q → (P → (Q → P))))
 ⊢ (Q → (P → (Q → P)))
