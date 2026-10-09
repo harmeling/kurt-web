@@ -73,7 +73,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.7.6'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.8.0'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -7074,7 +7074,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
             if contains(expr, pick_not_allowed, kb):
                 raise KurtException(f'ProofError: the line (its conclusion) of the `pick` block may not contain constant symbols from the current level, got `{expr_str(expr, kb)}`')
         case 'proof':
-            return eval_qed(kb, filename, line)
+            return eval_qed(kb, filename, line, implicit=True)
         case 'root':
             raise KurtException(f'ProofError: no block to close, already at the top level')
 
@@ -7178,7 +7178,20 @@ def binder_reading_changes(block: KnowledgeBase, result: Expr, last: Expr) -> Op
 def _first_or_none(xs: Iterator[State]) -> Optional[State]:
     return next(iter(xs), None)
 
-def eval_qed(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
+def id_after(line_id: str) -> str:
+    # the id of a derived line right after the line `line_id`: `7` -> `7a`, `7a` -> `7b`, `4-7` -> `7a`
+    found = re.fullmatch(r'(?:.*-)?(\d+)([a-z]*)', line_id)
+    assert found is not None, f'BUG: not a line id, got `{line_id}`'
+    base, letters = found.groups()
+    if not letters:
+        return f'{base}a'
+    later = itertools.dropwhile(lambda l: l != letters, letter_generator())
+    next(later)
+    return base + next(later)
+
+def eval_qed(kb: KnowledgeBase, filename: str, line: 'int | str', implicit: bool = False) -> KnowledgeBase:
+    # `implicit`: no `qed` was written (a dedent, the end of the file) -- the closing is a derived
+    # line right after the last line of the proof, and stands there (`; 7a by or-intro(7)`)
     parent = kb.parent
     if not kb.mode_str == 'proof'  or  parent is None:
         raise KurtException(f'EvalError: no proof to finish, `qed` can only appear at the end of a `proof` block')
@@ -7189,6 +7202,8 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
         raise KurtException(f'ProofError: no formula has been proven, `qed` can only be used after a successful proof')
     proven_f = kb.theory[-1]               # check the last formula
     proven_expr  = proven_f.simplified_expr         # what actually has been proven
+    if implicit:
+        line = id_after(proven_f.line)
     if proven_expr == todo_token:
         reason = Reason(str(line), '', 'step', [('todo', [], False)])
     else:
@@ -7205,7 +7220,13 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     kb.show.pop()                              # pop the last planned formula off the show stack, since it is proved now
     kb.theory_append(f)                        # add a copy to the current theory
     if printing():
-        log(kb, 'qed', reason, kb.level)
+        outer = run_state.current_line[0]
+        if implicit:
+            run_state.current_line[0] = (filename, int(re.match(r'\d+', str(line)).group()))
+        try:
+            log(kb, 'qed', reason, kb.level)
+        finally:
+            run_state.current_line[0] = outer
     return kb
 
 def is_new_symbol_or_existing_variable(s: str, kb: KnowledgeBase) -> bool:
@@ -12278,6 +12299,42 @@ def load_resolution_now(filename: str, search_paths) -> Optional[str]:
 def same_load_resolutions(resolutions: list[tuple]) -> bool:
     return all(load_resolution_now(name, paths) == found for name, paths, found in resolutions)
 
+def close_at_the_end(kb: KnowledgeBase, lexer_state: 'LexerState', filename: str, line: int, start_level: int) -> KnowledgeBase:
+    # the end of a file closes the blocks it opened and are still open (above `start_level`, where
+    # its reading began), as a line at column 0 would: a `proof` whose goal is reached closes
+    # (`qed` isn't needed), one whose goal isn't is an error at its claim
+    outer = run_state.current_line[0]
+    run_state.current_line[0] = None       # (no line of the file: the closings are derived lines)
+    lexer_state.initial_LHS, lexer_state.chained_ops = None, []
+    lexer_state.indent_stack[1:] = []
+    try:
+        while kb.level > start_level:
+            try:
+                kb = eval_done(kb, filename, line)
+            except KurtException as e:
+                if kb.mode_str == 'proof':
+                    raise unfinished_at_the_end(kb, filename) from None
+                e.todos_so_far = kb.todos()
+                raise
+    finally:
+        run_state.current_line[0] = outer
+    return kb
+
+def unfinished_at_the_end(kb: KnowledgeBase, fname: str) -> KurtException:
+    # a block still open at the end of the file: the innermost one, and where it was opened
+    block = kb
+    if block.mode_str == 'proof' and block.parent is not None and block.parent.show:
+        claim = block.parent.show[-1]
+        error = KurtException(f'ProofError: the proof of `{expr_str(claim.expr, kb)}` (line {claim.line}) isn\'t finished at the '
+                              f'end of the file -- its goal isn\'t reached yet', line=int(re.match(r'\d+', claim.line).group()), filename=fname)
+    else:
+        opened = block.theory[0].line if block.theory else None
+        where = f' (line {opened})' if opened else ''
+        error = KurtException(f'ProofError: the `{block.opened_by}` block{where} is still open at the end of the file',
+                              line=int(re.match(r'\d+', opened).group()) if opened else None, filename=fname)
+    error.todos_so_far = kb.todos()        # (they count, see `Session._check`)
+    return error
+
 def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, main: bool) -> ExportBundle:
     # check the file in a fresh context -- the core, and the files it loads itself, nothing of
     # its loader (whose facts it could otherwise use without loading them, and whose load order
@@ -12309,14 +12366,18 @@ def checked_exports_now(fname: str, f: TextIO, candidate, loader: KnowledgeBase,
     with (contextlib.nullcontext() if main else quietly()):      # a loaded file prints nothing
         kb = read_eval_loop(f, kb)
     if kb.level > 1:
-        raise KurtException(f'\nEvalError: inside `{fname}` not all blocks closed.')
+        raise unfinished_at_the_end(kb, fname)
     assert kb.level == 1, f'BUG: `load_file` decreased the level from 1 to {kb.level}'
     if is_trusted_file(fname):
         kb.frozen |= kb.declared_symbols()   # only this theory may change their meaning
     if run_state.kurtc_enabled and len(kb.todos()) == 0 and isinstance(candidate, Path):
         write_kurtc(fname)       # checked completely: its certificates
     if len(kb.show) > 0:
-        raise KurtException(f'EvalError: cannot merge and pop a level with promised formulas, got {len(kb.show)} formulas.')
+        claim = kb.show[-1]
+        error = KurtException(f'ProofError: the claim `{expr_str(claim.expr, kb)}` (line {claim.line}) has no proof -- '
+                              f'a `proof` block follows a `show`', line=int(re.match(r'\d+', claim.line).group()), filename=fname)
+        error.todos_so_far = kb.todos()
+        raise error
     bundle = compute_exports(kb)
     validate_exports(bundle, kb, root, fname)
     bundle.todos = list(kb.todos())
@@ -12555,8 +12616,10 @@ class Session:
                 if e.details is not None:
                     event['failure'] = e.details
                 events.append(event)
+                state = getattr(e, 'state', None)       # (the todos before the error count too)
+                todos = list(state[0].todos()) if state is not None else list(getattr(e, 'todos_so_far', kb.todos()))
                 return CheckResult(False, out.getvalue(), e.msg.strip(), e.kind,
-                                   list(kb.todos()), line, events, e.details)
+                                   todos, line, events, e.details)
             finally:
                 run_state.event_sink = None
         return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events,
@@ -12891,7 +12954,8 @@ class LanguageServer:
         hints = []
         for n, events in sorted(self.line_events(uri).items()):
             if first <= n <= last and n < len(lines):
-                reason = '; '.join(self.reason_here(e) for e in events)
+                # (a `qed` that isn't written -- the proof closed by a dedent -- says so)
+                reason = '; '.join(('qed ' if e['text'] == 'qed' and lines[n].strip() != 'qed' else '') + self.reason_here(e) for e in events)
                 character = lsp_python_to_utf16(lines[n], len(lines[n]))
                 hints.append({'position': {'line': n, 'character': character}, 'label': f'  ; {reason}',
                               'paddingLeft': True})
@@ -13225,6 +13289,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
     # `shell`: read the lines from `input_stream`, but as the shell does -- an error is shown, and
     # the next line is read (`Shell.feed`)
     from_stream = (input_stream.name != '<stdin>')
+    start_level = kb.level                                  # (the end of a file closes the blocks above it)
     is_file   = from_stream and not shell              # for non files we have a fancy prompt and we don't stop if an KurtException comes
     line       = first_line
     continued  = False
@@ -13286,6 +13351,11 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
                         raise KurtException(
                             f'ParseError: unexpected end of file while still parsing a statement that started around line {line} in {input_stream.name} -- unclosed bracket or incomplete expression?',
                             line=line, filename=input_stream.name)
+                    if is_file:
+                        if len(run_state._loading_in_progress) <= 1 and run_state.shell_start[0] is None:
+                            # (a `Shell` continues in the blocks still open: before they close)
+                            run_state.shell_start[0] = (copy.deepcopy(kb), copy.deepcopy(lexer_state), line, 'end')
+                        kb = close_at_the_end(kb, lexer_state, input_stream.name, line, start_level)
                     break
                 new_line = new_line.rstrip()
                 if line == 1:

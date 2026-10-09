@@ -202,3 +202,9 @@ Operational log for agent-session setup and activity on the `agent` branch.
 ## 2026-10-08 — export bare sort names
 
 - Synchronized kurt-lang-dev commit 42309e8 so a top-level sort declaration is exported as theory vocabulary even before a retained fact uses it. update.sh smoke tests and all 25 Playwright tests passed.
+
+## 2026-10-09: Kurt 0.8.0
+
+- `./update.sh ../kurt-lang`: kurt.py 0.8.0 (released as v0.8.0 in kurt-lang; a proof closed without
+  `qed` at the end of a file or by a dedent shows the closing as a derived line, `7a`). Theories and
+  lessons were already current. New service-worker cache name.
