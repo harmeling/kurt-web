@@ -339,38 +339,23 @@ function showOutput(text) {
   const lines = String(text || '').split('\n'); let pendingLine = null;
   lines.forEach(line => {
     const found = line.match(/File `[^`]+`, line (\d+):/); if (found) pendingLine = Number(found[1]);
+    // Kurt prints the number of a source line in front of it (six columns, empty for a derived
+    // line): it goes into the gutter of the output, the text without it
+    const numbered = line.match(/^( {0,3}\d{1,4}| {4})  (.*)$/);
+    const shown = numbered ? numbered[2] : line;
     const row = document.createElement(pendingLine ? 'button' : 'span'); row.className = pendingLine ? 'output-line diagnostic' : 'output-line';
-    row.innerHTML = highlightLine(line).replace(/\b(\w+Error)\b/g, '<span class="tok-err">$1</span>').replace(/\bProof checked\.?/g, '<span class="tok-ok">$&</span>');
+    if (numbered && numbered[1].trim()) row.dataset.line = numbered[1].trim();
+    row.innerHTML = highlightLine(shown).replace(/\b(\w+Error)\b/g, '<span class="tok-err">$1</span>').replace(/\bProof checked\.?/g, '<span class="tok-ok">$&</span>');
     if (pendingLine) { const target = pendingLine; row.title = `Go to line ${target}`; row.onclick = () => goToLine(target); if (!line.trim()) pendingLine = null; }
     output.append(row);
   });
   linkReasons(); numberOutputLines(); alignPanels();
 }
-// The line numbers of the editor, on the rows of the output that echo a line: the last row with the
-// number of a line in its reason (the rows before it with that number are derived, e.g. `impl-intro`
-// when a block closes), and rows without a number (`proof`, `qed`) by their first word, in order.
+// The line numbers of the editor, on the rows of the output that show a line: Kurt prints them in
+// front (`showOutput` puts them into `data-line`); a derived row (`9a`, the result of a block) has
+// its number in its reason instead.
 function numberOutputLines() {
-  const rows = [...output.querySelectorAll('.output-line')], source = editor.value.split('\n');
-  const lines = rows.map(() => null), used = new Set(), lastRow = new Map();
-  rows.forEach((row, i) => {
-    const reason = reasonOf(row.textContent); if (!reason || !/^\d+$/.test(reason.id)) return;
-    const owner = !row.textContent.split(';')[0].trim() && i > 0 ? i - 1 : i, line = Number(reason.id);
-    if (line > source.length) return;
-    if (lastRow.has(line)) lines[lastRow.get(line)] = null;
-    lines[owner] = line; lastRow.set(line, owner);
-  });
-  lines.forEach(l => { if (l) used.add(l); });
-  const firstWord = text => text.trim().split(/\s+/)[0];
-  let previous = 0;
-  rows.forEach((row, i) => {
-    if (lines[i]) { previous = lines[i]; return; }
-    const word = firstWord(row.textContent.split(';')[0]); if (!word) return;
-    const next = lines.slice(i + 1).find(Boolean) || source.length + 1;
-    for (let line = previous + 1; line < next; line++) {
-      if (!used.has(line) && firstWord(source[line - 1]) === word) { lines[i] = line; used.add(line); previous = line; break; }
-    }
-  });
-  rows.forEach((row, i) => { if (lines[i]) row.dataset.line = lines[i]; });
+  const lines = [...output.querySelectorAll('.output-line')].map(row => Number(row.dataset.line) || 0);
   output.style.setProperty('--line-digits', String(Math.max(2, String(Math.max(0, ...lines)).length)));
 }
 // Two columns: the first line of the output at the height of the first line of the editor (the
@@ -381,14 +366,15 @@ function alignPanels() {
   const gap = $('#editorWrap').getBoundingClientRect().top - output.getBoundingClientRect().top;
   if (gap > 0) header.style.minHeight = `${header.getBoundingClientRect().height + gap}px`;
 }
-// Each line of the output ends with its reason, e.g. `; 33 by equal-elim(33a, 32)`: its own line
-// (33) and the lines its step uses (33a, 32; also ranges `21-35`, and labels of this proof, `K7`).
+// Each line of the output ends with its reason, e.g. `; by equal-elim(33a, 32)` at line 33 (its own
+// number is in front), or `; 33a by ...` for a derived line: its id and the lines its step uses
+// (33a, 32; also ranges `21-35`, and labels of this proof, `K7`).
 // The result of a block is numbered by the lines of the block, `; 21-35 by impl-intro`, and used
 // by them, `by or-elim(21-35, 36-40)`.
 // Hovering a line of the output marks those lines in the output and in the editor.
-function reasonOf(text) {
-  const found = text.match(/;\s+(\d+[a-z]?(?:-\d+[a-z]?)?)(?:\s+(.*))?$/); if (!found) return null;
-  const [, id, rest = ''] = found;
+function reasonOf(text, line) {
+  const found = text.match(/;\s+(?:(\d+[a-z]?(?:-\d+[a-z]?)?)(?:\s+|$))?(.*)$/); if (!found) return null;
+  const id = found[1] || line, rest = found[2] || ''; if (!id) return null;
   const label = rest.match(/"([^"]+)"\s*$/)?.[1] || null;
   const refs = [];
   const by = rest.match(/(?:^|\s)by\s+(.*?)(?:\s+"[^"]*")?\s*$/);
@@ -401,9 +387,9 @@ function reasonOf(text) {
 function linkReasons() {
   const rows = [...output.querySelectorAll('.output-line')], byId = new Map(), byLabel = new Map(), info = [];
   rows.forEach((row, i) => {
-    const reason = reasonOf(row.textContent);
     // a reason on a line of its own (after a comment) belongs to the line above
-    const owner = reason && !row.textContent.split(';')[0].trim() && i > 0 ? i - 1 : i;
+    const owner = !row.textContent.split(';')[0].trim() && i > 0 ? i - 1 : i;
+    const reason = reasonOf(row.textContent, rows[owner].dataset.line);
     if (!reason) return;
     info.push({ rows: owner === i ? [row] : [rows[owner], row], ...reason });
     if (!byId.has(reason.id)) byId.set(reason.id, []);
