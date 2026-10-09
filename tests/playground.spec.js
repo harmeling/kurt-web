@@ -145,7 +145,7 @@ test('changes the text size and the column of the reasons in the View menu', asy
   });
   await expect(page.locator('#indentLabel')).toHaveText('60');
   // (the output has a line per element, without line breaks in its text: no `^`)
-  await expect(page.locator('#output')).toHaveText(/A {59}; 3 by 2/, { timeout: 60000 });
+  await expect(page.locator('#output')).toHaveText(/A {59}; by 2/, { timeout: 60000 });
 });
 
 test('keeps the menus inside a phone screen', async ({ page }) => {
@@ -320,7 +320,7 @@ test('continues in the shell where the check stopped', async ({ page }) => {
   await expect(page.locator('#shellInput')).toHaveValue('    ');                       // inside the proof
   await page.locator('#shellInput').pressSequentially('A and B');
   await page.locator('#shellInput').press('Enter');
-  await expect(page.locator('#output')).toContainText('8 by and-intro');
+  await expect(page.locator('#output')).toContainText('by and-intro(proof.kurt:3, proof.kurt:7)');
   await expect(page.locator('#shellPrompt')).toHaveText(';[9]');
   await page.locator('#shellInput').fill('qed');
   await page.locator('#shellInput').press('Enter');
