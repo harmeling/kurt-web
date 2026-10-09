@@ -324,7 +324,7 @@ test('continues in the shell where the check stopped', async ({ page }) => {
   await expect(page.locator('#shellPrompt')).toHaveText(';[9]');
   await page.locator('#shellInput').fill('qed');
   await page.locator('#shellInput').press('Enter');
-  await expect(page.locator('#output')).toContainText('9 by 8');
+  await expect(page.locator('#output')).toContainText('qed                                     ; by 8');
   await page.locator('#shellCopyBtn').click();                                          // before the failing line
   await expect(page.locator('#editor')).toHaveValue(/    B\n    A and B\nqed\n    A and C/);
 });
