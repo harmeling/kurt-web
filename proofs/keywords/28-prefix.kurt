@@ -1,4 +1,4 @@
-; 31-prefix.kurt
+; 28-prefix.kurt
 
 ; `prefix OP rbp` declares `OP` as a prefix operator (applied in front of its
 ; single argument) with a right binding power controlling how much it grabs.

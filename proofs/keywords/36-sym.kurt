@@ -1,4 +1,4 @@
-; 39-sym.kurt
+; 36-sym.kurt
 
 ; `sym OP` declares an infix operator symmetric: its arguments may be swapped
 ; without changing the formula, as far as Kurt's matching is concerned.  This
@@ -10,9 +10,12 @@ infix "+" 20 20
 sym "+"
 
 ; `b + a` below is logged as `a + b`, a restatement of the axiom -- like an alias
-; (37-alias.kurt), a symmetric operator's argument order is normalised into a canonical form
+; (34-alias.kurt), a symmetric operator's argument order is normalised into a canonical form
 ; while parsing, so `b + a` ends up the exact same stored formula as `a + b`.
-var a, b
+; Without `sym "+"` above, `b + a` would be a `ProofError` (can not derive).
+; (With `var a, b` instead, `use a + b` would be a schema, and `b + a` an
+; instance of it even without `sym` -- so we take constants.)
+const a, b
 use a + b
 b + a                 ; matches the axiom above even though the order differs (see above)
 

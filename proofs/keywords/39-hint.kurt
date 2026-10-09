@@ -1,4 +1,4 @@
-; 42-hint.kurt
+; 39-hint.kurt
 
 ; `hint` is a toggle (`hint on` / `hint off`) for the interactive shell: with
 ; `hint on`, Kurt prints before each prompt what could come next, e.g.

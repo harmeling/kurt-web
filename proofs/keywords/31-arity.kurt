@@ -1,4 +1,4 @@
-; 34-arity.kurt
+; 31-arity.kurt
 
 ; `arity SYMBOL N` declares that `SYMBOL` always takes exactly `N`
 ; arguments, written by juxtaposition (space, `minimal.kurt`'s built-in

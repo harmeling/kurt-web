@@ -1,4 +1,4 @@
-; 44-cert.kurt
+; 41-cert.kurt
 
 ; Every step Kurt accepts is found by a search -- and then checked again by a
 ; small *kernel*, which doesn't search at all: it takes the step's

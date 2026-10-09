@@ -75,6 +75,21 @@ let w
     w = w
 ∀ w (w = w)
 
+; 7. A checker sort and a mathematical carrier are separate choices. `natural.kurt` supplies
+;    the object-level constant `Nat`; membership in it is a proposition. The lowercase `nat`
+;    below is optional checker metadata. It restricts positions declared with `nat`, but does
+;    not prove membership in `Nat`.
+
+sort nat
+const n
+nat n
+
+expect "ProofError"
+    n ∈ Nat
+
+; A theory may deliberately connect the two views with its own facts or rules. Kurt does not
+; silently identify them, and a theory may use only one view when that is clearer.
+
 ; With `kurt --strict` (for grading), the same rules hold, but the first use of a symbol that
 ; wasn't declared at all is an error instead of a new constant: `use P a` above would be refused
 ; (`use` too, with `--strict`). Declarations like `bool Q` or `infix ∘ 50 50` count.

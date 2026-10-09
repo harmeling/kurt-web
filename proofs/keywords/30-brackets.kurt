@@ -1,4 +1,4 @@
-; 33-brackets.kurt
+; 30-brackets.kurt
 
 ; `brackets LEFT RIGHT` declares a new bracket pair.  Kurt's own `(` `)` is
 ; declared exactly this way in `minimal.kurt` (`brackets ( )`), and is

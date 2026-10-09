@@ -1,3 +1,5 @@
+; 27-type-and-reduce-lambda-terms.kurt
+;
 ; Type and reduce simply typed lambda terms
 ;
 ; The lambda theory uses optional sorts to distinguish object terms, object types,
@@ -5,29 +7,38 @@
 
 load lambda
 
-; The complete typing rules use de Bruijn variables. `zero` names the newest
-; context entry, so the body below has type base in the extended context;
-; abstraction then removes that entry and constructs base -> base.
+; Typing is written as on paper: `Γ ⊢ M : A`. The complete rules use de Bruijn
+; variables internally. `zero` names the newest context entry, so the body below
+; has type base in the extended context; abstraction then removes that entry and
+; constructs the function type `fun base base`.
 
-has (extend empty base) (at zero) base
-has empty (abs base (at zero)) (fun base base)
+(extend empty base) ⊢ (at zero) : base
+empty ⊢ (abs base (at zero)) : (fun base base)
 
 ; The theory supplies one closed base term, `unit`. Application combines the
 ; function and argument typing facts.
 
-has empty unit base
-has empty (app (abs base (at zero)) unit) base
+empty ⊢ unit : base
+empty ⊢ (app (abs base (at zero)) unit) : base
 
 ; Named terms are convenient when discussing reduction. Binder names do not
 ; matter: λ x x and λ y y are alpha-equivalent because λ is a real Kurt binder.
 
-has empty (λ x x) (fun base base)
-has empty (λ y y) (fun base base)
+empty ⊢ (λ x x) : (fun base base)
+empty ⊢ (λ y y) : (fun base base)
 
 ; Beta reduction uses capture-avoiding substitution. Here substituting `unit`
 ; for x in x computes immediately to unit.
 
 (app (λ x x) unit) ↦ unit
+
+; `⇝` is deterministic call-by-value evaluation. It evaluates an application from
+; left to right and substitutes only when its argument is already a value.
+
+(app (λ x x) unit) ⇝ unit
+value (λ x x)
+(app (λ y y) unit) ⇝ unit
+(app (λ x x) (app (λ y y) unit)) ⇝ (app (λ x x) unit)
 
 ; Sort declarations are ordinary inspection commands too.
 

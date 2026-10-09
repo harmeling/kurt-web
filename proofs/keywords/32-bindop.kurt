@@ -1,4 +1,4 @@
-; 35-bindop.kurt
+; 32-bindop.kurt
 
 ; `bindop` marks a symbol as a *variable-binding operator*: its first
 ; argument is the variable (or a condition on it, e.g. `forall x>0 F(x)`) that
@@ -10,7 +10,7 @@
 ;     arity  forall 2
 ;     bindop forall
 ;
-; A symbol needs an `arity` (34-arity.kurt) before it can be declared a
+; A symbol needs an `arity` (31-arity.kurt) before it can be declared a
 ; `bindop`. The binding scope is fixed semantics, so `bindop` also makes the
 ; symbol a constant and prints that implied declaration. Here is a minimal binder of our own:
 

@@ -48,10 +48,10 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
   const box = await menu.boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(500);
   expect(await menu.evaluate(m => m.scrollHeight > m.clientHeight)).toBeTruthy();
-  const last = menu.locator('.item', { hasText: '44-cert.kurt' });
+  const last = menu.locator('.item', { hasText: '45-builtin.kurt' });
   await last.scrollIntoViewIfNeeded();
   await last.click();
-  await expect(page.locator('#editor')).toHaveValue(/44-cert/);
+  await expect(page.locator('#editor')).toHaveValue(/45-builtin/);
 });
 
 test('runs a lesson that loads a file next to it', async ({ page }) => {
@@ -266,7 +266,7 @@ test('marks the block a result comes from, and the block a step uses', async ({ 
   const result = page.locator('#output .output-line', { hasText: '; 6-7 by impl-intro' });
   await result.hover();
   await expect(page.locator('#lineNumbers .ref-num')).toHaveText(['6', '7']);     // its block
-  const step = page.locator('#output .output-line', { hasText: 'by or-elim' });
+  const step = page.locator('#output .output-line', { hasText: 'by case-elim' });
   await step.hover();
   await expect(page.locator('#output .output-line.ref', { hasText: '; 6-7 by impl-intro' })).toHaveCount(1);
   await expect(page.locator('#output .output-line.ref', { hasText: '; 8-9 by impl-intro' })).toHaveCount(1);

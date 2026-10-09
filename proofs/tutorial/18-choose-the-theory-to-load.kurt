@@ -17,6 +17,11 @@
 ; | `field` | a field `K` with `+`, `·`, `-`, `inv`, `0`, `1`: every axiom for the elements of `K`, subtraction |
 ; | `vectorspace` | vector spaces over `K`: `vectorspace($V)`, the axioms for its elements |
 ; | `matrix` | vectors and matrices as literals, computed exactly with `calc on` (lesson 25) |
+; | `modal` | modal logic T on object formulas: `⊢ A`, `□`, `◇`, necessitation (lesson 28) |
+; | `lambda` | the simply typed lambda calculus: typing `Γ ⊢ M : A`, reduction `↦`, evaluation `⇝` (lesson 27) |
+;
+; Nothing needs to be loaded for `implies`, `and`, and `true`: they belong to the core, which every
+; file starts with (`minimal.kurt`, which Kurt reads when it starts; it is never loaded).
 ;
 ; Numbers or structures: `numbers` (and `natural`, `integer`, `rational`, `analysis`, which load
 ; it) is about numbers -- its laws hold for everything written with `+`, `*`, ... For linear
@@ -28,6 +33,8 @@
 ; Dependencies are loaded transitively. For example, `load natural` brings in `set`, `logic`,
 ; `equality`, `prop`, and `numbers` as required. Use `kurt --deps FILE` to inspect the actual tree.
 ;
-; The packaged `modal` file is an experimental example, not a mature theory. It demonstrates
-; box/diamond syntax and several sound modal axiom schemata, but it is not a complete proof system
-; for normal modal logic K or T because Kurt cannot yet express the necessitation rule.
+; `modal` writes its formulas as object terms with its own connectives `¬`, `∧`, `∨`, `⇔`, `→`, and
+; only the judgment `⊢ A` is a Kurt formula. That makes necessitation (from `⊢ A` follows `⊢ □A`)
+; an ordinary rule of the theory (lesson 28). Because `modal` declares these symbols itself, it
+; can not be loaded together with `prop` (or `logic`, which loads it), nor with `set`, which uses
+; `→` for function spaces.

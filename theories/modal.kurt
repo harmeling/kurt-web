@@ -1,33 +1,84 @@
-; EXPERIMENTAL EXAMPLE: a modal-logic fragment
+; CLASSICAL NORMAL MODAL LOGIC T
 ;
-; This file demonstrates that Kurt theories can introduce modal prefix operators and axiom
-; schemata. It covers box (□, necessity), diamond (◇, possibility), their duality, distribution
-; over and/or, the K distribution axiom, and the T axiom in its dual form `p implies ◇p`.
+; Modal formulas are Kurt terms. The operators `¬`, `∧`, `∨`, `⇔`, `→`, `□`, and `◇` are
+; object-language constructors and are not Boolean Kurt formulas. Only the judgment `⊢ A` is
+; Boolean. Consequently the words `and` and `implies` below are Kurt's metalogic: they combine
+; premises and conclusions of object-level rules.
 ;
-; This is not a complete proof system for normal modal logic K or T: Kurt cannot currently
-; express the necessitation rule "from a theorem p infer □p". In particular, do not describe
-; `load modal` as implementing system K or T. There are also no 4/5 axioms or
-; accessibility-relation semantics. See proofs/modal-logic/ for executable examples.
-;
-; With classical propositional logic and the duality below, `p implies ◇p` is equivalent to
-; the standard T axiom `□p implies p`. It is not the seriality axiom D (`□p implies ◇p`).
-load prop
-prefix b 20, d 20          ; box and diamond
-bool b, d
-alias □ b
-alias ◇ d
+; This theory owns its notation. In particular, `prop.kurt` gives the same propositional glyphs
+; their meta-level meanings, and `set.kurt` uses `→` for function spaces; those theories cannot
+; be loaded together without future namespaces.
 
-; p and q are declared variables once instead of carrying a `%` on every occurrence. Every
-; stored formula renames its free variables to fresh internal schema names, so these rules stay
-; general after `load` and cannot capture an importer's p or q.
-var p, q
-use ◇p ≡ ¬□¬p   "diamond-def"
-use □p ≡ ¬◇¬p   "box-def"
-use ◇p ∨ ◇q ≡ ◇(p ∨ q)   "diamond-distrib-or"
-use □p ∧ □q ≡ □(p ∧ q)   "box-distrib-and"
+infix → 30 29
+infix ⇔ 20 20
+infix ∧ 50 50
+infix ∨ 40 40
+prefix ¬ 60
+prefix □ 80
+prefix ◇ 80
+prefix ⊢ 90
+infix ⊢ 10 10
 
-; K distribution axiom
-use □(p ⇒ q) ⇒ (□p ⇒ □q)    "K"
+const →, ⇔, ∧, ∨, ¬, □, ◇, ⊢, ⊥, empty
+bool ⊢ 0
 
-; T axiom, in its dual form
-use p ⇒ ◇p   "T"
+; Optional sort declarations keep object formulas from being asserted directly as Kurt claims.
+sort formula
+formula → 0 1 2, ⇔ 0 1 2, ∧ 0 1 2, ∨ 0 1 2
+formula ¬ 0 1, □ 0 1, ◇ 0 1, ⊥
+
+var A, B, C
+formula A, B, C
+
+; Prefix theoremhood is the empty-context case of the binary sequent notation.
+use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"
+use (empty ⊢ A) implies (⊢ A) "empty-sequent-to-theorem"
+
+; A classical implicational Hilbert basis.
+use ⊢ (A → (B → A)) "implication-K"
+use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) "implication-S"
+use ⊢ (((A → B) → A) → A) "Peirce"
+
+; Object-level modus ponens is stated in Kurt's metalogic.
+use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"
+
+; A first derived theorem. Keeping the intermediate Hilbert steps visible demonstrates that the
+; basis is usable without asking proof search to invent a multi-step modus-ponens chain.
+show ⊢ (A → A) "implication-reflexivity"
+proof
+    ⊢ (A → ((A → A) → A))
+    ⊢ (A → (A → A))
+    ⊢ ((A → ((A → A) → A)) → ((A → (A → A)) → (A → A)))
+    ⊢ ((A → (A → A)) → (A → A))
+    ⊢ (A → A)
+qed
+
+; Modal necessitation is likewise stated entirely in Kurt's metalogic.
+use (⊢ A) implies (⊢ □A) "necessitation"
+
+; Object-level propositional rules. Their premises are theoremhood judgments, never arbitrary
+; Kurt assumptions, so they remain inside the embedded logic.
+use (⊢ A) and (⊢ B) implies (⊢ (A ∧ B)) "and-intro"
+use (⊢ (A ∧ B)) implies (⊢ A) "and-elim-left"
+use (⊢ (A ∧ B)) implies (⊢ B) "and-elim-right"
+use (⊢ A) implies (⊢ (A ∨ B)) "or-intro-left"
+use (⊢ B) implies (⊢ (A ∨ B)) "or-intro-right"
+use (⊢ (A ∨ B)) and (⊢ (A → C)) and (⊢ (B → C)) implies (⊢ C) "or-elim"
+use (⊢ (A → B)) and (⊢ (B → A)) implies (⊢ (A ⇔ B)) "iff-intro"
+use (⊢ (A ⇔ B)) implies (⊢ (A → B)) "iff-elim-forward"
+use (⊢ (A ⇔ B)) implies (⊢ (B → A)) "iff-elim-backward"
+use (⊢ (A → ⊥)) implies (⊢ ¬A) "not-intro"
+use (⊢ ¬A) implies (⊢ (A → ⊥)) "not-elim"
+use (⊢ ⊥) implies (⊢ A) "bottom-elim"
+use ⊢ (A ∨ ¬A) "excluded-middle"
+
+; The characteristic distribution axiom of normal modal logic K.
+use ⊢ (□(A → B) → (□A → □B)) "modal-K"
+
+; Duality, distribution, and reflexivity T.
+use ⊢ (◇A ⇔ ¬□¬A) "diamond-duality"
+use ⊢ (□A ⇔ ¬◇¬A) "box-duality"
+use ⊢ ((◇A ∨ ◇B) ⇔ ◇(A ∨ B)) "diamond-distrib-or"
+use ⊢ ((□A ∧ □B) ⇔ □(A ∧ B)) "box-distrib-and"
+use ⊢ (□A → A) "T"
+use ⊢ (A → ◇A) "T-dual"

@@ -105,6 +105,7 @@ tab_indent     =  4       # tabs get converted to four spaces
 
 # config: the basic symbols of the kurt language as constants
 AND_SYMBOL   = 'and'         # conjunction (used for premises and conclusions)
+OR_SYMBOL    = 'or'          # disjunction (used by n-ary case elimination)
 IMPL_SYMBOL  = 'implies'     # implication 
 SUB_SYMBOL   = 'sub'         # substitution
 BOUND_SYMBOL = 'bound:'      # a binder's condition with its variable, `[bound:, x, x > 0]` (see `mark_bound_variables`)
@@ -155,6 +156,24 @@ CALCULATOR_SETS: dict[str, Callable[[Fraction], bool]] = {
 CALCULATOR_MEMBERSHIP = 'element'
 CALCULATOR_BOOLEAN_RESULTS = frozenset((*CALCULATOR_RELATIONS, CALCULATOR_MEMBERSHIP))
 
+# `builtin SYMBOL ROLE`: what Kurt itself implements for a symbol -- the calculator's operations,
+# and the roles of the engine, which give a symbol of a trusted theory the meaning the search and
+# the kernel rely on (nothing has such a meaning by its name alone): an `equivalence` fact is
+# used as two implications, a `disjunction` is split by `case`, closing an `assume` block with
+# the `falsum` gives the `negation` of the assumption, `def` defines with an `equality` or an
+# `equivalence`
+ENGINE_ROLES: dict[str, list[int]] = {            # the role, and the `bool` signature it needs
+    'equivalence': [0, 1, 2], 'disjunction': [0, 1, 2], 'negation': [0, 1], 'falsum': [0], 'equality': [0],
+    'universal': [0, 2], 'existential': [0, 2],      # (binders: `let` closes with the universal, `pick` opens from the existential)
+}
+BINDER_ROLES = ('universal', 'existential')
+CALCULATOR_ROLES = CALCULATOR_OPERATIONS + tuple(CALCULATOR_RELATIONS) + (CALCULATOR_MEMBERSHIP,) + tuple(CALCULATOR_SETS) + CALCULATOR_LITERALS
+BUILTIN_ROLES = CALCULATOR_ROLES + tuple(ENGINE_ROLES)
+
+def shown_builtin_symbol(symbol: str) -> str:
+    # a bracket pair is stored as `[$$$]` (its terms), and written as its left bracket
+    return symbol.split('$$$')[0] if '$$$' in symbol else symbol
+
 # `_EMBEDDED_THEORIES` is populated (from `theories/*.kurt`) only in the generated single-file
 # bundle produced by `scripts/build_standalone.py` -- empty here, in the real source file. It
 # lets that bundle be a genuinely standalone `kurt.py`: download it alone and `load prop` (etc.)
@@ -188,7 +207,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; `(lim $v $a $T) = $L ⇔ ...` would be wrong, since `lim v '
                   '0 (1 / v) = lim v 0 (1 / v)` would\n'
                   '; then say that this limit exists.\n'
-                  'load natural\n'
+                  'load prop, equality, logic, set, numbers, natural\n'
                   '\n'
                   ';; absolute value\n'
                   'const abs\n'
@@ -306,6 +325,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'and RHS can be anything\n'
                   'sym   =        ; equality is symmetric\n'
                   'chain =        ; equality is chainable\n'
+                  'builtin = equality  ; `def` may define with `=` (the '
+                  "engine's equality)\n"
                   '\n'
                   '\n'
                   'infix ≠ 20 20 ; inequality, note it is not chainable\n'
@@ -357,7 +378,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'names, as the slides do after proving\n'
                '; uniqueness: `0` and `1`, `- λ` and `inv λ`. proofs/mafi1/ '
                'uses this theory.\n'
-               'load set\n'
+               'load prop, equality, logic, set\n'
                'infix + 60 60\n'
                'infix · 70 70\n'
                'infix - 60 60\n'
@@ -689,7 +710,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '        $x = 1 ∨ $x = - 1\n'
                'qed\n'
                '\n'
-               '; subtraction: `λ - μ` is `λ + (- μ)`, and its laws\n'
+               '; subtraction: `λ - μ` is `λ + (- μ)`, and its laws. '
+               '`minus-def` is a defining axiom rather\n'
+               '; than `def`: binary `-` shares an already meaningful symbol '
+               'with unary `-`, and the equation is\n'
+               '; conditional on field membership instead of introducing one '
+               'fresh abbreviation.\n'
                'use $a ∈ K ∧ $b ∈ K  ⇒  $a - $b = $a + (- '
                '$b)                       "minus-def"\n'
                '\n'
@@ -806,7 +832,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'can use as an operation, since only\n'
                '; the `infix ∘` is exported, not the `var`). See '
                'tutorial/24-use-a-structure-groups.kurt.\n'
-               'load set\n'
+               'load prop, equality, logic, set\n'
                'var ∘\n'
                'infix ∘ 70 70           ; like `*`: `a ∘ b ∈ G` is `(a ∘ b) ∈ '
                'G`\n'
@@ -1014,10 +1040,10 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'their negatives -- closed under `+`, `-`\n'
                  '; and `*`. As for natural.kurt, they are numbers of '
                  'numbers.kurt, so its laws (and `calc`) apply.\n'
-                 'load natural\n'
+                 'load prop, equality, set, numbers, natural\n'
                  'const Int\n'
-                 'calc Int integers                   ; `calc on` proves `-3 ∈ '
-                 'Int`\n'
+                 'builtin Int integers                   ; `calc on` proves '
+                 '`-3 ∈ Int`\n'
                  '\n'
                  'use $n ∈ Nat  ⇒  $n ∈ Int                         "int-nat"\n'
                  'use $n ∈ Nat  ⇒  -$n ∈ Int                        '
@@ -1086,11 +1112,14 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n',
  'lambda.kurt': '; SIMPLY TYPED LAMBDA CALCULUS\n'
                 ';\n'
-                '; `term`, `type`, `index`, and `ctx` are optional Kurt sorts. '
-                'They make malformed typing\n'
-                '; judgments fail during checking, while `has Γ M A` and `M ↦ '
-                'N` are the Boolean judgments Kurt\n'
-                '; can prove.\n'
+                '; `term`, `type`, `index`, `ctx`, and `typing` are optional '
+                'Kurt sorts. They make malformed\n'
+                '; typing judgments fail during checking. The paper notation '
+                '`Γ ⊢ M : A`, compatible beta\n'
+                '; reduction `M ↦ N`, and call-by-value evaluation `M ⇝ N` are '
+                'Boolean judgments Kurt can prove.\n'
+                '; The older prefix spelling `has Γ M A` remains as a '
+                'compatibility notation with the same rules.\n'
                 ';\n'
                 '; The fully general typing rules use de Bruijn terms: `at '
                 'zero`, `at (succ zero)`, and\n'
@@ -1106,22 +1135,31 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 '; the named typing conveniences below are therefore '
                 'deliberately limited to sound cases.\n'
                 '\n'
-                'sort type, term, index, ctx\n'
+                'sort type, term, index, ctx, typing\n'
                 '\n'
-                'arity fun 2, app 2, has 3, λ 2, succ 1, at 1, abs 2, extend '
-                '2\n'
+                'arity fun 2, app 2, has 3, value 1, λ 2, succ 1, at 1, abs 2, '
+                'extend 2\n'
                 'infix ↦ 15 15\n'
+                'infix ⇝ 15 15\n'
+                'infix : 25 24\n'
+                'infix ⊢ 10 9\n'
                 'bindop λ\n'
                 '\n'
-                'const fun, app, has, ↦, succ, at, abs, extend, zero, empty, '
-                'base, unit\n'
+                'const fun, app, has, value, ↦, ⇝, :, ⊢, succ, at, abs, '
+                'extend, zero, empty, base, unit\n'
                 '\n'
                 'type fun 0 1 2, has 3, base\n'
                 'type abs 1, extend 2\n'
-                'term app 0 1 2, λ 0 1 2, at 0, abs 0 2, has 2, ↦ 1 2, unit\n'
+                'type : 2\n'
+                'term app 0 1 2, λ 0 1 2, at 0, abs 0 2, has 2, value 1, ↦ 1 '
+                '2, ⇝ 1 2, unit\n'
+                'term : 1\n'
                 'index zero, succ 0 1, at 1\n'
                 'ctx empty, extend 0 1, has 1\n'
-                'bool has 0, ↦ 0\n'
+                'ctx ⊢ 1\n'
+                'typing : 0\n'
+                'typing ⊢ 2\n'
+                'bool has 0, value 0, ↦ 0, ⇝ 0, ⊢ 0\n'
                 '\n'
                 'var Γ, M, N, F, x, n, A, B, C\n'
                 'ctx Γ\n'
@@ -1132,6 +1170,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 '; A closed inhabitant makes the examples executable without '
                 'choosing another object theory.\n'
                 'use has empty unit base "unit-type"\n'
+                'use empty ⊢ unit : base "unit-type-paper"\n'
                 '\n'
                 '; Complete syntax-directed typing rules for the de Bruijn '
                 'representation.\n'
@@ -1144,6 +1183,18 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 'use (has Γ M (fun A B)) and (has Γ N A) implies (has Γ (app M '
                 'N) B) "application"\n'
                 '\n'
+                '; The same complete rules in the notation normally used on '
+                'paper. Keeping these as direct rules,\n'
+                '; rather than a multi-step bridge through `has`, also keeps '
+                'each ordinary Kurt proof step local.\n'
+                'use (extend Γ A) ⊢ (at zero) : A "variable-zero-paper"\n'
+                'use (Γ ⊢ (at n) : A) implies ((extend Γ B) ⊢ (at (succ n)) : '
+                'A) "variable-successor-paper"\n'
+                'use ((extend Γ A) ⊢ M : B) implies (Γ ⊢ (abs A M) : (fun A '
+                'B)) "abstraction-paper"\n'
+                'use (Γ ⊢ M : (fun A B)) and (Γ ⊢ N : A) implies (Γ ⊢ (app M '
+                'N) : B) "application-paper"\n'
+                '\n'
                 '; Sound named-term conveniences. Binder matching guarantees '
                 'that M/F do not acquire the bound x\n'
                 '; in the constant/application-abstraction rules. Identity is '
@@ -1153,10 +1204,39 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 '"named-constant-abstraction"\n'
                 'use (has Γ F (fun A B)) implies (has Γ (λ x (app F x)) (fun A '
                 'B)) "named-application-abstraction"\n'
+                'use Γ ⊢ (λ x x) : (fun A A) "named-identity-paper"\n'
+                'use (Γ ⊢ M : B) implies (Γ ⊢ (λ x M) : (fun A B)) '
+                '"named-constant-abstraction-paper"\n'
+                'use (Γ ⊢ F : (fun A B)) implies (Γ ⊢ (λ x (app F x)) : (fun A '
+                'B)) "named-application-abstraction-paper"\n'
                 '\n'
                 '; Object-level beta reduction. `sub` computes '
                 'capture-avoiding substitution and respects nested λ.\n'
-                'use (app (λ x M) N) ↦ (sub x N M) "beta"\n',
+                'use (app (λ x M) N) ↦ (sub x N M) "beta"\n'
+                '\n'
+                '; Compatible closure for applications. These rules let either '
+                'immediate subterm reduce. We leave\n'
+                '; reduction below a λ out deliberately: the experiments below '
+                'need weak reduction, and a future\n'
+                '; strong strategy should make that choice explicit.\n'
+                'use (M ↦ N) implies ((app M F) ↦ (app N F)) '
+                '"beta-app-function"\n'
+                'use (M ↦ N) implies ((app F M) ↦ (app F N)) '
+                '"beta-app-argument"\n'
+                '\n'
+                '; A small-step call-by-value strategy. Values are exactly the '
+                'supplied unit and named lambdas for\n'
+                '; the present language. The function is evaluated first; the '
+                'argument is evaluated only after the\n'
+                '; function is a value; beta fires only after the argument is '
+                'a value.\n'
+                'use value unit "value-unit"\n'
+                'use value (λ x M) "value-lambda"\n'
+                'use (F ⇝ M) implies ((app F N) ⇝ (app M N)) "cbv-function"\n'
+                'use (value F) and (M ⇝ N) implies ((app F M) ⇝ (app F N)) '
+                '"cbv-argument"\n'
+                'use (value N) implies ((app (λ x M) N) ⇝ (sub x N M)) '
+                '"cbv-beta"\n',
  'logic.kurt': '; first order logic\n'
                ';\n'
                '; covers: forall-elim (instantiate a universal at a specific '
@@ -1165,26 +1245,39 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'exists-elim are *not* axioms\n'
                "; here -- they're the effect of closing a `let`/`pick` block "
                "(see kurt.py's `eval_done`).\n"
-               ';\n'
-               '; not covered: `existsunique` (unique existence) -- drafted '
-               'below but commented out, needs\n'
-               '; more thought about how to state/use uniqueness cleanly '
-               "before it's worth adding for real.\n"
+               '; Also unique existence, `∃! x P(x)` (`existsunique`), defined '
+               'from `∃`, `∀` and `=`.\n'
                '\n'
                ';; syntax\n'
-               'load prop  ; syntax and rules for prop logic\n'
-               "; `forall`/`exists`'s syntax (arity, bindop, bool signature, "
-               '∀/∃ aliases) is hardcoded\n'
-               '; directly in `initial_kb` now, not declared here -- see the '
-               'comment next to it in\n'
-               '; `kurt.py`, right after `initial_kb.add_arity(SUB_SYMBOL, '
-               '3)`. Only their axioms\n'
-               '; (forall-elim, exists-intro) are theory-level, below.\n'
-               '; arity  existsunique 2 ; existential quantification with '
-               'uniqueness\n'
-               '; bool   existsunique 0 2 ; position 1 is a variable or a '
-               'boolean expression (with a variable)\n'
-               '; alias  ∃! existsunique\n'
+               'load prop      ; syntax and rules for prop logic\n'
+               'load equality  ; `=`, for unique existence\n'
+               '; the quantifiers: binders with a boolean body, and the roles '
+               'the engine gives them -- `let`\n'
+               '; closes with the universal ("forall-intro"), `pick` opens '
+               'from the existential ("exists-elim"),\n'
+               '; and the outer `∀`s of facts are left out (their variables '
+               'stand for anything); the other two\n'
+               '; rules are the axioms below. Without `load logic`, a file has '
+               'no quantifiers (a deep object\n'
+               '; language may use the words and the glyphs for something '
+               'else).\n'
+               'arity   forall 2, exists 2\n'
+               'bindop  forall, exists          ; with a condition, `∀ x > 0 '
+               '...` binds the first symbol of the\n'
+               '                                ; condition that is new or a '
+               'variable (decided when it is read)\n'
+               'bool    forall 0 2, exists 0 2  ; the body is boolean, and so '
+               'is the whole\n'
+               'builtin forall universal, exists existential\n'
+               'alias   ∀ forall\n'
+               'alias   ∃ exists\n'
+               'arity  existsunique 2     ; unique existence: `existsunique x '
+               'P(x)`, `∃! x P(x)`\n'
+               'bindop existsunique       ; binds its variable, also with a '
+               'condition: `∃! x ∈ M P(x)`\n'
+               'bool   existsunique 0 2   ; the body is boolean, and so is the '
+               'whole\n'
+               'alias  ∃! existsunique\n'
                '\n'
                ';; inference rules\n'
                ';use %A                                  implies  forall $x '
@@ -1205,6 +1298,10 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'sub $v $a %P    "forall-cond-elim"\n'
                'use (sub $x $a %C) and (sub $v $a %P)  implies  exists (sub $x '
                '$v %C) %P    "exists-cond-intro"\n'
+               '; Defining axioms, not `def`: these characterize conditioned '
+               'forms of the existing built-in\n'
+               '; binders; they do not introduce one fresh predicate or '
+               'function symbol.\n'
                'use (forall (sub $x $v %C) %P)  iff  forall $w ((sub $x $w %C) '
                'implies (sub $v $w %P))  "forall-cond-def"\n'
                'use (exists (sub $x $v %C) %P)  iff  exists $w ((sub $x $w %C) '
@@ -1221,13 +1318,37 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use (forall $x (%A iff %B))  implies  ((exists $x %A) iff '
                '(exists $x %B))   "exists-iff"\n'
                '\n'
-               '; ;; existsunique\n'
-               '; use %A and (forall $x (%A implies (forall $y (%A implies ($x '
-               '= $y)))))  implies  existsunique $x %A  "existsunique-intro"\n'
-               '; use existsunique $x %A  implies  exists $x %A  '
-               '"existsunique-elim-1"\n'
-               '; use existsunique $x %A  implies  forall $x (%A implies '
-               '(forall $y (%A implies ($x = $y))))  "existsunique-elim-2"\n'
+               ';; unique existence\n'
+               '; The meaning of `∃!` is its definition: there is an x with '
+               'P(x), and every y with P(y) is that x.\n'
+               '; With a condition, `∃! x ∈ M P(x)` is `∃! x (x ∈ M and '
+               'P(x))`, as for `∃`.\n'
+               'use (existsunique $x %A)  iff  exists $x (%A and (forall $y '
+               '((sub $x $y %A) implies ($y = $x))))  "existsunique-def"\n'
+               'use (existsunique (sub $x $v %C) %P)  iff  existsunique $w '
+               '((sub $x $w %C) and (sub $v $w %P))     '
+               '"existsunique-cond-def"\n'
+               '; Three rules that follow from the definition, for one step '
+               'instead of several. Axioms, since a\n'
+               '; proof for any `%A` that depends on `$x` would need `sub` in '
+               'its lines (as for "forall-iff");\n'
+               '; proofs/natural-deduction/existsunique.kurt derives each of '
+               'them from "existsunique-def" alone, for a\n'
+               '; predicate `P`:\n'
+               '; - intro: `P(a)` and every y with `P(y)` is a: `∃! x P(x)` '
+               '(the definition, with exists-intro)\n'
+               '; - exists: `∃! x P(x)` gives `∃ x P(x)` (pick the witness of '
+               'the definition)\n'
+               '; - unique: `∃! x P(x)`, `P(a)` and `P(b)` give `a = b` (both '
+               'are the witness)\n'
+               'use (sub $x $a %A) and (forall $y ((sub $x $y %A) implies ($y '
+               '= $a)))  implies  existsunique $x %A  "existsunique-intro"\n'
+               'use (existsunique $x %A)  implies  exists $x '
+               '%A                                                     '
+               '"existsunique-exists"\n'
+               'use (existsunique $x %A) and (sub $x $a %A) and (sub $x $b '
+               '%A)  implies  $a = $b                    '
+               '"existsunique-unique"\n'
                '\n'
                '\n'
                ';; better looking\n'
@@ -1296,24 +1417,30 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 'flat +, ·\n'
                 'sym +\n'
                 '\n'
-                'calc [ matrix\n'
-                'calc + add, - subtract, - negate, · multiply, / divide, '
+                'builtin [ matrix\n'
+                'builtin + add, - subtract, - negate, · multiply, / divide, '
                 'transpose transpose, det determinant\n'
-                'calc = eq, ≠ ne\n',
- 'minimal.kurt': '; minimal\n'
-                 'false ; never load this theory, this file is just for '
-                 'reference\n'
-                 '      ; it is already hard-coded in `kurt.py`, look for '
-                 '`initial_kb`\n'
+                'builtin = eq, ≠ ne\n',
+ 'minimal.kurt': '; minimal -- the core\n'
+                 ';\n'
+                 '; Kurt reads this file when it starts, before anything else: '
+                 'its declarations are the core that\n'
+                 '; every file and the shell begin with. It is never loaded '
+                 '(`load minimal` is an error), and its\n'
+                 '; symbols are frozen: no file can change them. Only two '
+                 'internal things are made in `kurt.py`\n'
+                 '; itself (`initial_kb`): the parse rule of `local` (below) '
+                 'and the marker of bound variables.\n'
                  '\n'
                  ';; syntax\n'
                  'brackets ( )                                 ; for grouping '
                  'during parsing\n'
-                 'infix    ,    5  4                           ; for lists and '
+                 'infix    ","  5  4                           ; for lists and '
                  'tuples, right associative: `(a, b, c)` is `(a, (b, c))`\n'
+                 '                                             ; (quoted, '
+                 'because a comma separates declarations)\n'
                  'const    ","                                 ; the fixed '
-                 'tuple/list constructor (quoted because comma separates '
-                 'declarations)\n'
+                 'tuple/list constructor\n'
                  'infix    " " 90 90                           ; space for '
                  'function applications, binds most tightly\n'
                  '                                             ; (`f(x)` '
@@ -1330,13 +1457,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'infix and     16 16                          ; and operator\n'
                  'bool  implies 0 1 2, and 0 1 2               ; both take and '
                  'give booleans\n'
+                 'const implies, and                           ; both are '
+                 'constants\n'
                  'flat  and                                    ; conjunctions '
                  'need no nesting\n'
                  'sym   and                                    ; `A and B` is '
                  'the same as `B and A`\n'
-                 'alias ⊤ true\n'
-                 'alias ⇒ implies\n'
-                 'alias ∧ and\n'
                  '; `EXPR local "label"` marks a label as not exported by '
                  '`load` -- a special parse rule, no\n'
                  '; declaration (see `local_led` in `kurt.py`)\n'
@@ -1394,28 +1520,21 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; all -- see `prop.kurt` for those, and for a general, '
                  'always-available "not-intro".\n'
                  '\n'
-                 ';; names the engine itself knows, although they are declared '
-                 'in theories\n'
+                 ';; meanings the engine implements for symbols that theories '
+                 'declare\n'
                  ';\n'
-                 '; the engine treats these symbols specially *by name*, once '
-                 'some theory declares them:\n'
-                 '; - `iff`: every fact `A iff B` is also used as `A implies '
-                 'B` and `B implies A` (`impl_elim`)\n'
-                 '; - `not`, `false`: closing an `assume` block whose last '
-                 'line is `false` also gives `not A`\n'
-                 '; - `=`, `iff`: the only relations `def` accepts (and only '
-                 'from the packaged `equality.kurt` /\n'
-                 ';   `prop.kurt`); their two sides are never reordered, '
-                 'although both are `sym`\n'
-                 '; - nothing is computed by its name: with `calc on`, the '
-                 'calculator computes the symbols a\n'
-                 ';   theory binds to it (numbers.kurt: `calc + add, * '
-                 'multiply, ...`; matrix.kurt: `calc [ matrix`)\n'
-                 '; - `or`: only for Tab and `hint` in the shell (the other '
-                 'alternatives of a `case`)\n'
-                 '; - `sub`, `forall`, `exists`: see below, and the rules '
-                 'behind `let` ("forall-intro") and\n'
-                 ';   `pick` ("exists-elim")\n'
+                 '; nothing has such a meaning by its name: a trusted theory '
+                 'assigns it with `builtin` (doc/kurt-\n'
+                 '; doc.md §10) -- prop.kurt `builtin iff equivalence, or '
+                 'disjunction, not negation, false falsum`,\n'
+                 "; equality.kurt `builtin = equality`, and the calculator's "
+                 'operations, e.g. numbers.kurt `builtin\n'
+                 '; + add, * multiply, ...` and matrix.kurt `builtin [ matrix` '
+                 '(computed with `calc on`). The\n'
+                 '; quantifiers too: logic.kurt declares `forall`/`exists` '
+                 'with `builtin forall universal, exists\n'
+                 '; existential` -- without `load logic` there are no '
+                 'quantifiers, and no `let`/`pick`.\n'
                  '\n'
                  ';; substitution operator\n'
                  'arity  sub 3                                 ; operator for '
@@ -1423,126 +1542,111 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'bindop sub                                   ; first arg '
                  'must be a variable that is bound\n'
                  '\n'
-                 ';; forall/exists syntax (their axioms -- forall-elim, '
-                 'exists-intro -- still live in\n'
-                 ';; logic.kurt, and still need `load logic`; only the '
-                 '*syntax* is hard-coded, so that the\n'
-                 ";; two lines below aren't the only thing standing between "
-                 '"forall" meaning something and\n'
-                 ';; it crashing the theory-storage machinery the moment '
-                 'anyone uses the word -- see\n'
-                 ';; `theory_append`/`remove_outer_forall_quantifiers` in '
-                 '`kurt.py`)\n'
-                 'arity  forall 2, exists 2\n'
-                 'bindop forall, exists                        ; with a '
-                 'condition, `∀ x > 0 ...` binds the first symbol of\n'
-                 '                                             ; the condition '
-                 'that is new or a variable, decided (and\n'
-                 '                                             ; stored) when '
-                 'the line is read\n'
-                 'bool   forall 0 2, exists 0 2                ; position 2 '
-                 '(the body) must be boolean\n'
-                 '                                             ; `bindop` '
-                 'implies that forall/exists are constants\n'
-                 'alias  ∀ forall\n'
-                 'alias  ∃ exists\n',
- 'modal-deep.kurt': '; DEEPLY EMBEDDED NORMAL MODAL LOGIC K (IMPLICATION '
-                    'FRAGMENT)\n'
-                    ';\n'
-                    '; Modal formulas are Kurt terms. `$A → $B` and `□$A` are '
-                    'object-language syntax and are not\n'
-                    '; Boolean Kurt formulas. Only the judgment `⊢ $A` is '
-                    'Boolean. Consequently `and` and `implies`\n'
-                    "; below belong to Kurt's metalogic and combine premises "
-                    'and conclusions of object-level rules.\n'
-                    ';\n'
-                    "; This is deliberately separate from modal.kurt's shallow "
-                    'encoding. It also owns `→`, which\n'
-                    '; set.kurt uses for function spaces, so the two theories '
-                    'cannot be loaded together without\n'
-                    '; namespaces: the same printed symbol would have two '
-                    'meanings.\n'
-                    '\n'
-                    'infix → 30 29\n'
-                    'prefix □ 80\n'
-                    'prefix ⊢ 90\n'
-                    'infix ⊢ 10 10\n'
-                    '\n'
-                    'const →, □, ⊢, empty\n'
-                    'bool ⊢ 0\n'
-                    '\n'
-                    '; Optional sort declarations keep object formulas from '
-                    'being asserted directly as Kurt claims.\n'
-                    'sort formula\n'
-                    'formula → 0 1 2, □ 0 1\n'
-                    '\n'
-                    'var A, B, C\n'
-                    'formula A, B, C\n'
-                    '\n'
-                    '; Prefix theoremhood is the empty-context case of the '
-                    'binary sequent notation.\n'
-                    'use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"\n'
-                    'use (empty ⊢ A) implies (⊢ A) "empty-sequent-to-theorem"\n'
-                    '\n'
-                    '; A classical implicational Hilbert basis.\n'
-                    'use ⊢ (A → (B → A)) "implication-K"\n'
-                    'use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) '
-                    '"implication-S"\n'
-                    'use ⊢ (((A → B) → A) → A) "Peirce"\n'
-                    '\n'
-                    '; Object-level modus ponens and modal necessitation, '
-                    "stated entirely in Kurt's metalogic.\n"
-                    'use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"\n'
-                    'use (⊢ A) implies (⊢ □A) "necessitation"\n'
-                    '\n'
-                    '; The characteristic distribution axiom of normal modal '
-                    'logic K.\n'
-                    'use ⊢ (□(A → B) → (□A → □B)) "modal-K"\n',
- 'modal.kurt': '; EXPERIMENTAL EXAMPLE: a modal-logic fragment\n'
+                 '; The minimal core deliberately has no aliases. `prop.kurt` '
+                 'supplies the familiar aliases for\n'
+                 '; propositional syntax (`⊤`, `⇒`, `∧`, ...), and '
+                 '`logic.kurt` the quantifiers with `∀` and `∃`.\n'
+                 '; Keeping the glyphs theory-local lets a deeply embedded '
+                 'object language declare them with\n'
+                 '; another meaning.\n',
+ 'modal.kurt': '; CLASSICAL NORMAL MODAL LOGIC T\n'
                ';\n'
-               '; This file demonstrates that Kurt theories can introduce '
-               'modal prefix operators and axiom\n'
-               '; schemata. It covers box (□, necessity), diamond (◇, '
-               'possibility), their duality, distribution\n'
-               '; over and/or, the K distribution axiom, and the T axiom in '
-               'its dual form `p implies ◇p`.\n'
+               '; Modal formulas are Kurt terms. The operators `¬`, `∧`, `∨`, '
+               '`⇔`, `→`, `□`, and `◇` are\n'
+               '; object-language constructors and are not Boolean Kurt '
+               'formulas. Only the judgment `⊢ A` is\n'
+               '; Boolean. Consequently the words `and` and `implies` below '
+               "are Kurt's metalogic: they combine\n"
+               '; premises and conclusions of object-level rules.\n'
                ';\n'
-               '; This is not a complete proof system for normal modal logic K '
-               'or T: Kurt cannot currently\n'
-               '; express the necessitation rule "from a theorem p infer □p". '
-               'In particular, do not describe\n'
-               '; `load modal` as implementing system K or T. There are also '
-               'no 4/5 axioms or\n'
-               '; accessibility-relation semantics. See proofs/modal-logic/ '
-               'for executable examples.\n'
-               ';\n'
-               '; With classical propositional logic and the duality below, `p '
-               'implies ◇p` is equivalent to\n'
-               '; the standard T axiom `□p implies p`. It is not the seriality '
-               'axiom D (`□p implies ◇p`).\n'
-               'load prop\n'
-               'prefix b 20, d 20          ; box and diamond\n'
-               'bool b, d\n'
-               'alias □ b\n'
-               'alias ◇ d\n'
+               '; This theory owns its notation. In particular, `prop.kurt` '
+               'gives the same propositional glyphs\n'
+               '; their meta-level meanings, and `set.kurt` uses `→` for '
+               'function spaces; those theories cannot\n'
+               '; be loaded together without future namespaces.\n'
                '\n'
-               '; p and q are declared variables once instead of carrying a '
-               '`%` on every occurrence. Every\n'
-               '; stored formula renames its free variables to fresh internal '
-               'schema names, so these rules stay\n'
-               "; general after `load` and cannot capture an importer's p or "
-               'q.\n'
-               'var p, q\n'
-               'use ◇p ≡ ¬□¬p   "diamond-def"\n'
-               'use □p ≡ ¬◇¬p   "box-def"\n'
-               'use ◇p ∨ ◇q ≡ ◇(p ∨ q)   "diamond-distrib-or"\n'
-               'use □p ∧ □q ≡ □(p ∧ q)   "box-distrib-and"\n'
+               'infix → 30 29\n'
+               'infix ⇔ 20 20\n'
+               'infix ∧ 50 50\n'
+               'infix ∨ 40 40\n'
+               'prefix ¬ 60\n'
+               'prefix □ 80\n'
+               'prefix ◇ 80\n'
+               'prefix ⊢ 90\n'
+               'infix ⊢ 10 10\n'
                '\n'
-               '; K distribution axiom\n'
-               'use □(p ⇒ q) ⇒ (□p ⇒ □q)    "K"\n'
+               'const →, ⇔, ∧, ∨, ¬, □, ◇, ⊢, ⊥, empty\n'
+               'bool ⊢ 0\n'
                '\n'
-               '; T axiom, in its dual form\n'
-               'use p ⇒ ◇p   "T"\n',
+               '; Optional sort declarations keep object formulas from being '
+               'asserted directly as Kurt claims.\n'
+               'sort formula\n'
+               'formula → 0 1 2, ⇔ 0 1 2, ∧ 0 1 2, ∨ 0 1 2\n'
+               'formula ¬ 0 1, □ 0 1, ◇ 0 1, ⊥\n'
+               '\n'
+               'var A, B, C\n'
+               'formula A, B, C\n'
+               '\n'
+               '; Prefix theoremhood is the empty-context case of the binary '
+               'sequent notation.\n'
+               'use (⊢ A) implies (empty ⊢ A) "theorem-to-empty-sequent"\n'
+               'use (empty ⊢ A) implies (⊢ A) "empty-sequent-to-theorem"\n'
+               '\n'
+               '; A classical implicational Hilbert basis.\n'
+               'use ⊢ (A → (B → A)) "implication-K"\n'
+               'use ⊢ ((A → (B → C)) → ((A → B) → (A → C))) "implication-S"\n'
+               'use ⊢ (((A → B) → A) → A) "Peirce"\n'
+               '\n'
+               "; Object-level modus ponens is stated in Kurt's metalogic.\n"
+               'use (⊢ A) and (⊢ (A → B)) implies (⊢ B) "modus-ponens"\n'
+               '\n'
+               '; A first derived theorem. Keeping the intermediate Hilbert '
+               'steps visible demonstrates that the\n'
+               '; basis is usable without asking proof search to invent a '
+               'multi-step modus-ponens chain.\n'
+               'show ⊢ (A → A) "implication-reflexivity"\n'
+               'proof\n'
+               '    ⊢ (A → ((A → A) → A))\n'
+               '    ⊢ (A → (A → A))\n'
+               '    ⊢ ((A → ((A → A) → A)) → ((A → (A → A)) → (A → A)))\n'
+               '    ⊢ ((A → (A → A)) → (A → A))\n'
+               '    ⊢ (A → A)\n'
+               'qed\n'
+               '\n'
+               "; Modal necessitation is likewise stated entirely in Kurt's "
+               'metalogic.\n'
+               'use (⊢ A) implies (⊢ □A) "necessitation"\n'
+               '\n'
+               '; Object-level propositional rules. Their premises are '
+               'theoremhood judgments, never arbitrary\n'
+               '; Kurt assumptions, so they remain inside the embedded logic.\n'
+               'use (⊢ A) and (⊢ B) implies (⊢ (A ∧ B)) "and-intro"\n'
+               'use (⊢ (A ∧ B)) implies (⊢ A) "and-elim-left"\n'
+               'use (⊢ (A ∧ B)) implies (⊢ B) "and-elim-right"\n'
+               'use (⊢ A) implies (⊢ (A ∨ B)) "or-intro-left"\n'
+               'use (⊢ B) implies (⊢ (A ∨ B)) "or-intro-right"\n'
+               'use (⊢ (A ∨ B)) and (⊢ (A → C)) and (⊢ (B → C)) implies (⊢ C) '
+               '"or-elim"\n'
+               'use (⊢ (A → B)) and (⊢ (B → A)) implies (⊢ (A ⇔ B)) '
+               '"iff-intro"\n'
+               'use (⊢ (A ⇔ B)) implies (⊢ (A → B)) "iff-elim-forward"\n'
+               'use (⊢ (A ⇔ B)) implies (⊢ (B → A)) "iff-elim-backward"\n'
+               'use (⊢ (A → ⊥)) implies (⊢ ¬A) "not-intro"\n'
+               'use (⊢ ¬A) implies (⊢ (A → ⊥)) "not-elim"\n'
+               'use (⊢ ⊥) implies (⊢ A) "bottom-elim"\n'
+               'use ⊢ (A ∨ ¬A) "excluded-middle"\n'
+               '\n'
+               '; The characteristic distribution axiom of normal modal logic '
+               'K.\n'
+               'use ⊢ (□(A → B) → (□A → □B)) "modal-K"\n'
+               '\n'
+               '; Duality, distribution, and reflexivity T.\n'
+               'use ⊢ (◇A ⇔ ¬□¬A) "diamond-duality"\n'
+               'use ⊢ (□A ⇔ ¬◇¬A) "box-duality"\n'
+               'use ⊢ ((◇A ∨ ◇B) ⇔ ◇(A ∨ B)) "diamond-distrib-or"\n'
+               'use ⊢ ((□A ∧ □B) ⇔ □(A ∧ B)) "box-distrib-and"\n'
+               'use ⊢ (□A → A) "T"\n'
+               'use ⊢ (A → ◇A) "T-dual"\n',
  'natural.kurt': '; natural numbers\n'
                  ';\n'
                  '; covers: `Nat` membership (0 is a natural number, and the '
@@ -1566,14 +1670,15 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; arithmetic comes from numbers.kurt: natural numbers are '
                  'real numbers, so all of its laws\n'
                  '; (and `calc`) apply to them as well.\n'
+                 'load prop, equality\n'
                  'load set\n'
                  'load numbers\n'
                  'load logic\n'
                  '\n'
                  ';; inference rules\n'
                  'const Nat\n'
-                 'calc Nat naturals                   ; `calc on` proves `3 ∈ '
-                 'Nat`\n'
+                 'builtin Nat naturals                   ; `calc on` proves `3 '
+                 '∈ Nat`\n'
                  '\n'
                  'use 0 in Nat  "nat-zero"\n'
                  'use $n in Nat  implies  $n+1 in Nat  "nat-succ"\n'
@@ -2220,7 +2325,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; proofs/arithmetic/factorial-with-calc.kurt) -- but it '
                  "doesn't solve: `$b / 3` doesn't match\n"
                  '; `0` while `$b` is unknown.\n'
-                 'load equality\n'
+                 'load prop, equality\n'
                  '\n'
                  ';; syntax\n'
                  'infix   +  60 60           ; binary plus\n'
@@ -2247,9 +2352,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n'
                  '; `calc on` computes these with numbers, exactly (see '
                  'doc/kurt-doc.md, `calc`)\n'
-                 'calc    + add, - subtract, - negate, * multiply, / divide, ^ '
+                 'builtin + add, - subtract, - negate, * multiply, / divide, ^ '
                  'power\n'
-                 'calc    = eq, ≠ ne, < lt, <= le, > gt, >= ge\n'
+                 'builtin = eq, ≠ ne, < lt, <= le, > gt, >= ge\n'
                  '\n'
                  ';; rules\n'
                  'use $a = $b  ⇒  $a + $c = $b + $c   "add-eq"\n'
@@ -2350,8 +2455,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '-- `chain = <= <` and\n'
                  ';; `chain = >= >` above make kurt itself generate every '
                  'combined-transitivity fact\n'
-                 ';; ("lt-trans", "le-lt-trans", "ge-gt-trans", ... one per '
-                 'ordered pair of chain members) as a\n'
+                 ';; ("chain-trans-I-J", by the positions of the two relations '
+                 'in the chain, one per ordered pair) as a\n'
                  ';; real, directly-usable axiom. See '
                  '`generate_chain_transitivity` in kurt.py and\n'
                  ';; doc/kurt-soundness.md for how and why.\n'
@@ -2383,17 +2488,18 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               'the standard elimination/\n'
               '; introduction rules connecting them and the hardcoded '
               'connectives (and-intro/elim, or-intro/\n'
-              '; elim, iff-intro/elim, not-intro/elim, bottom-intro/elim, '
-              'top-elim). `true`/`false`/\n'
-              '; `implies`/`and` themselves are hardcoded directly in kurt.py '
-              '(see minimal.kurt for exactly\n'
-              '; what) -- this file only adds `not`, `or`, `invimplies`, '
-              '`iff`, and the rules relating them.\n'
+              '; elim, iff-intro, iff-elim-forward/backward, not-intro/elim, '
+              'bottom-intro/elim, top-elim).\n'
+              '; `true`/`implies`/`and` themselves are hardcoded directly in '
+              'kurt.py (see minimal.kurt for\n'
+              '; exactly what) -- this file adds `false`, `not`, `or`, '
+              '`invimplies`, `iff`, and the rules\n'
+              '; relating them.\n'
               ';\n'
               '; loaded (directly or transitively) by nearly every other '
               'theory here -- logic.kurt,\n'
-              '; equality.kurt, set.kurt, numbers.kurt, and modal.kurt all '
-              '`load prop` first.\n'
+              '; equality.kurt, set.kurt, and numbers.kurt all `load prop` '
+              'first.\n'
               '\n'
               ';; builtin syntax\n'
               '; infix  implies 13 12  ; logical implies, right associative '
@@ -2404,9 +2510,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               '; flat   and            ; (a and b) and c  iff  a and b and c\n'
               '; sym    and            ; a and b  iff  b and a\n'
               '; bool   true           ; true has type bool\n'
-              '; alias  ⊤ true\n'
-              '; alias  ⇒ implies\n'
-              '; alias  ∧ and\n'
+              'alias  ⊤ true\n'
+              'alias  ⇒ implies\n'
+              'alias  ∧ and\n'
               '\n'
               ';; syntax\n'
               'prefix not        18     ; logical not\n'
@@ -2420,6 +2526,14 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               'type bool\n'
               'bool   iff     0 1 2     ; `and` and its inputs have type bool\n'
               'bool   false             ; false has type bool\n'
+              '; the meaning the engine gives these symbols (and nothing has '
+              'it by its name alone): an `iff`\n'
+              '; fact is used as two implications, `case` splits an `or`, an '
+              '`assume` block whose last line is\n'
+              '; `false` also gives `not` of its assumption, and `def` may '
+              'define with `iff`\n'
+              'builtin iff equivalence, or disjunction, not negation, false '
+              'falsum\n'
               '\n'
               'flat   or\n'
               'sym    or\n'
@@ -2478,14 +2592,18 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               'use (%A or %B) and (%A implies %C) and (%B implies %C) implies '
               '%C   "or-elim"\n'
               '\n'
-              '; "or-elim" for three and four alternatives, proven from '
-              '"or-elim": then three or four `case`\n'
-              '; blocks in a row combine, `A or B or C` with `case A`, `case '
-              'B`, `case C` (`or` is flat, so\n'
-              '; "or-elim" itself only splits off one alternative from the '
-              'others)\n'
-              '; TODO: any number of alternatives (a step of its own in the '
-              'search, with a certificate)\n'
+              '; `case` supports any finite number of alternatives. The binary '
+              'rule above supplies the logical\n'
+              '; meaning. The engine recognizes a stored flat disjunction plus '
+              'one implication to the same goal\n'
+              '; for every alternative, and the kernel checks both the rule '
+              'and that exact list. It does not\n'
+              '; synthesize an n-premise schema, so matching does not grow '
+              'through a Cartesian product of facts.\n'
+              ';\n'
+              '; Keep the previously published 3/4-branch theorems as named '
+              'compatibility lemmas. Their proofs\n'
+              '; now also exercise the general case-elimination certificate.\n'
               'show (%A or %B or %C) and (%A implies %D) and (%B implies %D) '
               'and (%C implies %D) implies %D   "or-elim-3"\n'
               'proof\n'
@@ -2495,8 +2613,6 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               '        %A implies %D\n'
               '        %B implies %D\n'
               '        %C implies %D\n'
-              '        case %B or %C\n'
-              '            %D\n'
               '        %D\n'
               'qed\n'
               'show (%A or %B or %C or %E) and (%A implies %D) and (%B implies '
@@ -2510,11 +2626,13 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
               '        %B implies %D\n'
               '        %C implies %D\n'
               '        %E implies %D\n'
-              '        case %B or %C or %E\n'
-              '            %D\n'
               '        %D\n'
               'qed\n'
               '\n'
+              '; A defining axiom, not `def`: `invimplies` already '
+              'participates in the `chain` declarations\n'
+              '; above, so it is no longer a fresh symbol without meaning when '
+              'this equivalence is stated.\n'
               'use (%A invimplies %B) iff (%B implies '
               '%A)                         "invimplies-def"\n'
               '\n'
@@ -2593,11 +2711,15 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; ("lowest-terms", proven from the well-ordering of '
                   'natural.kurt). As for natural.kurt, they are\n'
                   '; numbers of numbers.kurt, so its laws (and `calc`) apply.\n'
-                  'load integer\n'
+                  'load prop, equality, logic, set, numbers, natural, integer\n'
                   'const Rat\n'
-                  'calc Rat rationals                  ; `calc on` proves `1 / '
-                  '3 ∈ Rat`\n'
+                  'builtin Rat rationals                  ; `calc on` proves '
+                  '`1 / 3 ∈ Rat`\n'
                   '\n'
+                  '; A defining axiom, not `def`: `Rat` is an existing '
+                  'calculator-bound carrier, and this\n'
+                  '; characterizes membership in it rather than introducing '
+                  'one fresh predicate abbreviation.\n'
                   'use $q ∈ Rat  ⇔  ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ '
                   '$q = $m / $n)     "rat-def"\n'
                   'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a + $b ∈ '
@@ -2846,7 +2968,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              "applied with kurt's ordinary\n"
              '; space-application `$f $a` -- see the comment further down, '
              'right above "function-space".\n'
-             'load equality, logic\n'
+             'load prop, equality, logic\n'
              '\n'
              '; syntax\n'
              'infix    in 25 25        ; element\n'
@@ -2869,7 +2991,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'alias    : in\n'
              '; `calc on` decides `3 ∈ Nat` for a set that is bound to the '
              "calculator (natural.kurt's `calc Nat naturals`)\n"
-             'calc     in element\n'
+             'builtin in element\n'
              'infix    × 45 45         ; Cartesian product\n'
              '\n'
              '; we assume that all objects are sets\n'
@@ -2891,8 +3013,40 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; subset\n'
              'def $a ⊂ $b ≡ ∀ $c  ($c ∈ $a implies $c ∈ $b)                    '
              '"subset"\n'
-             'use $M = $N  ≡  $M ⊂ $N  ∧  $N ⊂ $M                              '
+             '; This is a characterization of two existing relations, hence '
+             'not a conservative `def`; it is a\n'
+             '; derived theorem of extensionality and the definition of '
+             'subset.\n'
+             'show ∀ $M ∀ $N ($M = $N  ≡  $M ⊂ $N  ∧  $N ⊂ $M)                 '
              '"eq-def"\n'
+             'proof\n'
+             '    let M\n'
+             '        let N\n'
+             '            assume M = N\n'
+             '                let c ∈ M\n'
+             '                    c ∈ N\n'
+             '                ∀ $c ($c ∈ M implies $c ∈ N)\n'
+             '                M ⊂ N\n'
+             '                let c ∈ N\n'
+             '                    c ∈ M\n'
+             '                ∀ $c ($c ∈ N implies $c ∈ M)\n'
+             '                N ⊂ M\n'
+             '                M ⊂ N ∧ N ⊂ M\n'
+             '            assume M ⊂ N ∧ N ⊂ M\n'
+             '                M ⊂ N\n'
+             '                N ⊂ M\n'
+             '                ∀ $c ($c ∈ M implies $c ∈ N)\n'
+             '                ∀ $c ($c ∈ N implies $c ∈ M)\n'
+             '                let c\n'
+             '                    c ∈ M implies c ∈ N\n'
+             '                    c ∈ N implies c ∈ M\n'
+             '                    c ∈ M iff c ∈ N\n'
+             '                ∀ $c ($c ∈ M iff $c ∈ N)\n'
+             '                M = N\n'
+             '            M = N  ≡  M ⊂ N ∧ N ⊂ M\n'
+             '        ∀ $N (M = $N  ≡  M ⊂ $N ∧ $N ⊂ M)\n'
+             '    ∀ $M ∀ $N ($M = $N  ≡  $M ⊂ $N ∧ $N ⊂ $M)\n'
+             'qed\n'
              '\n'
              '; the empty set, unions and power sets exist\n'
              'const ∅\n'
@@ -3069,7 +3223,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                      'vector-distributive (V7),\n'
                      '; vector-distributive-scalars (V8). proofs/mafi1/ uses '
                      'this theory.\n'
-                     'load field\n'
+                     'load equality, logic, set, field\n'
                      'arity vectorspace 1\n'
                      '\n'
                      'use vectorspace($V)  ⇒  0 ∈ '
@@ -3362,6 +3516,8 @@ def check_strict(keyword: str, filename: str) -> None:
     if strict_mode and not is_trusted_file(filename):
         raise KurtException(f'EvalError: `{keyword}` is not allowed with `--strict` -- everything must be proven from the theories that come with Kurt (or the ones given with `-p`)')
 
+CORE_FILE = 'minimal.kurt'     # the core: read when Kurt starts (`read_core`), never loaded
+
 def packaged_theory_file(filename: str):
     # the packaged theory called `filename` (e.g. `prop.kurt`), if there is one -- those can't
     # be shadowed by a file of the same name elsewhere, since `def` and `--strict` rely on
@@ -3427,6 +3583,7 @@ REPLACEMENTS: dict[str, str] = {
     '\\equiv':    '≡',     # equivalence
     '\\circ':     '∘',     # function composition
     '\\mapsto':   '↦',     # maps to
+    '\\leadsto':  '⇝',     # evaluation step
     '\\to':       '→',     # mapping arrow
     '\\times':    '×',     # Cartesian product
     '\\cdot':     '·',     # a product, e.g. `λ · x` for a scalar times a vector
@@ -3525,12 +3682,14 @@ class KurtException(Exception):
     # existing raise sites or parse `msg` themselves.
     KNOWN_KINDS = ('ProofError', 'ParseError', 'EvalError', 'SyntaxError', 'TypeError')
 
-    def __init__(self, msg:str, column:Optional[int]=None, line:Optional[int]=None, filename:Optional[str]=None, kind:Optional[str]=None) -> None:
+    def __init__(self, msg:str, column:Optional[int]=None, line:Optional[int]=None, filename:Optional[str]=None,
+                 kind:Optional[str]=None, details:Optional[dict]=None) -> None:
         self.msg:      str           = msg
         self.column:   Optional[int] = column
         self.line:     Optional[int] = line
         self.filename: Optional[str] = filename
         self.kind:     Optional[str] = kind if kind is not None else self._extract_kind(msg)
+        self.details:  Optional[dict] = details
         self.kb_after: Optional['KnowledgeBase'] = None     # the level reached, if blocks were closed before the error
 
     @staticmethod
@@ -3553,12 +3712,9 @@ keywords: dict[str, str] = {
     'hint':        'print a hint for the next input',
     'parse':       'parse a string and print its representation',
     'tokenize':    'tokenize a string and print its tokens',
-    'format':      'choose print representation, i.e. one of "sexpr", "normal"',
-    'level':       'print current level of the knowledge base',
-    'mode':        'print current mode of the knowledge base, one of `root`, `sandbox`, `proof`, `assume`, `case`, `let`, `pick`, `expect`',
-    'context':     'print the current context, i.e., all open blocks and their modes',
-    'trail':       'print the current context without details in one line',
-    'load':        'load file(s), e.g. load standards.kurt or load foo.kurt',
+    'format':      'choose print representation, i.e. one of "sexpr", "normal", "source"',
+    'summary':     'print where the proof is: the open blocks, the claims still to prove, the latest facts, what could come next',
+    'load':        'load file(s), e.g. load prop, numbers or load foo.kurt',
     'list':        'list loaded files, or retained content by category and source, e.g. list natural or list const natural',
     'save':        'save the lines accepted so far (in the shell: without the ones that failed) as a `.kurt` file, e.g. save "session.kurt" (path is relative to the current working directory)',
 
@@ -3573,7 +3729,8 @@ keywords: dict[str, str] = {
     'sym':         'declare a constant infix operator to be symmetric',
     'sort':        'declare optional term sorts; each sort name then declares positional signatures like `bool`',
     'bool':        'declare symbols to have output type boolean',
-    'calc':        'give constant symbols fixed calculator meanings, or switch calculation on/off',
+    'calc':        'switch calculation on/off: `calc on` computes the symbols bound to the calculator (see `builtin`)',
+    'builtin':     'give a constant symbol a meaning built into Kurt: a calculator operation (`builtin + add`) or a role of the engine (`builtin iff equivalence`)',
     'chain':       'declare constant boolean relations as a chain, with automatic transitivity',
     'var':         'declare symbols as variable',
     'const':       'declare symbols as fresh constants, i.e., they have not been used or declared before',
@@ -3595,7 +3752,7 @@ keywords: dict[str, str] = {
 
     # opening blocks (besides `proof`)
     'assume':      'open a block and assume a formula (made for "impl-intro" and "not-intro"), block must be indented',
-    'case':        'open a case analysis block for disjunctions (made for "or-elim"), block must be indented',
+    'case':        'open a case analysis block for disjunctions (closed by "case-elim", justified by "or-elim"), block must be indented',
     'let':         'fix a new constant, possibly with an assumption (made for "forall-intro"), block must be indented',
     'pick':        'pick a new constant "with" assumption (made for "exists-elim"), block must be indented',
     'sandbox':     'open a temporary block, useful for trying out things; discarded when closed, whether by dedenting or by `break`',
@@ -3935,7 +4092,7 @@ def number_expr(v: int | Fraction, kb: 'KnowledgeBase') -> Optional[Expr]:
         return Token(label='INT', value=int(v))
     if is_decimal(v):
         return Token(label='FLOAT', value=v)
-    div = kb.calc_symbol('divide')
+    div = kb.builtin_symbol('divide')
     if div is None:
         return None
     return [Token(label='SYMBOL', value=div), Token(label='INT', value=v.numerator), Token(label='INT', value=v.denominator)]
@@ -3947,7 +4104,7 @@ def number_value(e: Expr, kb: 'KnowledgeBase') -> Optional[int | Fraction]:
         return e.value
     match e:
         case [Token(label='SYMBOL', value=op), Token(label='INT', value=a), Token(label='INT', value=b)] \
-                if isinstance(op, str) and 'divide' in kb.get_calc_ops(op) and isinstance(a, int) and isinstance(b, int) and b != 0:
+                if isinstance(op, str) and 'divide' in kb.get_builtins(op) and isinstance(a, int) and isinstance(b, int) and b != 0:
             return Fraction(a, b)
     return None
 
@@ -3963,7 +4120,7 @@ def matrix_value(e: Expr, kb: 'KnowledgeBase') -> Optional[Matrix]:
     # the rows of a literal: `[1, 2, 3]` one row, `[[1, 2], [3, 4]]` two, `[[1], [3]]` a column --
     # `None` if `e` is no literal of numbers (or the rows have different lengths)
     if not (isinstance(e, list) and len(e) == 2 and isinstance(e[0], Token) and isinstance(e[0].value, str)
-            and 'matrix' in kb.get_calc_ops(e[0].value)):
+            and 'matrix' in kb.get_builtins(e[0].value)):
         return None
     items = comma_items(e[1])
     numbers = [number_value(x, kb) for x in items]
@@ -4072,7 +4229,7 @@ def calculate(e: Expr, kb: 'KnowledgeBase') -> Expr:
     e = [calculate(sub_e, kb) for sub_e in e]         # the parts first
     match e:
         case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and args:
-            ops = kb.get_calc_ops(op)
+            ops = kb.get_builtins(op)
             if not ops:
                 return e
             computed = calculate_matrices(e, ops, kb)       # vectors and matrices
@@ -4153,7 +4310,8 @@ class ExportBundle:
     bool: dict[str, list[int]]
     sorts: set[str]
     sort_sigs: dict[str, dict[str, list[int]]]
-    calc_ops: dict[str, list[str]]
+    builtins: dict[str, list[str]]
+    roles: dict[str, list[str]]
     chain: list[list[str]]
     frozen: set[str]                         # the symbols a trusted theory declared (`is_trusted_file`)
     declared_in: dict[str, str]              # the file that declared each operator (`declare_origin`)
@@ -4163,7 +4321,7 @@ class ExportBundle:
 
 # the fields of `ExportBundle` that are symbol-keyed attributes of `KnowledgeBase`, of this level only
 EXPORTED_SYMBOL_ATTRS = ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'alias',
-                         'used', 'lbp', 'rbp', 'nud', 'led', 'const', 'bool', 'calc_ops', 'frozen', 'declared_in')
+                         'used', 'lbp', 'rbp', 'nud', 'led', 'const', 'bool', 'builtins', 'roles', 'frozen', 'declared_in')
 
 def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula'], set[str]]:
     exported = [f for f in child.theory if f.is_exported()]
@@ -4181,7 +4339,8 @@ def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula
     symbols -= child.var - variable_syntax
     # a symbol bound to the calculator (`calc + add`) is exported like an axiom about it -- e.g.
     # matrix.kurt's literals `[ ]`, `det`, `transpose`, which no fact of its own mentions
-    symbols |= set(child.calc_ops)
+    symbols |= set(child.builtins)
+    symbols |= set(child.roles)                    # (a role of the engine, `builtin iff equivalence`, too)
     # custom brackets are special: what actually shows up in a parsed expression is the synthetic
     # combined token (`{lbracket}$$${rbracket}`), but the pair's own const/nud/lbp entries are
     # keyed by the raw bracket characters -- pull those in too once the pair is needed
@@ -4277,8 +4436,10 @@ def apply_exports(parent: 'KnowledgeBase', bundle: ExportBundle) -> None:
     symbols_changed()
     parent.chain.extend(c for c in bundle.chain if c not in parent.all_chains())
     parent.libs.extend(lib for lib in bundle.libs if parent.get_load_level(lib) is None)
-    if bundle.calc_ops:
-        parent.all_calc_ops = {**parent.all_calc_ops, **{sym: list(ops) for sym, ops in bundle.calc_ops.items()}}
+    if bundle.builtins:
+        parent.all_builtins = {**parent.all_builtins, **{sym: list(ops) for sym, ops in bundle.builtins.items()}}
+    if bundle.roles:
+        parent.all_roles = {**parent.all_roles, **{sym: list(roles) for sym, roles in bundle.roles.items()}}
 
 # hierarchical knowledge base
 # the level is increased inside blocks and files
@@ -4308,6 +4469,7 @@ class KnowledgeBase:
         self.level: int             = 0 if parent is None else parent.level + 1
         self.mode_str: str          = mode[0]    # one of ['root', 'sandbox', 'proof', 'assume', 'case', 'let', 'pick', 'expect']
         self.mode_args: list[Expr]  = mode[1]    # expression that opened the current block (just [] for 'root', 'sandbox', 'proof')
+        self.opened_by: str         = mode[0]    # the keyword that opened the block (`case` opens an `assume` level)
         self.pick_source: Optional[Formula] = None   # for a `pick` block: the existential fact it picks from
         self.restated_line: Optional[str] = None     # the line of the last restatement here (not in `theory`, see `block_lines`)
         self.fixed_vars: set[str] = set()            # for an `assume`/`case` block: the free variables of the assumption (see `is_var`)
@@ -4315,6 +4477,7 @@ class KnowledgeBase:
         self.all_fixed_vars: frozenset[str] = frozenset() if parent is None else parent.all_fixed_vars   # ... of this and the enclosing blocks
         self.pick_fact: Optional[Formula]   = None   # ... and the fact about the witness (for the kernel)
         self.libs: list[str]        = []         # the filenames of loaded libraries
+        self.direct_loads: set[str] = set()      # the files this file loads itself (on the level of the file, see `file_level`)
         self.tmp: bool              = tmp        # whether this is a temporary knowledge base (e.g., for loading files this enable correct indenting)
         self.is_load_boundary: bool = False      # set only on the implicit `sandbox` level `load_file` itself
                                                   # pushes for the file being loaded -- `break` must
@@ -4363,8 +4526,10 @@ class KnowledgeBase:
         # global options stored in the `root` with their defaults
         self.format:  Format = format_options[1] if parent is None else parent.format  # how formulas look in the shell
         self.calc:    bool   = False if parent is None else parent.calc                # whether to perform calculations inside expressions
-        self.calc_ops: dict[str, list[str]] = {}                                      # symbol -> the calculator's operations it is bound to (`calc + add`)
-        self.all_calc_ops: dict[str, list[str]] = {} if parent is None else parent.all_calc_ops   # ... of this and the levels above (never changed in place)
+        self.builtins: dict[str, list[str]] = {}                                      # symbol -> the calculator's operations it is bound to (`calc + add`)
+        self.all_builtins: dict[str, list[str]] = {} if parent is None else parent.all_builtins   # ... of this and the levels above (never changed in place)
+        self.roles: dict[str, list[str]] = {}                                         # symbol -> its roles of the engine (`builtin iff equivalence`)
+        self.all_roles: dict[str, list[str]] = {} if parent is None else parent.all_roles   # ... of this and the levels above (never changed in place)
         self.hint:    bool   = False if parent is None else parent.hint                # whether to show hints for next input
 
     def check_all_shown_proved(self):
@@ -4374,18 +4539,20 @@ class KnowledgeBase:
                 s += f'    {f.formula_str(self):<{comment_indent-4}}; {os.path.basename(f.filename)}:{f.line}'
             raise KurtException(f'{s}\n\nEvalError: not all promised formulas were proven.')
 
-    def get_calc_ops(self, symbol: str) -> list[str]:
+    def get_builtins(self, symbol: str) -> list[str]:
         # the calculator's operations `symbol` is bound to (`calc`), in this level or above
-        return self.all_calc_ops.get(symbol, [])
+        return self.all_builtins.get(symbol, [])
 
-    def calc_symbol(self, operation: str) -> Optional[str]:
+    def builtin_symbol(self, operation: str) -> Optional[str]:
         # the symbol bound to `operation`, e.g. `/` for `divide`
-        for symbol, ops in self.all_calc_ops.items():
+        for symbol, ops in self.all_builtins.items():
             if operation in ops:
                 return symbol
         return None
 
-    def bind_calc(self, symbol: str, operation: str) -> None:
+    def bind_builtin(self, symbol: str, operation: str) -> None:
+        if operation in ENGINE_ROLES:
+            return self.bind_engine_role(symbol, operation)
         if self.is_bindop(symbol):
             raise KurtException(f'EvalError: binding operator `{symbol}` can not also be a calculator operation')
         if self.is_var(symbol):
@@ -4401,13 +4568,44 @@ class KnowledgeBase:
             self.add_bool(symbol, [0])
         # one operation per symbol -- and a unary one, `negate`, besides (like `-`); `calc q power,
         # q add` silently computed `add` (found in the soundness review of 2026-09-29)
-        others = [op for op in self.get_calc_ops(symbol) if op != operation and (op == 'negate') == (operation == 'negate')]
+        others = [op for op in self.get_builtins(symbol) if op != operation and (op == 'negate') == (operation == 'negate')]
         if others:
             raise KurtException(f'EvalError: `{symbol}` is bound to `{others[0]}` already, it can not also mean `{operation}`')
-        ops = self.calc_ops.setdefault(symbol, [])
+        ops = self.builtins.setdefault(symbol, [])
         if operation not in ops:
             ops.append(operation)
-        self.all_calc_ops = {**self.all_calc_ops, symbol: list(ops)}
+        self.all_builtins = {**self.all_builtins, symbol: list(ops)}
+
+    def bind_engine_role(self, symbol: str, role: str) -> None:
+        # `builtin iff equivalence`: the engine gives `symbol` this meaning (see `ENGINE_ROLES`) --
+        # one role per symbol, and one symbol per role, with the `bool` signature the role needs
+        if self.is_var(symbol):
+            raise KurtException(f'EvalError: variable `{symbol}` can not have a role of the engine')
+        needed = ENGINE_ROLES[role]
+        if role in BINDER_ROLES and not (self.is_bindop(symbol) and self.get_arity(symbol) == 2):
+            raise KurtException(f'EvalError: the role `{role}` needs a binder with two arguments (`arity {symbol} 2`, `bindop {symbol}`)')
+        if self.bool_sig(symbol) != needed:
+            raise KurtException(f'EvalError: the role `{role}` needs `bool {symbol} {" ".join(map(str, needed))}`, got `bool {symbol} {" ".join(map(str, self.bool_sig(symbol)))}`'.rstrip())
+        other_roles = [r for r in self.all_roles.get(symbol, []) if r != role]
+        if other_roles:
+            raise KurtException(f'EvalError: `{symbol}` has the role `{other_roles[0]}` already, it can not also be the `{role}`')
+        holder = self.role_symbol(role)
+        if holder is not None and holder != symbol:
+            raise KurtException(f'EvalError: `{holder}` is the `{role}` already -- a role has one symbol')
+        roles = self.roles.setdefault(symbol, [])
+        if role not in roles:
+            roles.append(role)
+        self.all_roles = {**self.all_roles, symbol: list(roles)}
+
+    def role_symbol(self, role: str) -> Optional[str]:
+        # the symbol that has the engine role `role` (`builtin`), if any
+        for symbol, roles in self.all_roles.items():
+            if role in roles:
+                return symbol
+        return None
+
+    def has_role(self, symbol: object, role: str) -> bool:
+        return isinstance(symbol, str) and role in self.all_roles.get(symbol, [])
 
     def calculate(self, e: Expr) -> Expr:
         """If e is a calculation expression, perform the calculation and return the simplified expression."""
@@ -4440,10 +4638,6 @@ class KnowledgeBase:
         validate_exports(bundle, self, self.parent, own_file)
         apply_exports(self.parent, bundle)
         return self.pop_level(keep_todos=True)
-
-    def nice_mode_str(self) -> str:
-        args_str = ", ".join([f'{expr_str(v, self)}' for v in self.mode_args]) if len(self.mode_args) > 0 else ''
-        return f'{">"*self.level}! {self.mode_str} {args_str}'
 
     def todo_add(self, todo) -> None:
         # stored on the level of the block, see `pop_level`
@@ -5066,7 +5260,7 @@ class KnowledgeBase:
             # Flattening/sorting a binder changes which token is bound and what its scope is;
             # chain rules treat the two operands as ordinary relation arguments.
             raise KurtException(f'EvalError: operator `{fun}` is already `flat`, `sym`, or in a `chain` and can not be a binding operator')
-        if self.get_calc_ops(fun):
+        if self.get_builtins(fun):
             raise KurtException(f'EvalError: calculator operator `{fun}` can not also be a binding operator')
         if self.is_var(fun):
             raise KurtException(f'EvalError: variable operator `{fun}` can not define a fixed binding scope')
@@ -5165,7 +5359,7 @@ class KnowledgeBase:
         if self.is_used(rbracket):
             raise KurtException(f'EvalError: symbol `{rbracket}` has been already used in a formula')
         for bracket in (lbracket, rbracket):
-            if self.is_arity_set(bracket) or self.bool_sig(bracket) or self.get_calc_ops(bracket):
+            if self.is_arity_set(bracket) or self.bool_sig(bracket) or self.get_builtins(bracket):
                 raise KurtException(f'EvalError: bracket symbol `{bracket}` already has an `arity`, `bool`, or `calc` declaration')
         if self.is_operator(lbracket) or self.is_const(lbracket) or self.is_var(lbracket):
             raise KurtException(f'EvalError: symbol `{lbracket}` already exist as {self._find_symbol(lbracket)}')
@@ -5215,7 +5409,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` has been already used in a formula')
         if self.is_const(s):
             raise KurtException(f'EvalError: symbol `{s}` is already used as a constant')
-        if self.get_calc_ops(s):
+        if self.get_builtins(s):
             raise KurtException(f'EvalError: calculator symbol `{s}` has a fixed meaning and can not be a variable')
         if self.is_flat(s) or self.is_sym(s) or self.is_chainable(s) or self.is_bindop(s):
             raise KurtException(f'EvalError: symbol `{s}` has a fixed semantic property and can not be a variable')
@@ -5249,7 +5443,7 @@ class KnowledgeBase:
             # an alias is a new name: it takes over everything of its symbol, so it can't have
             # declarations of its own (`bool ∈ 0`, then `alias ∈ in`), which might differ
             raise KurtException(f'EvalError: symbol `{s}` is already declared -- an alias must be a new name')
-        if self.get_calc_ops(s):
+        if self.get_builtins(s):
             raise KurtException(f'EvalError: calculator symbol `{s}` already has a meaning -- an alias must be a new name')
         # (found in the soundness review of 2026-09-29: `alias Q $x`, and cycles `alias q r`, `alias r q`)
         if self.is_var(t) or self.is_fixed_var(t):
@@ -5257,6 +5451,7 @@ class KnowledgeBase:
         t = self.get_alias(t) or t    # another name for an alias is one for its symbol
         if t == s:
             raise KurtException(f'EvalError: `alias {s}` would make `{s}` another name for itself')
+        self.declare_origin(s)    # an alias declares its name too (`∧` of prop.kurt vs. modal.kurt)
         self.alias[s] = t         # add a key `s` with value `t`
         self.record_property_origin('alias', s)
 
@@ -5272,9 +5467,9 @@ class KnowledgeBase:
         conflicts = {sort for position in v for sort in self.position_sorts(s, position) if sort != 'bool'}
         if conflicts:
             raise KurtException(f'EvalError: `{s}` already has sort {", ".join(sorted(conflicts))} at one of these positions')
-        calc_ops = self.get_calc_ops(s)
-        if calc_ops:
-            expected_boolean = all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in calc_ops)
+        builtins = self.get_builtins(s)
+        if builtins:
+            expected_boolean = all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in builtins)
             if (0 in v) != expected_boolean:
                 result_kind = 'boolean' if expected_boolean else 'non-boolean'
                 raise KurtException(f'EvalError: calculator symbol `{s}` has a {result_kind} result')
@@ -5469,6 +5664,7 @@ class KnowledgeBase:
     # we ignore all bound vars, since they are temporary
 
     def add_new_symbols(self, e: Expr) -> None:
+        used_symbols.update(t.value for t in get_token_set(e) if t.label == 'SYMBOL' and isinstance(t.value, str))
         for sym in undeclared_symbols(e, self):
             if sym not in new_symbols:
                 new_symbols.append(sym)   # noted (or, with `--strict`, rejected) in `scan_parse_check_eval`
@@ -5622,13 +5818,13 @@ class KnowledgeBase:
             s += f'; on level {self.level}\n' + ''.join(f'{f.formula_str(self)}\n' for f in self.show)
         return s
 
-# create initial knowledge base and define some important constant for the parser
+# the initial knowledge base: the core is read from `minimal.kurt` at the end of this file
+# (`read_core`); here only what Kurt source can't declare, and some constants for the parser
 initial_kb: KnowledgeBase = KnowledgeBase(parent=None, mode=('root', []))
 begin_rbp:    int = 0                                      # right binding power of beginning of input line
 end_lbp:      int = 0                                      # left  binding power of end of input line
 bracket_rbp:  int = 1                                      # right binding power of left brackets
 bracket_lbp:  int = 1                                      # left  binding power of right brackets
-initial_kb.add_brackets('(', ')')                          # round brackets for grouping
 string_lbp:   int = 2                                      # left  binding power of strings
 
 def local_led(ts: PeekableGenerator, kb: KnowledgeBase, left: Expr, op_token: Token) -> Expr:
@@ -5642,54 +5838,12 @@ def local_led(ts: PeekableGenerator, kb: KnowledgeBase, left: Expr, op_token: To
 
 initial_kb.lbp[LOCAL_SYMBOL] = string_lbp                  # `local` binds as loosely as a label itself
 initial_kb.led[LOCAL_SYMBOL] = local_led
-initial_kb.add_infix (COMMA_SYMBOL, 5, 4)                  # comma   is infix operator, right-associative: `(a, b, c)` is the pair `(a, (b, c))`
-initial_kb.add_infix (IMPL_SYMBOL, 13, 12)                 # implies is infix operator
-initial_kb.add_infix (AND_SYMBOL, 16, 16)                  # and     is infix operator
 space_lbp:    int = 90                                     # left  binding power: function application binds most tightly, `f x + y` is `(f x) + y`
 space_rbp:    int = 90                                     # right binding power, see `space_lbp`
 glued_lbp:    int = 95                                     # `f(x)` without a space: `inv det($A)` is `inv (det $A)`
-initial_kb.add_infix (SPACE_SYMBOL, space_lbp, space_rbp)  # space op is for fn like `f x`
-
-initial_kb.add_bool  (TRUE_SYMBOL, [0])                    # true is bool
-initial_kb.add_bool  (IMPL_SYMBOL, [0, 1, 2])              # implies is bool with bool input
-initial_kb.add_bool  (AND_SYMBOL,  [0, 1, 2])              # and is bool with bool inputs
-initial_kb.add_const (TRUE_SYMBOL)                         # true is const symbol
-initial_kb.add_const (COMMA_SYMBOL)                        # comma is the fixed tuple/list constructor
-initial_kb.add_const (IMPL_SYMBOL)                         # implies is const symbol
-initial_kb.add_const (AND_SYMBOL)                          # and is const symbol
-initial_kb.add_flat  (AND_SYMBOL)                          # and is flat
-initial_kb.add_sym   (AND_SYMBOL)                          # and is symmetric
-initial_kb.add_arity (SUB_SYMBOL, 3)                       # sub takes three args
-initial_kb.add_bindop(SUB_SYMBOL)                          # sub is a binding operator
-initial_kb.used.add(SUB_SYMBOL)                            # sub can be boolean or non-boolean
 initial_kb.used.add(BOUND_SYMBOL)                          # internal, can't be written (see `mark_bound_variables`)
-initial_kb.add_alias('⊤', TRUE_SYMBOL)                     # alias for true
-initial_kb.add_alias('⇒', IMPL_SYMBOL)                     # alias for implies
-initial_kb.add_alias('∧', AND_SYMBOL)                      # alias for implies
-
-# `forall`/`exists`' *syntax* (not their axioms -- those stay in `logic.kurt`, exactly like
-# `and`-elim stays in `prop.kurt` while `and`'s syntax and `and-intro` are hardcoded above)
-# is hardcoded here too, and not just for consistency: `theory_append`/`show_append` (every
-# formula ever stored) and `all_theory()` (every derivation search) already unconditionally
-# special-case any expression headed by the literal symbol `forall`, via
-# `remove_outer_forall_quantifiers` -- regardless of whether any theory has declared it a
-# `bindop`. Leaving `forall` undeclared didn't just make `let`'s forall-intro confusing if you
-# forgot `load logic`; it meant using the bare word `forall` for *anything* (it parsed as an
-# ordinary, flatly space-applied symbol) crashed the very first `theory_append` that saw it,
-# since that code assumes the 3-element shape only a real `bindop` parse produces. Declaring it
-# here for real removes that landmine outright, rather than merely detecting it more gracefully.
-initial_kb.add_arity (FORALL_SYMBOL, 2)                    # forall takes a bound var + a body
-initial_kb.add_arity (EXISTS_SYMBOL, 2)                    # exists takes a bound var + a body
-initial_kb.add_bindop(FORALL_SYMBOL)                       # forall is a binding operator
-initial_kb.add_bindop(EXISTS_SYMBOL)                       # exists is a binding operator
-initial_kb.add_bool  (FORALL_SYMBOL, [0, 2])               # forall is bool, its body must be bool
-initial_kb.add_bool  (EXISTS_SYMBOL, [0, 2])               # exists is bool, its body must be bool
-# `add_bindop` also classifies `sub`, `forall`, and `exists` as constants: a binding scope is
-# fixed semantics, not a property that can follow a variable operator during matching.
-initial_kb.add_alias('∀', FORALL_SYMBOL)                   # alias for forall
-initial_kb.add_alias('∃', EXISTS_SYMBOL)                   # alias for exists
-initial_kb.frozen = initial_kb.declared_symbols()          # the core can't be changed, e.g. by `sym implies`
-core_kb: KnowledgeBase = copy.deepcopy(initial_kb)         # the core only: every file is checked on a copy of it (`load_file`)
+# the core itself (`(` `)`, `,`, space, `true`, `implies`, `and`, `sub`, `forall`, `exists`): see
+# `read_core` at the end of this file
 
 ################
 ## kurt lexer ##
@@ -5714,7 +5868,7 @@ def _matrix_rows(expr: Expr, kb: KnowledgeBase) -> Optional[list[list[str]]]:
     """Return printable cells when ``expr`` is a matrix literal with at least two rows."""
     if not (isinstance(expr, list) and len(expr) >= 2 and isinstance(expr[0], Token)
             and isinstance(expr[0].value, str) and kb.is_bracket_placeholder(expr[0].value)
-            and 'matrix' in kb.get_calc_ops(expr[0].value)):
+            and 'matrix' in kb.get_builtins(expr[0].value)):
         return None
     entries = comma_items(expr[1]) if len(expr) == 2 and is_comma_separated_list(expr[1]) else expr[1:]
     if len(entries) < 2:
@@ -5859,17 +6013,35 @@ def is_implication(expr: Expr) -> bool:
 def is_not(expr: Expr) -> bool:
     return is_op_expr(expr, NOT_SYMBOL)
 
-def is_forall(expr: Expr) -> bool:
-    return is_op_expr(expr, FORALL_SYMBOL)
+def is_forall(expr: Expr, kb: 'KnowledgeBase') -> bool:
+    # a universal quantification: its binder has the engine role (`builtin forall universal`,
+    # logic.kurt), not just the name `forall`
+    return isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'universal')
 
-def is_exists(expr: Expr) -> bool:
-    return is_op_expr(expr, EXISTS_SYMBOL)
+def is_exists(expr: Expr, kb: 'KnowledgeBase') -> bool:
+    # an existential quantification (`builtin exists existential`, logic.kurt)
+    return isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'existential')
 
 def is_equality(expr: Expr) -> bool:
     return is_op_expr(expr, EQUAL_SYMBOL)
 
-def is_iff(expr: Expr) -> bool:
-    return is_op_expr(expr, IFF_SYMBOL)
+def is_iff(expr: Expr, kb: 'KnowledgeBase') -> bool:
+    # an equivalence: its symbol has the engine role (`builtin iff equivalence`, prop.kurt), not
+    # just the name `iff`
+    return isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'equivalence')
+
+def is_disjunction(expr: Expr, kb: 'KnowledgeBase') -> bool:
+    # a disjunction (`builtin or disjunction`, prop.kurt)
+    return isinstance(expr, list) and len(expr) >= 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'disjunction')
+
+def is_falsum(expr: Expr, kb: 'KnowledgeBase') -> bool:
+    # `false` (`builtin false falsum`, prop.kurt)
+    return isinstance(expr, Token) and kb.has_role(expr.value, 'falsum')
+
+def negation_of(expr: Expr, kb: 'KnowledgeBase') -> Optional[Expr]:
+    # `not expr`, with the symbol of the negation (`builtin not negation`), if there is one
+    symbol = kb.role_symbol('negation')
+    return None if symbol is None else [Token('SYMBOL', symbol), expr]
 
 def is_comma_separated_list(expr: Expr) -> bool:
     return is_op_expr(expr, COMMA_SYMBOL)
@@ -5965,6 +6137,7 @@ scanner: re.Pattern = re.compile(fr'''
                                                      # merge into and swallow a following close-bracket character)
                [,]                                | # symbols 3: comma
                [.:=+\-*/#&^'∈!<>|_]+              | # symbols 4: standard operators (greedy multi-char)
+               ∃!                                 | # symbols 5a: unique existence (`∃` and `!` would be two symbols)
                [{re.escape(SPECIAL_SYMBOLS)}])    | # symbols 5: logic, Greek and other math symbols (always single char)
   (?P<NEWLINE> [\n])                              | # newline
   (?P<WHITE>   [^\S\n\r]+)                        | # whitespace (not newline)
@@ -6120,6 +6293,11 @@ def is_relation(op: Value, kb: KnowledgeBase) -> bool:
 # specifically for `--strict`; the other two record every declaration inferred by formula use,
 # including a symbol whose syntax was declared already (`infix ∘ ...` then `$a ∘ $b`).
 new_symbols: list[str] = []
+# the symbols of the formulas of the line being checked, and per file the files whose symbols it
+# uses without loading them itself, noted once (see `note_indirect_symbols`)
+used_symbols: set[str] = set()
+indirect_noted: dict[str, set[str]] = {}
+indirect_report: dict[str, dict[str, set[str]]] = {}    # file -> theory -> its symbols (`kurt --deps`)
 implicit_constants: list[str] = []
 implicit_bool_signatures: list[tuple[str, tuple[int, ...]]] = []
 
@@ -6590,7 +6768,7 @@ def bare_bool_schema_axiom_warning(expr: Expr, kb: KnowledgeBase) -> Optional[st
     # every equivalent phrasing, since a complete detector would need to decide whether an
     # arbitrary formula is a tautology, not just pattern-match. Never rejects: such an axiom
     # is occasionally written on purpose (much like `use false` is allowed outright).
-    while isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and expr[0].value == FORALL_SYMBOL:
+    while is_forall(expr, kb):
         expr = expr[2]      # a leading `forall` (over anything) doesn't change this check
 
     def bare_bool_var(e: Expr) -> Optional[str]:
@@ -6608,7 +6786,7 @@ def bare_bool_schema_axiom_warning(expr: Expr, kb: KnowledgeBase) -> Optional[st
             var = bare_bool_var(lhs)
             if var is not None and not contains(rhs, {var}, kb):
                 return f'Warning: `{expr_str(expr, kb)}` is derivable unconditionally -- `{var}` freely unifies with anything and does not reappear in the conclusion -- see doc/kurt-soundness.md #6'
-        elif op in (EQUAL_SYMBOL, IFF_SYMBOL):
+        elif kb.has_role(op, 'equality') or kb.has_role(op, 'equivalence'):
             for side, other in ((lhs, rhs), (rhs, lhs)):
                 var = bare_bool_var(side)
                 if var is not None and not contains(other, {var}, kb):
@@ -6651,18 +6829,18 @@ def eval_proof(kb: KnowledgeBase, mainstream: bool) -> KnowledgeBase:
 # LHS: exactly one unused symbol that is not a variable or boolean variable
 # `def` is safe only if `=` and `iff` have their usual meaning, so they must come from the
 # theories that come with Kurt
-DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'prop'}
-
-def is_packaged_theory_loaded(name: str, kb: KnowledgeBase) -> bool:
-    candidate = packaged_theory_file(name + '.kurt')
-    return candidate is not None and kb.get_load_level(str(candidate)) is not None
+DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'prop'}     # (for the message only)
 
 def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, mainstream: bool, local: bool = False) -> tuple[Formula, str]:
-    for op, theory in DEF_THEORIES.items():
-        if contains_symbol(expr, op) and not is_packaged_theory_loaded(theory, kb):
-            raise KurtException(f'EvalError: `def` with `{op}` needs the theory that gives `{op}` its meaning -- `load {theory}` first')
+    # `def` defines with the equality or the equivalence of a trusted theory (`builtin = equality`,
+    # `builtin iff equivalence`) -- a relation that merely has the name `=` or `iff` could mean
+    # anything
     match expr:
-        case [Token(label='SYMBOL', value=s), LHS, RHS] if isinstance(s, str) and (s== EQUAL_SYMBOL or s==IFF_SYMBOL):
+        case [Token(label='SYMBOL', value=s), _, _] if isinstance(s, str) and s in DEF_THEORIES \
+                and not (kb.has_role(s, 'equality') or kb.has_role(s, 'equivalence')):
+            raise KurtException(f'EvalError: `def` with `{s}` needs the theory that gives `{s}` its meaning -- `load {DEF_THEORIES[s]}` first')
+    match expr:
+        case [Token(label='SYMBOL', value=s), LHS, RHS] if isinstance(s, str) and (kb.has_role(s, 'equality') or kb.has_role(s, 'equivalence')):
             lhs_candidates = extract_by_condition(LHS, lambda s: not kb.is_const(s) and not kb.is_var(s) and not kb.is_bracket_placeholder(s), kb)
             if len(lhs_candidates) != 1:
                 raise KurtException(f'EvalError: `def` requires exactly one new constant on the left-hand side, got `{lhs_candidates}` in `{expr_str(expr, kb)}`')
@@ -6713,7 +6891,7 @@ def operator_meaning(op: str, kb: KnowledgeBase) -> Optional[str]:
     # not constrain a new constant (e.g. defining composition after loading group.kurt).
     if any(contains_symbol(f.simplified_expr, op) for f in kb.all_theory()):
         return 'is used in a fact'
-    if kb.get_calc_ops(op):
+    if kb.get_builtins(op):
         return 'is bound to the calculator'
     if kb.is_flat(op) or kb.is_sym(op):
         return 'is `flat` or `sym`'
@@ -6825,7 +7003,9 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
                 if not is_bool_var_token(condition, kb.parent):
                     if isinstance(condition, list):
                         condition = bound_condition(name, condition)     # `let x > 0` binds `x`
-                    expr = [Token('SYMBOL', FORALL_SYMBOL), condition, expr]
+                    universal = kb.role_symbol('universal')
+                    assert universal is not None, 'BUG: `let` is opened only with a universal quantifier'
+                    expr = [Token('SYMBOL', universal), condition, expr]
         case 'pick':
             # exists-elim
             assert len(kb.mode_args) > 0, f'BUG: mode_args for "pick" must have length > 0, got `{kb.mode_args}`'
@@ -6872,8 +7052,8 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
     lines = block_lines(block, kb.theory[-1])
     reason = record_certificate(Certificate(rule_name, expr, frozenset(), kb.theory[-1], block=block), block).short(filename, mainstream, own_lines=True)
     not_reason = ''
-    if mode_str == 'assume' and isinstance(last_expr, Token) and last_expr.value == FALSE_SYMBOL:
-        not_expr: Expr = [Token('SYMBOL', NOT_SYMBOL), kb.mode_args[0]]
+    not_expr = negation_of(kb.mode_args[0], kb) if mode_str == 'assume' and is_falsum(last_expr, kb) else None
+    if not_expr is not None:
         not_reason = record_certificate(Certificate('not-intro', not_expr, frozenset(), kb.theory[-1], block=block), block).short(filename, mainstream, own_lines=True)
 
     # add a the new formula to the theory
@@ -6887,9 +7067,9 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int, mainstream: bool) -> 
     # can we infer further with "not-intro"?
     if mode_str == 'assume':
             match last_expr:
-                case Token(label='SYMBOL', value=v) if v == FALSE_SYMBOL:
+                case Token(label='SYMBOL', value=v) if not_expr is not None:
                     # not-intro, some extra formula!
-                    expr: Expr = [Token('SYMBOL', NOT_SYMBOL), assumption]
+                    expr: Expr = negation_of(assumption, kb)  # type: ignore[assignment]
                     reason = not_reason
                     reason = decorate_reason(mainstream, reason, filename, lines)
                     f = Formula(kb, expr, '', lines, filename, '', reason, keyword='')
@@ -7070,9 +7250,9 @@ def pick_instance(existential: Expr, witness: Expr, kb: KnowledgeBase) -> Option
     # an existential with a condition, `∃ (C) body`, the condition and the body (as logic.kurt's
     # "exists-cond-def": `∃ (sub $x $v %C) %P` is `∃ $w ((sub $x $w %C) and (sub $v $w %P))`)
     match existential:
-        case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if q == EXISTS_SYMBOL and isinstance(x, str):
+        case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if kb.has_role(q, 'existential') and isinstance(x, str):
             return normalize_expr(k_replace(body, x, witness, kb), kb)
-        case [Token(label='SYMBOL', value=q), cond, body] if q == EXISTS_SYMBOL and isinstance(cond, list):
+        case [Token(label='SYMBOL', value=q), cond, body] if kb.has_role(q, 'existential') and isinstance(cond, list):
             x, condition = unpack_condition(cond, kb)
             assert condition is not None
             return normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(condition, x, witness, kb), k_replace(body, x, witness, kb)], kb)
@@ -7094,7 +7274,7 @@ def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_li
     # (2) check that the `fact` matches some existential statement in the theory so far
     for candidate in kb.all_theory():
         cand_expr = candidate.simplified_expr
-        if is_exists(cand_expr):
+        if is_exists(cand_expr, kb):
             instance = pick_instance(cand_expr, new_const_expr, kb)
             if instance is not None and equal_expr(instance, fact, kb):
                 break  # end the loop without the `else` block
@@ -7203,12 +7383,16 @@ def block_forbidding_use(kb: KnowledgeBase) -> Optional[str]:
 # the input lines of each file or shell session that were accepted, for `save` (see `read_eval_loop`)
 accepted_lines: dict[str, list[str]] = {}
 
+# the statements that declare how symbols are read (`sub` may appear in them, e.g. `arity sub 3`)
+DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'bool',
+                        'chain', 'var', 'const', 'alias', 'sort')
+
 # statements that only show something: not saved
-SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'list', 'level', 'mode', 'context', 'trail',
+SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'list', 'summary',
                     'tokenize', 'parse', 'breakpoint', 'format'}
 # ... and those that only list something when they come without arguments
 LISTING_KEYWORDS = {'load', 'use', 'def', 'show', 'prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop',
-                    'flat', 'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias'}
+                    'flat', 'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias', 'builtin'}
 LIST_PROPERTY_KEYWORDS = ('prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop', 'flat',
                           'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias')
 LIST_CATEGORIES = {'files', 'theory', 'use', 'def', 'syntax', 'symbols', 'declarations',
@@ -7221,9 +7405,11 @@ def is_showing_statement(first_line: str, kb: Optional[KnowledgeBase] = None) ->
     return words[0] in SHOWING_KEYWORDS or ((words[0] in LISTING_KEYWORDS or (
         kb is not None and kb.is_sort_name(words[0]))) and len(words) == 1)
 
-def accept_statement(name: str, lines: list[str], kb: Optional[KnowledgeBase] = None) -> None:
-    # the lines of a statement that was accepted -- unless it only shows something
-    if lines and not is_showing_statement(lines[0], kb):
+def accept_statement(name: str, lines: list[str], kb: Optional[KnowledgeBase] = None, in_expect: bool = False) -> None:
+    # the lines of a statement that was accepted -- unless it only shows something; inside an
+    # `expect` it stays (its error may be the expected one, and the block must keep its body)
+    in_expect = in_expect or (kb is not None and enclosing_expect(kb) is not None)
+    if lines and (in_expect or not is_showing_statement(lines[0], kb)):
         accepted_lines.setdefault(name, []).extend(lines)
 
 def save_str(filename: str) -> str:
@@ -7281,36 +7467,47 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             case [] | [[Token(label='SYMBOL', value='on' | 'off')]]:
                 eval_global_toggle(keyword, args, kb)
             case _:
-                # `calc + add, - subtract, ...`: bind symbols to the calculator -- like axioms (`1 + 1 = 2`,
-                # ...), so not with `--strict` outside the trusted theories, and not for the
-                # symbols of a trusted theory
-                check_strict(keyword, filename)
-                bindings: list[tuple[str, str, str]] = []
-                for arg in args:
-                    match arg:
-                        case [Token(label='SYMBOL', value=symbol), Token(label='SYMBOL', value=operation)] if isinstance(symbol, str) and isinstance(operation, str):
-                            shown_symbol = symbol
-                            known = CALCULATOR_OPERATIONS + tuple(CALCULATOR_RELATIONS) + (CALCULATOR_MEMBERSHIP,) + tuple(CALCULATOR_SETS) + CALCULATOR_LITERALS
-                            if operation not in known:
-                                raise KurtException(f'EvalError: `{operation}` is not an operation of the calculator, one of {", ".join(known)}', keyword_token.column)
-                            if kb.is_rbracket(symbol):
-                                raise KurtException(f'EvalError: declare `calc` on the left bracket of a bracket pair, not `{symbol}`', keyword_token.column)
-                            if kb.is_lbracket(symbol):
-                                # `calc [ matrix`: the bracket pair, whose terms are `[$$$]` nodes
-                                right = next(r for node in kb.levels() for r, l in node.brackets.items() if l == symbol)
-                                symbol = f'{symbol}$$${right}'
-                            bindings.append((symbol, operation, shown_symbol))
-                        case _:
-                            msg = create_usage(keyword, [[], ['on'], ['off'], ['SYMBOL', 'OPERATION']])
-                            raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}', keyword_token.column)
-                check_not_frozen([symbol for symbol, _, _ in bindings], keyword, filename, kb)
-                def bind_all(target: KnowledgeBase) -> None:
-                    for symbol, operation, _ in bindings:
-                        target.bind_calc(symbol, operation)
-                apply_declaration_batch(kb, bind_all, tuple(symbol for symbol, _, _ in bindings))
-                for _, operation, shown_symbol in bindings:
-                    if mainstream:
-                        log(kb, f'calc {shown_symbol} {operation}', f'computed by the calculator', kb.level)
+                msg = create_usage(keyword, [[], ['on'], ['off']])
+                raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}\n(a symbol is bound to the calculator with `builtin`, e.g. `builtin + add`)', keyword_token.column)
+    elif keyword == 'builtin':
+        if len(args) == 0:
+            if mainstream:
+                bound = sorted({s: kb.all_builtins.get(s, []) + kb.all_roles.get(s, []) for s in {*kb.all_builtins, *kb.all_roles}}.items())
+                log(kb, '\n'.join(f'builtin {shown_builtin_symbol(sym)} {", ".join(roles)}' for sym, roles in bound) or '; no builtins')
+        else:
+            # `builtin + add, < lt`: a calculator operation; `builtin iff equivalence`: a role of the
+            # engine -- like axioms, so not with `--strict` outside the trusted theories, and not for
+            # the symbols of a trusted theory
+            check_strict(keyword, filename)
+            bindings: list[tuple[str, str, str]] = []
+            known = BUILTIN_ROLES
+            for arg in args:
+                match arg:
+                    case [Token(label='SYMBOL', value=symbol), Token(label='SYMBOL', value=role)] if isinstance(symbol, str) and isinstance(role, str):
+                        shown_symbol = symbol
+                        if role in ENGINE_ROLES and not is_trusted_file(filename):
+                            raise KurtException(f'EvalError: the role `{role}` of the engine can only be given by a theory that comes with Kurt (or one found via `-p`) -- it changes what the engine derives', keyword_token.column)
+                        if role not in known:
+                            raise KurtException(f'EvalError: `{role}` is not built into Kurt -- a calculator operation ({", ".join(CALCULATOR_ROLES)}) or a role of the engine ({", ".join(ENGINE_ROLES)})', keyword_token.column)
+                        if kb.is_rbracket(symbol):
+                            raise KurtException(f'EvalError: declare `builtin` on the left bracket of a bracket pair, not `{symbol}`', keyword_token.column)
+                        if kb.is_lbracket(symbol):
+                            # `builtin [ matrix`: the bracket pair, whose terms are `[$$$]` nodes
+                            right = next(r for node in kb.levels() for r, l in node.brackets.items() if l == symbol)
+                            symbol = f'{symbol}$$${right}'
+                        bindings.append((symbol, role, shown_symbol))
+                    case _:
+                        msg = create_usage(keyword, [[], ['SYMBOL', 'ROLE']])
+                        raise KurtException(f'ParseError: wrong arguments, possible is:\n{msg}', keyword_token.column)
+            check_not_frozen([symbol for symbol, _, _ in bindings], keyword, filename, kb)
+            def bind_all(target: KnowledgeBase) -> None:
+                for symbol, role, _ in bindings:
+                    target.bind_builtin(symbol, role)
+            apply_declaration_batch(kb, bind_all, tuple(symbol for symbol, _, _ in bindings))
+            for _, role, shown_symbol in bindings:
+                if mainstream:
+                    what = 'computed by the calculator' if role in CALCULATOR_ROLES else f'the engine\'s {role}'
+                    log(kb, f'builtin {shown_symbol} {role}', what, kb.level)
     elif keyword == 'list':
         if len(args) > 1 or (args and not all(isinstance(t, Token) and t.label == 'STRING' for t in args[0])):
             raise KurtException('ParseError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
@@ -7452,38 +7649,11 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 log(kb, msg)
     elif keyword == 'format':
         eval_global_format(keyword, args, kb)
-    elif keyword == 'level':
+    elif keyword == 'summary':
         if len(args) > 0:
             raise KurtException(f'ParseError: `{keyword}` does not take any arguments', keyword_token.column)
         if mainstream:
-            log(kb, str(kb.level))
-    elif keyword == 'mode':
-        if len(args) > 0:
-            raise KurtException(f'ParseError: `{keyword}` does not take any arguments', keyword_token.column)
-        if mainstream:
-            log(kb, kb.mode_str)
-    elif keyword == 'trail':
-        if len(args) > 0:
-            raise KurtException(f'ParseError: `{keyword}` does not take any arguments', keyword_token.column)
-        msg = f'{kb.mode_str}'
-        kb_parent = kb.parent
-        while kb_parent is not None:
-            msg = f'{kb_parent.mode_str} > ' + msg
-            kb_parent = kb_parent.parent
-        msg = '; ' + msg
-        if mainstream:
-            log(kb, msg)
-    elif keyword == 'context':
-        if len(args) > 0:
-            raise KurtException(f'ParseError: `{keyword}` does not take any arguments', keyword_token.column)
-        
-        msg = kb.nice_mode_str()
-        kb_parent = kb.parent
-        while kb_parent is not None:
-            msg = kb_parent.nice_mode_str() + '\n' + msg
-            kb_parent = kb_parent.parent
-        if mainstream:
-            log(kb, msg)
+            log(kb, state_summary(kb, current_lexer_state[0]))
 
 
     # SYNTAX RELATED
@@ -8007,6 +8177,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         expr = args[0]
         fixed = free_bound_vars(expr, kb)[0]   # fixed in the block, see `is_var`
         kb = kb.push_level('assume', args)  # open a new block
+        kb.opened_by = keyword
         kb.fixed_vars = set(fixed)
         kb.all_fixed_vars = kb.all_fixed_vars | fixed
         symbols_changed()
@@ -8025,6 +8196,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         msg = 'EvalError: `let` takes new constants or boolean expressions'
         if len(args) == 0:
             raise KurtException(msg)
+        if kb.role_symbol('universal') is None and not all(is_bool_var_token(a, kb) for a in args):
+            # (`let %A`, over formulas only, closes without a quantifier)
+            raise KurtException('EvalError: `let` closes with a universal quantifier, and there is none -- `load logic` first')
         # add the new constants and their constraints (if boolean expressions are given)
         kb = kb.push_level('let', args)  # open a new block
         for expr in args:  # args is a list of expressions
@@ -8042,6 +8216,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         msg = 'EvalError: `pick` takes a new constant, keyword `with` and a formula, e.g. `pick x with F(x)`, or just the formula, e.g. `pick x > 0`'
         if len(args) == 0:
             raise KurtException(msg)
+        if kb.role_symbol('existential') is None:
+            raise KurtException('EvalError: `pick` takes its witness from an existential quantifier, and there is none -- `load logic` first')
         if len(args) > 1:
             # each `pick` opens a block of its own, but the next line can only indent once
             raise KurtException('EvalError: one `pick` per line -- write the next `pick` inside the block of the first')
@@ -8092,7 +8268,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     case [*tail] if tail and not any(is_helper_keyword(t) for t in tail):
                         # `pick C`, like `let C`: the new constant is the one `C` is about
                         # (`unpack_condition`), and then it is `pick x with C`
-                        ts = PeekableGenerator(t for t in tail + [end_token])
+                        # (a copy: parsing changes tokens, e.g. the `)` of `P(c)`, and `eval_pick`
+                        # parses the tokens again)
+                        ts = PeekableGenerator(t for t in copy.deepcopy(tail) + [end_token])
                         condition, _, _ = post_process(kb, parse_expression(ts, kb, begin_rbp))
                         new_const, _ = unpack_condition(condition, kb)
                         if kb.is_const(new_const):
@@ -8236,9 +8414,9 @@ def bool_expr(expr: Expr, kb: KnowledgeBase, strict: bool=True) -> bool:
             return True                    # boolean variables (also when fixed by an assumption, or a constant by `let %E`)
         case Token(label='SYMBOL', value=v):
             assert isinstance(v, str)
-            calc_ops = kb.get_calc_ops(v)
-            if calc_ops:
-                return all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in calc_ops)
+            builtins = kb.get_builtins(v)
+            if builtins:
+                return all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in builtins)
             if strict or kb.is_used(v):
                 return 0 in kb.bool_sig(v)
             else:
@@ -8631,11 +8809,10 @@ def remove_outer_forall_quantifiers(expr: Expr, kb: KnowledgeBase) -> tuple[Expr
     # chop off all outer universal quantifiers that have **no condition** and rename their bound
     # vars -- a quantifier with a condition, `∀ $x > 0 ...`, stays: what it means is said by the
     # rules of logic.kurt ("forall-cond-elim", "forall-cond-def"), not by the engine
-    while is_forall(expr):
-        # `is_forall` only checks the head symbol, not that it's really a bindop-shaped
-        # `[forall, bound-var, body]` triple -- if `forall` isn't declared a `bindop` at all
-        # (should not happen since it's hardcoded in `initial_kb`, but this runs on every
-        # stored formula, so fail cleanly rather than crash if that invariant is ever broken)
+    while is_forall(expr, kb):
+        # `is_forall` checks the role and the three parts, not that it's really a bindop-shaped
+        # `[forall, bound-var, body]` triple -- the role needs a binder (`bind_engine_role`),
+        # but this runs on every stored formula, so fail cleanly rather than crash
         # it can parse as a plain, flatly space-applied symbol instead, with a different shape.
         if not (isinstance(expr, list) and len(expr) == 3):
             raise KurtException(f'EvalError: `forall` is not declared as a proper binding operator, got `{expr_str(expr, kb)}`')
@@ -8665,7 +8842,7 @@ def strip_premise_with_synced_conclusion(premise_raw: Expr, conclusion_raw: Expr
     premise = deepcopy_expr(premise_raw)
     conclusion = deepcopy_expr(conclusion_raw)
     fresh_vars: list[str] = []
-    while is_forall(premise):
+    while is_forall(premise, kb):
         if not (isinstance(premise, list) and len(premise) == 3):
             raise KurtException(f'EvalError: `forall` is not declared as a proper binding operator, got `{expr_str(premise, kb)}`')
         if not isinstance(premise[1], Token):
@@ -9382,7 +9559,7 @@ def has_computation(e: Expr, kb: 'KnowledgeBase') -> bool:
     # numbers (or with one, like `- 3`) -- a quick test before computing
     if isinstance(e, Token):
         return False
-    ops = kb.get_calc_ops(e[0].value) if e and isinstance(e[0], Token) and isinstance(e[0].value, str) else []
+    ops = kb.get_builtins(e[0].value) if e and isinstance(e[0], Token) and isinstance(e[0].value, str) else []
     if ops:
         values = [v for v in (number_value(a, kb) for a in e[1:]) if v is not None]
         if len(values) >= 2 or (len(values) == 1 and len(e) == 2):
@@ -9393,7 +9570,7 @@ def computes_to(pattern: Expr, expr: Expr, s: State, kb: KnowledgeBase) -> bool:
     # with `calc on`: whether `pattern`, an arithmetic expression whose variables all have values
     # in `s`, computes to `expr` (a step the kernel checks again, see `k_instance`)
     if not (kb.calc and isinstance(pattern, list) and pattern and isinstance(pattern[0], Token) and isinstance(pattern[0].value, str)
-            and any(op in CALCULATOR_OPERATIONS for op in kb.get_calc_ops(pattern[0].value))):   # operations, not comparisons
+            and any(op in CALCULATOR_OPERATIONS for op in kb.get_builtins(pattern[0].value))):   # operations, not comparisons
         return False
     if is_var_token(expr, kb):
         return False        # a variable is matched by binding it, not by computing
@@ -9803,6 +9980,8 @@ class Certificate:
                 return f'by calc({ref(self.rule)})'
             case 'todo':
                 return 'by todo'
+            case 'case-elim':
+                return f'by case-elim({", ".join(ref(f) for f in self.facts)})'
         assert self.block is not None and self.rule is not None
         lines = block_lines(self.block, self.rule)
         if self.kind == 'exists-elim' and self.block.pick_source is not None:
@@ -9920,6 +10099,13 @@ def certificate_str(cert: Certificate, problem: Optional[str], kb: KnowledgeBase
             lines.append(f'by:        calc, from {e(cert.rule.expr)} ({formula_place(cert.rule, filename)}), which computes to the goal')
         case 'todo':
             lines.append('by:        `todo`, not checked')
+        case 'case-elim':
+            lines.append('by:        n-ary case elimination')
+            assert cert.rule is not None
+            lines.append(f'rule:      {e(cert.rule.simplified_expr)} ({formula_place(cert.rule, filename)})')
+            for i, f in enumerate(cert.facts):
+                name = 'split:' if i == 0 else ('cases:' if i == 1 else '')
+                lines.append(f'{name:11s}{e(f.simplified_expr)} ({formula_place(f, filename)})')
         case 'impl-intro' | 'not-intro' | 'forall-intro' | 'exists-elim':
             block = cert.block
             assert block is not None and cert.rule is not None
@@ -10157,7 +10343,27 @@ def dependencies_str(fname: str) -> str:
         for i, child in enumerate(children):
             show(child, inner, i == len(children) - 1, False)
     show(fname, '', True, True)
+    lines += indirect_lines(fname)
     return '\n'.join(lines)
+
+def indirect_lines(fname: str) -> list[str]:
+    # the symbols that `fname` uses from theories it doesn't load itself (by checking it, quietly)
+    path = str(Path(fname))
+    for f in [f for f in indirect_report if Path(f).resolve() == Path(path).resolve()]:
+        del indirect_report[f]          # (from an earlier check of the same file)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            load_file(path, copy.deepcopy(initial_kb), mainstream=True)
+    except KurtException:
+        return ['', 'used without loading: (not known -- the file has an error)']
+    report = next((r for f, r in indirect_report.items() if Path(f).resolve() == Path(path).resolve()), {})
+    if not report:
+        return ['', 'used without loading: nothing -- the file loads every theory whose symbols it uses']
+    lines = ['', 'used without loading (`load` them to be independent of what the other files load):']
+    for origin, symbols in sorted(report.items()):
+        names = ', '.join(f'`{shown_builtin_symbol(sym)}`' for sym in sorted(symbols))
+        lines.append(f'  {os.path.basename(origin)}: {names}')
+    return lines
 
 def align(old: Expr, new: Expr, names: dict[str, str]) -> bool:
     # whether `new` is `old` with its canonical names (`$$c3`) replaced by names, consistently --
@@ -10187,7 +10393,7 @@ def resolve_formula(j: dict, names: dict[str, str], kb: KnowledgeBase) -> Option
         if j['direction'] is None:
             return f
         source = f.simplified_expr
-        if not is_iff(source):
+        if not is_iff(source, kb):
             return None             # only an `iff` has two directions
         assert isinstance(source, list) and len(source) == 3 and isinstance(source[0], Token)
         L, R = (source[1], source[2]) if j['direction'] == 'lr' else (source[2], source[1])
@@ -10461,17 +10667,17 @@ def k_has_sort(e: Expr, sort: str, kb: KnowledgeBase) -> bool:
             return 0 in kb.sort_sig(sort, op)
     return False
 
-def k_strip(e: Expr, names: tuple[str, ...], also: Optional[Expr] = None) -> tuple[Expr, Optional[Expr]]:
+def k_strip(e: Expr, names: tuple[str, ...], kb: KnowledgeBase, also: Optional[Expr] = None) -> tuple[Expr, Optional[Expr]]:
     # remove outer `∀`s (without condition) of `e`, one per name, renaming the bound variable to
     # the name -- also in `also` (the conclusion, for the `∀`s of a premise)
     for name in names:
         match e:
-            case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=bv), body] if q == FORALL_SYMBOL and isinstance(bv, str):
+            case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=bv), body] if kb.has_role(q, 'universal') and isinstance(bv, str):
                 e = k_rename(body, bv, name)
                 if also is not None:
                     also = k_rename(also, bv, name)
             case _:
-                raise KernelReject(f'expected {len(names)} outer `{FORALL_SYMBOL}`s')
+                raise KernelReject(f'expected {len(names)} outer universal quantifiers')
     return e, also
 
 def k_known(f: Formula, kb: KnowledgeBase) -> bool:
@@ -10479,11 +10685,37 @@ def k_known(f: Formula, kb: KnowledgeBase) -> bool:
     for g in kb.all_theory():
         if g is f:
             return True
-        if f.direction_of is not None and g.id == f.id and g.simplified_expr is f.direction_of and is_iff(f.direction_of):
+        if f.direction_of is not None and g.id == f.id and g.simplified_expr is f.direction_of and is_iff(f.direction_of, kb):
             L, R = f.direction_of[1], f.direction_of[2]      # type: ignore[index]
             e = f.simplified_expr
             return is_implication(e) and ((e[1] is L and e[2] is R) or (e[1] is R and e[2] is L))  # type: ignore[index]
     return False
+
+def k_is_binary_or_elim_rule(e: Expr, kb: KnowledgeBase) -> bool:
+    # Independent kernel-side recognition of the general rule that justifies the n-ary shortcut.
+    if not is_implication(e) or not isinstance(e, list):
+        return False
+    premise, conclusion = e[1], e[2]
+    if not is_op_expr(premise, AND_SYMBOL) or not isinstance(premise, list) or len(premise) != 4:
+        return False
+    disjunctions = [part for part in premise[1:]
+                    if is_disjunction(part, kb) and isinstance(part, list) and len(part) == 3]
+    if len(disjunctions) != 1:
+        return False
+    disjunction = disjunctions[0]
+    branches = disjunction[1:]
+    schemas = [*branches, conclusion]
+    if not all(is_bool_var_token(v, kb) for v in schemas):
+        return False
+    if len({v.value for v in schemas if isinstance(v, Token)}) != 3:
+        return False
+    implications = [part for part in premise[1:] if part is not disjunction]
+    return len(implications) == 2 and all(
+        any(is_implication(imp) and isinstance(imp, list)
+            and k_equal(imp[1], branch, kb) and k_equal(imp[2], conclusion, kb)
+            for imp in implications)
+        for branch in branches
+    )
 
 def k_constants(e: Expr, kb: KnowledgeBase, bound: frozenset[str] = frozenset()) -> set[str]:
     # the symbols of `e` that are not variables and not bound
@@ -10509,7 +10741,8 @@ class KernelEnv:
         # the symbols
         'is_var', 'is_bool', 'bool_sig', 'variable_sorts', 'all_sort_names', 'sort_sig',
         'is_bindop', 'is_const', 'is_known', 'is_used', 'is_fixed_var',
-        'is_vocabulary_symbol', 'is_arity_set', 'get_arity', 'is_flat', 'is_sym', 'all_flat', 'get_calc_ops',
+        'is_vocabulary_symbol', 'is_arity_set', 'get_arity', 'is_flat', 'is_sym', 'all_flat', 'get_builtins',
+        'has_role', 'role_symbol',
         'calculate', 'is_operator', 'is_infix', 'is_prefix', 'is_postfix', 'is_bracket_placeholder',
         'get_infix', 'get_prefix', 'get_postfix', 'get_lbracket', 'is_lbracket', 'is_rbracket', 'get_alias',
         'is_alias', 'lookup', 'levels',
@@ -10627,9 +10860,12 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
             if cert.kind == 'impl-intro':
                 expected: Expr = [Token('SYMBOL', IMPL_SYMBOL), assumption, last.expr]
             else:
-                if not (isinstance(last.expr, Token) and last.expr.value == FALSE_SYMBOL):
+                if not is_falsum(last.expr, parent):
                     return 'the last line is not `false`'
-                expected = [Token('SYMBOL', NOT_SYMBOL), assumption]
+                negation = negation_of(assumption, parent)
+                if negation is None:
+                    return 'no symbol has the role of the negation'
+                expected = negation
             if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
             return no_escape(cert.goal)
@@ -10646,7 +10882,10 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                     return f'`{v}` was not new in the `let` block'
                 if isinstance(condition, list):
                     condition = bound_condition(v, condition)
-                expected = [Token('SYMBOL', FORALL_SYMBOL), condition, expected]
+                universal = parent.role_symbol('universal')
+                if universal is None:
+                    return 'no symbol has the role of the universal quantifier'
+                expected = [Token('SYMBOL', universal), condition, expected]
             if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
             return no_escape(cert.goal)
@@ -10659,9 +10898,9 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
             if not k_known(block.pick_source, parent):
                 return 'the existential fact is not in the theory'
             match block.pick_source.simplified_expr:
-                case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if q == EXISTS_SYMBOL and isinstance(x, str):
+                case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=x), body] if parent.has_role(q, 'existential') and isinstance(x, str):
                     instance = normalize_expr(k_replace(body, x, witness, parent), parent)
-                case [Token(label='SYMBOL', value=q), cond, body] if q == EXISTS_SYMBOL and isinstance(cond, list):
+                case [Token(label='SYMBOL', value=q), cond, body] if parent.has_role(q, 'existential') and isinstance(cond, list):
                     # with a condition: the condition and the body ("exists-cond-def")
                     x = k_bound(cond, parent)
                     condition = cond[2] if cond[:1] and isinstance(cond[0], Token) and cond[0].value == BOUND_SYMBOL else cond   # (stored with its variable)
@@ -10694,6 +10933,31 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
                 if not k_known(cert.rule, kb):
                     return 'the fact is not in the theory'
                 return None if k_equal(calculate_normalized(cert.rule.expr, kb), calculate_normalized(cert.goal, kb), kb) else 'the fact does not compute to the goal'
+            case 'case-elim':
+                if cert.rule is None or not k_known(cert.rule, kb):
+                    return 'the binary case-elimination rule is not in the theory'
+                if not k_is_binary_or_elim_rule(cert.rule.simplified_expr, kb):
+                    return 'the supplied rule is not general binary disjunction elimination'
+                if cert.expr is not None or cert.form or cert.values or cert.premise_fresh or cert.conclusion_fresh or cert.fact_fresh:
+                    return 'an n-ary case certificate has unexpected rule-instantiation data'
+                if any(not k_known(f, kb) for f in cert.facts):
+                    return 'a case fact is not in the theory'
+                if not cert.facts:
+                    return 'no disjunction was supplied'
+                disjunction = cert.facts[0].simplified_expr
+                if not is_disjunction(disjunction, kb) or not isinstance(disjunction, list) or len(disjunction) < 3:
+                    return 'the first fact is not a disjunction with at least two alternatives'
+                branches = disjunction[1:]
+                implications = cert.facts[1:]
+                if len(implications) != len(branches):
+                    return 'there is not exactly one implication for each alternative'
+                for branch, implication in zip(branches, implications):
+                    e = implication.simplified_expr
+                    if not is_implication(e) or not isinstance(e, list):
+                        return 'a case fact is not an implication'
+                    if not k_equal(e[1], branch, kb) or not k_equal(e[2], goal, kb):
+                        return f'the case `{expr_str(e, kb)}` does not prove the goal from its alternative'
+                return None
         assert cert.kind == 'rule' and cert.rule is not None and cert.expr is not None
         if cert.expr is not cert.rule.simplified_expr or not k_known(cert.rule, kb):
             return 'the rule is not in the theory'
@@ -10719,9 +10983,9 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         if cert.form != 'impl' or not is_implication(cert.expr):
             return f'unknown form `{cert.form}`'
         assert isinstance(cert.expr, list)
-        premise, conclusion = k_strip(cert.expr[1], cert.premise_fresh, cert.expr[2])
+        premise, conclusion = k_strip(cert.expr[1], cert.premise_fresh, kb, cert.expr[2])
         assert conclusion is not None
-        conclusion, _ = k_strip(conclusion, cert.conclusion_fresh)
+        conclusion, _ = k_strip(conclusion, cert.conclusion_fresh, kb)
         # the fresh variables of the premise's `∀`s stand for anything: no value, and no variable
         # of the rule (except a boolean one, see `k_instantiate`) may depend on them
         eigen = set(cert.premise_fresh).union(*cert.fact_fresh)
@@ -10740,10 +11004,10 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
             # the recorded fresh variables), or a conjunction of such parts
             if any(k_equal(part, fact, kb) for fact in facts):
                 return True
-            if is_forall(part) and isinstance(part, list) and isinstance(part[1], Token):
+            if is_forall(part, kb) and isinstance(part, list) and isinstance(part[1], Token):
                 for i, names in enumerate(strips):
                     try:
-                        body, _ = k_strip(part, names)
+                        body, _ = k_strip(part, names, kb)
                     except KernelReject:
                         continue
                     if covered(normalize_expr(body, kb), strips[:i] + strips[i+1:]):
@@ -10848,7 +11112,7 @@ def cannot_conclude(formula: Expr, goal: Expr, kb: 'KnowledgeBase') -> bool:
         return cannot_unify(conclusion, goal, kb)
     if is_implication(formula):
         return no(formula[2]) and no(formula)           # (the whole: a restatement)
-    if is_iff(formula):         # (an implication as the goal: one of its directions, as a whole)
+    if is_iff(formula, kb):     # (an implication as the goal: one of its directions, as a whole)
         return not is_implication(goal) and no(formula[1]) and no(formula[2]) and no(formula)
     return no(formula)
 
@@ -10919,9 +11183,9 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
             # (with the values filled in first: `∀ $x (%A iff %B)` with `%A := P $x` must strip the `$x`
             # of `P $x` too)
             expr_walked = s.walk(expr)
-            if is_forall(expr_walked):
+            if is_forall(expr_walked, kb):
                 expr_walked = apply_subst(expr_walked, s, kb)
-            stripped, fresh_vars = remove_outer_forall_quantifiers(expr_walked, kb) if is_forall(expr_walked) else (expr_walked, ())
+            stripped, fresh_vars = remove_outer_forall_quantifiers(expr_walked, kb) if is_forall(expr_walked, kb) else (expr_walked, ())
             if fresh_vars:
                 s_stripped = s
                 for fresh_v in fresh_vars:
@@ -10973,7 +11237,7 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
         # (`expr`), not via a premise search, so the soundness issue this function's sibling
         # guards against doesn't apply here.
         conclusion, conclusion_fresh_vars = remove_outer_forall_quantifiers(conclusion, kb)
-    elif is_iff(formula_expr):
+    elif is_iff(formula_expr, kb):
         assert isinstance(formula_expr, list)
         op_token = formula_expr[0]
         assert isinstance(op_token, Token)
@@ -11098,28 +11362,211 @@ def normalize_expr(expr: Expr, kb: KnowledgeBase) -> Expr:
         return calculate_normalized(expr, kb)
     return symmetrize_all(flatten_all(expr, kb), kb)
 
+def is_binary_or_elim_rule(e: Expr, kb: KnowledgeBase) -> bool:
+    """Whether e is the general `(A or B) and (A => C) and (B => C) => C` schema."""
+    if not is_implication(e) or not isinstance(e, list):
+        return False
+    premise, conclusion = e[1], e[2]
+    if not is_op_expr(premise, AND_SYMBOL) or not isinstance(premise, list) or len(premise) != 4:
+        return False
+    disjunctions = [part for part in premise[1:]
+                    if is_disjunction(part, kb) and isinstance(part, list) and len(part) == 3]
+    if len(disjunctions) != 1:
+        return False
+    disjunction = disjunctions[0]
+    branches = disjunction[1:]
+    schemas = [*branches, conclusion]
+    if not all(is_bool_var_token(v, kb) for v in schemas):
+        return False
+    if len({v.value for v in schemas if isinstance(v, Token)}) != 3:
+        return False
+    implications = [part for part in premise[1:] if part is not disjunction]
+    return len(implications) == 2 and all(
+        any(is_implication(imp) and isinstance(imp, list)
+            and equal_expr(imp[1], branch, kb) and equal_expr(imp[2], conclusion, kb)
+            for imp in implications)
+        for branch in branches
+    )
+
+def nary_case_elim(goal: Expr, kb: KnowledgeBase) -> Optional[Certificate]:
+    """Use a flat disjunction and one exact implication per alternative.
+
+    A known general binary or-elimination rule supplies the logical meaning; this is only a
+    bounded shortcut for applying it repeatedly. Generating an n-premise rule would send the
+    general unifier through combinations of facts, so this scan first narrows implications by
+    their exact conclusion and then compares alternatives. Its work is polynomial in the number
+    of branches and stored facts, never a Cartesian product.
+    """
+    theory = list(kb.all_theory())
+    rule = next((f for f in theory if is_binary_or_elim_rule(f.simplified_expr, kb)), None)
+    if rule is None:
+        return None
+    cases = [f for f in theory if is_implication(f.simplified_expr)
+             and isinstance(f.simplified_expr, list)
+             and equal_expr(f.simplified_expr[2], goal, kb)]
+    for split in theory:
+        disjunction = split.simplified_expr
+        if not is_disjunction(disjunction, kb) or not isinstance(disjunction, list) or len(disjunction) < 3:
+            continue
+        chosen: list[Formula] = []
+        for branch in disjunction[1:]:
+            found = next((f for f in cases if isinstance(f.simplified_expr, list)
+                          and equal_expr(f.simplified_expr[1], branch, kb)), None)
+            if found is None:
+                break
+            chosen.append(found)
+        else:
+            fixed = free_bound_vars(goal, kb)[0]
+            return record_certificate(Certificate('case-elim', goal, fixed, rule=rule,
+                                                  facts=[split, *chosen]), kb)
+    return None
+
 def numeric_comparison_holds(expr: Expr, kb: 'KnowledgeBase') -> bool:
     # e.g. `3 <= 4` holds, while `2 = 3` and `x < 4` do not -- for a relation bound to the calculator;
     # and `3 ∈ Nat` for a set bound to it (`CALCULATOR_SETS`)
     match expr:
         case [Token(label='SYMBOL', value=op), a, Token(label='SYMBOL', value=name)] \
-                if isinstance(op, str) and isinstance(name, str) and CALCULATOR_MEMBERSHIP in kb.get_calc_ops(op):
+                if isinstance(op, str) and isinstance(name, str) and CALCULATOR_MEMBERSHIP in kb.get_builtins(op):
             va = number_value(a, kb)
             if va is None:
                 return False
-            return any(CALCULATOR_SETS[c](Fraction(va)) for c in kb.get_calc_ops(name) if c in CALCULATOR_SETS)
+            return any(CALCULATOR_SETS[c](Fraction(va)) for c in kb.get_builtins(name) if c in CALCULATOR_SETS)
         case [Token(label='SYMBOL', value=op), a, b] if isinstance(op, str):
             ma, mb = matrix_value(a, kb), matrix_value(b, kb)
             if ma is not None and mb is not None:              # vectors and matrices: equal or not
-                ops = kb.get_calc_ops(op)
+                ops = kb.get_builtins(op)
                 return ('eq' in ops and ma == mb) or ('ne' in ops and ma != mb)
             va, vb = number_value(a, kb), number_value(b, kb)
             if va is None or vb is None:
                 return False
-            for relation in kb.get_calc_ops(op):
+            for relation in kb.get_builtins(op):
                 if relation in CALCULATOR_RELATIONS:
                     return CALCULATOR_RELATIONS[relation](Fraction(va), Fraction(vb))
     return False
+
+FAILURE_RULE_LIMIT = 3
+FAILURE_MATCH_LIMIT = 64
+
+def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: str,
+                        initial: State, kb: KnowledgeBase) -> dict:
+    """Return bounded structured evidence about a failed one-step search.
+
+    This diagnostic pass never proves a step. It selects rules whose conclusions instantiate to
+    the goal and reports which instantiated premises are absent from the current theory.
+    """
+    candidates: list[tuple[tuple[int, ...], dict]] = []
+    attempts = 0
+
+    def directions(formula: Formula) -> list[tuple[Expr, Expr]]:
+        e = formula.simplified_expr
+        if is_implication(e) and isinstance(e, list):
+            return [(e[1], e[2])]
+        if is_iff(e, kb) and isinstance(e, list):
+            return [(e[1], e[2]), (e[2], e[1])]
+        return []
+
+    def size(e: Expr) -> int:
+        return 1 if isinstance(e, Token) else 1 + sum(size(child) for child in e)
+
+    jobs: list[tuple[tuple[int, int, int, int], Formula, Expr, Expr, tuple[str, ...]]] = []
+    for order, rule in enumerate(kb.all_theory()):
+        for raw_premise, raw_conclusion in directions(rule):
+            premise, conclusion, premise_fresh = strip_premise_with_synced_conclusion(
+                raw_premise, raw_conclusion, kb)
+            conclusion, _ = remove_outer_forall_quantifiers(conclusion, kb)
+            if cannot_unify(conclusion, goal, kb):
+                continue
+            parts = (premise[1:] if is_op_expr(premise, AND_SYMBOL)
+                     and isinstance(premise, list) else [premise])
+            generic = 1 if formula_kind(rule, kb) == 'generic' else 0
+            jobs.append(((generic, len(parts), size(premise), order), rule,
+                         premise, conclusion, premise_fresh))
+
+    for _, rule, premise, conclusion, premise_fresh in sorted(jobs, key=lambda job: job[0]):
+        if attempts >= FAILURE_MATCH_LIMIT:
+            break
+        blocked = frozenset(initial.blocked_as_domain | goal_free_vars)
+        start = State(initial.subst, blocked, initial.blocked_as_range, initial.eigen)
+        for matched in itertools.islice(unify_exprs_with_patterns([(goal, conclusion)], start, kb), 2):
+            attempts += 1
+            try:
+                premise_local, state = trigger_sub(premise, matched, kb)
+            except BinderMisread:
+                continue
+            if not valid_bindop_conditions(premise_local, kb):
+                continue
+            for fresh in premise_fresh:
+                state = state.unblock(fresh).block_eigen(fresh)
+            parts = (premise_local[1:] if is_op_expr(premise_local, AND_SYMBOL)
+                     and isinstance(premise_local, list) else [premise_local])
+            missing_exprs: list[Expr] = []
+            matched_facts: list[Formula] = []
+            for part in parts:
+                try:
+                    part_local, _ = trigger_sub(part, state, kb)
+                except BinderMisread:
+                    missing_exprs.append(part)
+                    continue
+                success, facts, next_state, _ = match_all_theory([part_local], state, kb)
+                if success:
+                    matched_facts.extend(facts)
+                    state = next_state
+                else:
+                    missing_exprs.append(part_local)
+            if not missing_exprs or any(equal_expr(missing, goal, kb) for missing in missing_exprs):
+                continue
+            shown = [goal, *missing_exprs]
+            names = readable_names(shown)
+            def show(e: Expr) -> str:
+                return expr_str(rename_for_display(apply_subst(e, state, kb), names), kb)
+            location = (f'line {rule.line}' if rule.filename == filename
+                        else f'{os.path.basename(rule.filename)}:{rule.line}')
+            item = {
+                'rule': rule.label or location,
+                'location': location,
+                'missing': [show(e) for e in missing_exprs],
+                'matched': [formula_place(f, filename) for f in matched_facts],
+            }
+            local = 0 if rule.filename == filename else 1
+            generic = 1 if formula_kind(rule, kb) == 'generic' else 0
+            distinct_matches = len({(f.filename, f.line, f.label) for f in matched_facts})
+            candidates.append(((local, generic, len(missing_exprs), len(parts),
+                                sum(size(e) for e in missing_exprs), -distinct_matches), item))
+            if attempts >= FAILURE_MATCH_LIMIT:
+                break
+
+    unique: list[dict] = []
+    seen: set[tuple[str, tuple[str, ...]]] = set()
+    for _, item in sorted(candidates, key=lambda pair: pair[0]):
+        key = (item['location'], tuple(item['missing']))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+        if len(unique) == FAILURE_RULE_LIMIT:
+            break
+    goal_names = readable_names([goal])
+    return {
+        'kind': 'not-derived',
+        'goal': expr_str(rename_for_display(goal, goal_names), kb),
+        'summary': 'no one-step derivation was found',
+        'candidates': unique,
+    }
+
+def failure_explanation_text(explanation: dict) -> str:
+    candidates = explanation.get('candidates', [])
+    if not candidates:
+        return 'no one-step derivation was found; no rule with a matching conclusion was found'
+    lines = ['no one-step derivation was found; relevant rules with missing premises:']
+    for candidate in candidates:
+        name = candidate['rule']
+        location = candidate['location']
+        where = '' if name == location else f' ({location})'
+        missing = ', '.join(f'`{premise}`' for premise in candidate['missing'])
+        matched = candidate.get('matched', [])
+        found = f'; matched {", ".join(matched)}' if matched else ''
+        lines.append(f'- `{name}`{where}: missing {missing}{found}')
+    return '\n'.join(lines)
 
 def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: KnowledgeBase) -> tuple[list[Certificate], State]:
     # the certificates of the steps (one, or one per conjunct), see `Certificate.short` for the reasons
@@ -11196,6 +11643,12 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
         if found is not None:
             return found
 
+    # A case block closes to `alternative implies goal`. Once every alternative of a stored flat
+    # disjunction has such an implication, eliminate all of them in one bounded, exact scan.
+    case_cert = nary_case_elim(written, kb)
+    if case_cert is not None:
+        return [case_cert], s
+
     # if `expr` is a conjunction we can try to derive each of the subexpressions
     # make sure that, if it was a conjunction, then the (growing) substitution should apply to all clauses!
     match expr:
@@ -11230,8 +11683,18 @@ def derive_expr(expr: Expr, filename: str, mainstream: bool, s: State, kb: Knowl
             if cert is not None:
                 return [cert], s_matched
 
-    # couldn't derive formula using any of the rules
-    raise KurtException(f'ProofError: can not derive `{expr_str(expr, kb)}`', column=get_column(expr))
+    # The diagnostic pass is separate from proof search: it cannot make a step succeed, and its
+    # structured result is exposed directly rather than reconstructed from presentation text.
+    goal_names = readable_names([expr])
+    goal_text = expr_str(rename_for_display(expr, goal_names), kb)
+    try:
+        explanation = failure_explanation(expr, expr_free_vars, filename, s, kb)
+    except Exception:
+        # An explanation is only a diagnostic. It must never hide or change the proof failure.
+        explanation = {'kind': 'not-derived', 'goal': goal_text,
+                       'summary': 'no one-step derivation was found', 'candidates': []}
+    raise KurtException(f'ProofError: can not derive `{goal_text}`\n{failure_explanation_text(explanation)}',
+                        column=get_column(expr), details=explanation)
 
 # A rewriting step, e.g. the next line `X = B` of a chain after `X = A`: the rules for it
 # ("equal-elim", "iff-subst") have the conclusion `sub $x $b %A` and a premise `sub $x $a %A`, and
@@ -11332,7 +11795,7 @@ def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: st
     for a, b in pairs[:GUIDED_CANDIDATES]:
         for rule, b_var in rules:
             relation = rewriting_relation(rule, b_var, kb)
-            if relation is None or bool_expr(a, kb) != (relation == IFF_SYMBOL):
+            if relation is None or bool_expr(a, kb) != kb.has_role(relation, 'equivalence'):
                 continue
             instance: Expr = [Token('SYMBOL', relation), a, b]
             instance_r = rename_all_vars(instance, kb)
@@ -11362,7 +11825,7 @@ def rewriting_relation(rule: 'Formula', b_var: str, kb: 'KnowledgeBase') -> Opti
     parts = premise[1:] if isinstance(premise, list) and isinstance(premise[0], Token) and premise[0].value == AND_SYMBOL else [premise]
     for p in parts:
         if (isinstance(p, list) and len(p) == 3 and isinstance(p[0], Token) and not is_sub(p)
-                and isinstance(p[2], Token) and p[2].value == b_var and p[0].value in (EQUAL_SYMBOL, IFF_SYMBOL)):
+                and isinstance(p[2], Token) and p[2].value == b_var and (kb.has_role(p[0].value, 'equality') or kb.has_role(p[0].value, 'equivalence'))):
             return p[0].value
     return None
 
@@ -11390,13 +11853,13 @@ def formula_kind(f: 'Formula', kb: 'KnowledgeBase') -> str:
     # conclusion, or a 'generic' rule whose conclusion is a schema that fits almost any goal
     e = f.simplified_expr
     def schema(conclusion: Expr) -> bool:
-        while is_forall(conclusion) and isinstance(conclusion, list) and isinstance(conclusion[1], Token):
+        while is_forall(conclusion, kb) and isinstance(conclusion, list) and isinstance(conclusion[1], Token):
             conclusion = conclusion[2]
         return is_var_token(conclusion, kb) or (is_sub(conclusion) and isinstance(conclusion, list) and is_var_token(conclusion[3], kb))
     if is_implication(e):
         assert isinstance(e, list)
         return 'generic' if schema(e[2]) else 'rule'
-    if is_iff(e):                     # used as two implications (`%A iff %A` gives any `%A`)
+    if is_iff(e, kb):                 # used as two implications (`%A iff %A` gives any `%A`)
         assert isinstance(e, list)
         return 'generic' if schema(e[1]) or schema(e[2]) else 'rule'
     return 'fact'
@@ -11460,6 +11923,7 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
         current_line[0] = outer
 
 def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str, mainstream:bool=False) -> tuple[KnowledgeBase, LexerState]:
+    current_lexer_state[0] = lexer_state      # (for `summary`: what could come next)
 
     # read some lexer state variables for chaining
     lhs: Optional[Expr] = lexer_state.initial_LHS
@@ -11551,7 +12015,7 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         kb_predecessor = kb_predecessor.parent   # go to the predecessor for parsing
     keyword_token, expr_list, label, local = parse_tokenstream(ts, kb_predecessor)  # runs the parser
     keyword_value = '' if keyword_token is None else keyword_token.value
-    if keyword_value not in ('use', 'def', 'parse') and any(contains_symbol(e, SUB_SYMBOL) for e in expr_list if not isinstance(e, Token) or e.label == 'SYMBOL'):
+    if keyword_value not in ('use', 'def', 'parse') and keyword_value not in DECLARATION_KEYWORDS and any(contains_symbol(e, SUB_SYMBOL) for e in expr_list if not isinstance(e, Token) or e.label == 'SYMBOL'):
         # `sub` is for writing axiom schemas; in a claim it would only stand for its own result
         raise KurtException(f'EvalError: `{SUB_SYMBOL}` is only allowed in `use` and `def`, to write axiom schemas -- write the result of the substitution instead')
     if keyword_value in ('use', 'def'):
@@ -11657,6 +12121,7 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
 
         # evaluate the expression
         new_symbols.clear()
+        used_symbols.clear()
         implicit_constants.clear()
         implicit_bool_signatures.clear()
         try:
@@ -11673,7 +12138,8 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
             if strict_mode and not is_trusted_file(filename):
                 raise KurtException(f'EvalError: {names} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
             new_symbols.clear()
-        if mainstream:
+        if mainstream and (keyword_token is None or keyword_token.value != 'load'):   # (a `load` checks other files)
+            note_indirect_symbols(kb, filename)
             for symbol in implicit_constants:
                 log(kb, f'const {symbol}', 'added constant', kb.level)
             for symbol, signature in implicit_bool_signatures:
@@ -11809,12 +12275,12 @@ def symbol_declarations(kb: 'KnowledgeBase | ExportBundle', s: str) -> tuple:
                                     for sort, signatures in kb.sort_sigs.items() if signatures.get(s)))
         return (kb.infix.get(s), kb.prefix.get(s), kb.postfix.get(s), kb.arity.get(s, 0), tuple(kb.bool.get(s, [])),
                 custom_sorts, s in kb.bindop, s in kb.flat, s in kb.sym, kb.alias.get(s),
-                tuple(kb.calc_ops.get(s, [])), kb.brackets.get(s))
+                tuple(kb.builtins.get(s, [])), tuple(kb.roles.get(s, [])), kb.brackets.get(s))
     custom_sorts = tuple(sorted((sort, tuple(kb.sort_sig(sort, s)))
                                 for sort in kb.all_sort_names() if sort != 'bool' and kb.sort_sig(sort, s)))
     return (kb.get_infix(s), kb.get_prefix(s), kb.get_postfix(s), kb.get_arity(s), tuple(kb.bool_sig(s)),
             custom_sorts, kb.is_bindop(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s),
-            tuple(kb.get_calc_ops(s)), kb.get_lbracket(s))
+            tuple(kb.get_builtins(s)), tuple(kb.all_roles.get(s, [])), kb.get_lbracket(s))
 
 def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname: str) -> None:
     # the file was checked on its own: a symbol it shares with its loader must mean the same on
@@ -11871,6 +12337,8 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
         search_paths = theory_path        # (looked up now: a `Session` has its own, see `RunState`)
     if not filename.endswith('.kurt'):
         filename += '.kurt'
+    if os.path.basename(filename) == CORE_FILE:
+        raise KurtException(f'EvalError: `{CORE_FILE}` is the core, which every file starts with -- it is never loaded')
     requested_paths = list(search_paths)
     # a packaged theory is always loaded from the package, and must not be shadowed
     packaged = packaged_theory_file(filename)
@@ -11889,6 +12357,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
         # check if the file was loaded already
         load_level = kb.get_load_level(fname)
         if load_level is not None:
+            file_level(kb).direct_loads.add(fname)     # (loaded before, by another file -- and now by this one)
             note_load_resolution(filename, requested_paths, candidate)
             if current_line[0] is not None:
                 load_dependencies.setdefault(current_line[0][0], []).append(fname)
@@ -11921,6 +12390,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
             for todo in bundle.todos:
                 kb.todo_add(todo)
             kb.libs.append(fname)
+            file_level(kb).direct_loads.add(fname)
             return kb
         except KurtException as e:
             e.kb_after = None       # a level of the loaded file's own context, not of the loader
@@ -11948,13 +12418,13 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
 RUN_STATE_NAMES = ('strict_mode', 'trusted_paths', 'untrusted_names', 'source_overlays', 'theory_path', 'kurtc_enabled', 'comment_indent',
                    'new_symbols', 'implicit_constants', 'implicit_bool_signatures', 'space_suspended', 'accepted_lines', 'current_comment', 'origin_names', 'internal_variable_sorts',
                    'dependent_vars', 'certificates_by_line', 'current_line', 'replay_hints',
-                   'load_dependencies', '_loading_in_progress', '_checked_exports', '_load_resolutions', 'event_sink', 'shell_start')
+                   'load_dependencies', '_loading_in_progress', '_checked_exports', '_load_resolutions', 'event_sink', 'shell_start', 'current_lexer_state')
 RUN_STATE_COUNTERS = (new_var_name, new_bool_var_name)      # their `counter` attribute
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
     # the options of a session (`kurt -s`, `-p`, `--no-kurtc`, `--comment-indent`)
-    strict: bool = False                  # every symbol declared (for grading)
+    strict: bool = False                  # for grading: every symbol declared; no `use`, `todo`, `chain` outside trusted theories
     paths: tuple[str, ...] = ()           # directories with theories for `load`, after the working directory (trusted, like `-p`)
     kurtc: bool = False                   # write and use `.kurtc` certificate files (`check_file` only)
     comment_indent: int = 42              # the column where the reasons start
@@ -11970,6 +12440,7 @@ class CheckResult:
     todos: list[str] = dataclasses.field(default_factory=list)
     error_line: Optional[int] = None      # the line of the error (in the checked file)
     events: list[dict] = dataclasses.field(default_factory=list)   # each line of `output` as a record, see `reason_event`
+    failure: Optional[dict] = None        # structured proof-failure explanation, when available
 
     def to_json(self) -> str:
         # for graders and editors (`kurt --json FILE`)
@@ -11997,11 +12468,11 @@ def _fresh_run_state(config: RunConfig) -> dict:
     return {'strict_mode': config.strict, 'trusted_paths': list(paths),
             'untrusted_names': set(overlays), 'source_overlays': overlays,
             'theory_path': [*untrusted, Path.cwd(), *paths, *packaged_theory_paths], 'kurtc_enabled': config.kurtc,
-            'comment_indent': config.comment_indent, 'new_symbols': [], 'implicit_constants': [],
+            'comment_indent': config.comment_indent, 'new_symbols': [], 'used_symbols': set(), 'indirect_noted': {}, 'indirect_report': {}, 'implicit_constants': [],
             'implicit_bool_signatures': [], 'space_suspended': [False],
             'accepted_lines': {}, 'current_comment': [None], 'origin_names': {}, 'internal_variable_sorts': {}, 'dependent_vars': {},
             'certificates_by_line': {}, 'current_line': [None], 'replay_hints': {},
-            'load_dependencies': {}, '_loading_in_progress': set(), '_checked_exports': {}, '_load_resolutions': [], 'event_sink': None, 'shell_start': [None],
+            'load_dependencies': {}, '_loading_in_progress': set(), '_checked_exports': {}, '_load_resolutions': [], 'event_sink': None, 'shell_start': [None], 'current_lexer_state': [None],
             'counters': [0 for _ in RUN_STATE_COUNTERS]}
 
 class Session:
@@ -12036,8 +12507,13 @@ class Session:
             except KurtException as e:
                 at = re.search(r'line (\d+):', e.msg)
                 line = int(at.group(1)) if at else e.line
-                events.append({'line': line, 'id': None, 'kind': 'error', 'level': 0, 'text': e.msg.strip(), 'reason': '', 'error_kind': e.kind})
-                return CheckResult(False, out.getvalue(), e.msg.strip(), e.kind, list(kb.todos()), line, events)
+                event = {'line': line, 'id': None, 'kind': 'error', 'level': 0,
+                         'text': e.msg.strip(), 'reason': '', 'error_kind': e.kind}
+                if e.details is not None:
+                    event['failure'] = e.details
+                events.append(event)
+                return CheckResult(False, out.getvalue(), e.msg.strip(), e.kind,
+                                   list(kb.todos()), line, events, e.details)
             finally:
                 event_sink = None
         return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events)
@@ -12269,10 +12745,14 @@ class LanguageServer:
         lines = text.split('\n')
         if result.error is not None:
             line = max(0, (result.error_line or 1) - 1)
-            message = result.error.split('\n')[-1] if result.error_kind else result.error
+            marker = result.error.find(f'{result.error_kind}:') if result.error_kind else -1
+            message = result.error[marker:] if marker >= 0 else result.error
             end = lsp_python_to_utf16(lines[line], len(lines[line])) if line < len(lines) else 0
-            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
-                                'severity': 1, 'source': 'kurt', 'message': message})
+            diagnostic = {'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
+                          'severity': 1, 'source': 'kurt', 'message': message}
+            if result.failure is not None:
+                diagnostic['data'] = {'failure': result.failure}
+            diagnostics.append(diagnostic)
         for todo in result.todos:
             found = re.search(r':(\d+)', todo)
             line = int(found.group(1)) - 1 if found else 0
@@ -12538,7 +13018,7 @@ def completions(line: str, word: str, kb: KnowledgeBase, lexer_state: Optional['
 def matrix_brackets(kb: KnowledgeBase) -> list[tuple[str, str]]:
     # the bracket pairs bound to the calculator's `matrix` (matrix.kurt's `calc [ matrix`)
     pairs = []
-    for symbol, ops in kb.all_calc_ops.items():
+    for symbol, ops in kb.all_builtins.items():
         if 'matrix' in ops and kb.is_bracket_placeholder(symbol):
             left, right = symbol.split('$$$')
             pairs.append((left, right))
@@ -12586,7 +13066,7 @@ def state_summary(kb: KnowledgeBase, lexer_state: Optional['LexerState'] = None)
     for node in blocks:
         if node.mode_str in ('assume', 'case', 'let', 'pick', 'proof', 'sandbox', 'expect'):
             args = ', '.join(expr_str(a, kb) for a in node.mode_args)
-            lines.append(f'; open: {node.mode_str} {args}'.rstrip())
+            lines.append(f'; open: {node.opened_by} {args}'.rstrip())
     for node in kb.levels():
         for f in node.show:
             lines.append(f'; to prove: {expr_str(f.expr, kb)}')
@@ -12601,6 +13081,36 @@ def state_summary(kb: KnowledgeBase, lexer_state: Optional['LexerState'] = None)
 # where the main file of a check stopped, for a `Shell` to continue there: (kb, lexer state, next
 # line, why: 'breakpoint' | 'error' | 'end') -- its first `breakpoint`, else its error, else its end
 shell_start: list[Optional[tuple]] = [None]
+
+def file_level(kb: KnowledgeBase) -> KnowledgeBase:
+    # the level of the file being checked (its `sandbox`, see `checked_exports`), or the shell's top
+    node = kb
+    while node.parent is not None and not node.is_load_boundary:
+        node = node.parent
+    return node
+
+def note_indirect_symbols(kb: KnowledgeBase, filename: str) -> None:
+    # a theory should load the theories whose symbols it uses: `∀` reaches analysis.kurt via
+    # natural.kurt, but if natural.kurt stopped loading logic.kurt, analysis.kurt would break --
+    # noted once per theory file (a trusted one) and theory; for every file, `kurt --deps` lists
+    # them (`indirect_report`)
+    direct = file_level(kb).direct_loads
+    noted = indirect_noted.setdefault(filename, set())
+    by_origin: dict[str, list[str]] = {}
+    for symbol in sorted(used_symbols):
+        origin = kb.get_declared_in(symbol)
+        if origin is not None and origin != filename and origin not in direct:
+            indirect_report.setdefault(filename, {}).setdefault(origin, set()).add(symbol)
+            if origin not in noted and is_trusted_file(filename):
+                by_origin.setdefault(origin, []).append(symbol)
+    for origin, symbols in sorted(by_origin.items()):
+        noted.add(origin)
+        names = ', '.join(f'`{shown_builtin_symbol(sym)}`' for sym in symbols)
+        theory = os.path.basename(origin).removesuffix('.kurt')
+        log(kb, f'; note: {names} {"comes" if len(symbols) == 1 else "come"} from `{theory}.kurt`, which this file doesn\'t load itself -- `load {theory}` makes it independent of what the other files load', '', kb.level)
+
+# the lexer state of the statement being checked (`summary` shows the next steps with it)
+current_lexer_state: list[Optional['LexerState']] = [None]
 
 def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=False,
                    lexer_state: Optional['LexerState'] = None, first_line: int = 1, shell: bool = False) -> KnowledgeBase:
@@ -12747,7 +13257,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase, mainstream: bool=Fal
                         if mainstream:
                             log(kb, f'expect "{expected_kind}"', f'{line} confirmed', kb.level)
                         if count_leading_spaces(input_line) > expect_indent:
-                            accept_statement(input_stream.name, pending, kb)   # part of the confirmed block
+                            accept_statement(input_stream.name, pending, kb, in_expect=True)   # part of the confirmed block
                             pending = []
                             skip_deeper_than = expect_indent    # skip the rest of the block
                             input_line = ''
@@ -12947,6 +13457,26 @@ def main() -> None:
     # Errors during an interactive REPL session don't affect this, same as a Python REPL
     # exiting 0 regardless of exceptions raised while typing at it.
     exit(1 if had_error else 0)
+
+def read_core(kb: KnowledgeBase) -> KnowledgeBase:
+    # the core: the declarations of `minimal.kurt` (see its header), read once when Kurt starts --
+    # the only file that may declare them; afterwards they are frozen
+    path = packaged_theory_file(CORE_FILE)
+    if path is None:
+        raise RuntimeError(f'Kurt can not start: its core `{CORE_FILE}` is missing from the theories')
+    with path.open(encoding='utf-8') as f:
+        stream = io.StringIO(f.read())
+    stream.name = str(path)
+    kb = read_eval_loop(stream, kb, mainstream=False)
+    kb.used.add(SUB_SYMBOL)                # `sub` can be boolean or non-boolean
+    accepted_lines.pop(stream.name, None)
+    kb.declared_in.clear()                 # (the core belongs to no file, see `declare_origin`)
+    kb.property_origins.clear()
+    return kb
+
+initial_kb = read_core(initial_kb)
+initial_kb.frozen = initial_kb.declared_symbols()          # the core can't be changed, e.g. by `sym implies`
+core_kb: KnowledgeBase = copy.deepcopy(initial_kb)         # the core only: every file is checked on a copy of it (`load_file`)
 
 if __name__ == '__main__':
     main()

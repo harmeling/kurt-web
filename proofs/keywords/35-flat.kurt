@@ -1,4 +1,4 @@
-; 38-flat.kurt
+; 35-flat.kurt
 
 ; By default, a chain of the same infix operator nests two arguments at a
 ; time, left to right:

@@ -1,4 +1,4 @@
-; 27-tokenize.kurt
+; 24-tokenize.kurt
 
 ; `tokenize` is a peek under the hood: it shows how a piece of source text is
 ; split into tokens, before any parsing happens.  Handy when something
@@ -8,4 +8,4 @@
 ; the trailing `$$$` in the output below is just Kurt's internal end-of-input marker,
 ; always appended -- harmless, not part of your actual source text.
 bool A, B
-tokenize A implies B      ; [A, implies, B]  $$$
+tokenize A implies B      ; A  implies  B  $$$

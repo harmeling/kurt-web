@@ -1,4 +1,4 @@
-; 45-breakpoint.kurt
+; 42-breakpoint.kurt
 
 ; `breakpoint` is a line in a proof file where you want to look around --
 ; like `breakpoint()` in Python. Run the file at a terminal (or with
@@ -21,5 +21,5 @@ proof
 qed
 
 ; Related: after an error, `kurt -i FILE` continues in the shell at the
-; failing line, with the state there; and `hint on` (42-hint.kurt) shows
+; failing line, with the state there; and `hint on` (39-hint.kurt) shows
 ; before each prompt what could come next.

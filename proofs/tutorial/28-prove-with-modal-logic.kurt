@@ -1,10 +1,12 @@
-; Prove with deeply embedded modal logic
+; 28-prove-with-modal-logic.kurt
+;
+; Prove with modal logic
 ;
 ; Modal formulas are object terms. `⊢ A` is the Boolean Kurt judgment saying
 ; that the object formula A is a theorem. This separation makes necessitation
 ; expressible as an ordinary Kurt rule.
 
-load modal-deep
+load modal
 
 const P, Q
 formula P, Q
@@ -18,9 +20,22 @@ formula P, Q
 ⊢ □(P → (Q → P))
 
 ; Prefix theoremhood and the empty-context sequent notation are connected by
-; explicit rules in modal-deep.kurt.
+; explicit rules in modal.kurt.
 
 empty ⊢ □(P → (Q → P))
+
+; The familiar connectives are object constructors here. The deep theory includes classical
+; excluded middle and the reflexivity axiom T; neither line asserts a Kurt-level disjunction or
+; implication.
+
+⊢ (P ∨ ¬P)
+⊢ (□P → P)
+⊢ (P → ◇P)
+
+; Distribution and duality are object theorems too.
+
+⊢ ((□P ∧ □Q) ⇔ □(P ∧ Q))
+⊢ (◇P ⇔ ¬□¬P)
 
 ; Modus ponens also lives at the Kurt meta level. First instantiate the
 ; implication axiom with the theorem above as its antecedent, then apply it.

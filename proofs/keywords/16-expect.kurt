@@ -17,10 +17,12 @@ expect "EvalError"
 
 true                  ; ...and we're back to normal, checking continues here
 
-; `expect` only checks the *kind* of error, not its exact wording -- so a
-; lesson (or a test) using it doesn't quietly go stale the moment an error
-; message's phrasing changes, the way copying the exact text into a comment
-; (or into a test's expected output) would.
+; `expect "KIND"` only checks the *kind* of error.  An optional second
+; string, `expect "KIND" "TEXT"`, also checks the wording: the error message
+; must contain TEXT.  A short, telling piece of the message is enough:
+
+expect "EvalError" "already"
+    var zero          ; the message says that `zero` is already a constant
 
 ; The error may come from anywhere inside the block, also from inside a
 ; nested block, or from a nested block that can't be closed:

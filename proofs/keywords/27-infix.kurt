@@ -1,4 +1,4 @@
-; 30-infix.kurt
+; 27-infix.kurt
 
 ; Kurt's grammar is not fixed in Python -- you declare operators yourself,
 ; from Kurt source, and the parser (a Pratt/TDOP parser) picks them up right
@@ -12,7 +12,8 @@ infix "+" 20 20        ; left-associative: binding powers are equal
 var a, b
 parse a + b            ; (+ a b)
 
-; A newly declared symbol like `+` starts out as a variable by default (see
-; 06-var.kurt) -- it carries no meaning yet, just grammar.  Giving it
+; A newly declared symbol like `+` has no role yet, just grammar: it becomes
+; a constant when it is first used in a fact (or a variable if you declare it
+; with `var`, see 06-var.kurt) -- it carries no meaning yet.  Giving it
 ; meaning is a separate step, e.g. `load numbers` (see `src/kurt/theories/
 ; numbers.kurt`) for real arithmetic, or your own `use` axioms.

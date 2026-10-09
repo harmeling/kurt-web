@@ -1,18 +1,18 @@
-; 43-calc.kurt
+; 40-calc.kurt
 
 ; `calc` computes with numbers. A theory says which of its symbols mean
 ; which operation of Kurt's built-in calculator -- numbers.kurt does it for
 ; `+ - * / ^` and the comparisons:
 ;
-;     calc + add, - subtract, - negate, * multiply, / divide, ^ power
-;     calc = eq, ≠ ne, < lt, <= le, > gt, >= ge
+;     builtin + add, - subtract, - negate, * multiply, / divide, ^ power
+;     builtin = eq, ≠ ne, < lt, <= le, > gt, >= ge
 ;
 ; and `calc on` / `calc off` switches computing on and off. Here, without
 ; numbers.kurt, with a `+` of our own:
 
 load equality
 infix "+" 30 30
-calc + add            ; `+` is the calculator's addition
+builtin + add         ; `+` is the calculator's addition
                       ; fixed calculator meaning also makes `+` a constant
 
 calc on
@@ -27,7 +27,7 @@ expect "ProofError"
 ; A comparison of two numbers is computed too, once its symbol is bound:
 infix < 20 20
 bool  < 0
-calc < lt
+builtin < lt
 calc on
 2 + 2 < 5             ; `4 < 5`, true "by calc"
 expect "ProofError"
