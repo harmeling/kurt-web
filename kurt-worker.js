@@ -34,7 +34,7 @@ async function runProof({ code, indent, files }) {
   // one run: the output, and the certificate (a complete proof writes `proof.kurtc`)
   pyodide.globals.set('comment_indent', Number(indent));
   const result = pyodide.runPython(`
-shell = kurt.Shell(kurt.RunConfig(comment_indent=comment_indent, kurtc=True))
+shell = kurt.Shell(kurt.RunConfig(comment_indent=comment_indent, kurtc=True, line_numbers=False))   # (the page has its own)
 result = shell.start_file('/play/proof.kurt')
 output = kurt.hello() + '\\n' + result.output.rstrip('\\n') + ('\\n' + result.error if result.error else '')
 json.dumps({'output': output, 'ok': result.ok, 'shell': json.loads(shell_state())})

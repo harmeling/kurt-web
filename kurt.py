@@ -3466,6 +3466,8 @@ class RunState:
     indirect_noted: dict[str, set[str]] = field(default_factory=lambda: {})
     indirect_report: dict[str, dict[str, set[str]]] = field(default_factory=lambda: {})   # file -> theory -> its symbols (`kurt --deps`)
     quiet: list[int] = field(default_factory=lambda: [0])
+    place_links: bool = False     # `formula_place` as a Markdown link to the file and line (the editors' hover)
+    line_numbers: bool = True     # the number of a source line in front of its output (`log`)
     var_counter: int = 0          # the fresh variables (`new_var_name`)
     bool_var_counter: int = 0     # ... and formula variables (`new_bool_var_name`)
 
@@ -7562,7 +7564,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             for _, role, shown_symbol in bindings:
                 if printing():
                     what = 'computed by the calculator' if role in CALCULATOR_ROLES else f'the engine\'s {role}'
-                    log(kb, f'builtin {shown_symbol} {role}', Reason('', what), kb.level)
+                    log(kb, f'builtin {shown_symbol} {role}', Reason(str(line), what), kb.level)
     elif keyword == 'list':
         if len(args) > 1 or (args and not all(isinstance(t, Token) and t.label == 'STRING' for t in args[0])):
             raise KurtException('EvalError: use `list SOURCE` or `list CATEGORY SOURCE`', keyword_token.column)
@@ -7672,7 +7674,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 except OSError as e:
                     raise KurtException(f'EvalError: `save` could not write `{fname}`: {e}', arg[0].column)
                 if printing():
-                    log(kb, f'save "{fname}"', Reason('', f'wrote {fname}'), kb.level)
+                    log(kb, f'save "{fname}"', Reason(str(line), f'wrote {fname}'), kb.level)
             case _:
                 assert False, f'BUG: `save` was scanned with wrong args'
 
@@ -7994,7 +7996,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         apply_declaration_batch(kb, lambda target: [target.add_var(op) for op in new_stuff])
         for op in new_stuff:
             if printing():
-                log(kb, f'var {op}', Reason('', 'added variable', 'declaration'), kb.level)
+                log(kb, f'var {op}', Reason(str(line), 'added variable', 'declaration'), kb.level)
     elif keyword == 'const':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -8017,7 +8019,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         apply_declaration_batch(kb, add_constants)
         for op in new_stuff:
             if printing():
-                log(kb, f'const {op}', Reason('', 'added constant', 'declaration'), kb.level)
+                log(kb, f'const {op}', Reason(str(line), 'added constant', 'declaration'), kb.level)
     elif keyword == 'alias':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -8693,6 +8695,21 @@ def log(kb: KnowledgeBase, s: str, reason: 'str | Reason'='', level: Optional[in
         indent: str = '' if level is None else ' ' * (proof_indent * level)
         parts = s.splitlines() or ['']
         rendered = [indent + part for part in parts]
+        # the line numbers: a line that shows the source line being checked has its number in
+        # front, and its reason goes without it (`   5  B    ; by 3(4)`); a derived line keeps its
+        # number in the reason (`; 9a by 4`, `; 7-8 by impl-intro`, the closing of a block)
+        gutter = ''
+        here = run_state.current_line[0]
+        numbers = run_state.line_numbers and level is not None and (here is None or here[0] != '<stdin>')   # (the shell's prompt has it)
+        if numbers:
+            number = str(here[1]) if here is not None else ''
+            if not str(reason):
+                gutter = number                             # (`proof`, `calc on`: the line itself)
+            elif isinstance(reason, Reason) and reason.id == number and reason.kind not in ('close', 'expect'):
+                gutter, reason = number, dataclasses.replace(reason, id='')
+            rendered = [f'{gutter:>{LINE_NUMBER_WIDTH}}  {rendered[0]}'] + [f'{"":>{LINE_NUMBER_WIDTH}}  {r}' for r in rendered[1:]]
+        margin = LINE_NUMBER_WIDTH + 2 if numbers else 0
+        column = run_state.comment_indent + margin
         reason = str(reason)
         if len(reason) == 0:
             line = '\n'.join(rendered)
@@ -8702,14 +8719,16 @@ def log(kb: KnowledgeBase, s: str, reason: 'str | Reason'='', level: Optional[in
             comments = ([f'schema: {schema}'] if schema else [])
             if run_state.current_comment[0] is not None:
                 comments.append(run_state.current_comment[0])
-            rendered[0] = f'{rendered[0]:<{run_state.comment_indent}}; {comments[0]}'
+            rendered[0] = f'{rendered[0]:<{column}}; {comments[0]}'
             trailing = comments[1:] + [reason]
-            line = '\n'.join(rendered) + ''.join(f'\n{"":<{run_state.comment_indent}}; {comment}' for comment in trailing)
+            line = '\n'.join(rendered) + ''.join(f'\n{"":<{column}}; {comment}' for comment in trailing)
             run_state.current_comment[0] = None
         else:
-            rendered[0] = f'{rendered[0]:<{run_state.comment_indent}}; {reason}'
+            rendered[0] = f'{rendered[0]:<{column}}; {reason}'
             line = '\n'.join(rendered)
         print(line, file=sys.stdout)
+
+LINE_NUMBER_WIDTH = 4     # the width of the line numbers in front of the output (`log`)
 
 # how to derive a formula?
 # - equalities lead to two rules
@@ -10061,8 +10080,12 @@ def record_certificate(cert: Certificate, kb: KnowledgeBase) -> Certificate:
     return cert
 
 def formula_place(f: Formula, filename: str) -> str:
-    # where a formula comes from, e.g. `line 3` or `logic.kurt:22 "forall-elim"`
+    # where a formula comes from, e.g. `line 3` or `logic.kurt:22 "forall-elim"` -- for the editors
+    # a link to it (`RunState.place_links`)
     place = f'line {f.line}' if f.filename == filename else f'{os.path.basename(f.filename)}:{f.line}'
+    first = re.match(r'\d+', str(f.line))
+    if run_state.place_links and first and os.path.isabs(f.filename):
+        place = f'[{place}]({Path(f.filename).as_uri()}#L{first.group()})'
     return place + (f' "{f.label}"' if f.label else '')
 
 def is_internal_name(v: Value) -> bool:
@@ -12455,7 +12478,8 @@ class RunConfig:
     strict: bool = False                  # for grading: every symbol declared; no `use`, `todo`, `chain` outside trusted theories
     paths: tuple[str, ...] = ()           # directories with theories for `load`, after the working directory (trusted, like `-p`)
     kurtc: bool = False                   # write and use `.kurtc` certificate files (`check_file` only)
-    comment_indent: int = 42              # the column where the reasons start
+    comment_indent: int = 42              # the column where the reasons start (after the line numbers)
+    line_numbers: bool = True             # the number of each source line in front of its output
     untrusted_paths: tuple[str, ...] = () # source directories searched before `paths`, without granting trust
     overlays: tuple[tuple[str, str], ...] = () # current editor text by absolute source filename
 
@@ -12469,6 +12493,7 @@ class CheckResult:
     error_line: Optional[int] = None      # the line of the error (in the checked file)
     events: list[dict] = dataclasses.field(default_factory=list)   # each line of `output` as a record, see `reason_event`
     failure: Optional[dict] = None        # structured proof-failure explanation, when available
+    certificates: dict[int, str] = dataclasses.field(default_factory=dict)   # line -> its certificates in long form (`certificates=True`)
 
     def to_json(self) -> str:
         # for graders and editors (`kurt --json FILE`)
@@ -12484,7 +12509,8 @@ def _fresh_run_state(config: RunConfig) -> RunState:
     overlays = {source_name(name): text for name, text in config.overlays}
     return RunState(theory_path=[*untrusted, Path.cwd(), *paths, *packaged_theory_paths], strict_mode=config.strict,
                     trusted_paths=list(paths), untrusted_names=set(overlays), source_overlays=overlays,
-                    kurtc_enabled=config.kurtc, comment_indent=config.comment_indent)
+                    kurtc_enabled=config.kurtc, comment_indent=config.comment_indent,
+                    line_numbers=config.line_numbers)
 
 # a session's run state is `run_state` while it is active: one session at a time (several threads
 # take turns -- the checks are Python work, which wouldn't run in parallel anyway)
@@ -12508,7 +12534,8 @@ class Session:
             finally:
                 run_state = before
 
-    def _check(self, run: Callable[[KnowledgeBase], KnowledgeBase]) -> CheckResult:
+    def _check(self, run: Callable[[KnowledgeBase], KnowledgeBase], name: str = '', certificates: bool = False,
+               links: bool = False) -> CheckResult:
         out = io.StringIO()
         kb = copy.deepcopy(initial_kb)
         events: list[dict] = []
@@ -12518,6 +12545,8 @@ class Session:
             try:
                 kb = run(kb)
                 log_summary(kb)
+                if certificates:
+                    shown = self._certificates(name, kb, links)
             except KurtException as e:
                 at = re.search(r'line (\d+):', e.msg)
                 line = int(at.group(1)) if at else e.line
@@ -12530,12 +12559,29 @@ class Session:
                                    list(kb.todos()), line, events, e.details)
             finally:
                 run_state.event_sink = None
-        return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events)
+        return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events,
+                           certificates=shown if certificates else {})
 
-    def check_file(self, path: str) -> CheckResult:
-        return self._check(lambda kb: load_file(str(path), kb, main=True))
+    def _certificates(self, name: str, kb: KnowledgeBase, links: bool) -> dict[int, str]:
+        # the certificates of the lines of the checked file, in long form (as `cert` shows them)
+        mine = Path(name).resolve() if name else None
+        shown: dict[int, str] = {}
+        run_state.place_links = links
+        try:
+            for (f, line), certs in sorted(run_state.certificates_by_line.items(), key=lambda item: item[0][1]):
+                if f.startswith('<') or (mine is not None and Path(f).resolve() != mine):
+                    continue
+                shown[line] = '\n\n'.join(certificate_str(cert, problem, kb, f) for cert, problem in certs)
+        finally:
+            run_state.place_links = False
+        return shown
 
-    def check_text(self, text: str, name: str = 'proof.kurt') -> CheckResult:
+    def check_file(self, path: str, certificates: bool = False, links: bool = False) -> CheckResult:
+        # `certificates`: also the certificates of its lines, as `cert` shows them (with `links`, the
+        # places they name as Markdown links, for an editor)
+        return self._check(lambda kb: load_file(str(path), kb, main=True), str(path), certificates, links)
+
+    def check_text(self, text: str, name: str = 'proof.kurt', certificates: bool = False, links: bool = False) -> CheckResult:
         # `name` appears in the messages; `load` finds files in the working directory and `paths`
         # a text is never trusted, whatever its name (`<embedded>/...`, a file in a `-p` directory)
         if name in ('<stdin>', '<shell>'):
@@ -12558,7 +12604,7 @@ class Session:
             for todo in bundle.todos:
                 kb.todo_add(todo)
             return kb
-        return self._check(run)
+        return self._check(run, name, certificates, links)
 
 def hello() -> str:
     # the first line Kurt prints
@@ -12621,12 +12667,12 @@ class Shell:
 def new_session(config: Optional[RunConfig] = None) -> Session:
     return Session(config)
 
-def check_text(text: str, *, name: str = 'proof.kurt', session: Optional[Session] = None) -> CheckResult:
+def check_text(text: str, *, name: str = 'proof.kurt', session: Optional[Session] = None, certificates: bool = False) -> CheckResult:
     # check a proof given as text, e.g. `kurt.check_text('load prop\nbool A\nuse A\nA\n').ok`
-    return (session or Session()).check_text(text, name)
+    return (session or Session()).check_text(text, name, certificates)
 
-def check_file(path: str, *, session: Optional[Session] = None) -> CheckResult:
-    return (session or Session()).check_file(path)
+def check_file(path: str, *, session: Optional[Session] = None, certificates: bool = False) -> CheckResult:
+    return (session or Session()).check_file(path, certificates)
 
 def log_summary(kb: KnowledgeBase) -> None:
     # the last lines of a checked file: `Proof checked`, or the open `todo`s
@@ -12749,7 +12795,7 @@ class LanguageServer:
         # Keep the source directory: sibling loads must precede the server's launch directory.
         # check_text treats this name as untrusted even if it happens to name a trusted file.
         with self.work_lock:
-            result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt')
+            result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt', certificates=True, links=True)
         with self.state_lock:
             if uri not in self.texts or self.texts[uri] != text or self.versions.get(uri) != version:
                 return                          # a newer edit superseded this check
@@ -12785,21 +12831,58 @@ class LanguageServer:
         self.timers[uri] = timer
         timer.start()
 
+    @staticmethod
+    def reason_here(event: dict) -> str:
+        # the reason, without its number when that is the line it stands at (the editor shows the
+        # line numbers) -- `5a`, `11-13` (the lines of a block) stay, they say something else
+        reason, line_id = event['reason'], event.get('id')
+        if line_id is not None and line_id == str(event.get('line')) and reason.startswith(f'{line_id} '):
+            return reason[len(line_id) + 1:]
+        return reason
+
     def line_events(self, uri: str) -> dict[int, list[dict]]:
         # the reasons of the checked lines, by their line (0-based)
         events: dict[int, list[dict]] = {}
         result = self.results.get(uri)
         for e in (result.events if result else []):
-            if e.get('reason') and e.get('line'):
+            if e.get('reason') and e.get('line') and e.get('kind') != 'declaration':   # (not `added constant`)
                 events.setdefault(e['line'] - 1, []).append(e)
         return events
 
     def hover(self, params: dict) -> Optional[dict]:
-        events = self.line_events(params['textDocument']['uri']).get(params['position']['line'])
+        # the line with its reason, and its certificate (as `cert` shows it), whose places are links
+        uri, n = params['textDocument']['uri'], params['position']['line']
+        events = self.line_events(uri).get(n)
         if not events:
             return None
-        text = '\n'.join(f'{e["text"]}   ; {e["reason"]}' for e in events)
-        return {'contents': {'kind': 'markdown', 'value': f'```kurt\n{text}\n```'}}
+        text = '\n'.join(f'{e["text"]}   ; {self.reason_here(e)}' for e in events)
+        result = self.results.get(uri)
+        certificate = result.certificates.get(n + 1, '') if result else ''
+        details = '  \n'.join(re.sub(r'^; (\w[\w ]*:)\s+', r'**\1** ', line) for line in certificate.splitlines() if line.strip())
+        if not details:
+            details = '  \n'.join(filter(None, (self.what_it_is(e) for e in events)))
+        return {'contents': {'kind': 'markdown', 'value': f'```kurt\n{text}\n```' + (f'\n\n{details}' if details else '')}}
+
+    # what a line without a certificate is, for the hover -- by its keyword
+    WHAT_IT_IS = {
+        'use': '**axiom:** stated without proof, it holds from here on (with `--strict`, only in a theory)',
+        'def': '**definition:** a new symbol, a name for its right-hand side (conservative: nothing new follows)',
+        'show': '**claim:** to be proved -- by the `proof` block that follows',
+        'proof': '**proof:** of the claim above; it ends when the goal is reached (`qed`)',
+        'assume': '**assumption:** holds inside the block; closing it gives `assumption implies last line`',
+        'case': '**case:** one alternative of a disjunction, assumed inside the block',
+        'let': '**arbitrary:** new constants, about which nothing is known; closing the block gives `∀`',
+        'pick': '**witness:** a new constant with the property of an existential fact; closing gives the last line',
+        'load': '**theory:** its exported facts and symbols are known from here on',
+        'todo': '**todo:** admitted without proof -- the file is not complete',
+        'sandbox': '**sandbox:** everything inside is discarded when it closes',
+        'expect': '**expect:** an error of this kind must happen inside; then the block is discarded',
+        'builtin': '**built in:** a meaning that Kurt itself implements for the symbol',
+    }
+
+    def what_it_is(self, event: dict) -> str:
+        words = event.get('text', '').split()
+        return self.WHAT_IT_IS.get(words[0], '') if words else ''
 
     def inlay_hints(self, params: dict) -> list[dict]:
         uri = params['textDocument']['uri']
@@ -12808,7 +12891,7 @@ class LanguageServer:
         hints = []
         for n, events in sorted(self.line_events(uri).items()):
             if first <= n <= last and n < len(lines):
-                reason = '; '.join(e['reason'] for e in events)
+                reason = '; '.join(self.reason_here(e) for e in events)
                 character = lsp_python_to_utf16(lines[n], len(lines[n]))
                 hints.append({'position': {'line': n, 'character': character}, 'label': f'  ; {reason}',
                               'paddingLeft': True})
@@ -13339,6 +13422,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-p', '--path',                              help=f'specify the path where `load` looks for theories after checking {run_state.theory_path}')
     parser.add_argument('-v', '-V', '--version', action='version', version=f'kurt {version}', help=f'show the version of Kurt and exit')
     parser.add_argument('-d', '--debug',        action='store_true', help=f'show debugging information')
+    parser.add_argument('--no-line-numbers',    action='store_true', help=f'print the output without the numbers of the source lines in front (the reasons then start with them, `; 5 by 3(4)`)')
     parser.add_argument('--no-kurtc',           action='store_true', help=f'neither write nor use `.kurtc` files (the certificates of a checked file, see doc/kurt-doc.md)')
     parser.add_argument('--json',               action='store_true', help=f'check the file and print the result as JSON: each line as an event (its id, kind, rule, the lines it uses), the error, the todos -- for graders and editors')
     parser.add_argument('--lsp',                action='store_true', help=f'run as a language server (the Language Server Protocol over stdin/stdout), for editors')
@@ -13373,7 +13457,8 @@ def main() -> None:
     # below happens -- every way of checking a file (`--json`, `kurt foo.kurtc`, `--deps`, the
     # shell) with the same options
     config = RunConfig(strict=args.strict, paths=(args.path,) if args.path else (),
-                       kurtc=not args.no_kurtc, comment_indent=args.comment_indent)
+                       kurtc=not args.no_kurtc, comment_indent=args.comment_indent,
+                       line_numbers=not args.no_line_numbers)
     if args.lsp:
         # a language server for editors: its own sessions, one per check (not inside this one,
         # whose lock would hold back the checks of its other threads)
