@@ -1,0 +1,81 @@
+name: Sync with Kurt
+
+# every day, and by hand (Actions, "Sync with Kurt", Run workflow): is there a newer release of Kurt
+# (harmeling/kurt-lang) than the playground's? Then `./update.sh TAG` brings it up to that release,
+# the browser tests run, the change is committed to main, and the playground is deployed
+# (pages.yml). Nothing new: nothing happens. A test fails: nothing is committed or deployed, and
+# GitHub sends an email.
+
+on:
+  schedule:
+    - cron: "47 4 * * *"       # daily, 04:47 UTC
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "a release of Kurt, e.g. v0.8.1 (empty: the latest)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      updated: ${{ steps.update.outputs.updated }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: The release, and the Kurt of the playground
+        id: which
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.tag }}
+        run: |
+          tag=${WANTED:-$(gh api repos/harmeling/kurt-lang/releases/latest --jq .tag_name)}
+          have=$(python3 -c "import re; print(re.search(r\"^version\s*=\s*'([^']+)'\", open('kurt.py').read(), re.M).group(1))")
+          echo "Kurt $tag; the playground has $have"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "v$have" = "$tag" ]; then echo "same=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Bring the playground up to the release
+        id: update
+        if: steps.which.outputs.same != 'true'
+        run: |
+          ./update.sh "${{ steps.which.outputs.tag }}"
+          if [ -n "$(git status --porcelain)" ]; then echo "updated=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Commit (pushed after the tests)
+        if: steps.update.outputs.updated == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Kurt ${{ steps.which.outputs.tag }} (sync.yml)"
+
+      - name: Browser tests
+        if: steps.update.outputs.updated == 'true'
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Push
+        if: steps.update.outputs.updated == 'true'
+        run: git push origin HEAD:main
+
+  deploy:
+    needs: sync
+    if: needs.sync.outputs.updated == 'true'
+    uses: ./.github/workflows/pages.yml
+    with:
+      ref: main

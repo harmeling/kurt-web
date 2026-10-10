@@ -45,7 +45,7 @@ serve -p 8000
 
 ## Using your real kurt.py
 
-Run `./update.sh ../kurt-lang` to regenerate `kurt.py`, synchronize theories and tutorials, regenerate the manifest, and run smoke tests. The script deliberately does not commit or push.
+The playground follows the releases of Kurt by itself: every day, and on the "Run workflow" button of [Sync with Kurt](https://github.com/harmeling/kurt-web/actions/workflows/sync.yml), the workflow `sync.yml` looks for a newer release; if there is one, it runs `./update.sh vX.Y.Z` (Kurt from the public repository at that tag), the browser tests, commits to `main`, and deploys. By hand, `./update.sh v0.8.1` (a release) or `./update.sh ../kurt-lang` (a checkout, e.g. to try what isn't released yet) regenerates `kurt.py`, synchronizes theories and tutorials, regenerates the manifest, and runs smoke tests; it doesn't commit or push.
 
 ## Notes
 
@@ -93,7 +93,7 @@ The service worker caches the app shell and Kurt bundle. Pyodide is loaded from 
 
 - `python3 scripts/smoke_test.py` checks generated assets and the standalone runtime.
 - `npm install && npx playwright install chromium && npm run test:e2e` runs the real browser suite.
-- `./update.sh ../kurt-lang` rebuilds Kurt, synchronizes proofs/theories, regenerates language metadata and the manifest, then runs smoke tests.
+- `./update.sh vX.Y.Z` (a release) or `./update.sh ../kurt-lang` (a checkout) rebuilds Kurt, synchronizes proofs/theories, regenerates language metadata and the manifest, then runs smoke tests.
 
 ## License
 
