@@ -108,13 +108,7 @@ body {
 	backdrop-filter: blur(8px);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.logo {
-	width: 28px; height: 28px;
-	border-radius: 8px;
-	display: inline-grid; place-items: center;
-	background: linear-gradient(135deg, var(--accent), var(--accent-2));
-	color: white; font-weight: 800;
-}
+.logo { height: 26px; width: auto; color: var(--text); flex: none; }   /* the wordmark "⊢kurt" (from kurt-syntax: scripts/make_icon.py) */
 .title { font-weight: 600; letter-spacing: 0.2px; }
 .status { color: var(--muted); font-size: 12px; }
 
