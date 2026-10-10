@@ -34,6 +34,13 @@ test('marks an error in its line and the gutter, and lists it', async ({ page })
   await expect(page.locator('#lineInfo')).toContainText('4: ProofError');
 });
 
+test('reports all errors, and a todo after an error (Kurt 0.8.1)', async ({ page }) => {
+  await typeProof(page, 'load prop\nbool A, B, C\nuse A\nC\nB\ntodo A and C\n');
+  await expect(page.locator('#status')).toHaveText('2 errors, 1 todo');
+  await expect(page.locator('#lineNumbers .err-num')).toHaveText(['4', '5']);
+  await expect(page.locator('#lineNumbers .todo-num')).toHaveText('6');
+});
+
 test('shows the details of a line on hover, and marks the lines its step uses', async ({ page }) => {
   await typeProof(page, 'load prop\nbool A, B\nuse A implies B\nuse A\nB\n');
   const box = await page.locator('#editor').boundingBox();
