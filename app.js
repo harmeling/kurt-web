@@ -345,7 +345,7 @@ function showOutput(text) {
     const shown = numbered ? numbered[2] : line;
     const row = document.createElement(pendingLine ? 'button' : 'span'); row.className = pendingLine ? 'output-line diagnostic' : 'output-line';
     if (numbered && numbered[1].trim()) row.dataset.line = numbered[1].trim();
-    row.innerHTML = highlightLine(shown).replace(/\b(\w+Error)\b/g, '<span class="tok-err">$1</span>').replace(/\bProof checked\.?/g, '<span class="tok-ok">$&</span>');
+    row.innerHTML = highlightLine(shown).replace(/\b(\w+Error)\b/g, '<span class="tok-err">$1</span>').replace(/\bProof checked\.?/g, '<span class="tok-ok">$&</span>').replace(/\bProof not checked\b/g, '<span class="tok-err">$&</span>');
     if (pendingLine) { const target = pendingLine; row.title = `Go to line ${target}`; row.onclick = () => goToLine(target); if (!line.trim()) pendingLine = null; }
     output.append(row);
   });
