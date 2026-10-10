@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # the playground from a release of Kurt (its tag: the public repository harmeling/kurt-lang at
-# that tag), or from a Kurt checkout (a directory; default ../kurt-lang):
+# that tag), or from a Kurt checkout (a directory; default ../kurt-lang-dev, where Kurt is developed):
 #
 #     ./update.sh v0.8.1          # a release -- what the workflow sync.yml does
-#     ./update.sh ../kurt-lang    # a checkout, e.g. to try what isn't released yet
+#     ./update.sh ../kurt-lang-dev  # a checkout, e.g. to try what isn't released yet
 web_dir=$(cd "$(dirname "$0")" && pwd)
-source=${1:-../kurt-lang}
+source=${1:-../kurt-lang-dev}
 if [[ "$source" =~ ^v[0-9] ]]; then
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
