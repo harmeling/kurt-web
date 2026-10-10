@@ -12,6 +12,10 @@ A minimal, dark-mode playground for the [Kurt proof language](https://github.com
 - `index.html` — App shell and layout.
 - `styles.css` — Dark theme and responsive split-pane styling.
 - `app.js` — Loads Pyodide, mounts `kurt.py`, and runs proofs by invoking Python.
+- `next.html`, `next.js`, `next.css` — the new editor (linked as "try the new editor"): one panel, checked
+  while typing by Kurt's language server in the worker (as in VS Code); the reasons at the ends of the lines,
+  errors and todos underlined and in the gutter, the details of a line on hover (or, on a phone, in the bar
+  below the editor), all problems in a list. It runs alongside the classic page and shares its draft.
 - `kurt.py` — The Kurt interpreter. This is the generated Kurt 0.7 standalone bundle, including all standard theories.
 - `proofs/` and `theories/` — the tutorial, the lessons on the keywords, and the standard theories.
 

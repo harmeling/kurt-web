@@ -20,6 +20,34 @@ def shell_state():
     return json.dumps({'stopped': shell.stopped, 'line': shell.line, 'indent': shell.indentation(),
                        'next': shell.next_steps(), 'summary': shell.summary(), 'accepted': shell.accepted})
 `);
+  // the new editor (next.html): Kurt's language server, as the editors use it -- the reasons of the
+  // lines (inlay hints), the errors and todos (diagnostics), and what a line is (hover)
+  pyodide.runPython(`
+class _Captured:
+    # what the server sends (its JSON-RPC messages), instead of writing them to stdout
+    def __init__(self): self.messages = []
+    def write(self, data): self.messages.append(json.loads(data.split(b'\\r\\n\\r\\n', 1)[1]))
+    def flush(self): pass
+lsp_out = _Captured()
+lsp = kurt.LanguageServer(None, lsp_out)
+lsp.handle({'method': 'initialize', 'id': 0, 'params': {'initializationOptions': {'allErrors': True}}})
+LSP_URI = 'file:///play/proof.kurt'
+def lsp_check(text, version):
+    lsp.texts[LSP_URI], lsp.versions[LSP_URI] = text, version
+    lsp_out.messages.clear()
+    lsp.check(LSP_URI)
+    diagnostics = [d for m in lsp_out.messages if m.get('method') == 'textDocument/publishDiagnostics' for d in m['params']['diagnostics']]
+    document = {'uri': LSP_URI}
+    end = {'line': text.count('\\n') + 1, 'character': 0}
+    hints = lsp.inlay_hints({'textDocument': document, 'range': {'start': {'line': 0, 'character': 0}, 'end': end}})
+    hovers = {}
+    for n in lsp.line_events(LSP_URI):
+        hover = lsp.hover({'textDocument': document, 'position': {'line': n, 'character': 0}})
+        if hover: hovers[n] = hover['contents']['value']
+    result = lsp.results.get(LSP_URI)
+    return json.dumps({'version': version, 'diagnostics': diagnostics, 'hints': hints, 'hovers': hovers,
+                       'ok': bool(result and result.ok), 'todos': len(result.todos) if result else 0}, ensure_ascii=False)
+`);
   const version = source.match(/version\s*=\s*['"]([^'"]+)/)?.[1] || 'unknown';
   postMessage({ type: 'ready', version });
 }
@@ -45,6 +73,15 @@ json.dumps({'output': output, 'ok': result.ok, 'shell': json.loads(shell_state()
   let certificate = null;
   if (data.ok) { try { certificate = pyodide.FS.readFile('/play/proof.kurtc', { encoding: 'utf8' }); } catch {} }
   postMessage({ type: 'result', output: data.output, exitCode: data.ok ? 0 : 1, certificate, shell: data.shell });
+}
+
+function checkDocument({ code, version, files }) {
+  // the new editor: a check of the whole text, its results by line
+  for (const [name, text] of Object.entries(files || {})) {
+    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+  }
+  pyodide.globals.set('check_text', code); pyodide.globals.set('check_version', version);
+  postMessage({ type: 'checked', ...JSON.parse(pyodide.runPython('lsp_check(check_text, check_version)')) });
 }
 
 function shellLine({ text }) {
@@ -83,6 +120,7 @@ self.onmessage = async ({ data }) => {
   if (!pyodide) return;
   try {
     if (data.type === 'run') await runProof(data);
+    else if (data.type === 'check') checkDocument(data);
     else if (data.type === 'shell') shellLine(data);
     else if (data.type === 'complete') complete(data);
     else if (data.type === 'editor-complete') editorComplete(data);

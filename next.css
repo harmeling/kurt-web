@@ -1,0 +1,110 @@
+/* The new editor (next.html): one panel, the results of the check in the editor itself -- the
+   reasons at the ends of the lines, the errors and todos underlined and in the gutter, the details
+   on hover (or in the bar below the editor), the problems in a list. On top of styles.css. */
+
+:root {
+	--hint: #6f7f9e;
+	--err-line: rgba(255, 107, 107, 0.10);
+	--todo-line: rgba(255, 204, 102, 0.10);
+}
+:root[data-theme="light"] {
+	--hint: #8391a8;
+	--err-line: rgba(210, 60, 60, 0.07);
+	--todo-line: rgba(167, 120, 0, 0.08);
+}
+
+.badge {
+	font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+	padding: 1px 6px; border-radius: 6px;
+	color: var(--ok); border: 1px solid var(--ok);
+}
+.status.ok { color: var(--ok); font-weight: 600; }
+.status.err { color: var(--err); font-weight: 600; }
+.status.todo { color: var(--warn); font-weight: 600; }
+
+.next-layout { padding: 12px; }
+.next-layout .editor-panel { min-height: 0; }
+@media (min-width: 961px) {
+	/* the panel takes the window between the header and the footer; the editor scrolls inside it */
+	body.next { display: flex; flex-direction: column; height: 100vh; }
+	.next-layout { flex: 1 1 auto; min-height: 420px; display: flex; flex-direction: column; }
+	.next-layout .editor-panel { flex: 1 1 auto; }
+	.next-layout .editor-wrap { flex: 1 1 auto; height: 0; min-height: 200px; }
+}
+@media (max-width: 960px) {
+	.next-layout .editor-wrap { height: clamp(260px, 58vh, 680px); }
+}
+
+/* the results in the highlighted copy of the text (the textarea above it is transparent) */
+.editor-highlight .hint { color: var(--hint); font-style: italic; }
+.editor-highlight .hint.qed { font-style: normal; }
+.editor-highlight .diag-err {
+	text-decoration: underline wavy var(--err); text-decoration-skip-ink: none; text-underline-offset: 4px;
+}
+.editor-highlight .diag-todo {
+	text-decoration: underline wavy var(--warn); text-decoration-skip-ink: none; text-underline-offset: 4px;
+}
+.editor-highlight .err-row { background: var(--err-line); display: inline-block; min-width: 100%; }
+.editor-highlight .todo-row { background: var(--todo-line); display: inline-block; min-width: 100%; }
+body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text differs from the checked one */
+.line-numbers .err-num, .line-numbers .todo-num {
+	display: inline-block; width: calc(100% + 8px); margin-right: -8px; padding-right: 8px; font-weight: 700;
+}
+.line-numbers .err-num { color: var(--err); background: var(--err-line); }
+.line-numbers .todo-num { color: var(--warn); background: var(--todo-line); }
+
+/* the bar below the editor: the line of the cursor (or a Tab hint) */
+.line-info {
+	display: block; width: 100%; min-height: 1.6em; padding: 4px 12px; margin: 0;
+	text-align: left; border: 0; border-top: 1px solid var(--border); cursor: pointer;
+	color: var(--muted); background: var(--code-bg);
+	font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.85);
+	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.line-info.err { color: var(--err); }
+.line-info.todo { color: var(--warn); }
+.line-info.open { white-space: pre-wrap; overflow: visible; }
+
+/* the problems: all errors and todos, a tap goes there */
+.problems { border-top: 1px solid var(--border); background: var(--bar-bg); }
+.problems > summary { padding: 6px 12px; cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; }
+.problems > summary .count-err { color: var(--err); font-weight: 600; }
+.problems > summary .count-todo { color: var(--warn); font-weight: 600; }
+.problems > summary .count-ok { color: var(--ok); font-weight: 600; }
+.problems-list { max-height: 30vh; overflow: auto; padding: 0 0 6px; }
+.problem {
+	display: flex; gap: 10px; width: 100%; padding: 4px 12px; border: 0; background: transparent;
+	color: var(--text); text-align: left; cursor: pointer;
+	font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.85);
+}
+.problem:hover { background: var(--row-hover); }
+.problem .where { color: var(--muted); flex: none; min-width: 4.5em; }
+.problem .what { white-space: pre-wrap; overflow-wrap: anywhere; }
+.problem.err .what::first-line { color: var(--err); }
+.problem.todo .what { color: var(--warn); }
+
+/* the details of a line, on hover */
+.tooltip {
+	position: fixed; z-index: 30;
+	max-width: min(640px, calc(100vw - 16px)); max-height: 50vh; overflow: auto;
+	padding: 8px 12px; border-radius: 8px;
+	background: var(--bg-elev); color: var(--text);
+	border: 1px solid var(--border); box-shadow: var(--shadow);
+	font-size: 13px; line-height: 1.45;
+}
+.tooltip.hidden { display: none; }
+.tooltip pre {
+	margin: 0 0 6px; padding: 4px 8px; border-radius: 6px; background: var(--code-bg);
+	font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.9); white-space: pre-wrap;
+}
+.tooltip code { font-family: var(--code-font-family); background: var(--code-bg); padding: 0 3px; border-radius: 4px; }
+.tooltip .diag { margin: 0 0 6px; white-space: pre-wrap; font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.85); }
+.tooltip .diag.err { color: var(--err); }
+.tooltip .diag.todo { color: var(--warn); }
+.tooltip a { color: var(--accent-2); }
+.tooltip p { margin: 0; }
+
+.menu-row input[type="checkbox"] { width: 16px; height: 16px; }
+label.menu-row { cursor: pointer; }
+.next .status { white-space: nowrap; }
+@media (max-width: 600px) { .next .app-footer { font-size: 12px; } }
