@@ -20,7 +20,7 @@ def shell_state():
     return json.dumps({'stopped': shell.stopped, 'line': shell.line, 'indent': shell.indentation(),
                        'next': shell.next_steps(), 'summary': shell.summary(), 'accepted': shell.accepted})
 `);
-  // the new editor (next.html): Kurt's language server, as the editors use it -- the reasons of the
+  // the editor (index.html; editor.js): Kurt's language server, as the editors use it -- the reasons of the
   // lines (inlay hints), the errors and todos (diagnostics), and what a line is (hover)
   pyodide.runPython(`
 class _Captured:

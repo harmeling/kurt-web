@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121521">
+  <script>
+    // the light or the dark theme (the button in the header), before the page is drawn
+    try {
+      const theme = localStorage.getItem('kurt-playground-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+    } catch {}
+  </script>
+  <meta name="description" content="Run and share checked Kurt proofs directly in your browser.">
+  <title>Kurt Playground (classic)</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><svg class="logo" role="img" aria-label="Kurt" xmlns="http://www.w3.org/2000/svg" viewBox="43.6 374.5 936.8 274.9"><path fill="#2ebe6e" d="M62.6 393.5h40.8v237.0h-40.8zM62.6 491.6h146.9v40.8h-146.9z"/><path fill="currentColor" d="M321.68600000000004 559.457 313.475 568.025V630.5H262.781V389.525H313.118H316.331V393.452Q314.546 395.59400000000005 314.0105 398.093Q313.475 400.592 313.475 406.661V512.69L365.24 460.568Q368.453 461.28200000000004 372.38 461.8175Q376.307 462.353 380.23400000000004 462.71000000000004Q384.161 463.067 387.5525 463.2455Q390.94399999999996 463.424 392.72900000000004 463.424H418.78999999999996L354.53 528.398L425.93 630.143L371.666 631.928ZM499.472 634.784Q489.119 634.784 480.01550000000003 632.285Q470.91200000000003 629.786 463.5935 624.431Q456.275 619.076 450.91999999999996 610.865Q445.565 602.654 442.709 591.0515Q439.853 579.449 439.853 564.455V462.353H490.547V564.455Q490.547 572.666 491.79650000000004 578.378Q493.046 584.09 495.54499999999996 587.8385000000001Q498.044 591.587 501.4355 593.1935Q504.827 594.8 508.754 594.8Q515.537 594.8 520.7135000000001 592.6579999999999Q525.89 590.516 529.2815 586.0535Q532.673 581.591 534.2795 575.165Q535.886 568.739 535.886 560.171V462.353H586.937V603.368Q586.937 611.936 587.4725000000001 618.1835000000001Q588.008 624.431 590.5070000000001 630.5H545.168Q543.383 627.287 542.6690000000001 624.0740000000001Q541.955 620.861 541.7764999999999 617.6479999999999Q541.598 614.435 541.598 611.222Q538.028 617.291 533.2085 621.7535Q528.389 626.216 522.8555 629.072Q517.322 631.928 511.4315 633.356Q505.541 634.784 499.472 634.784ZM629.0630000000001 462.353H680.8280000000001V508.406L675.1160000000001 506.978Q676.187 496.26800000000003 680.6495 487.5215Q685.1120000000001 478.775 692.2520000000001 472.1705Q699.392 465.56600000000003 708.1385 461.99600000000004Q716.8850000000001 458.42600000000004 726.167 458.42600000000004Q740.8040000000001 458.42600000000004 752.2280000000001 463.067Q763.652 467.70799999999997 773.648 478.06100000000004L752.942 521.258L751.8710000000001 524.114L748.301 522.686Q746.873 519.83 746.1590000000001 516.4385Q745.445 513.047 741.518 508.76300000000003Q736.8770000000001 504.836 730.9865 502.1585Q725.096 499.481 717.956 499.481Q709.7450000000001 499.481 702.7835000000001 501.98Q695.8220000000001 504.479 690.8240000000001 509.83399999999995Q685.826 515.189 682.97 523.4Q680.114 531.611 680.114 543.035V630.5H629.0630000000001ZM889.673 634.784Q876.464 634.784 865.397 630.6785Q854.33 626.573 846.4760000000001 616.7555Q838.6220000000001 606.938 834.695 589.802Q830.768 572.666 831.839 546.248L836.8370000000001 424.868L888.2450000000001 418.08500000000004L891.4580000000001 417.728L891.815 421.655Q890.3870000000001 424.154 888.9590000000001 426.653Q887.5310000000001 429.15200000000004 887.1740000000001 435.221L882.8900000000001 490.199H885.032L882.176 543.749Q881.105 564.098 883.7825 575.3435Q886.46 586.5889999999999 891.6365000000001 590.873Q896.8130000000001 595.157 902.5250000000001 595.157Q913.5920000000001 595.157 922.6955 590.5160000000001Q931.7990000000001 585.875 938.5820000000001 580.163L947.1500000000001 615.506Q935.0120000000001 624.431 920.9105000000001 629.6075000000001Q906.8090000000001 634.784 889.673 634.784ZM801.1370000000001 462.353H936.0830000000001L935.369 501.62300000000005H800.4230000000001Z"/></svg><span class="title">Playground</span><span class="badge">classic</span><span id="version" class="version">Kurt loading…</span><a class="link header-link" href="https://github.com/harmeling/kurt-lang" target="_blank" rel="noreferrer noopener">github.com/harmeling/kurt-lang</a><a class="link header-link try-next" href="./" title="The playground: checked as you type, the results in the editor">the new editor</a></div>
+    <div class="header-right"><div id="status" class="status" role="status">Loading runtime…</div><button id="themeBtn" class="btn small theme-btn" aria-label="Switch between the light and the dark theme">Light</button></div>
+  </header>
+  <main class="layout">
+    <section class="panel editor-panel">
+      <div class="toolbar">
+        <button id="runBtn" class="btn primary" disabled title="Cmd/Ctrl + Enter">Run</button>
+        <button id="cancelBtn" class="btn danger hidden">Cancel</button>
+        <div class="menu-wrapper" id="fileMenuWrapper">
+          <button id="fileBtn" class="btn small" aria-haspopup="menu">File</button>
+          <div id="fileMenu" class="dropdown-menu hidden" role="menu">
+            <button id="loadBtn" class="item" role="menuitem">Upload a .kurt file…</button>
+            <button id="saveBtn" class="item" role="menuitem">Download as .kurt file</button>
+            <button id="shareBtn" class="item" role="menuitem">Copy link to this proof</button>
+          </div>
+        </div>
+        <div id="examplesContainer" class="examples"></div>
+        <div class="spacer"></div>
+        <div class="menu-wrapper">
+          <button id="viewBtn" class="btn small" aria-haspopup="true">View</button>
+          <div id="viewMenu" class="dropdown-menu align-right view-menu hidden">
+            <div class="menu-row">
+              <span>Text size <span id="fontSizeLabel">15</span></span>
+              <span class="stepper">
+                <button id="fontSmallerBtn" class="btn small" aria-label="Smaller text">A−</button>
+                <button id="fontLargerBtn" class="btn small" aria-label="Larger text">A+</button>
+                <button id="fontResetBtn" class="btn small">Reset</button>
+              </span>
+            </div>
+            <div class="menu-row column">
+              <label for="indentSlider">Reasons in the output start at column <span id="indentLabel">40</span></label>
+              <input id="indentSlider" type="range" min="20" max="120" step="2" value="40">
+            </div>
+          </div>
+        </div>
+        <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
+      </div>
+      <div class="editor-wrap" id="editorWrap">
+        <div class="editor-stack">
+          <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
+          <div class="editor-code">
+            <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
+            <textarea id="editor" spellcheck="false" aria-label="Kurt proof editor; Tab completes" wrap="off"></textarea>
+          </div>
+        </div>
+      </div>
+      <div id="editorHint" class="editor-hint" role="status" aria-live="polite"></div>
+      <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
+    </section>
+    <div id="divider" class="divider" role="separator" aria-orientation="vertical" aria-label="Drag to resize the editor and the output" title="Drag to resize; double-click for half and half"></div>
+    <section class="panel output-panel hidden" id="outputPanel" aria-live="polite">
+      <div class="panel-header"><span>Output</span><div class="actions">
+        <div class="menu-wrapper">
+          <button id="saveOutputBtn" class="btn small" aria-haspopup="menu">File</button>
+          <div id="saveOutputMenu" class="dropdown-menu align-right hidden" role="menu">
+            <button id="copyBtn" class="item" role="menuitem">Copy output</button>
+            <button id="outputDownloadBtn" class="item" role="menuitem">Download output (.txt)</button>
+            <button id="certificateBtn" class="item" role="menuitem" disabled>Download certificate (.kurtc)</button>
+          </div>
+        </div>
+        <button id="shellBtn" class="btn small" aria-pressed="false" disabled title="Continue in a shell where the check stopped">Shell</button>
+        <button id="clearBtn" class="btn small">Clear</button>
+      </div></div>
+      <pre id="output" class="output" tabindex="0"></pre>
+      <div id="shellBar" class="shell-bar hidden">
+        <div id="shellHint" class="shell-hint"></div>
+        <div class="shell-row">
+          <span id="shellPrompt" class="shell-prompt">;[1]</span>
+          <textarea id="shellInput" class="shell-input" rows="1" spellcheck="false" aria-label="Kurt shell: a line to check (Enter checks it, Shift+Enter a new line, Tab completes)"></textarea>
+          <button id="shellCopyBtn" class="btn small" disabled title="Insert the lines the shell accepted into the editor, where the check stopped">Copy to editor</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+    <div class="help-header"><h2 id="helpTitle">Help</h2><button id="helpCloseBtn" class="btn small" aria-label="Close help">Close</button></div>
+    <div class="help-body">
+      <p><strong>Kurt</strong> is a small language for mathematical proofs: one claim per line, and Kurt checks
+      each one and says why it follows. Everything runs here in your browser; nothing is uploaded.</p>
+
+      <h3>Getting started</h3>
+      <p>Open the <strong>tutorial</strong> menu and start with <code>00-check-a-proof-file.kurt</code>: each lesson
+      answers one question, from "How do I prove an implication?" to "Why did this step fail?", with a proof you
+      can change and check again. The <strong>keywords</strong> menu has a short lesson on each keyword and idea of
+      Kurt, starting with <code>00-true.kurt</code>. The <strong>mafi1</strong> menu has the proofs of the
+      lecture "Mathematik für Informatik 1" (linear algebra), chapter by chapter. The last lessons of the tutorial are complete
+      proofs, and <strong>theories</strong> shows the theories that <code>load</code> brings in
+      (<code>load prop</code>, <code>load logic</code>, …).</p>
+
+      <h3>Checking a proof</h3>
+      <p><strong>Run</strong> (or Cmd/Ctrl+Enter) checks the proof. The output repeats each line with its reason
+      (hover over a line of the output, or tap it, to see the lines its step uses, in the output and in the editor):
+      <code>B ; 5 by 3(4)</code> says that line 5 follows by the rule of line 3 from the fact of line 4, and
+      <code>Proof checked</code> means every line holds. If a line doesn't follow, Kurt stops there and says why;
+      click the error to jump to that line. <strong>Cancel</strong> stops a check that takes too long.</p>
+      <p><strong>Shell</strong>, above the output: after a check, a line under the output continues where the
+      check stopped -- at a <code>breakpoint</code> line (which opens it by itself), at the failing line, or after
+      the last line -- with the open blocks and the facts there. A line typed there (Enter) is checked at once;
+      Shift+Enter starts a new line, Tab completes (the next step, the value after <code>=</code> with
+      <code>calc on</code>, <code>\forall</code>, names). <strong>Copy to editor</strong> inserts the accepted
+      lines into the proof, where the shell started.</p>
+
+      <h3>Writing</h3>
+      <ul>
+        <li>Declare what you use first, e.g. <code>bool A, B</code>; <code>use</code> states an axiom, a plain line is
+        a claim that must follow.</li>
+        <li>Blocks are indented by four spaces: <code>assume A</code>, then the indented lines; dedenting closes the
+        block and gives <code>A implies …</code>.</li>
+        <li>Comments start with <code>;</code>.</li>
+        <li>Tab completes at the caret. On an empty line it suggests a next proof step; after <code>=</code>
+        with <code>calc on</code> it inserts the computed value. A hint appears below the editor in these contexts.</li>
+        <li>Symbols: tap them in the bar above the editor, or type a LaTeX-style name followed by a space, e.g.
+        <code>\forall</code> → ∀, <code>\exists</code> → ∃, <code>\implies</code> → ⇒, <code>\and</code> → ∧,
+        <code>\or</code> → ∨, <code>\not</code> → ¬, <code>\in</code> → ∈.</li>
+      </ul>
+
+      <h3>The buttons</h3>
+      <ul>
+        <li><strong>File</strong>: upload a <code>.kurt</code> file, download the proof as one (for the
+        <code>kurt</code> command line), or copy a link to this proof: the link contains the proof itself.</li>
+        <li><strong>View</strong>: the text size, and the column where the reasons start in the output (changing
+        it checks the proof again, so you see it right away).</li>
+        <li><strong>Light</strong> / <strong>Dark</strong>, at the top right: the light or the dark theme.</li>
+        <li>The symbols below the editor insert themselves at the cursor. The bar between the editor and the
+        output moves (double-click: half and half).</li>
+        <li><strong>File</strong>, above the output: copy the output, download it, or download the proof's
+        certificate (<code>.kurtc</code>, after a successful check): for each line, the rule, the facts and the
+        values that Kurt's kernel checked. Put it next to the same <code>proof.kurt</code>, and the command-line
+        <code>kurt</code> checks it again without searching. <strong>Clear</strong> closes the output.</li>
+      </ul>
+      <p>With a keyboard, Tab completes, Cmd/Ctrl+Enter checks, and Cmd/Ctrl + / − / 0 changes the text size. Your draft stays in
+      this browser, and the playground also works offline after the first visit.</p>
+
+      <h3>More</h3>
+      <p>Kurt is developed by Stefan Harmeling (TU Dortmund, 2016-2026).
+      <a href="https://github.com/harmeling/kurt-lang" target="_blank" rel="noreferrer noopener">github.com/harmeling/kurt-lang</a>: Kurt's
+      repository, with the language reference, the tutorial, and the theories. There you can also
+      install Kurt, or download the single file <code>kurt.py</code>.</p>
+    </div>
+  </dialog>
+  <footer class="app-footer"><span class="keys">Cmd/Ctrl+Enter checks · Cmd/Ctrl +/−/0 changes text size · </span>drafts stay in this browser</footer>
+</body>
+</html>

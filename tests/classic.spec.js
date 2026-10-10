@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/classic.html');
   await expect(page.locator('#status')).toHaveText('Ready', { timeout: 60000 });
 });
 

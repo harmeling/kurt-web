@@ -2,21 +2,23 @@
 
 A minimal, dark-mode playground for the [Kurt proof language](https://github.com/harmeling/kurt-lang) that runs fully in the browser using Pyodide. Kurt is developed by Stefan Harmeling (TU Dortmund).
 
-- Write a proof on the left, click Run (or press Cmd/Ctrl+Enter) to execute `kurt.py` client-side.
+- Write a proof: it is checked while you type, with `kurt.py` running in the browser.
 - Tab completes in the proof editor; contextual hints include next proof steps and calculated values.
-- Output appears on the right (or below on small screens).
+- The results are in the editor: the reasons, errors and todos at their lines, the details on hover.
 - No server required.
 
 ## Files
 
-- `index.html` — App shell and layout.
-- `styles.css` — Dark theme and responsive split-pane styling.
-- `app.js` — Loads Pyodide, mounts `kurt.py`, and runs proofs by invoking Python.
-- `next.html`, `next.js`, `next.css` — the new editor (linked as "try the new editor"): one panel, checked
-  while typing by Kurt's language server in the worker (as in VS Code); the reasons at the ends of the lines,
-  errors and todos underlined and in the gutter, the details of a line on hover (or, on a phone, in the bar
-  below the editor), all problems in a list. It runs alongside the classic page and shares its draft.
-- `kurt.py` — The Kurt interpreter. This is the generated Kurt 0.7 standalone bundle, including all standard theories.
+- `index.html`, `editor.js`, `editor.css` — the playground: one panel, checked while typing by Kurt's
+  language server in the worker (as in VS Code); the reasons at the ends of the lines, errors and todos
+  underlined and in the gutter, the details of a line on hover (or, on a phone, in the bar below the
+  editor), all problems in a list.
+- `classic.html`, `app.js` — the classic playground: Run, the output beside the editor, the shell, the
+  certificate. Both share the draft and the settings. (`next.html`, the editor's address while it was new,
+  forwards to `index.html`.)
+- `styles.css` — the styles of both (`editor.css` adds the editor's).
+- `kurt-worker.js` — Pyodide with `kurt.py`: the checks of both pages.
+- `kurt.py` — The Kurt interpreter. The generated standalone bundle of the latest release, including all standard theories.
 - `proofs/` and `theories/` — the tutorial, the lessons on the keywords, and the standard theories.
 
 ## Local development

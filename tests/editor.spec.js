@@ -1,9 +1,9 @@
 const { test, expect } = require('@playwright/test');
 
-// the new editor (next.html): checked while typing, the results in the editor
+// the editor (index.html): checked while typing, the results in the editor
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/next.html');
+  await page.goto('/');
   await expect(page.locator('#version')).toHaveText(/^Kurt \d/, { timeout: 60000 });
 });
 
@@ -73,8 +73,12 @@ test('keeps the indentation on Enter, and the reasons can be switched off', asyn
   await page.locator('#reasonsToggle').check();
 });
 
-test('links the classic playground and the new editor', async ({ page }) => {
+test('links the repository of Kurt and the classic playground, and the old address of the editor still works', async ({ page }) => {
+  await expect(page.locator('.header-link[href="https://github.com/harmeling/kurt-lang"]')).toBeVisible();
   await page.locator('.header-link', { hasText: 'classic' }).click();
-  await expect(page).toHaveURL(/\/$|index\.html$/);
-  await expect(page.locator('.try-next')).toBeVisible();
+  await expect(page).toHaveURL(/classic\.html$/);
+  await page.locator('.try-next').click();
+  await expect(page.locator('#lineInfo')).toBeAttached();
+  await page.goto('/next.html#proof=dHJ1ZQo');
+  await expect(page).toHaveURL(/\/#proof=dHJ1ZQo$/);
 });

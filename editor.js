@@ -1,8 +1,8 @@
-// The new editor (next.html): the proof is checked while you type (by Kurt's language server in the
+// The editor of the playground (index.html): the proof is checked while you type (by Kurt's language server in the
 // worker, as in VS Code), and the results are in the editor itself -- the reasons at the ends of the
 // lines, the errors and todos underlined and in the gutter, the details of a line on hover (or in the
 // bar below the editor, for phones), all problems in a list. Shares the draft and the settings with
-// the classic playground (index.html, app.js); some helpers are copies of app.js's.
+// the classic playground (classic.html, app.js); some helpers are copies of app.js's.
 const $ = selector => document.querySelector(selector);
 const editor = $('#editor');
 const editorHighlight = $('#editorHighlight');

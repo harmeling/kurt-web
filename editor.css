@@ -1,4 +1,4 @@
-/* The new editor (next.html): one panel, the results of the check in the editor itself -- the
+/* The editor of the playground (index.html): one panel, the results of the check in the editor itself -- the
    reasons at the ends of the lines, the errors and todos underlined and in the gutter, the details
    on hover (or in the bar below the editor), the problems in a list. On top of styles.css. */
 
@@ -13,11 +13,6 @@
 	--todo-line: rgba(167, 120, 0, 0.08);
 }
 
-.badge {
-	font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
-	padding: 1px 6px; border-radius: 6px;
-	color: var(--ok); border: 1px solid var(--ok);
-}
 .status.ok { color: var(--ok); font-weight: 600; }
 .status.err { color: var(--err); font-weight: 600; }
 .status.todo { color: var(--warn); font-weight: 600; }

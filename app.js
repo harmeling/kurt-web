@@ -519,7 +519,7 @@ function setupDivider() {
   divider.addEventListener('pointerup', stop); divider.addEventListener('pointercancel', stop);
   divider.addEventListener('dblclick', () => { setSplit(null); try { localStorage.removeItem(SPLIT_KEY); } catch {} });
 }
-// the light and the dark theme (index.html sets it before the page is drawn); the button names the other
+// the light and the dark theme (classic.html sets it before the page is drawn); the button names the other
 const THEME_KEY = 'kurt-playground-theme';
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
