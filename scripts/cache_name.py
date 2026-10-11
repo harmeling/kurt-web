@@ -12,7 +12,7 @@ text = worker.read_text(encoding="utf-8")
 assets = re.search(r"const ASSETS = \[(.*?)\];", text, re.S)
 assert assets, "no ASSETS in service-worker.js"
 names = [n for n in re.findall(r"'([^']*)'", assets.group(1)) if n not in ("./",)]
-files = [root / n for n in names] + sorted((root / "theories").glob("*.kurt")) + sorted((root / "proofs").rglob("*.kurt"))
+files = [root / n for n in names] + sorted((root / "theories").glob("*.kurt")) + sorted((root / "proofs").rglob("*.kurt")) + sorted((root / "exercises").rglob("*.kurt"))
 digest = hashlib.sha256()
 for f in files:
     digest.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes())

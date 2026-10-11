@@ -110,13 +110,21 @@ async function loadedFiles(code) {
   if (!currentFolder) return {};
   let theories = [];
   try { theories = (await fetch('manifest.json').then(r => r.json())).theories; } catch {}
-  const files = {}, todo = [code];
+  // a name is relative to the file that loads it (`theory/island.kurt` may load `common` beside it),
+  // and stays in the proof's folder or below it (an exercise loads its scene, `load theory/island`)
+  const files = {}, todo = [{ text: code, dir: '' }];
   while (todo.length) {
-    for (const match of todo.pop().matchAll(/^\s*load\s+([^;\n]+)/gm)) {
+    const { text, dir } = todo.pop();
+    for (const match of text.matchAll(/^\s*load\s+([^;\n]+)/gm)) {
       for (let name of match[1].split(',').map(x => x.trim().replace(/^"|"$/g, '')).filter(Boolean)) {
         if (!name.endsWith('.kurt')) name += '.kurt';
-        if (name.includes('/') || theories.includes(name) || name in files) continue;
-        try { const response = await fetch(`${currentFolder}${name}`); if (response.ok) { files[name] = await response.text(); todo.push(files[name]); } } catch {}
+        if (!name.includes('/') && theories.includes(name)) continue;
+        const path = dir + name;
+        if (!path.split('/').every(part => part && part !== '.' && part !== '..') || path in files) continue;
+        try {
+          const response = await fetch(`${currentFolder}${path}`);
+          if (response.ok) { files[path] = await response.text(); todo.push({ text: files[path], dir: path.slice(0, path.lastIndexOf('/') + 1) }); }
+        } catch {}
       }
     }
   }
@@ -481,7 +489,30 @@ async function buildExamplesUI() {
   const rank = folder => (order.indexOf(folder) + order.length + 1) % (order.length + 1);
   const folders = (await listDirectory('proofs/')).filter(x => x.endsWith('/')).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   for (const folder of folders) await createMenu(folder.slice(0, -1), `proofs/${folder}`);
+  await createExercisesMenu();
   await createMenu('theories', 'theories/');
+}
+// the exercises, by topic: each loads its scene from the folder `theory/` beside it
+async function createExercisesMenu() {
+  let topics = {};
+  try { topics = (await fetch('manifest.json').then(r => r.json())).exercises || {}; } catch {}
+  if (!Object.keys(topics).length) return;
+  const wrapper = document.createElement('div'); wrapper.className = 'menu-wrapper';
+  const button = document.createElement('button'); button.className = 'btn small'; button.textContent = 'exercises';
+  const menu = document.createElement('div'); menu.className = 'dropdown-menu hidden';
+  for (const [topic, files] of Object.entries(topics)) {
+    const heading = document.createElement('div'); heading.className = 'menu-heading';
+    heading.textContent = topic.replace(/^\d+-/, '').replaceAll('-', ' ');
+    menu.append(heading);
+    const path = `exercises/${topic}/`;
+    files.forEach(file => {
+      const item = document.createElement('button'); item.className = 'item'; item.textContent = file;
+      item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load the exercise', 'err'); setEditor(await response.text(), file, path); menu.classList.add('hidden'); };
+      menu.append(item);
+    });
+  }
+  button.onclick = event => toggleMenu(event, menu);
+  wrapper.append(button, menu); $('#examplesContainer').append(wrapper);
 }
 function toggleMenu(event, menu) {
   event.stopPropagation();

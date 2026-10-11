@@ -73,7 +73,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.8.2'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.8.3'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -187,7 +187,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'T` of `T` for `v` going to `a`,\n'
                   '; also with a condition on `v` (`lim v > 0 0 T` is the '
                   'limit from the right) -- defined by ε\n'
-                  '; and δ. See proofs/analysis/ for worked examples.\n'
+                  '; and δ. See proofs/analysis/ for worked examples; '
+                  'derivatives and integrals are in\n'
+                  '; derivative.kurt and integral.kurt.\n'
                   ';\n'
                   '; the binders of `max`, `sup`, `lim`, ... take any '
                   'condition: in a rule, the condition\n'
@@ -207,6 +209,30 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '0 (1 / v) = lim v 0 (1 / v)` would\n'
                   '; then say that this limit exists.\n'
                   'load prop, equality, logic, set, numbers, natural\n'
+                  '\n'
+                  ';; subtraction and halving, for ε/2 arguments: "sub-def" '
+                  'links `-` to `+`, and the laws after it\n'
+                  ';; follow from it '
+                  '(proofs/arithmetic/helpers/subtraction.kurt, checked by\n'
+                  ';; tests/test_subtraction_laws.py) -- stated here, since '
+                  'their proofs (+ is flat and symmetric)\n'
+                  ';; would make this file slow to check, and not in '
+                  'numbers.kurt, since every rule for rewriting makes\n'
+                  ';; the search a little slower\n'
+                  'use $a - $b = $a + (-$b)                         "sub-def"\n'
+                  'use ($a - $b) + $b = $a                          '
+                  '"sub-add-cancel"\n'
+                  'use ($a - $b) + ($b - $c) = $a - $c              '
+                  '"sub-split"\n'
+                  'use ($a + $b) - ($c + $d) = ($a - $c) + ($b - $d)    '
+                  '"sub-add"\n'
+                  'use $c * $a - $c * $b = $c * ($a - $b)           "sub-mul"\n'
+                  'use $a - $b = 0  ⇒  $a = $b                      '
+                  '"sub-zero"\n'
+                  'use 2 * $a = $a + $a                             "double"\n'
+                  'use $a / 2 + $a / 2 = $a                         "halves"\n'
+                  'use $c >= 0 ∧ $a <= $b  ⇒  $a * $c <= $b * $c    '
+                  '"le-mul-nonneg"\n'
                   '\n'
                   ';; absolute value\n'
                   'const abs\n'
@@ -305,6 +331,146 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '%C) ∧ 0 < abs($y - $a) ∧ abs($y - $a) < $d)  ⇒  abs((sub $v '
                   '$y $T) - $L) < $e))  ⇒  (lim (sub $x $v %C) $a $T) = $L   '
                   '"lim-cond-intro"\n',
+ 'derivative.kurt': '; derivatives\n'
+                    ';\n'
+                    '; covers: continuity `cont x a T` ("`T` is continuous in '
+                    '`x` at `a`"), differentiability\n'
+                    '; `diff x a T` ("`T` is differentiable in `x` at `a`") '
+                    'and the derivative `deriv x a T` (the\n'
+                    '; derivative of `T` in `x` at the point `a`, d/dx T at x '
+                    '= a) -- defined by ε and δ (as `lim` in\n'
+                    '; analysis.kurt); the rules of differentiation (constant, '
+                    '`x`, sum, difference, constant factor,\n'
+                    '; product, quotient, powers, chain rule), each with the '
+                    "differentiability it needs; Fermat's\n"
+                    '; theorem (a local maximum or minimum where the '
+                    'derivative exists) and the mean value theorem.\n'
+                    '; See proofs/analysis/ for worked examples.\n'
+                    ';\n'
+                    "; Every function is defined for all numbers (Kurt's "
+                    'numbers are total: `1 / 0` is some number),\n'
+                    "; so `diff x 0 (1 / x)` can't be shown -- its difference "
+                    'quotient is unbounded.\n'
+                    ';\n'
+                    '; `deriv` is a function that gives a value for *every* '
+                    'argument -- also where the derivative\n'
+                    "; doesn't exist (`deriv x 0 abs(x)` is some number). So a "
+                    'rule says what `deriv` is only where\n'
+                    '; `diff` holds: `deriv x 0 abs(x) = deriv x 0 abs(x)`, '
+                    'but not `diff x 0 abs(x)`, and the sum\n'
+                    '; rule needs both summands differentiable (`abs(x) + '
+                    '-abs(x)` is differentiable at 0, its\n'
+                    "; summands aren't).\n"
+                    ';\n'
+                    '; In a rule, `$T` in `deriv $v $a $T` is any function of '
+                    '`$v`: it may depend on `$v`, since it is\n'
+                    '; the whole body of a binder over `$v` and occurs only '
+                    'inside binders over `$v` or `sub`s for it\n'
+                    '; (doc/kurt-doc.md §4). A constant must not depend on '
+                    '`$v`: `$c` also occurs outside of the\n'
+                    '; binders (the premise `$c = $c` of "deriv-const", the '
+                    'factor of "deriv-scale").\n'
+                    ';\n'
+                    '; These rules are theorems of real analysis, stated as '
+                    'axioms (their proofs need the\n'
+                    '; completeness of the real numbers, which numbers.kurt '
+                    "doesn't have): the definitions\n"
+                    '; "cont-def", "diff-def", "deriv-intro", and the rest -- '
+                    'each needs the conditions of the theorem.\n'
+                    'load prop, equality, logic, set, numbers, natural, '
+                    'analysis\n'
+                    '\n'
+                    ';; syntax\n'
+                    'const cont, diff, deriv\n'
+                    'arity cont 3, diff 3, deriv 3\n'
+                    'bindop cont, diff, deriv        ; the variable, then the '
+                    'point (outside of the scope), then the body\n'
+                    'bool cont 0, diff 0\n'
+                    '\n'
+                    ';; definitions, by ε and δ\n'
+                    'use (cont $v $a $T)  ⇔  ∀ $e > 0 ∃ $d > 0 ∀ $y (abs($y - '
+                    '$a) < $d  ⇒  abs((sub $v $y $T) - (sub $v $a $T)) < $e)   '
+                    '"cont-def"\n'
+                    '; differentiable: the difference quotient has a limit '
+                    '`$L` for `$h` going to 0 -- and then the\n'
+                    '; derivative is that limit\n'
+                    'use (diff $v $a $T)  ⇔  ∃ $L ∀ $e > 0 ∃ $d > 0 ∀ $h ((0 < '
+                    'abs($h) ∧ abs($h) < $d)  ⇒  abs(((sub $v ($a + $h) $T) - '
+                    '(sub $v $a $T)) / $h - $L) < $e)   "diff-def"\n'
+                    'use (∀ $e > 0 ∃ $d > 0 ∀ $h ((0 < abs($h) ∧ abs($h) < '
+                    '$d)  ⇒  abs(((sub $v ($a + $h) $T) - (sub $v $a $T)) / $h '
+                    '- $L) < $e))  ⇒  (deriv $v $a $T) = $L   "deriv-intro"\n'
+                    '\n'
+                    ';; differentiable functions are continuous\n'
+                    'use (diff $v $a $T)  ⇒  cont $v $a '
+                    '$T                                    "diff-cont"\n'
+                    '\n'
+                    ';; the rules of differentiation\n'
+                    'use $c = $c  ⇒  diff $v $a '
+                    '$c                                           '
+                    '"diff-const"     ; (`$c` doesn\'t depend on `$v`)\n'
+                    'use $c = $c  ⇒  (deriv $v $a $c) = '
+                    '0                                    "deriv-const"\n'
+                    'use diff $v $a '
+                    '$v                                                       '
+                    '"diff-id"\n'
+                    'use (deriv $v $a $v) = '
+                    '1                                                '
+                    '"deriv-id"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  diff $v $a ($S '
+                    '+ $T)          "diff-add"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  (deriv $v $a '
+                    '($S + $T)) = (deriv $v $a $S) + (deriv $v $a $T)   '
+                    '"deriv-add"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  diff $v $a ($S '
+                    '- $T)          "diff-sub"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  (deriv $v $a '
+                    '($S - $T)) = (deriv $v $a $S) - (deriv $v $a $T)   '
+                    '"deriv-sub"\n'
+                    'use (diff $v $a $T)  ⇒  diff $v $a ($c * '
+                    '$T)                            "diff-scale"     ; (`$c` '
+                    "doesn't depend on `$v`)\n"
+                    'use (diff $v $a $T)  ⇒  (deriv $v $a ($c * $T)) = $c * '
+                    '(deriv $v $a $T)   "deriv-scale"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  diff $v $a ($S '
+                    '* $T)          "diff-mul"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T)  ⇒  (deriv $v $a '
+                    '($S * $T)) = (deriv $v $a $S) * (sub $v $a $T) + (sub $v '
+                    '$a $S) * (deriv $v $a $T)   "deriv-mul"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T) ∧ (sub $v $a $T) ≠ '
+                    '0  ⇒  diff $v $a ($S / $T)   "diff-div"\n'
+                    'use (diff $v $a $S) ∧ (diff $v $a $T) ∧ (sub $v $a $T) ≠ '
+                    '0  ⇒  (deriv $v $a ($S / $T)) = ((deriv $v $a $S) * (sub '
+                    '$v $a $T) - (sub $v $a $S) * (deriv $v $a $T)) / (sub $v '
+                    '$a $T) ^ 2   "deriv-div"\n'
+                    'use $n ∈ Nat  ⇒  diff $v $a ($v ^ '
+                    '$n)                                    "diff-pow"\n'
+                    'use $n ∈ Nat  ⇒  (deriv $v $a ($v ^ $n)) = $n * $a ^ ($n '
+                    '- 1)            "deriv-pow"\n'
+                    '; the chain rule: `$T` is the outer function (of `$w`), '
+                    '`$S` the inner one (of `$v`)\n'
+                    'use (diff $v $a $S) ∧ (diff $w (sub $v $a $S) $T)  ⇒  '
+                    'diff $v $a (sub $w $S $T)   "diff-chain"\n'
+                    'use (diff $v $a $S) ∧ (diff $w (sub $v $a $S) $T)  ⇒  '
+                    '(deriv $v $a (sub $w $S $T)) = (deriv $w (sub $v $a $S) '
+                    '$T) * (deriv $v $a $S)   "deriv-chain"\n'
+                    '\n'
+                    ';; Fermat: at a local maximum (minimum) where the '
+                    'derivative exists, it is 0\n'
+                    'use (diff $v $a $T) ∧ (∃ $d > 0 ∀ $y (abs($y - $a) < $d  '
+                    '⇒  (sub $v $y $T) <= (sub $v $a $T)))  ⇒  (deriv $v $a '
+                    '$T) = 0   "deriv-max"\n'
+                    'use (diff $v $a $T) ∧ (∃ $d > 0 ∀ $y (abs($y - $a) < $d  '
+                    '⇒  (sub $v $y $T) >= (sub $v $a $T)))  ⇒  (deriv $v $a '
+                    '$T) = 0   "deriv-min"\n'
+                    '\n'
+                    ';; the mean value theorem: continuous on [a, b], '
+                    'differentiable inside: the slope of the secant\n'
+                    ';; is the derivative somewhere inside\n'
+                    'use ($a < $b) ∧ (∀ $y (($a <= $y ∧ $y <= $b)  ⇒  cont $v '
+                    '$y $T)) ∧ (∀ $y (($a < $y ∧ $y < $b)  ⇒  diff $v $y $T))  '
+                    '⇒  ∃ $c ($a < $c ∧ $c < $b ∧ (deriv $v $c $T) * ($b - $a) '
+                    '= (sub $v $b $T) - (sub $v $a $T))   "mean-value"\n',
  'equality.kurt': '; equality\n'
                   ';\n'
                   '; covers: reflexivity ("equal-intro"), Leibniz substitution '
@@ -343,6 +509,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '"not-equal-intro"\n'
                   'use $a ≠ $b       implies  not ($a = $b)                  '
                   '"not-equal-elim"\n'
+                  'use $a ≠ $b       iff      not ($a = $b)                  '
+                  '"not-equal"        ; to rewrite inside a formula\n'
                   '\n'
                   ';; anything else?\n'
                   ';  we can also combine both rules\n'
@@ -812,6 +980,97 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'plus-associative\n'
                '                       = ($a - $b) + $c                 ; '
                'minus-def\n'
+               'qed\n'
+               '\n'
+               '; more laws: 0 and 1 from the other side, (λ - μ) a, and when '
+               "a difference or a factor isn't 0\n"
+               'show $a ∈ K  ⇒  0 + $a = '
+               '$a                                         "zero-plus"\n'
+               'proof\n'
+               '    assume $a ∈ K\n'
+               '        0 + $a = $a + 0                                 ; '
+               'plus-commutative\n'
+               '               = $a                                     ; '
+               'plus-zero\n'
+               'qed\n'
+               '\n'
+               'show $a ∈ K  ⇒  $a · 1 = '
+               '$a                                         "times-one"\n'
+               'proof\n'
+               '    assume $a ∈ K\n'
+               '        $a · 1 = 1 · $a                                 ; '
+               'times-commutative\n'
+               '               = $a                                     ; '
+               'one-times\n'
+               'qed\n'
+               '\n'
+               'show $l ∈ K ∧ $m ∈ K ∧ $a ∈ K  ⇒  $l · $a - $m · $a = ($l - '
+               '$m) · $a   "minus-distributive"\n'
+               'proof\n'
+               '    assume $l ∈ K ∧ $m ∈ K ∧ $a ∈ K\n'
+               '        $l ∈ K\n'
+               '        $m ∈ K\n'
+               '        $a ∈ K\n'
+               '        - $m ∈ K\n'
+               '        $l · $a ∈ K\n'
+               '        $m · $a ∈ K\n'
+               '        (- $m) · $a ∈ K\n'
+               '        $m · $a + (- $m) · $a = ($m + (- $m)) · $a      ; '
+               'distributive-right\n'
+               '                              = 0 · $a\n'
+               '                              = 0\n'
+               '        - ($m · $a) ∈ K\n'
+               '        $m · $a + (- ($m · $a)) = 0                     ; '
+               'plus-minus\n'
+               '        - ($m · $a) = (- $m) · $a                       ; '
+               'minus-unique\n'
+               '        $l · $a - $m · $a = $l · $a + (- ($m · $a))     ; '
+               'minus-def\n'
+               '                          = $l · $a + (- $m) · $a\n'
+               '                          = ($l + (- $m)) · $a          ; '
+               'distributive-right\n'
+               '                          = ($l - $m) · $a              ; '
+               'minus-def\n'
+               'qed\n'
+               '\n'
+               'show $a ∈ K ∧ $b ∈ K ∧ $a ≠ $b  ⇒  $a - $b ≠ '
+               '0                     "difference-nonzero"\n'
+               'proof\n'
+               '    assume $a ∈ K ∧ $b ∈ K ∧ $a ≠ $b\n'
+               '        $a ∈ K\n'
+               '        $b ∈ K\n'
+               '        $a ≠ $b\n'
+               '        assume $a - $b = 0\n'
+               '            $a + (- $b) = $a - $b                       ; '
+               'minus-def\n'
+               '                        = 0\n'
+               '            $a = $b                                     ; '
+               'minus-zero\n'
+               '            ¬($a = $b)\n'
+               '            false\n'
+               '        ¬($a - $b = 0)\n'
+               '        $a - $b ≠ 0\n'
+               'qed\n'
+               '\n'
+               'show $a ∈ K ∧ $b ∈ K ∧ $a · $b = 1  ⇒  $a ≠ '
+               '0                       "product-one-nonzero"\n'
+               'proof\n'
+               '    assume $a ∈ K ∧ $b ∈ K ∧ $a · $b = 1\n'
+               '        $a ∈ K\n'
+               '        $b ∈ K\n'
+               '        $a · $b = 1\n'
+               '        assume $a = 0\n'
+               '            0 · $b = 0                                  ; '
+               'zero-times\n'
+               '            1 = $a · $b\n'
+               '              = 0 · $b\n'
+               '              = 0\n'
+               '            0 ≠ 1                                       ; '
+               'zero-not-one\n'
+               '            ¬(0 = 1)\n'
+               '            false\n'
+               '        ¬($a = 0)\n'
+               '        $a ≠ 0\n'
                'qed\n',
  'group.kurt': '; groups\n'
                ';\n'
@@ -1109,6 +1368,105 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '        $z ∈ Nat\n'
                  'qed\n'
                  '\n',
+ 'integral.kurt': '; integrals\n'
+                  ';\n'
+                  '; covers: the (Riemann) integral `integral x (a, b) T` of '
+                  '`T` in `x` from `a` to `b`, and\n'
+                  '; `integrable x (a, b) T` ("`T` is integrable in `x` on [a, '
+                  'b]", for `a <= b`); continuous\n'
+                  '; functions are integrable; linearity, the integral of a '
+                  'constant, splitting the interval, the\n'
+                  '; integral from `b` to `a`, monotonicity; and the '
+                  'fundamental theorem of calculus, both parts\n'
+                  '; (with derivative.kurt). See proofs/analysis/ for worked '
+                  'examples.\n'
+                  ';\n'
+                  '; `integral` gives a value for *every* argument, also where '
+                  "the integral doesn't exist -- so a\n"
+                  '; rule says what it is only for an integrable `T`: '
+                  '"integral-riemann" (its value: the limit of\n'
+                  '; the Riemann sums of equally long pieces) needs '
+                  '`integrable`, since these sums may converge\n'
+                  "; for a function that isn't integrable (1 on the rational "
+                  'numbers, 0 elsewhere: all of its\n'
+                  '; points `a + i (b - a) / n` are rational for rational `a`, '
+                  '`b`).\n'
+                  ';\n'
+                  '; As in derivative.kurt, `$T` is any function of the bound '
+                  'variable, and the rules are\n'
+                  '; theorems of real analysis stated as axioms, each with the '
+                  'conditions it needs.\n'
+                  'load prop, equality, logic, set, numbers, natural, '
+                  'analysis, derivative\n'
+                  '\n'
+                  ';; syntax: as `sum`, the range in brackets after the '
+                  'variable\n'
+                  'const integral, integrable\n'
+                  'arity integral 3, integrable 3\n'
+                  'bindop integral, integrable\n'
+                  'bool integrable 0\n'
+                  '\n'
+                  ';; what the integral is: the limit of the Riemann sums (n '
+                  'pieces of length (b - a) / n, each\n'
+                  ';; with the value at its right end)\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $T)  ⇒  ∀ $e > 0 ∃ '
+                  '$N ∀ $n ∈ Nat ($n > $N  ⇒  abs(($b - $a) / $n * (sum $i (1, '
+                  '$n) (sub $v ($a + $i * ($b - $a) / $n) $T)) - (integral $v '
+                  '($a, $b) $T)) < $e)   "integral-riemann"\n'
+                  '\n'
+                  ';; which functions are integrable\n'
+                  'use ($a <= $b) ∧ (∀ $y (($a <= $y ∧ $y <= $b)  ⇒  cont $v '
+                  '$y $T))  ⇒  integrable $v ($a, $b) $T   "integrable-cont"\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $S) ∧ (integrable '
+                  '$v ($a, $b) $T)  ⇒  integrable $v ($a, $b) ($S + $T)   '
+                  '"integrable-add"\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $T)  ⇒  integrable '
+                  '$v ($a, $b) ($c * $T)   "integrable-scale"   ; (`$c` '
+                  "doesn't depend on `$v`)\n"
+                  'use ($a <= $b) ∧ ($b <= $c) ∧ (integrable $v ($a, $c) $T)  '
+                  '⇒  (integrable $v ($a, $b) $T) ∧ (integrable $v ($b, $c) '
+                  '$T)   "integrable-split"\n'
+                  '\n'
+                  ';; rules\n'
+                  'use (integral $v ($a, $a) $T) = '
+                  '0                                                  '
+                  '"integral-empty"\n'
+                  'use (integral $v ($b, $a) $T) = -(integral $v ($a, $b) '
+                  '$T)                         "integral-swap"\n'
+                  'use $c = $c  ⇒  (integral $v ($a, $b) $c) = $c * ($b - '
+                  '$a)                         "integral-const"   ; (`$c` '
+                  "doesn't depend on `$v`)\n"
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $S) ∧ (integrable '
+                  '$v ($a, $b) $T)  ⇒  (integral $v ($a, $b) ($S + $T)) = '
+                  '(integral $v ($a, $b) $S) + (integral $v ($a, $b) $T)   '
+                  '"integral-add"\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $T)  ⇒  (integral '
+                  '$v ($a, $b) ($c * $T)) = $c * (integral $v ($a, $b) $T)   '
+                  '"integral-scale"\n'
+                  'use ($a <= $b) ∧ ($b <= $c) ∧ (integrable $v ($a, $c) $T)  '
+                  '⇒  (integral $v ($a, $b) $T) + (integral $v ($b, $c) $T) = '
+                  'integral $v ($a, $c) $T   "integral-split"\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $S) ∧ (integrable '
+                  '$v ($a, $b) $T) ∧ (∀ $y (($a <= $y ∧ $y <= $b)  ⇒  (sub $v '
+                  '$y $S) <= (sub $v $y $T)))  ⇒  (integral $v ($a, $b) $S) <= '
+                  '(integral $v ($a, $b) $T)   "integral-mono"\n'
+                  '\n'
+                  ';; the fundamental theorem of calculus\n'
+                  '; 1. the integral as a function of its upper end is '
+                  'differentiable where `T` is continuous, and\n'
+                  ';    its derivative is `T` there\n'
+                  'use ($a < $c) ∧ ($c < $b) ∧ (integrable $v ($a, $b) $T) ∧ '
+                  '(cont $v $c $T)  ⇒  diff $w $c (integral $v ($a, $w) $T)   '
+                  '"ftc-diff"\n'
+                  'use ($a < $c) ∧ ($c < $b) ∧ (integrable $v ($a, $b) $T) ∧ '
+                  '(cont $v $c $T)  ⇒  (deriv $w $c (integral $v ($a, $w) $T)) '
+                  '= sub $v $c $T   "ftc-deriv"\n'
+                  '; 2. the integral of a derivative (an antiderivative `$F` '
+                  'of `$T` on [a, b])\n'
+                  'use ($a <= $b) ∧ (integrable $v ($a, $b) $T) ∧ (∀ $y (($a '
+                  '<= $y ∧ $y <= $b)  ⇒  (diff $v $y $F) ∧ (deriv $v $y $F) = '
+                  '(sub $v $y $T)))  ⇒  (integral $v ($a, $b) $T) = (sub $v $b '
+                  '$F) - (sub $v $a $F)   "ftc"\n',
  'lambda.kurt': '; SIMPLY TYPED LAMBDA CALCULUS\n'
                 ';\n'
                 '; `term`, `type`, `index`, `ctx`, and `typing` are optional '
@@ -2970,10 +3328,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'bindop   |               ; `{ $z ∈ $A | P $z }` binds `$z`, like '
              '`∀ $z ∈ $A ...`\n'
              'infix    ⊂  18 18        ; subset\n'
+             'infix    ⊃  18 18        ; superset: `A ⊃ B` is `B ⊂ A`\n'
              'infix    ∪  30 30        ; union\n'
              'infix    ∩  40 40        ; intersection\n'
              'bool     in 0\n'
              'bool     ⊂ 0\n'
+             'bool     ⊃ 0\n'
              'alias    ∈ in            ; `∈` inherits all properties of `in`\n'
              'brackets { }             ; curly brackets\n'
              '; `A → B` is the *set* of all mappings from A to B; `f : A → B` '
@@ -3007,6 +3367,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; subset\n'
              'def $a ⊂ $b ≡ ∀ $c  ($c ∈ $a implies $c ∈ $b)                    '
              '"subset"\n'
+             'def $a ⊃ $b ≡ $b ⊂ $a                                            '
+             '"superset"\n'
              '; This is a characterization of two existing relations, hence '
              'not a conservative `def`; it is a\n'
              '; derived theorem of extensionality and the definition of '
@@ -3906,6 +4268,7 @@ class Formula:
         self.schema: str           = ''                 # stable rendering of the freshened schema
         self.def_symbol: Optional[str] = None           # for `def`-created formulas: the symbol it defines (see `eval_def`)
         self.direction_of: Optional[Expr] = None        # for `L ⇒ R` made from an `iff`: that `iff` (see `impl_elim`)
+        self.first_order: frozenset[str] = frozenset()  # the variables of `simplified_expr` that were its outer `∀`s (see `dependent_vars_of_formula`)
         self.id: int               = Formula.next_id    # a unique id for every formula
         Formula.next_id += 1
 
@@ -3935,6 +4298,7 @@ class Formula:
         cloned_f.def_symbol = self.def_symbol
         cloned_f.schema_vars = set(self.schema_vars)
         cloned_f.schema = self.schema
+        cloned_f.first_order = self.first_order
         return cloned_f
 
     def prefix_str(self) -> str:
@@ -5757,8 +6121,8 @@ class KnowledgeBase:
         match e:
             case Token(label='SYMBOL', value=s):
                 assert isinstance(s, str), f'BUG: token value must be string`'
-                if self.is_var(s) or self.is_const(s):
-                    pass
+                if self.is_var(s) or self.is_const(s) or self.is_fixed_var(s):
+                    pass        # (a fixed variable of an assumption is one object there, not a new constant)
                 elif not self.is_used(s):
                     if s not in bound_vars:
                         # if s contains '$$$' (it is from brackets) do not add it as a new constant
@@ -5876,20 +6240,23 @@ class KnowledgeBase:
             self.parent.add_new_symbols(f.expr)
         else:
             self.add_new_symbols(f.expr)
-        f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
-        f.simplified_expr = rename_all_vars(f.simplified_expr, self)
-        f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
-        run_state.dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
+        self.simplify(f)
+        run_state.dependent_vars.update(dependent_vars_of_formula(f, self))
         self.theory.append(f)
+
+    def simplify(self, f: Formula) -> None:
+        # the formula as the search uses it: without its outer `∀`s (their variables stand for
+        # anything), all variables renamed (unique names)
+        stripped, fresh = remove_outer_forall_quantifiers(f.simplified_expr, self)
+        f.simplified_expr, renaming = rename_all_vars_rec(deepcopy_expr(stripped), self)
+        f.first_order = frozenset(str(v.value) for x in fresh if isinstance(v := renaming.lookup(x), Token))
+        f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
 
     def show_append(self, f: Formula) -> None:
         named_vars = {s for node in self.levels() for s in node.var}
         f.schema_vars = free_symbols(f.expr, self) & named_vars
         self.add_new_symbols(f.expr)
-        f.simplified_expr, _ = remove_outer_forall_quantifiers(f.simplified_expr, self)
-        f.simplified_expr = rename_all_vars(f.simplified_expr, self)
-        f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
-        run_state.dependent_vars.update(find_dependent_vars(f.simplified_expr, self))
+        self.simplify(f)
         self.show.append(f)
 
     def show_str(self) -> str:
@@ -6676,7 +7043,8 @@ def mark_bound_variables(expr: Expr, kb: KnowledgeBase, outer: frozenset[str] = 
                 v = next((t for t in written_symbols(cond, kb) if isinstance(t.value, str) and t.value not in outer
                           and is_new_symbol_or_existing_variable(t.value, kb) and not kb.is_fixed_var(t.value)), None)
                 if v is None:
-                    raise KurtException(f'TypeError: the condition `{expr_str(cond, kb)}` of `{op}` has no variable to bind -- every symbol in it is a constant', column=expr_column(cond))
+                    raise KurtException(f'TypeError: the condition `{expr_str(cond, kb)}` of `{op}` has no variable to bind -- every symbol in it is a constant '
+                                    f'(declared, or named by an enclosing `let` or `pick`): give the bound variable a new name', column=expr_column(cond))
                 cond = bound_condition(v.value, cond, v.column)
             assert isinstance(v, Token) and isinstance(v.value, str)
             inner = outer | {v.value}
@@ -6891,6 +7259,21 @@ def eval_proof(kb: KnowledgeBase) -> KnowledgeBase:
 # LHS: exactly one unused symbol that is not a variable or boolean variable
 # `def` is safe only if `=` and `iff` have their usual meaning, so they must come from the
 # theories that come with Kurt
+def raise_declaration_usage(keyword: str, arg: object, keyword_token: Token) -> None:
+    # a declaration takes names, separated by commas: `const odd_sum` is read as `odd`, `_`, `sum`
+    # (`_` isn't a letter), so say that, not only "wrong number of arguments"
+    tokens = arg if isinstance(arg, list) else []
+    if len(tokens) > 1 and all(isinstance(t, Token) and t.label == 'SYMBOL' for t in tokens) \
+            and all(t.glued for t in tokens[1:]):
+        written = ''.join(str(t.value) for t in tokens)
+        parts = ', '.join(f'`{t.value}`' for t in tokens)
+        joined = ''.join(str(t.value) for t in tokens if str(t.value).isalnum())
+        example = f' (e.g. `{joined}`)' if joined else ''
+        raise KurtException(f'EvalError: `{written}` is not one name: Kurt reads it as {parts} -- a name is letters and digits'
+                            f'{example}, or one symbol', keyword_token.column)
+    msg = create_usage(keyword, [[], ['STRING']])
+    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+
 DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'prop'}     # (for the message only)
 
 def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, local: bool = False) -> tuple[Formula, str]:
@@ -6904,6 +7287,10 @@ def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filenam
     match expr:
         case [Token(label='SYMBOL', value=s), LHS, RHS] if isinstance(s, str) and (kb.has_role(s, 'equality') or kb.has_role(s, 'equivalence')):
             lhs_candidates = extract_by_condition(LHS, lambda s: not kb.is_const(s) and not kb.is_var(s) and not kb.is_bracket_placeholder(s), kb)
+            if len(lhs_candidates) == 0:
+                declared = extract_by_condition(LHS, lambda s: kb.is_const(s) and not kb.is_frozen(s) and not kb.is_bracket_placeholder(s), kb)
+                hint = f' -- `{declared[0]}` is declared already: `def` declares it itself, so remove its `const` (an `arity` or `bool` before the `def` is fine)' if len(declared) == 1 else ''
+                raise KurtException(f'EvalError: `def` requires exactly one new constant on the left-hand side, got none in `{expr_str(expr, kb)}`{hint}')
             if len(lhs_candidates) != 1:
                 raise KurtException(f'EvalError: `def` requires exactly one new constant on the left-hand side, got `{lhs_candidates}` in `{expr_str(expr, kb)}`')
             lhs_const = lhs_candidates[0]
@@ -6928,7 +7315,12 @@ def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filenam
                 return None
             found_vars = definiendum_vars(LHS)
             if found_vars is None:
-                raise KurtException(f'EvalError: `def` needs the new `{lhs_const}` applied to variables on the left-hand side, like `{lhs_const}($x, $y)`, got `{expr_str(LHS, kb)}`')
+                hint = ''
+                match LHS:
+                    case [Token(label='SYMBOL', value=head), [Token(label='SYMBOL', value=comma), *_] as pair] if head == lhs_const and comma == ',':
+                        n = len(comma_items(pair))
+                        hint = f' -- without `arity {lhs_const} {n}` before the `def`, `{lhs_const}` is applied to one argument, the tuple'
+                raise KurtException(f'EvalError: `def` needs the new `{lhs_const}` applied to variables on the left-hand side, like `{lhs_const}($x, $y)`, got `{expr_str(LHS, kb)}`{hint}')
             lhs_vars: list[str] = found_vars
             if len(set(lhs_vars)) != len(lhs_vars):
                 raise KurtException(f'EvalError: `def` needs distinct variables on the left-hand side, got `{expr_str(LHS, kb)}`')
@@ -7841,8 +8233,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     new_stuff.append(op)    # first collect
                 case _:
-                    msg = create_usage(keyword, [[], ['STRING']])
-                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise_declaration_usage(keyword, arg, keyword_token)
         apply_declaration_batch(kb, lambda target: [target.add_bindop(op) for op in new_stuff], tuple(new_stuff))
     elif keyword == 'chain':
         if len(args) == 0:
@@ -7903,8 +8294,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     new_stuff.append(op)    # first collect
                 case _:
-                    msg = create_usage(keyword, [[], ['STRING']])
-                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise_declaration_usage(keyword, arg, keyword_token)
         if new_stuff:
             check_strict(keyword, filename)     # a claim about the operator, like an axiom
         check_not_frozen(new_stuff, keyword, filename, kb)
@@ -7919,8 +8309,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     new_stuff.append(op)    # first collect
                 case _:
-                    msg = create_usage(keyword, [[], ['STRING']])
-                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise_declaration_usage(keyword, arg, keyword_token)
         if new_stuff:
             check_strict(keyword, filename)     # a claim about the operator, like an axiom
         check_not_frozen(new_stuff, keyword, filename, kb)
@@ -8018,8 +8407,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     new_stuff.append(op)    # first collect
                 case _:
-                    msg = create_usage(keyword, [[], ['STRING']])
-                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise_declaration_usage(keyword, args_i, keyword_token)
         apply_declaration_batch(kb, lambda target: [target.add_var(op) for op in new_stuff])
         for op in new_stuff:
             if printing():
@@ -8036,8 +8424,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     new_stuff.append(op)    # first collect
                 case _:
-                    msg = create_usage(keyword, [[], ['STRING']])
-                    raise KurtException(f'EvalError: wrong number of arguments, possible is:\n{msg}', keyword_token.column)
+                    raise_declaration_usage(keyword, args_i, keyword_token)
         def add_constants(target: KnowledgeBase) -> None:
             for op in new_stuff:
                 if op[0] in ['$', '%']:
@@ -8606,7 +8993,8 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                         if not isinstance(v, str):
                             raise KurtException(f'TypeError: first arg of binding operator must be boolean expression or symbol, got {v}', column=expr_column(tail[0]))
                         if kb.is_const(v):
-                            raise KurtException(f'TypeError: first arg of binding operator must not be constant, got a constant `{v}`', column=expr_column(tail[0]))
+                            raise KurtException(f'TypeError: first arg of binding operator must not be constant, got a constant `{v}` -- '
+                                              f'`{v}` is declared, or named by an enclosing `let` or `pick`: give the bound variable another name', column=expr_column(tail[0]))
                         pass         # ok!
                     case [Token(label='SYMBOL', value=b), Token(), cond] if b == BOUND_SYMBOL:
                         if not bool_expr(cond, kb):
@@ -9512,44 +9900,59 @@ def restore_blocked(s_new: State, x: str, s_old: State) -> State:
 # each such (renamed, so globally unique) `$T` to its `$i`.
 
 def find_dependent_vars(expr: Expr, kb: KnowledgeBase) -> dict[str, str]:
-    # the non-boolean schema variables of `expr` that may depend on a bound variable: those that
-    # only ever occur as the *whole* body of a binder over the same `$i` (`sum $i ($a, $b) $T`)
-    # or of a `sub $i ... $T` -- being just somewhere inside a binder's scope isn't enough, e.g.
-    # the `$x` in `exists $y (not ($x = $y))` must stay independent of `$y`
-    occurrences: dict[str, list[Optional[tuple[str, bool]]]] = {}   # var -> (binder, is a `sub`), or None
-    def note(e: Expr, context: Optional[tuple[str, bool]]) -> bool:
+    # the non-boolean schema variables of `expr` that may depend on a bound variable `$i`: those
+    # that occur as the *whole* body of a binder over `$i` (`sum $i ($a, $b) $T`), and otherwise
+    # only inside binders over `$i` or `sub`s for it (`deriv $v $a ($S + $T)` with
+    # `diff $v $a $S`) -- being just somewhere inside a binder's scope isn't enough, e.g. the `$x`
+    # in `exists $y (not ($x = $y))` must stay independent of `$y`
+    occurrences: dict[str, list[tuple[frozenset[str], Optional[str]]]] = {}   # var -> (the binders around it, the binder it is the whole body of)
+    def note(e: Expr, scopes: frozenset[str], whole: Optional[str]) -> bool:
         if isinstance(e, Token) and isinstance(e.value, str) and e.value.startswith('$') and kb.is_var(e.value) and not kb.is_bool(e.value):
-            occurrences.setdefault(e.value, []).append(context)
+            occurrences.setdefault(e.value, []).append((scopes, whole))
             return True
         return False
-    def walk(e: Expr) -> None:
+    def walk(e: Expr, scopes: frozenset[str]) -> None:
         match e:
             case Token():
-                note(e, None)
+                note(e, scopes, None)
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=bv), a, A] if op == SUB_SYMBOL and isinstance(bv, str):
-                walk(a)
-                if not note(A, (bv, True)):
-                    walk(A)
+                walk(a, scopes)
+                if not note(A, scopes | {bv}, None):
+                    walk(A, scopes | {bv})
             case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
                 try:
                     bv, _ = unpack_condition(cond, kb)
                 except KurtException:
                     return
-                walk(cond)
+                walk(cond, scopes)
                 for child in body[:-1]:
-                    walk(child)
-                if body and not note(body[-1], (bv, False)):
-                    walk(body[-1])
+                    walk(child, scopes)
+                if body and not note(body[-1], scopes | {bv}, bv):
+                    walk(body[-1], scopes | {bv})
             case [*children]:
                 for child in children:
-                    walk(child)
-    walk(expr)
+                    walk(child, scopes)
+    walk(expr, frozenset())
     result: dict[str, str] = {}
     for v, contexts in occurrences.items():
-        binders = {c[0] for c in contexts if c is not None}
-        if None not in contexts and len(binders) == 1 and any(not c[1] for c in contexts if c is not None):
-            result[v] = binders.pop()
+        binders = {whole for _, whole in contexts if whole is not None}
+        if len(binders) == 1:
+            b = binders.pop()
+            if all(b in scopes for scopes, _ in contexts):
+                result[v] = b
     return result
+
+# Only a rule that is postulated -- `use`, `def`, `todo` -- has dependent variables: the form says
+# what its author meant. A derived fact (or a claim) holds for the values of its variables, terms,
+# whatever its form -- its proof treated them as fixed terms (`let c` ... `∀ c ((Q x 0 c) = (Q x 1 c))`
+# is about the terms `c`, not about the functions of `x`) -- and so does the variable of an outer `∀`
+# that is written out (`use ∀ c ...`).
+POSTULATED = ('use', 'def', 'todo')
+
+def dependent_vars_of_formula(f: Formula, kb: KnowledgeBase) -> dict[str, str]:
+    if f.keyword not in POSTULATED:
+        return {}
+    return {v: b for v, b in find_dependent_vars(f.simplified_expr, kb).items() if v not in f.first_order}
 
 def may_capture(v: str, expr: Expr, s: State) -> bool:
     # whether the schema variable `v` may take the value `expr`, which contains a bound variable
@@ -10636,40 +11039,49 @@ def k_rename(e: Expr, old: str, new: str) -> Expr:
     return [k_rename(c, old, new) for c in e]
 
 def k_dependencies(e: Expr, kb: KnowledgeBase) -> dict[str, str]:
-    # which non-boolean schema variables may contain which bound variable: those that only occur
-    # as the whole body of binders over the same variable, or as the body of `sub` for it (the
-    # same criterion as `find_dependent_vars`, written again for the kernel)
-    contexts: dict[str, list[Optional[tuple[str, bool]]]] = {}
-    def note(t: Expr, context: Optional[tuple[str, bool]]) -> bool:
+    # which non-boolean schema variables may contain which bound variable: those that occur as
+    # the whole body of a binder over the variable, and otherwise only inside binders over it or
+    # `sub`s for it (the same criterion as `find_dependent_vars`, written again for the kernel)
+    contexts: dict[str, list[tuple[frozenset[str], Optional[str]]]] = {}
+    def note(t: Expr, scopes: frozenset[str], whole: Optional[str]) -> bool:
         if isinstance(t, Token) and isinstance(t.value, str) and t.value.startswith('$') and kb.is_var(t.value) and not kb.is_bool(t.value):
-            contexts.setdefault(t.value, []).append(context)
+            contexts.setdefault(t.value, []).append((scopes, whole))
             return True
         return False
-    def walk(t: Expr) -> None:
+    def walk(t: Expr, scopes: frozenset[str]) -> None:
         match t:
             case Token():
-                note(t, None)
+                note(t, scopes, None)
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
-                walk(a)
-                if not note(A, (x, True)):
-                    walk(A)
+                walk(a, scopes)
+                if not note(A, scopes | {x}, None):
+                    walk(A, scopes | {x})
             case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
                 bv = k_bound(cond, kb)
-                walk(cond)
+                walk(cond, scopes)
                 for c in body[:-1]:
-                    walk(c)
-                if body and not note(body[-1], (bv, False)):
-                    walk(body[-1])
+                    walk(c, scopes)
+                if body and not note(body[-1], scopes | {bv}, bv):
+                    walk(body[-1], scopes | {bv})
             case [*children]:
                 for c in children:
-                    walk(c)
-    walk(e)
+                    walk(c, scopes)
+    walk(e, frozenset())
     result = {}
     for v, cs in contexts.items():
-        binders = {c[0] for c in cs if c is not None}
-        if None not in cs and len(binders) == 1 and any(not c[1] for c in cs if c is not None):
-            result[v] = binders.pop()
+        wholes = {whole for _, whole in cs if whole is not None}
+        if len(wholes) == 1:
+            b = wholes.pop()
+            if all(b in scopes for scopes, _ in cs):
+                result[v] = b
     return result
+
+def k_rule_dependencies(e: Expr, f: Formula, kb: KnowledgeBase) -> dict[str, str]:
+    # the dependent variables of a rule: only of a postulated one, and not those of its outer `∀`s
+    # (see `POSTULATED`; `e` is `f`'s `simplified_expr`, or one direction of it, an `iff`)
+    if f.keyword not in ('use', 'def', 'todo'):
+        return {}
+    return {v: b for v, b in k_dependencies(e, kb).items() if v not in f.first_order}
 
 def k_instantiate(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: KnowledgeBase, bound: frozenset[str] = frozenset()) -> Expr:
     # fill in the values of the variables -- without renaming, so a value may contain a variable
@@ -11062,7 +11474,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         if bad_sorts:
             v, sort = bad_sorts[0]
             return f'the value of `{v}` does not have its declared sort `{sort}`'
-        deps = k_dependencies(cert.expr, kb)
+        deps = k_rule_dependencies(cert.expr, cert.rule, kb)
         if cert.form == 'fact':
             if cert.premise_fresh or cert.conclusion_fresh or cert.facts:
                 return 'a fact has no premise'
@@ -11086,7 +11498,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         instance = k_instance(conclusion, cert.values, deps, kb)
         if not k_equal(instance, goal, kb):
             return f'the instance `{expr_str(instance, kb)}` of the conclusion is not the goal'
-        facts = [k_instance(f.simplified_expr, cert.values, k_dependencies(f.simplified_expr, kb), kb) for f in cert.facts]
+        facts = [k_instance(f.simplified_expr, cert.values, k_rule_dependencies(f.simplified_expr, f, kb), kb) for f in cert.facts]
         def covered(part: Expr, strips: list[tuple[str, ...]]) -> bool:
             # `part` of the premise is an instance of a fact, or a `∀` whose body is (with one of
             # the recorded fresh variables), or a conjunction of such parts

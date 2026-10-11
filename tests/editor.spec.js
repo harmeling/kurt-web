@@ -108,3 +108,15 @@ test('shows the file and line being checked, and checks a loaded theory only onc
   seen = await page.evaluate(() => window.seen);
   expect(seen.some(([text]) => text.includes('natural.kurt'))).toBe(false);
 });
+
+test('opens an exercise, which loads its scene from theory/, and a solved part counts (Kurt 0.8.3)', async ({ page }) => {
+  await page.locator('#examplesContainer .btn', { hasText: 'exercises' }).click();
+  await expect(page.locator('.menu-heading', { hasText: 'knights and knaves' })).toBeVisible();
+  await page.locator('.dropdown-menu .item', { hasText: '1-truth-and-lies.kurt' }).click();
+  await expect(page.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+  // part (a), solved: one todo fewer
+  const text = await page.locator('#editor').inputValue();
+  const solved = text.replace('proof\n    todo\nqed', 'proof\n    assume (A says S) ∧ knight(A)\n        A says S\n        knight(A)\n        knight(A) ⇔ S\n        S\nqed');
+  await typeProof(page, solved);
+  await expect(page.locator('#status')).toHaveText('Checked, 3 todos left');
+});

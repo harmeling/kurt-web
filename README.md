@@ -20,6 +20,7 @@ A minimal, dark-mode playground for the [Kurt proof language](https://github.com
 - `kurt-worker.js` — Pyodide with `kurt.py`: the checks of both pages.
 - `kurt.py` — The Kurt interpreter. The generated standalone bundle of the latest release, including all standard theories.
 - `proofs/` and `theories/` — the tutorial, the lessons on the keywords, and the standard theories.
+- `exercises/` — the exercises of Kurt by topic, each with its scene in `theory/` (the menu "exercises"; an exercise loads `theory/NAME`, so a proof may load files from a folder below its own).
 
 ## Local development
 

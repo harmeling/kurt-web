@@ -101,12 +101,64 @@
       "my-theory.kurt"
     ]
   },
+  "exercises": {
+    "01-knights-and-knaves": [
+      "1-truth-and-lies.kurt",
+      "2-two-islanders.kurt",
+      "3-three-islanders.kurt"
+    ],
+    "02-family-tree": [
+      "1-for-all-and-exists.kurt",
+      "2-negations.kurt",
+      "3-siblings.kurt"
+    ],
+    "03-sets": [
+      "1-subsets.kurt",
+      "2-equal-sets.kurt",
+      "3-complement.kurt"
+    ],
+    "04-functions": [
+      "1-injective-surjective.kurt",
+      "2-cancel.kurt",
+      "3-preimage.kurt",
+      "4-image.kurt"
+    ],
+    "05-relations": [
+      "1-properties.kurt",
+      "2-classes.kurt",
+      "3-inverse-order.kurt",
+      "4-strict-order.kurt"
+    ],
+    "06-groups": [
+      "1-left-is-enough.kurt",
+      "2-uniqueness.kurt",
+      "3-equations.kurt",
+      "4-abelian-and-subgroups.kurt"
+    ],
+    "07-induction": [
+      "1-addition.kurt",
+      "2-multiplication.kurt",
+      "3-sums-and-powers.kurt"
+    ],
+    "08-limits": [
+      "1-first-limits.kurt",
+      "2-limit-laws.kurt",
+      "3-uniqueness.kurt"
+    ],
+    "09-calculus": [
+      "1-derivative-rules.kurt",
+      "2-by-definition.kurt",
+      "3-integrals.kurt"
+    ]
+  },
   "theories": [
     "analysis.kurt",
+    "derivative.kurt",
     "equality.kurt",
     "field.kurt",
     "group.kurt",
     "integer.kurt",
+    "integral.kurt",
     "lambda.kurt",
     "logic.kurt",
     "matrix.kurt",

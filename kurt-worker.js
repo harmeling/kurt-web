@@ -66,11 +66,25 @@ def lsp_check(text, version):
   postMessage({ type: 'ready', version });
 }
 
+// a file the proof loads, next to it in /play -- also in a folder below it (an exercise loads
+// its scene with `load theory/island`), but nowhere else
+function isPlayFileName(name) {
+  const parts = name.split('/');
+  return parts.every(part => part && part !== '.' && part !== '..');
+}
+function writePlayFile(name, text) {
+  if (!isPlayFileName(name)) return;
+  const parts = name.split('/');
+  let dir = '/play';
+  for (const part of parts.slice(0, -1)) { dir += `/${part}`; try { pyodide.FS.mkdir(dir); } catch {} }
+  pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+}
+
 async function runProof({ code, indent, files }) {
   pyodide.FS.writeFile('/play/proof.kurt', code, { encoding: 'utf8' });
   // the files the proof loads besides the theories (e.g. a lesson's helper), next to it
   for (const [name, text] of Object.entries(files || {})) {
-    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+    writePlayFile(name, text);
   }
   try { pyodide.FS.unlink('/play/proof.kurtc'); } catch {}
   // one run: the output, and the certificate (a complete proof writes `proof.kurtc`)
@@ -92,7 +106,7 @@ json.dumps({'output': output, 'ok': result.ok, 'shell': json.loads(shell_state()
 function checkDocument({ code, version, files }) {
   // the new editor: a check of the whole text, its results by line
   for (const [name, text] of Object.entries(files || {})) {
-    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+    writePlayFile(name, text);
   }
   pyodide.globals.set('check_text', code); pyodide.globals.set('check_version', version);
   postMessage({ type: 'checked', ...JSON.parse(pyodide.runPython('lsp_check(check_text, check_version)')) });
@@ -117,7 +131,7 @@ function editorComplete({ prefix, line, word, files, requestId }) {
   // Reconstruct the proof state immediately before the caret. This is deliberately a separate
   // Session from the output shell: asking for a hint must not change a checked run.
   for (const [name, text] of Object.entries(files || {})) {
-    if (!name.includes('/')) pyodide.FS.writeFile(`/play/${name}`, text, { encoding: 'utf8' });
+    writePlayFile(name, text);
   }
   pyodide.globals.set('editor_prefix', prefix);
   pyodide.globals.set('editor_line', line);

@@ -70,13 +70,21 @@ async function loadedFiles(code) {
   if (!currentFolder) return {};
   let theories = [];
   try { theories = (await fetch('manifest.json').then(r => r.json())).theories; } catch {}
-  const files = {}, todo = [code];
+  // a name is relative to the file that loads it (`theory/island.kurt` may load `common` beside it),
+  // and stays in the proof's folder or below it (an exercise loads its scene, `load theory/island`)
+  const files = {}, todo = [{ text: code, dir: '' }];
   while (todo.length) {
-    for (const match of todo.pop().matchAll(/^\s*load\s+([^;\n]+)/gm)) {
+    const { text, dir } = todo.pop();
+    for (const match of text.matchAll(/^\s*load\s+([^;\n]+)/gm)) {
       for (let name of match[1].split(',').map(x => x.trim().replace(/^"|"$/g, '')).filter(Boolean)) {
         if (!name.endsWith('.kurt')) name += '.kurt';
-        if (name.includes('/') || theories.includes(name) || name in files) continue;
-        try { const response = await fetch(`${currentFolder}${name}`); if (response.ok) { files[name] = await response.text(); todo.push(files[name]); } } catch {}
+        if (!name.includes('/') && theories.includes(name)) continue;
+        const path = dir + name;
+        if (!path.split('/').every(part => part && part !== '.' && part !== '..') || path in files) continue;
+        try {
+          const response = await fetch(`${currentFolder}${path}`);
+          if (response.ok) { files[path] = await response.text(); todo.push({ text: files[path], dir: path.slice(0, path.lastIndexOf('/') + 1) }); }
+        } catch {}
       }
     }
   }
