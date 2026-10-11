@@ -120,3 +120,31 @@ test('opens an exercise, which loads its scene from theory/, and a solved part c
   await typeProof(page, solved);
   await expect(page.locator('#status')).toHaveText('Checked, 3 todos left');
 });
+
+test('links a file of the playground by its name, an edited one with its folder, and refuses other files', async ({ page, context }) => {
+  await page.locator('#examplesContainer .btn', { hasText: 'exercises' }).click();
+  await page.locator('.dropdown-menu .item', { hasText: '1-truth-and-lies.kurt' }).click();
+  await expect(page.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+  await page.locator('#fileBtn').click();
+  await page.locator('#shareBtn').click();
+  await expect(page).toHaveURL(/#file=exercises\/01-knights-and-knaves\/1-truth-and-lies\.kurt$/);
+  const exercise = await page.locator('#editor').inputValue();
+  // the link opens the file, which finds its scene in theory/
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await expect(other.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+  await expect(other.locator('#editor')).toHaveValue(exercise);
+  // edited: the text goes in the link, with the folder of the scene
+  const solved = exercise.replace('proof\n    todo\nqed', 'proof\n    assume (A says S) ∧ knight(A)\n        A says S\n        knight(A)\n        knight(A) ⇔ S\n        S\nqed');
+  await typeProof(page, solved);
+  await page.locator('#fileBtn').click();
+  await page.locator('#shareBtn').click();
+  await expect(page).toHaveURL(/#proof=[\w-]+&folder=exercises\/01-knights-and-knaves\/$/);
+  await other.goto(page.url());
+  await expect(other.locator('#status')).toHaveText('Checked, 3 todos left', { timeout: 60000 });
+  // only what the manifest lists
+  await other.goto('/#file=../kurt.py');
+  await expect(other.locator('#status')).toHaveText('The playground has no file ../kurt.py', { timeout: 60000 });
+  await other.goto('/#file=proofs/tutorial/02-prove-an-implication.kurt');
+  await expect(other.locator('#editor')).toHaveValue(/show/, { timeout: 60000 });
+});

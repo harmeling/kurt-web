@@ -94,6 +94,7 @@ function checked(data) {
   if (errors) setStatus(`${errors} error${errors > 1 ? 's' : ''}${todos ? `, ${todos} todo${todos > 1 ? 's' : ''}` : ''}`, 'err');
   else if (todos) setStatus(`Checked, ${todos} todo${todos > 1 ? 's' : ''} left`, 'todo');
   else setStatus('Proof checked', 'ok');
+  if (linkProblem) { setStatus(linkProblem, 'err'); linkProblem = null; }
   document.body.classList.toggle('stale', data.version !== version);
   renderEditor(); renderProblems(); updateLineInfo();
   if (pending || (data.version !== version && settings().live && !paused)) checkNow();
@@ -408,10 +409,10 @@ function insertAtCursor(text) {
 }
 function persistDraft() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder })), 250);
+  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder, original: currentOriginal })), 250);
 }
 function setEditor(code, filename = 'proof.kurt', folder = null) {
-  editor.value = code; currentFilename = filename; currentFolder = folder;
+  editor.value = code; currentFilename = filename; currentFolder = folder; currentOriginal = null;
   results = null; diagnosticsByLine = new Map(); hintByLine = new Map(); refLines = new Set(); selfLines = new Set();
   renderProblems(); $('#editorWrap').scrollTop = 0;
   edited(); checkNow();
@@ -440,22 +441,60 @@ function decodeShare(value) {
   const binary = atob(value.replace(/-/g, '+').replace(/_/g, '/'));
   return new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0)));
 }
+// a link to a file of the playground (`#file=exercises/01-knights-and-knaves/2-two-islanders.kurt`)
+// opens it from its folder (so its `load`s find their files), in its current version; only a file
+// that the manifest lists, so a link can't fetch anything else. Share gives such a link while the
+// file is unchanged; an edited one goes as the text, with its folder (`#proof=...&folder=...`)
+let currentOriginal = null;      // the text of the playground file in the editor, as it was opened
+let linkProblem = null;          // a link to no file: said once the runtime is there (instead of its first status)
+async function manifestFiles(folder) {
+  let manifest = {};
+  try { manifest = await fetch('manifest.json').then(r => r.json()); } catch {}
+  if (folder === 'theories/') return manifest.theories || [];
+  const match = folder.match(/^(proofs|exercises)\/([^/]+)\/$/);
+  return (match && manifest[match[1]]?.[match[2]]) || [];
+}
+async function showPlaygroundFile(folder, file) {
+  try {
+    const response = await fetch(`${folder}${file}`); if (!response.ok) return false;
+    const text = await response.text(); setEditor(text, file, folder); currentOriginal = text; persistDraft(); return true;
+  } catch { return false; }
+}
+async function openFromLink() {
+  const link = new URLSearchParams(location.hash.slice(1));
+  if (link.has('file')) {
+    const path = link.get('file'), at = path.lastIndexOf('/') + 1;
+    const [folder, file] = [path.slice(0, at), path.slice(at)];
+    if ((await manifestFiles(folder)).includes(file) && await showPlaygroundFile(folder, file)) return true;
+    const problem = `The playground has no file ${path}`; if (!ready) linkProblem = problem; setStatus(problem, 'err'); return false;
+  }
+  if (link.has('proof')) {
+    try {
+      const code = decodeShare(link.get('proof')), folder = link.get('folder');
+      const known = folder && (await manifestFiles(folder)).length > 0;
+      setEditor(code, 'shared-proof.kurt', known ? folder : null); return true;
+    } catch {}
+  }
+  return false;
+}
 async function shareProof() {
-  const url = new URL(location.href); url.hash = `proof=${encodeShare(editor.value)}`;
+  const url = new URL(location.href);
+  const unchanged = currentOriginal !== null && editor.value === currentOriginal;
+  url.hash = unchanged ? `file=${currentFolder}${currentFilename}`
+    : `proof=${encodeShare(editor.value)}` + (currentFolder ? `&folder=${currentFolder}` : '');
   history.replaceState(null, '', url);
-  try { await navigator.clipboard.writeText(url.href); setStatus('Link to this proof copied'); }
-  catch { prompt('Copy this proof link:', url.href); }
+  const what = unchanged ? 'file' : 'proof';
+  try { await navigator.clipboard.writeText(url.href); setStatus(`Link to this ${what} copied`); }
+  catch { prompt(`Copy this ${what} link:`, url.href); }
 }
 const FIRST_LESSON = ['proofs/tutorial/', '01-apply-an-implication-modus-ponens.kurt'];
 async function loadInitialDraft() {
-  const shared = location.hash.match(/^#proof=(.+)$/);
-  if (shared) { try { return setEditor(decodeShare(shared[1]), 'shared-proof.kurt'); } catch {} }
-  try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) return setEditor(draft.code, draft.filename, draft.folder || null); } catch {}
+  if (await openFromLink()) return;
+  try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) { setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return; } } catch {}
   setEditor(DEFAULT_PROOF);
   try {
     const [folder, file] = FIRST_LESSON;
-    const response = await fetch(`${folder}${file}`);
-    if (response.ok && editor.value === DEFAULT_PROOF) setEditor(await response.text(), file, folder);
+    if (editor.value === DEFAULT_PROOF) await showPlaygroundFile(folder, file);
   } catch {}
 }
 function download(name, text, type = 'text/plain;charset=utf-8') {
@@ -507,7 +546,7 @@ async function createExercisesMenu() {
     const path = `exercises/${topic}/`;
     files.forEach(file => {
       const item = document.createElement('button'); item.className = 'item'; item.textContent = file;
-      item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load the exercise', 'err'); setEditor(await response.text(), file, path); menu.classList.add('hidden'); };
+      item.onclick = async () => { if (!await showPlaygroundFile(path, file)) return setStatus('Could not load the exercise', 'err'); menu.classList.add('hidden'); };
       menu.append(item);
     });
   }
@@ -535,7 +574,7 @@ async function createMenu(label, path) {
   const menu = document.createElement('div'); menu.className = 'dropdown-menu hidden';
   files.forEach(file => {
     const item = document.createElement('button'); item.className = 'item'; item.textContent = file;
-    item.onclick = async () => { const response = await fetch(`${path}${file}`); if (!response.ok) return setStatus('Could not load example', 'err'); setEditor(await response.text(), file, path); menu.classList.add('hidden'); };
+    item.onclick = async () => { if (!await showPlaygroundFile(path, file)) return setStatus('Could not load example', 'err'); menu.classList.add('hidden'); };
     menu.append(item);
   });
   button.onclick = event => toggleMenu(event, menu);
@@ -610,5 +649,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   setupUI();
   try { await loadMetadata(); await loadInitialDraft(); await buildExamplesUI(); spawnWorker(); }
   catch (error) { setStatus('Initialization failed', 'err'); showLineInfo(error.message, 'err'); }
+  window.addEventListener('hashchange', openFromLink);      // a link pasted into this tab
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(console.warn);
 });

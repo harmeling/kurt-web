@@ -33,6 +33,21 @@ test('creates a restorable share link and persists a draft', async ({ page, cont
   await expect(other.locator('#editor')).toHaveValue('true\n');
 });
 
+test('links a file of the playground by its name', async ({ page, context }) => {
+  await page.goto('/classic.html#file=exercises/01-knights-and-knaves/1-truth-and-lies.kurt');
+  await expect(page.locator('#editor')).toHaveValue(/load theory\/island/, { timeout: 60000 });
+  await page.locator('#fileBtn').click();
+  await page.locator('#shareBtn').click();
+  await expect(page).toHaveURL(/#file=exercises\/01-knights-and-knaves\/1-truth-and-lies\.kurt$/);
+  await page.locator('#editor').fill('true\n');
+  await page.locator('#fileBtn').click();
+  await page.locator('#shareBtn').click();
+  await expect(page).toHaveURL(/#proof=[\w-]+&folder=exercises\/01-knights-and-knaves\/$/);
+  const other = await context.newPage();
+  await other.goto('/classic.html#file=../kurt.py');
+  await expect(other.locator('#status')).toHaveText('The playground has no file ../kurt.py', { timeout: 60000 });
+});
+
 test('offers touch symbols and registers its offline worker', async ({ page }) => {
   await page.locator('#editor').fill('');
   await page.locator('#symbolBar .symbol', { hasText: '∀' }).click();

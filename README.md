@@ -92,7 +92,7 @@ If you serve the files from any static host (e.g., GitHub Pages, Netlify), the a
 
 ## Playground features
 
-Proof checking runs in a cancellable Web Worker, so the editor stays responsive. Drafts and display settings are saved locally. Share creates a URL containing the proof; no proof is uploaded. Successful runs expose downloadable output and `.kurtc` certificates. Error locations jump back to the relevant source line. The symbol strip is designed for touch screens, and the app can be installed from browsers that support PWAs.
+Proof checking runs in a cancellable Web Worker, so the editor stays responsive. Drafts and display settings are saved locally. Share creates a URL: for a file of the playground that is unchanged, its name (`#file=exercises/01-knights-and-knaves/2-two-islanders.kurt`, only files that `manifest.json` lists), otherwise one containing the proof, with the folder it came from (`#proof=...&folder=...`, so that an exercise still finds its scene); no proof is uploaded. Successful runs expose downloadable output and `.kurtc` certificates. Error locations jump back to the relevant source line. The symbol strip is designed for touch screens, and the app can be installed from browsers that support PWAs.
 
 The service worker caches the app shell and Kurt bundle. Pyodide is loaded from jsDelivr and must have been fetched by the browser at least once before an offline session.
 
