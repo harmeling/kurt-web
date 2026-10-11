@@ -61,6 +61,7 @@
         </div>
         <button id="helpBtn" class="btn small" aria-haspopup="dialog">Help</button>
       </div>
+      <div id="progress" class="progress" role="progressbar" aria-label="Checking" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill"></div></div>
       <div class="editor-wrap" id="editorWrap">
         <div class="editor-stack">
           <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
@@ -97,7 +98,9 @@
         <li><strong>Hover</strong> over a line (or put the cursor on it: the bar below the editor) to see what Kurt
         says about it: the error, or how the line follows -- the rule and the facts it uses, marked in the editor.
         Tap the bar for the details.</li>
-        <li>The header says whether the whole proof is checked.</li>
+        <li>The header says whether the whole proof is checked. A check that takes a while shows the file and line
+        it is at, with a bar above the editor: a theory that <code>load</code> brings in is checked once, the first
+        time, and the number of files grows as their <code>load</code>s are found.</li>
       </ul>
 
       <h3>Writing</h3>

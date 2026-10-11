@@ -103,3 +103,10 @@ body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text d
 label.menu-row { cursor: pointer; }
 .next .status { white-space: nowrap; }
 @media (max-width: 600px) { .next .app-footer { font-size: 12px; } }
+
+/* the progress of a check that takes a while (a theory, checked the first time), above the editor */
+.progress { height: 3px; margin: 0 0 -3px; position: relative; z-index: 2; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.progress.active { opacity: 1; }
+.progress-fill { height: 100%; width: 0; background: var(--accent, #2ebe6e); transition: width .1s linear; }
+.next .status { overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
+@media (max-width: 600px) { .next .status { max-width: 38vw; } }

@@ -32,7 +32,21 @@ lsp_out = _Captured()
 lsp = kurt.LanguageServer(None, lsp_out)
 lsp.handle({'method': 'initialize', 'id': 0, 'params': {'initializationOptions': {'allErrors': True}}})
 LSP_URI = 'file:///play/proof.kurt'
+# while a check runs: which line of which file (Kurt 0.8.2, \`RunConfig.progress\`), for the progress bar --
+# at most 10 times a second, none for a check that takes less than 0.1 s
+import time, os.path
+from js import postMessage as _post_message, Object as _Object
+from pyodide.ffi import to_js as _to_js
+_progress_last = [0.0]
+def _progress(event):
+    now = time.monotonic()
+    if now - _progress_last[0] >= 0.1:
+        _progress_last[0] = now
+        _post_message(_to_js({'type': 'progress', 'version': lsp.versions.get(LSP_URI), **event,
+                              'file': os.path.basename(event['file'])}, dict_converter=_Object.fromEntries))
+lsp.progress = _progress
 def lsp_check(text, version):
+    _progress_last[0] = time.monotonic()
     lsp.texts[LSP_URI], lsp.versions[LSP_URI] = text, version
     lsp_out.messages.clear()
     lsp.check(LSP_URI)

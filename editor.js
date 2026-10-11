@@ -37,12 +37,14 @@ function spawnWorker() {
       ready = true; $('#checkBtn').disabled = false;
       $('#version').textContent = `Kurt ${data.version}`;
       checkNow();
+    } else if (data.type === 'progress') {
+      showProgress(data);
     } else if (data.type === 'checked') {
       checked(data);
     } else if (data.type === 'editor-completions') {
       editorCompleted(data.items, data.requestId);
     } else if (data.type === 'error') {
-      checking = false; showCancel(false);
+      checking = false; showCancel(false); hideProgress();
       setStatus('Runtime error', 'err'); showLineInfo(`Runtime error: ${data.message}`, 'err');
     }
   };
@@ -63,8 +65,23 @@ async function checkNow() {
   const files = await loadedFiles(code);
   worker.postMessage({ type: 'check', code, version: checkedVersion, files });
 }
+// a check that takes a while: the file and line being checked (a loaded theory, the first time), and the
+// files checked so far -- their number grows as `load`s are found; the bar is the part of the file done
+function showProgress(data) {
+  if (!checking) return;
+  const line = Math.min(data.line, data.lines);
+  if (matchMedia('(max-width: 600px)').matches)      // (a phone: short)
+    setStatus(`${data.file} ${data.lines ? `${line}/${data.lines} ` : ''}· ${data.index}/${data.files}`);
+  else setStatus(`Checking ${data.file}${data.lines ? ` · line ${line} of ${data.lines}` : ''} · file ${data.index} of ${data.files}`);
+  statusEl.title = 'The files that are loaded are checked once (again only when they change); more files may follow';
+  const bar = $('#progress');
+  bar.classList.add('active');
+  bar.firstElementChild.style.width = `${data.lines ? 100 * Math.min(data.line, data.lines) / data.lines : 0}%`;
+  bar.setAttribute('aria-valuenow', String(Math.round(data.lines ? 100 * data.line / data.lines : 0)));
+}
+function hideProgress() { $('#progress').classList.remove('active'); statusEl.title = ''; }
 function checked(data) {
-  checking = false; showCancel(false);
+  checking = false; showCancel(false); hideProgress();
   results = data;
   diagnosticsByLine = new Map(); hintByLine = new Map();
   for (const d of data.diagnostics) {
@@ -84,7 +101,7 @@ function checked(data) {
 function showCancel(on) { $('#cancelBtn').classList.toggle('hidden', !on); clearTimeout(cancelTimer); if (!on) cancelTimer = null; }
 function cancelCheck() {
   // a check that takes too long: a new runtime; no more checks while typing until the next edit
-  worker.terminate(); showCancel(false); paused = true; pending = false;
+  worker.terminate(); showCancel(false); hideProgress(); paused = true; pending = false;
   spawnWorker(); setStatus('Cancelled -- edit or press Check to check again');
 }
 // the files that `load` lines name and that are no theory, e.g. the helper of a lesson

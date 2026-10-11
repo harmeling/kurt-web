@@ -89,3 +89,22 @@ test('links the repository of Kurt and the classic playground, and the old addre
   await page.goto('/next.html#proof=dHJ1ZQo');
   await expect(page).toHaveURL(/\/#proof=dHJ1ZQo$/);
 });
+
+test('shows the file and line being checked, and checks a loaded theory only once (Kurt 0.8.2)', async ({ page }) => {
+  await page.evaluate(() => {
+    window.seen = [];
+    new MutationObserver(() => window.seen.push([document.querySelector('#status').textContent,
+      document.querySelector('#progress').classList.contains('active')]))
+      .observe(document.querySelector('#status'), { childList: true, characterData: true, subtree: true });
+  });
+  await typeProof(page, 'load natural\nnat n\nn = n\n');
+  let seen = await page.evaluate(() => window.seen);
+  const progress = seen.filter(([text, active]) => active && /^Checking \S+\.kurt · line \d+ of \d+ · file \d+ of \d+$/.test(text));
+  expect(progress.some(([text]) => text.startsWith('Checking natural.kurt'))).toBe(true);
+  await expect(page.locator('#progress')).not.toHaveClass(/active/);
+  // a change: the theory isn't checked again
+  await page.evaluate(() => { window.seen = []; });
+  await typeProof(page, 'load natural\nnat n\nn = n\nn = n\n');
+  seen = await page.evaluate(() => window.seen);
+  expect(seen.some(([text]) => text.includes('natural.kurt'))).toBe(false);
+});
