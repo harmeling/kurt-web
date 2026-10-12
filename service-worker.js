@@ -1,4 +1,4 @@
-const CACHE = 'kurt-playground-ce8bf0c4ab5e';
+const CACHE = 'kurt-playground-1343271da70d';
 const ASSETS = ['./','index.html','editor.js','editor.css','classic.html','styles.css','app.js','kurt-worker.js','kurt.py','manifest.json','language.json','replacements.json','site.webmanifest','icon.svg','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
