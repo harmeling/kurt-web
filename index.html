@@ -55,6 +55,7 @@
             </div>
             <label class="menu-row"><span>Check while typing</span><input id="liveToggle" type="checkbox" checked></label>
             <label class="menu-row"><span>Show the reasons</span><input id="reasonsToggle" type="checkbox" checked></label>
+            <label class="menu-row"><span>Shell beside the editor</span><input id="shellSideToggle" type="checkbox"></label>
             <div class="menu-row column">
               <label for="indentSlider">The reasons start at column <span id="indentLabel">40</span></label>
               <input id="indentSlider" type="range" min="20" max="120" step="2" value="40">
@@ -75,20 +76,21 @@
       </div>
       <div id="lineInfo" class="line-info" role="button" tabindex="0" aria-live="polite" title="What Kurt says about the line of the cursor (tap for more)"></div>
       <div id="symbolBar" class="symbol-bar" aria-label="Insert mathematical symbol"></div>
-      <div id="shellBar" class="shell-bar hidden">
-        <pre id="shellOutput" class="shell-output" tabindex="0"></pre>
-        <div id="shellHint" class="shell-hint"></div>
-        <div class="shell-row">
-          <span id="shellPrompt" class="shell-prompt">;[1]</span>
-          <textarea id="shellInput" class="shell-input" rows="1" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Kurt shell: a line to check (Enter checks it, Shift+Enter a new line, Tab completes)"></textarea>
-          <button id="shellCopyBtn" class="btn small" disabled title="Insert the lines the shell accepted into the editor, where the check stopped">Copy to editor</button>
-          <button id="shellCloseBtn" class="btn small" aria-label="Close the shell">Close</button>
-        </div>
-      </div>
       <details id="problems" class="problems">
         <summary id="problemsSummary">Problems</summary>
         <div id="problemsList" class="problems-list"></div>
       </details>
+    </section>
+    <div id="shellDivider" class="shell-divider hidden" role="separator" aria-label="Drag to resize the editor and the shell" title="Drag to resize; double-click for the default size"></div>
+    <section id="shellBar" class="panel shell-panel shell-bar hidden" aria-label="Shell">
+      <pre id="shellOutput" class="shell-output" tabindex="0"></pre>
+      <div id="shellHint" class="shell-hint"></div>
+      <div class="shell-row">
+        <span id="shellPrompt" class="shell-prompt">;[1]</span>
+        <textarea id="shellInput" class="shell-input" rows="1" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Kurt shell: a line to check (Enter checks it, Shift+Enter a new line, Tab completes)"></textarea>
+        <button id="shellCopyBtn" class="btn small" disabled title="Insert the lines the shell accepted into the editor, where the check stopped">Copy to editor</button>
+        <button id="shellCloseBtn" class="btn small" aria-label="Close the shell">Close</button>
+      </div>
     </section>
   </main>
   <div id="tooltip" class="tooltip hidden" role="tooltip"></div>
@@ -141,7 +143,8 @@
       with the open blocks and the facts there. A line typed there (Enter) is checked at once; Shift+Enter starts
       a new line, Tab completes (the next step, the value after <code>=</code> with <code>calc on</code>,
       <code>\forall</code>, names). <strong>Copy to editor</strong> inserts the accepted lines into the proof,
-      where the shell started.</p>
+      where the shell started. The bar between the editor and the shell moves (double-click: back to the
+      default), and <strong>View</strong> puts the shell beside the editor instead of below it.</p>
 
       <h3>More</h3>
       <p>Kurt is developed by Stefan Harmeling (TU Dortmund, 2016-2026):

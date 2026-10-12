@@ -295,3 +295,26 @@ test('has the proofs of the course mafi1 in a menu of their own', async ({ page 
   await expect(page.locator('#editor')).toHaveValue(/load vectorspace/);
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 120000 });
 });
+
+test('resizes the editor and the shell with the bar between them, and puts the shell beside the editor', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await typeProof(page, 'bool A\nuse A\nA\n');
+  await page.locator('#shellBtn').click();
+  await expect(page.locator('#shellPrompt')).toBeVisible({ timeout: 60000 });
+  const box = async sel => page.locator(sel).boundingBox();
+  const [shell, divider] = [await box('#shellBar'), await box('#shellDivider')];
+  expect(shell.y).toBeGreaterThan((await box('.editor-panel')).y);                 // below the editor
+  await page.mouse.move(divider.x + divider.width / 2, divider.y + divider.height / 2);
+  await page.mouse.down(); await page.mouse.move(divider.x + divider.width / 2, divider.y - 150, { steps: 5 }); await page.mouse.up();
+  expect((await box('#shellBar')).height).toBeGreaterThan(shell.height + 100);    // taller
+  await page.reload();
+  await expect(page.locator('#version')).toHaveText(/^Kurt \d/, { timeout: 60000 });
+  await page.locator('#shellBtn').click();
+  await expect(page.locator('#shellPrompt')).toBeVisible({ timeout: 60000 });
+  expect((await box('#shellBar')).height).toBeGreaterThan(shell.height + 100);    // remembered
+  await page.locator('#viewBtn').click();
+  await page.locator('#shellSideToggle').check();
+  const [editor, beside] = [await box('.editor-panel'), await box('#shellBar')];
+  expect(beside.x).toBeGreaterThan(editor.x + editor.width - 1);                  // to the right
+  expect(Math.abs(beside.y - editor.y)).toBeLessThan(2);
+});

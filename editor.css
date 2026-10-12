@@ -111,7 +111,24 @@ label.menu-row { cursor: pointer; }
 .next .status { overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
 @media (max-width: 600px) { .next .status { max-width: 38vw; } }
 
-/* the shell below the editor: what it checked, then the line to type (styles.css: .shell-bar, ...) */
-.shell-output { margin: 0 0 6px; max-height: 30vh; overflow: auto; white-space: pre-wrap; color: var(--text);
+/* the shell: a panel below the editor (or beside it, View), what it checked, then the line to
+   type (styles.css: .shell-bar, ...); the divider between them moves (editor.js) */
+.shell-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.shell-panel.hidden { display: none; }
+.shell-output { margin: 0 0 6px; flex: 1 1 auto; min-height: 2em; overflow: auto; white-space: pre-wrap; color: var(--text);
   font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.9); line-height: 1.4; }
-.shell-output:empty { display: none; }
+.shell-divider { flex: 0 0 12px; cursor: row-resize; touch-action: none; position: relative; }
+.shell-divider.hidden { display: none; }
+.shell-divider::after { content: ''; position: absolute; top: 50%; left: 50%; width: 48px; height: 4px;
+  transform: translate(-50%, -50%); border-radius: 2px; background: var(--border); }
+.shell-divider:hover::after, .shell-divider.dragging::after { background: var(--accent); }
+.next-layout > .shell-panel { flex: 0 0 var(--shell-size, 30vh); }
+@media (min-width: 961px) {
+	/* beside the editor: the shell to the right, the divider moves left and right */
+	body.shell-side .next-layout { flex-direction: row; }
+	body.shell-side .shell-divider { cursor: col-resize; }
+	body.shell-side .shell-divider::after { width: 4px; height: 48px; }
+	body.shell-side .next-layout > .shell-panel { flex: 0 0 var(--shell-width, 40%); }
+	body.shell-side .next-layout > .editor-panel { flex: 1 1 0; min-width: 0; }
+}
+body.resizing-rows { cursor: row-resize; user-select: none; }

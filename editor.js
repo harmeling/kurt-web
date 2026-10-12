@@ -142,6 +142,7 @@ function shellOpen() { return $('#shellBtn').getAttribute('aria-pressed') === 't
 function setShell(on) {
   $('#shellBtn').setAttribute('aria-pressed', String(on));
   $('#shellBar').classList.toggle('hidden', !on);
+  $('#shellDivider').classList.toggle('hidden', !on);
   if (on) { shellUpdate(shellState); $('#shellInput').focus(); }
 }
 function shellUpdate(state) {
@@ -513,7 +514,7 @@ function setEditor(code, filename = 'proof.kurt', folder = null) {
 
 // ---- settings, files, menus ---------------------------------------------------------------------
 function settings() {
-  const defaults = { fontSize: 15, indent: 40, live: true, reasons: true };
+  const defaults = { fontSize: 15, indent: 40, live: true, reasons: true, shellSide: false, shellSize: 0, shellWidth: 0 };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch { return defaults; }
 }
 function updateSettings(patch) {
@@ -521,8 +522,33 @@ function updateSettings(patch) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
   document.documentElement.style.setProperty('--code-font-size', `${next.fontSize}px`);
   $('#indentLabel').textContent = next.indent; $('#indentSlider').value = next.indent; $('#fontSizeLabel').textContent = next.fontSize;
-  $('#liveToggle').checked = next.live; $('#reasonsToggle').checked = next.reasons;
+  $('#liveToggle').checked = next.live; $('#reasonsToggle').checked = next.reasons; $('#shellSideToggle').checked = next.shellSide;
+  applyShellLayout(next);
   renderEditor();
+}
+// the shell below the editor or beside it (View), and the size the divider gave it (0: the default)
+function applyShellLayout(s = settings()) {
+  document.body.classList.toggle('shell-side', !!s.shellSide);
+  const layout = $('.next-layout');
+  if (s.shellSize) layout.style.setProperty('--shell-size', `${s.shellSize}px`); else layout.style.removeProperty('--shell-size');
+  if (s.shellWidth) layout.style.setProperty('--shell-width', `${s.shellWidth}px`); else layout.style.removeProperty('--shell-width');
+}
+function shellBeside() { return settings().shellSide && matchMedia('(min-width: 961px)').matches; }
+function startShellResize(event) {
+  // drag the divider: up and down, or (the shell beside the editor) left and right
+  event.preventDefault();
+  const divider = $('#shellDivider'), side = shellBeside(), box = $('.next-layout').getBoundingClientRect();
+  divider.classList.add('dragging'); document.body.classList.add(side ? 'resizing' : 'resizing-rows');
+  const move = e => {
+    if (side) updateSettings({ shellWidth: Math.round(Math.max(220, Math.min(box.right - 12 - e.clientX, box.width - 320))) });
+    else updateSettings({ shellSize: Math.round(Math.max(90, Math.min(box.bottom - 12 - e.clientY, box.height - 220))) });
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    divider.classList.remove('dragging'); document.body.classList.remove('resizing', 'resizing-rows');
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up, { once: true });
 }
 function changeFontSize(step) { updateSettings({ fontSize: step === 0 ? 15 : Math.max(10, Math.min(24, settings().fontSize + step)) }); }
 function encodeShare(text) {
@@ -715,6 +741,9 @@ function setupUI() {
   $('#shellBtn').onclick = () => shellOpen() ? setShell(false) : runProof('shell');
   $('#certificateBtn').onclick = () => runProof('certificate');
   $('#shellCloseBtn').onclick = () => setShell(false);
+  $('#shellDivider').addEventListener('pointerdown', startShellResize);
+  $('#shellDivider').addEventListener('dblclick', () => updateSettings(shellBeside() ? { shellWidth: 0 } : { shellSize: 0 }));
+  $('#shellSideToggle').onchange = event => updateSettings({ shellSide: event.target.checked });
   $('#shellCopyBtn').onclick = shellCopy;
   $('#shellInput').addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); shellSubmit(); }
