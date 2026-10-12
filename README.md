@@ -12,12 +12,13 @@ A minimal, dark-mode playground for the [Kurt proof language](https://github.com
 - `index.html`, `editor.js`, `editor.css` — the playground: one panel, checked while typing by Kurt's
   language server in the worker (as in VS Code); the reasons at the ends of the lines, errors and todos
   underlined and in the gutter, the details of a line on hover (or, on a phone, in the bar below the
-  editor), all problems in a list.
-- `classic.html`, `app.js` — the classic playground: Run, the output beside the editor, the shell, the
-  certificate. Both share the draft and the settings. (`next.html`, the editor's address while it was new,
-  forwards to `index.html`.)
-- `styles.css` — the styles of both (`editor.css` adds the editor's).
-- `kurt-worker.js` — Pyodide with `kurt.py`: the checks of both pages.
+  editor), all problems in a list; the Shell button continues where a check of the whole proof stops (as
+  `kurt -i`), and File downloads the certificate (`.kurtc`) of a checked proof. (`next.html` and
+  `classic.html`, the addresses of the editor while it was new and of the classic playground, retired on
+  2026-10-12, forward to `index.html` with their link.)
+- `styles.css` — the base styles (`editor.css` adds the editor's).
+- `kurt-worker.js` — Pyodide with `kurt.py`: the checks (Kurt's language server), and the run of the shell
+  and the certificate.
 - `kurt.py` — The Kurt interpreter. The generated standalone bundle of the latest release, including all standard theories.
 - `proofs/` and `theories/` — the tutorial, the lessons on the keywords, and the standard theories.
 - `exercises/` — the exercises of Kurt by topic, each with its scene in `theory/` (the menu "exercises"; an exercise loads `theory/NAME`, so a proof may load files from a folder below its own).

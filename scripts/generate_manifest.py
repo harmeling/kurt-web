@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the static-host file listing consumed by editor.js and app.js."""
+"""Generate the static-host file listing consumed by editor.js."""
 import json
 from pathlib import Path
 

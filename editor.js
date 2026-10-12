@@ -1,8 +1,8 @@
 // The editor of the playground (index.html): the proof is checked while you type (by Kurt's language server in the
 // worker, as in VS Code), and the results are in the editor itself -- the reasons at the ends of the
 // lines, the errors and todos underlined and in the gutter, the details of a line on hover (or in the
-// bar below the editor, for phones), all problems in a list. Shares the draft and the settings with
-// the classic playground (classic.html, app.js); some helpers are copies of app.js's.
+// bar below the editor, for phones), all problems in a list; the shell continues where a check of the
+// whole proof stops, and File downloads its certificate (both from a run, as `kurt -i` and `kurt` do).
 const $ = selector => document.querySelector(selector);
 const editor = $('#editor');
 const editorHighlight = $('#editorHighlight');
@@ -43,6 +43,12 @@ function spawnWorker() {
       checked(data);
     } else if (data.type === 'editor-completions') {
       editorCompleted(data.items, data.requestId);
+    } else if (data.type === 'result') {
+      runFinished(data);
+    } else if (data.type === 'shell-output') {
+      shellOutput(data);
+    } else if (data.type === 'completions') {
+      shellCompleted(data.items, data.line, data.word);
     } else if (data.type === 'error') {
       checking = false; showCancel(false); hideProgress();
       setStatus('Runtime error', 'err'); showLineInfo(`Runtime error: ${data.message}`, 'err');
@@ -105,6 +111,92 @@ function cancelCheck() {
   worker.terminate(); showCancel(false); hideProgress(); paused = true; pending = false;
   spawnWorker(); setStatus('Cancelled -- edit or press Check to check again');
 }
+// ---- a run of the whole proof: the shell, and the certificate -----------------------------------------
+// A run checks the proof as `kurt` does, up to its first error (or a `breakpoint`): the shell continues
+// there, with the open blocks and the facts (`kurt -i`), and a complete proof gives the certificate
+// (`.kurtc`) that the kernel checked. Started by the Shell button or File > Download certificate.
+let runPurpose = null, shellState = null, shellStartLine = 1, shellVersion = -1;
+async function runProof(purpose) {
+  if (!ready) return;
+  runPurpose = purpose;
+  setStatus(purpose === 'shell' ? 'Starting the shell…' : 'Checking for the certificate…');
+  const files = await loadedFiles(editor.value);
+  shellVersion = version;
+  worker.postMessage({ type: 'run', code: editor.value, indent: settings().indent, files });
+}
+function runFinished(data) {
+  const purpose = runPurpose; runPurpose = null;
+  if (purpose === 'certificate') {
+    if (data.certificate) {
+      download(`${currentFilename.replace(/\.kurt$/, '')}.kurtc`, data.certificate);
+      setStatus('Certificate downloaded', 'ok');
+    } else setStatus('No certificate: the proof is not checked completely', 'err');
+    return;
+  }
+  shellState = data.shell; shellStartLine = data.shell ? data.shell.line : 1;
+  $('#shellOutput').textContent = '';
+  setShell(true);
+  setStatus(data.exitCode ? 'Shell: the check stopped at an error' : 'Shell', data.exitCode ? 'err' : 'ok');
+}
+function shellOpen() { return $('#shellBtn').getAttribute('aria-pressed') === 'true'; }
+function setShell(on) {
+  $('#shellBtn').setAttribute('aria-pressed', String(on));
+  $('#shellBar').classList.toggle('hidden', !on);
+  if (on) { shellUpdate(shellState); $('#shellInput').focus(); }
+}
+function shellUpdate(state) {
+  if (!state) return;
+  shellState = state;
+  const where = { breakpoint: 'at the breakpoint', error: `at the failing line ${state.line}`, end: 'after the last line' }[state.stopped] || '';
+  $('#shellPrompt').textContent = `;[${state.line}]`;
+  const next = state.next && state.next.length ? `next, e.g.: ${state.next.join('  or  ')}  (Tab writes it)` : '';
+  const changed = shellVersion !== version ? '; the editor has changed since: Shell again starts from its text' : '';
+  $('#shellHint').textContent = [where && `; the shell continues ${where}`, next && `; ${next}`, changed].filter(Boolean).join('\n');
+  $('#shellInput').value = ' '.repeat(state.indent || 0);
+  $('#shellCopyBtn').disabled = !(state.accepted && state.accepted.length);
+}
+let shellEcho = '';
+function shellSubmit() {
+  const text = $('#shellInput').value;
+  if (!text.trim() || !shellState) return;
+  shellEcho = `;[${shellState.line}] ${text.replace(/\n/g, '\n; ')}`;
+  worker.postMessage({ type: 'shell', text });
+}
+function shellOutput(data) {
+  const out = $('#shellOutput');
+  out.textContent = `${out.textContent}${out.textContent ? '\n' : ''}${shellEcho}\n${(data.output || '').trimEnd()}`.replace(/\n+$/, '');
+  out.scrollTop = out.scrollHeight;
+  shellUpdate(data.shell);
+}
+function shellComplete() {
+  const input = $('#shellInput'), line = input.value.slice(0, input.selectionStart);
+  const word = line.match(/[^\s()\[\]{},=]*$/)[0];
+  worker.postMessage({ type: 'complete', line, word });
+}
+function shellCompleted(items, line, word) {
+  const input = $('#shellInput');
+  if (input.value.slice(0, input.selectionStart) !== line) return;          // typed on meanwhile
+  if (items.length === 1) {
+    const before = line.slice(0, line.length - word.length), after = input.value.slice(line.length);
+    input.value = before + items[0] + after;
+    input.selectionStart = input.selectionEnd = (before + items[0]).length;
+  } else if (items.length > 1) {
+    $('#shellHint').textContent = `; ${items.slice(0, 20).join('  ')}${items.length > 20 ? '  …' : ''}`;
+  }
+}
+function shellCopy() {
+  // the accepted lines go where the shell started: before the failing line or after the breakpoint, else at the end
+  const accepted = (shellState && shellState.accepted) || [];
+  if (!accepted.length) return;
+  const lines = editor.value.split('\n');
+  if (shellState.stopped === 'end') {
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    lines.push(...accepted, '');
+  } else lines.splice(Math.max(0, Math.min(lines.length, shellStartLine - 1)), 0, ...accepted);
+  editor.value = lines.join('\n'); edited();
+  setStatus(`${accepted.length} line${accepted.length > 1 ? 's' : ''} copied into the editor`);
+}
+
 // the files that `load` lines name and that are no theory, e.g. the helper of a lesson
 // (`load 12-my-theory`): fetched from the folder the proof came from, also what they load
 async function loadedFiles(code) {
@@ -412,13 +504,14 @@ function persistDraft() {
   saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder, original: currentOriginal })), 250);
 }
 function setEditor(code, filename = 'proof.kurt', folder = null) {
+  setShell(false); shellState = null;               // (the shell of another file)
   editor.value = code; currentFilename = filename; currentFolder = folder; currentOriginal = null;
   results = null; diagnosticsByLine = new Map(); hintByLine = new Map(); refLines = new Set(); selfLines = new Set();
   renderProblems(); $('#editorWrap').scrollTop = 0;
   edited(); checkNow();
 }
 
-// ---- settings, files, menus (as in app.js) ------------------------------------------------------
+// ---- settings, files, menus ---------------------------------------------------------------------
 function settings() {
   const defaults = { fontSize: 15, indent: 40, live: true, reasons: true };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch { return defaults; }
@@ -619,6 +712,14 @@ function setupUI() {
   lineInfo.addEventListener('click', event => { if (event.target.closest('a[data-line]')) return followLink(event); toggleLineDetails(); });
   $('#editorWrap').addEventListener('scroll', hideTooltip);
   $('#checkBtn').onclick = () => { paused = false; checkNow(); };
+  $('#shellBtn').onclick = () => shellOpen() ? setShell(false) : runProof('shell');
+  $('#certificateBtn').onclick = () => runProof('certificate');
+  $('#shellCloseBtn').onclick = () => setShell(false);
+  $('#shellCopyBtn').onclick = shellCopy;
+  $('#shellInput').addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); shellSubmit(); }
+    else if (event.key === 'Tab' && !event.shiftKey) { event.preventDefault(); shellComplete(); }
+  });
   $('#cancelBtn').onclick = cancelCheck;
   $('#shareBtn').onclick = shareProof;
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);

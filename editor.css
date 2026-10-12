@@ -110,3 +110,8 @@ label.menu-row { cursor: pointer; }
 .progress-fill { height: 100%; width: 0; background: var(--accent, #2ebe6e); transition: width .1s linear; }
 .next .status { overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
 @media (max-width: 600px) { .next .status { max-width: 38vw; } }
+
+/* the shell below the editor: what it checked, then the line to type (styles.css: .shell-bar, ...) */
+.shell-output { margin: 0 0 6px; max-height: 30vh; overflow: auto; white-space: pre-wrap; color: var(--text);
+  font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.9); line-height: 1.4; }
+.shell-output:empty { display: none; }
