@@ -11,7 +11,8 @@ const statusEl = $('#status');
 const lineInfo = $('#lineInfo');
 const tooltip = $('#tooltip');
 const DEFAULT_PROOF = '; simple modus ponens proof\nuse A implies B\nuse A\nB\n';
-const DRAFT_KEY = 'kurt.draft';
+const DRAFT_KEY = 'kurt.draft';          // the document in the editor
+const DRAFTS_KEY = 'kurt.drafts';        // the edited files of the playground, by path: { code, original }
 const SETTINGS_KEY = 'kurt.settings';
 const PROBLEMS_KEY = 'kurt-next-problems-open';
 const CHECK_DELAY = 400;            // ms after the last keystroke
@@ -199,11 +200,11 @@ function shellCopy() {
 }
 
 // the files that `load` lines name and that are no theory, e.g. the helper of a lesson
-// (`load 12-my-theory`): fetched from the folder the proof came from, also what they load
+// (`load 12-my-theory`): fetched from the folder the proof came from, also what they load -- in
+// the version edited here, if there is one (as an editor uses the unsaved text of an open file)
 async function loadedFiles(code) {
   if (!currentFolder) return {};
-  let theories = [];
-  try { theories = (await fetch('manifest.json').then(r => r.json())).theories; } catch {}
+  const theories = (await getManifest()).theories || [], edited = drafts();
   // a name is relative to the file that loads it (`theory/island.kurt` may load `common` beside it),
   // and stays in the proof's folder or below it (an exercise loads its scene, `load theory/island`)
   const files = {}, todo = [{ text: code, dir: '' }];
@@ -217,7 +218,11 @@ async function loadedFiles(code) {
         if (!path.split('/').every(part => part && part !== '.' && part !== '..') || path in files) continue;
         try {
           const response = await fetch(`${currentFolder}${path}`);
-          if (response.ok) { files[path] = await response.text(); todo.push({ text: files[path], dir: path.slice(0, path.lastIndexOf('/') + 1) }); }
+          if (response.ok) {
+            const text = await response.text(), draft = edited[`${currentFolder}${path}`];
+            files[path] = draft ? draft.code : text;
+            todo.push({ text: files[path], dir: path.slice(0, path.lastIndexOf('/') + 1) });
+          }
         } catch {}
       }
     }
@@ -325,17 +330,32 @@ function markLine(line) {
   refLines = next; selfLines = self; renderEditor();
 }
 // the hover of the language server is Markdown: a code block (the line and its reason), then
-// `**name:** text` lines, with `code` and links to lines (`[line 3](file:///play/proof.kurt#L3)`)
+// `**name:** text` lines, with `code` and links to lines (`[line 3](file:///play/proof.kurt#L3)`),
+// to a loaded file (`[island.kurt:12](file:///play/theory/island.kurt#L12)`, in /play: the proof's
+// folder) and to the theories that come with Kurt (`prop.kurt:75`, `**theory:** \`prop\``: no
+// path, they are inside kurt.py) -- a link to another file opens it (`#file=...&line=...`)
+function fileLink(path, line, text) {
+  return `<a href="#file=${path}${line ? `&line=${line}` : ''}">${text}</a>`;
+}
 function markdownToHtml(markdown) {
+  const theories = (manifestCache && manifestCache.theories) || [], theory = name => theories.includes(name);
   const parts = markdown.split(/```kurt\n([\s\S]*?)\n```/);
   return parts.map((part, i) => {
     if (i % 2) return `<pre>${part.split('\n').map(highlightLine).join('\n')}</pre>`;
     if (!part.trim()) return '';
     let html = escapeHtml(part.trim());
+    const links = [];
     html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, text, url) => {
-      const line = url.match(/^file:\/\/\/play\/proof\.kurt#L(\d+)$/)?.[1];
-      return line ? `<a href="#" data-line="${line}">${text}</a>` : text;
+      const found = url.match(/^file:\/\/\/play\/([^#]+?)(?:#L(\d+))?$/);
+      if (!found) return text;
+      const [, path, line] = found;
+      links.push(path === 'proof.kurt' ? (line ? `<a href="#" data-line="${line}">${text}</a>` : text)
+        : fileLink(`${currentFolder || ''}${path}`, line, text));
+      return `\u0000${links.length - 1}\u0000`;
     });
+    html = html.replace(/(?<![\w/.-])([\w-]+\.kurt):(\d+)\b/g, (all, name, line) => theory(name) ? fileLink(`theories/${name}`, line, all) : all);
+    html = html.replace(/\*\*theory:\*\*[^\n]*/, line => line.replace(/`([\w-]+)`/g, (all, name) => theory(`${name}.kurt`) ? fileLink(`theories/${name}.kurt`, '', all) : all));
+    html = html.replace(/\u0000(\d+)\u0000/g, (_, n) => links[Number(n)]);
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
     return `<p>${html.replace(/ {2}\n/g, '<br>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
   }).join('');
@@ -502,7 +522,32 @@ function insertAtCursor(text) {
 }
 function persistDraft() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder, original: currentOriginal })), 250);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.value, filename: currentFilename, folder: currentFolder, original: currentOriginal })); } catch {}
+    // a file of the playground: its edited version stays, by its path (and is used when another file loads it)
+    const path = currentPath();
+    if (path) {
+      const all = drafts();
+      if (editor.value === currentOriginal) delete all[path]; else all[path] = { code: editor.value, original: currentOriginal };
+      saveDrafts(all);
+    }
+    updateFileMenu();
+  }, 250);
+}
+function drafts() { try { return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || {}; } catch { return {}; } }
+function saveDrafts(all) { try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(all)); } catch {} }
+function currentPath() { return currentFolder !== null && currentOriginal !== null ? `${currentFolder}${currentFilename}` : null; }
+function updateFileMenu() {
+  const changed = currentOriginal !== null && editor.value !== currentOriginal;
+  $('#revertBtn').classList.toggle('hidden', !changed);
+  $('#revertBtn').textContent = `Discard my changes to ${currentFilename}`;
+}
+function revertFile() {
+  // the file as it came: the edited version is dropped
+  if (currentOriginal === null) return;
+  const all = drafts(); delete all[currentPath()]; saveDrafts(all);
+  const original = currentOriginal;
+  setEditor(original, currentFilename, currentFolder); currentOriginal = original; persistDraft();
 }
 function setEditor(code, filename = 'proof.kurt', folder = null) {
   setShell(false); shellState = null;               // (the shell of another file)
@@ -560,33 +605,55 @@ function decodeShare(value) {
   const binary = atob(value.replace(/-/g, '+').replace(/_/g, '/'));
   return new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0)));
 }
-// a link to a file of the playground (`#file=exercises/01-knights-and-knaves/2-two-islanders.kurt`)
-// opens it from its folder (so its `load`s find their files), in its current version; only a file
-// that the manifest lists, so a link can't fetch anything else. Share gives such a link while the
-// file is unchanged; an edited one goes as the text, with its folder (`#proof=...&folder=...`)
+// A file of the playground is opened from its folder (so its `load`s find their files) and in the
+// version edited here, if there is one (`drafts`); the address bar shows it
+// (`#file=exercises/01-knights-and-knaves/2-two-islanders.kurt`, with `&line=12` from a link in the
+// details), and the browser's Back button returns to the file before -- only a file that the
+// manifest lists, so a link can't fetch anything else. Share gives such a link while the file is
+// unchanged; an edited one goes as the text, with its folder (`#proof=...&folder=...`)
 let currentOriginal = null;      // the text of the playground file in the editor, as it was opened
 let linkProblem = null;          // a link to no file: said once the runtime is there (instead of its first status)
-async function manifestFiles(folder) {
-  let manifest = {};
-  try { manifest = await fetch('manifest.json').then(r => r.json()); } catch {}
-  if (folder === 'theories/') return manifest.theories || [];
-  const topic = folder.match(/^exercises\/([^/]+)\/$/)?.[1];
-  return (topic ? manifest.exercises?.[topic] : manifest.folders?.[folder]) || [];
+let manifestCache = null;
+async function getManifest() {
+  if (!manifestCache) { try { manifestCache = await fetch('manifest.json').then(r => r.json()); } catch { return {}; } }
+  return manifestCache;
 }
-async function showPlaygroundFile(folder, file) {
+async function manifestFiles(folder) {
+  const manifest = await getManifest();
+  if (folder === 'theories/') return manifest.theories || [];
+  const topic = folder.match(/^exercises\/([^/]+)\/$/)?.[1], scene = folder.match(/^exercises\/([^/]+)\/theory\/$/)?.[1];
+  return (topic ? manifest.exercises?.[topic] : scene ? manifest.scenes?.[scene] : manifest.folders?.[folder]) || [];
+}
+function fileHash(path, line) { return `#file=${path}${line ? `&line=${line}` : ''}`; }
+// `how`: 'push' (a menu, a link in the details: the document left behind becomes a history entry,
+// so Back returns to it), 'replace' (the start), 'here' (the address bar names the file already:
+// a pasted link, Back)
+async function showPlaygroundFile(folder, file, line = 0, how = 'push') {
   try {
     const response = await fetch(`${folder}${file}`); if (!response.ok) return false;
-    const text = await response.text(); setEditor(text, file, folder); currentOriginal = text; persistDraft(); return true;
+    const text = await response.text(), path = `${folder}${file}`, draft = drafts()[path];
+    if (how === 'push') {
+      // the document left behind: a file by its name (its edits stay by its path), anything else by its text
+      if (currentPath()) history.replaceState(null, '', fileHash(currentPath()));
+      else if (editor.value.trim() && editor.value !== DEFAULT_PROOF) {
+        history.replaceState(null, '', `#proof=${encodeShare(editor.value)}${currentFolder ? `&folder=${currentFolder}` : ''}`);
+      }
+      history.pushState(null, '', fileHash(path, line));
+    } else if (how === 'replace') history.replaceState(null, '', fileHash(path, line));
+    setEditor(draft && draft.code !== text ? draft.code : text, file, folder); currentOriginal = text; persistDraft();
+    if (line) goToLine(line);
+    return true;
   } catch { return false; }
+}
+async function openPath(path, line, how) {
+  // a file by its path, only one that the manifest lists
+  const at = path.lastIndexOf('/') + 1, [folder, file] = [path.slice(0, at), path.slice(at)];
+  if ((await manifestFiles(folder)).includes(file) && await showPlaygroundFile(folder, file, line, how)) return true;
+  const problem = `The playground has no file ${path}`; if (!ready) linkProblem = problem; setStatus(problem, 'err'); return false;
 }
 async function openFromLink() {
   const link = new URLSearchParams(location.hash.slice(1));
-  if (link.has('file')) {
-    const path = link.get('file'), at = path.lastIndexOf('/') + 1;
-    const [folder, file] = [path.slice(0, at), path.slice(at)];
-    if ((await manifestFiles(folder)).includes(file) && await showPlaygroundFile(folder, file)) return true;
-    const problem = `The playground has no file ${path}`; if (!ready) linkProblem = problem; setStatus(problem, 'err'); return false;
-  }
+  if (link.has('file')) return openPath(link.get('file'), Number(link.get('line')) || 0, 'here');
   if (link.has('proof')) {
     try {
       const code = decodeShare(link.get('proof')), folder = link.get('folder');
@@ -601,19 +668,27 @@ async function shareProof() {
   const unchanged = currentOriginal !== null && editor.value === currentOriginal;
   url.hash = unchanged ? `file=${currentFolder}${currentFilename}`
     : `proof=${encodeShare(editor.value)}` + (currentFolder ? `&folder=${currentFolder}` : '');
-  history.replaceState(null, '', url);
+  history.replaceState(null, '', url);          // (the link in the address bar too)
   const what = unchanged ? 'file' : 'proof';
-  try { await navigator.clipboard.writeText(url.href); setStatus(`Link to this ${what} copied`); }
+  const note = unchanged ? '' : currentOriginal !== null ? ' (it carries your text: the file is changed)' : ' (it carries the text)';
+  try { await navigator.clipboard.writeText(url.href); setStatus(`Link to this ${what} copied${note}`); }
   catch { prompt(`Copy this ${what} link:`, url.href); }
 }
 const FIRST_LESSON = ['tutorial/', '01-apply-an-implication-modus-ponens.kurt'];
 async function loadInitialDraft() {
   if (await openFromLink()) return;
-  try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) { setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return; } } catch {}
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    if (draft?.code) {
+      // a file of the playground: opened again (its edited version is kept by its path); else the text
+      if (draft.folder && draft.original != null && draft.filename && await showPlaygroundFile(draft.folder, draft.filename, 0, 'replace')) return;
+      setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return;
+    }
+  } catch {}
   setEditor(DEFAULT_PROOF);
   try {
     const [folder, file] = FIRST_LESSON;
-    if (editor.value === DEFAULT_PROOF) await showPlaygroundFile(folder, file);
+    if (editor.value === DEFAULT_PROOF) await showPlaygroundFile(folder, file, 0, 'replace');
   } catch {}
 }
 function download(name, text, type = 'text/plain;charset=utf-8') {
@@ -623,7 +698,7 @@ function download(name, text, type = 'text/plain;charset=utf-8') {
 }
 async function loadMetadata() {
   [replacements, language] = await Promise.all([
-    fetch('replacements.json').then(r => r.json()), fetch('language.json').then(r => r.json())
+    fetch('replacements.json').then(r => r.json()), fetch('language.json').then(r => r.json()), getManifest()
   ]);
   buildGrammar(); buildSymbolBar();
 }
@@ -637,24 +712,20 @@ function buildSymbolBar() {
 }
 async function listDirectory(path) {
   try { const data = await fetch(`/__list?path=${encodeURIComponent(path)}`).then(r => r.json()); const entries = [...data.dirs, ...data.files]; if (entries.length) return entries; } catch {}
-  const manifest = await fetch('manifest.json').then(r => r.json());
-  if (path === 'theories/') return manifest.theories;
-  return manifest.folders?.[path] || [];
+  return manifestFiles(path);
 }
 // the menus of the proofs: the folders of the manifest, as in Kurt's repository (`tutorial/`,
 // `keywords/`, `proofs/mafi1/`), named by their last part -- so a link to a file is readable,
 // `#file=tutorial/02-prove-an-implication.kurt`
 async function buildExamplesUI() {
-  let folders = [];
-  try { folders = Object.keys((await fetch('manifest.json').then(r => r.json())).folders || {}); } catch {}
+  const folders = Object.keys((await getManifest()).folders || {});
   for (const folder of folders) await createMenu(folder.slice(0, -1).split('/').pop(), folder);
   await createExercisesMenu();
   await createMenu('theories', 'theories/');
 }
 // the exercises, by topic: each loads its scene from the folder `theory/` beside it
 async function createExercisesMenu() {
-  let topics = {};
-  try { topics = (await fetch('manifest.json').then(r => r.json())).exercises || {}; } catch {}
+  const topics = (await getManifest()).exercises || {};
   if (!Object.keys(topics).length) return;
   const wrapper = document.createElement('div'); wrapper.className = 'menu-wrapper';
   const button = document.createElement('button'); button.className = 'btn small'; button.textContent = 'exercises';
@@ -732,11 +803,15 @@ function setupUI() {
   tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
   tooltip.addEventListener('mouseleave', leaveEditor);
   const followLink = event => {
-    const link = event.target.closest('a[data-line]'); if (!link) return;
-    event.preventDefault(); hideTooltip(); goToLine(Number(link.dataset.line));
+    // a line of this file, or another file (`#file=...&line=...`: opened as from a menu, Back returns)
+    const link = event.target.closest('a[href]'); if (!link) return;
+    event.preventDefault(); hideTooltip();
+    if (link.dataset.line) return goToLine(Number(link.dataset.line));
+    const target = new URLSearchParams(link.getAttribute('href').slice(1));
+    if (target.has('file')) void openPath(target.get('file'), Number(target.get('line')) || 0, 'push');
   };
   tooltip.addEventListener('click', followLink);
-  lineInfo.addEventListener('click', event => { if (event.target.closest('a[data-line]')) return followLink(event); toggleLineDetails(); });
+  lineInfo.addEventListener('click', event => { if (event.target.closest('a[href]')) return followLink(event); toggleLineDetails(); });
   $('#editorWrap').addEventListener('scroll', hideTooltip);
   $('#checkBtn').onclick = () => { paused = false; checkNow(); };
   $('#shellBtn').onclick = () => shellOpen() ? setShell(false) : runProof('shell');
@@ -753,7 +828,16 @@ function setupUI() {
   $('#cancelBtn').onclick = cancelCheck;
   $('#shareBtn').onclick = shareProof;
   $('#saveBtn').onclick = () => download(currentFilename.endsWith('.kurt') ? currentFilename : `${currentFilename}.kurt`, editor.value);
-  $('#loadBtn').onclick = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.kurt,text/plain'; input.onchange = async () => input.files[0] && setEditor(await input.files[0].text(), input.files[0].name); input.click(); };
+  $('#loadBtn').onclick = () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.kurt,text/plain';
+    input.onchange = async () => {
+      if (!input.files[0]) return;
+      history.pushState(null, '', location.pathname + location.search);       // (no longer the file of the address bar)
+      setEditor(await input.files[0].text(), input.files[0].name);
+    };
+    input.click();
+  };
+  $('#revertBtn').onclick = revertFile;
   $('#fileBtn').onclick = event => toggleMenu(event, $('#fileMenu'));
   $('#fileMenu').addEventListener('click', () => $('#fileMenu').classList.add('hidden'));
   $('#viewBtn').onclick = event => toggleMenu(event, $('#viewMenu'));

@@ -37,6 +37,7 @@
             <button id="loadBtn" class="item" role="menuitem">Upload a .kurt file…</button>
             <button id="saveBtn" class="item" role="menuitem">Download as .kurt file</button>
             <button id="shareBtn" class="item" role="menuitem">Copy link to this proof</button>
+            <button id="revertBtn" class="item hidden" role="menuitem" title="The file as it came; your edited version is dropped">Discard my changes to this file</button>
             <button id="certificateBtn" class="item" role="menuitem">Download certificate (.kurtc)</button>
           </div>
         </div>
@@ -110,7 +111,11 @@
         numbers are marked too. <strong>Problems</strong>, below the editor, lists them all; tap one to go there.</li>
         <li><strong>Hover</strong> over a line (or put the cursor on it: the bar below the editor) to see what Kurt
         says about it: the error, or how the line follows -- the rule and the facts it uses, marked in the editor.
-        Tap the bar for the details.</li>
+        Tap the bar for the details. A rule from another file (a theory, the scene of an exercise) is a link:
+        it opens that file at the rule, and the browser's Back button returns.</li>
+        <li>The address bar names the file in the editor (<code>#file=tutorial/02-...</code>): a link to it.
+        Your edits to a file stay in this browser, also when you open other files and come back;
+        <strong>File</strong> > <em>Discard my changes</em> gives the file as it came.</li>
         <li>The header says whether the whole proof is checked. A check that takes a while shows the file and line
         it is at, with a bar above the editor: a theory that <code>load</code> brings in is checked once, the first
         time, and the number of files grows as their <code>load</code>s are found.</li>

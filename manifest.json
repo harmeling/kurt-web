@@ -151,6 +151,36 @@
       "3-integrals.kurt"
     ]
   },
+  "scenes": {
+    "01-knights-and-knaves": [
+      "island.kurt"
+    ],
+    "02-family-tree": [
+      "family.kurt"
+    ],
+    "03-sets": [
+      "sets.kurt"
+    ],
+    "04-functions": [
+      "maps.kurt"
+    ],
+    "05-relations": [
+      "relations.kurt"
+    ],
+    "06-groups": [
+      "groups-scene.kurt"
+    ],
+    "07-induction": [
+      "peano.kurt",
+      "recursion.kurt"
+    ],
+    "08-limits": [
+      "sequences.kurt"
+    ],
+    "09-calculus": [
+      "calculus.kurt"
+    ]
+  },
   "theories": [
     "analysis.kurt",
     "derivative.kurt",

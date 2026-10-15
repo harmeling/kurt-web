@@ -318,3 +318,78 @@ test('resizes the editor and the shell with the bar between them, and puts the s
   expect(beside.x).toBeGreaterThan(editor.x + editor.width - 1);                  // to the right
   expect(Math.abs(beside.y - editor.y)).toBeLessThan(2);
 });
+
+// ---- the details of every line, links to other files, the edits of each file kept (2026-10-15) ----
+
+test('shows the details of a declaration and of a parse, links a rule of a theory, and Back returns', async ({ page }) => {
+  await typeProof(page, 'load prop\nbool A, B\nparse (A and B)\nuse A\nuse B\nA and B\n');
+  await expect(page.locator('#status')).toHaveText('Proof checked');
+  const box = await page.locator('#editor').boundingBox();
+  const lineHeight = await page.locator('#editor').evaluate(e => parseFloat(getComputedStyle(e).lineHeight));
+  const hover = async line => { await page.mouse.move(box.x + 20, box.y + 12 + (line - 0.5) * lineHeight); await expect(page.locator('#tooltip')).toBeVisible(); };
+  if (!/^Kurt 0\.8\./.test(await page.locator('#version').textContent())) {      // (Kurt 0.9 or newer says what a line without a reason does)
+    await hover(2);
+    await expect(page.locator('#tooltip')).toContainText('statements');        // `bool A, B`: as in VS Code
+    await hover(3);
+    await expect(page.locator('#tooltip')).toContainText('sexpr');             // what `parse` printed
+  }
+  await hover(6);
+  const rule = page.locator('#tooltip a[href^="#file=theories/prop.kurt&line="]');
+  await expect(rule).toHaveText(/prop\.kurt:\d+/);
+  await rule.click();
+  await expect(page).toHaveURL(/#file=theories\/prop\.kurt&line=\d+$/);
+  await expect(page.locator('#editor')).toHaveValue(/and-intro/, { timeout: 60000 });
+  await page.goBack();
+  await expect(page.locator('#editor')).toHaveValue(/parse \(A and B\)/, { timeout: 60000 });
+});
+
+test('keeps the edits of each file, names the file in the address bar, and discards the edits on request', async ({ page }) => {
+  await page.locator('#examplesContainer .btn', { hasText: 'exercises' }).click();
+  await page.locator('.dropdown-menu .item', { hasText: '1-truth-and-lies.kurt' }).click();
+  await expect(page).toHaveURL(/#file=exercises\/01-knights-and-knaves\/1-truth-and-lies\.kurt$/);
+  await expect(page.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+  const exercise = await page.locator('#editor').inputValue();
+  const solved = exercise.replace('proof\n    todo\nqed', 'proof\n    assume (A says S) ∧ knight(A)\n        A says S\n        knight(A)\n        knight(A) ⇔ S\n        S\nqed');
+  await typeProof(page, solved);
+  await expect(page.locator('#status')).toHaveText('Checked, 3 todos left');
+  // another file, and back: the edited version
+  await page.locator('#examplesContainer .btn', { hasText: 'exercises' }).click();
+  await page.locator('.dropdown-menu .item', { hasText: '2-two-islanders.kurt' }).click();
+  await expect(page).toHaveURL(/2-two-islanders\.kurt$/);
+  await expect(page.locator('#editor')).not.toHaveValue(solved);
+  await page.goBack();
+  await expect(page).toHaveURL(/1-truth-and-lies\.kurt$/);
+  await expect(page.locator('#editor')).toHaveValue(solved);
+  await expect(page.locator('#status')).toHaveText('Checked, 3 todos left', { timeout: 60000 });
+  await page.reload();
+  await expect(page.locator('#editor')).toHaveValue(solved, { timeout: 60000 });
+  // the file as it came, on request
+  await page.locator('#fileBtn').click();
+  await expect(page.locator('#revertBtn')).toBeVisible();
+  await page.locator('#revertBtn').click();
+  await expect(page.locator('#editor')).toHaveValue(exercise);
+  await expect(page.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+  await page.locator('#fileBtn').click();
+  await expect(page.locator('#revertBtn')).toBeHidden();
+});
+
+test('a file that a proof loads is used as edited here, like an unsaved file in an editor', async ({ page }) => {
+  await page.goto('/#file=exercises/01-knights-and-knaves/theory/island.kurt');
+  await expect(page.locator('#editor')).toHaveValue(/knight/, { timeout: 60000 });
+  await typeProof(page, (await page.locator('#editor').inputValue()) + '\nbool Zzz\nZzz\n');
+  await expect(page.locator('#status')).toHaveText(/1 error/);
+  await page.goto('/#file=exercises/01-knights-and-knaves/1-truth-and-lies.kurt');
+  await expect(page.locator('#status')).toHaveText(/1 error/, { timeout: 60000 });          // (the scene, as edited)
+  await page.goto('/#file=exercises/01-knights-and-knaves/theory/island.kurt');
+  await page.locator('#fileBtn').click();
+  await page.locator('#revertBtn').click();
+  await page.goto('/#file=exercises/01-knights-and-knaves/1-truth-and-lies.kurt');
+  await expect(page.locator('#status')).toHaveText('Checked, 4 todos left', { timeout: 60000 });
+});
+
+test('the editor takes the window down to the footer, also in a narrow window', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  const panel = await page.locator('.editor-panel').boundingBox(), footer = await page.locator('.app-footer').boundingBox();
+  expect(footer.y + footer.height).toBeLessThanOrEqual(901);
+  expect(panel.y + panel.height).toBeGreaterThan(footer.y - 40);
+});

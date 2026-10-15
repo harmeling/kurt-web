@@ -54,8 +54,9 @@ def lsp_check(text, version):
     document = {'uri': LSP_URI}
     end = {'line': text.count('\\n') + 1, 'character': 0}
     hints = lsp.inlay_hints({'textDocument': document, 'range': {'start': {'line': 0, 'character': 0}, 'end': end}})
-    hovers = {}
-    for n in lsp.line_events(LSP_URI):
+    hovers = {}       # of every line that says something (a declaration, \`parse\`, ... too, as in VS Code)
+    for n, line in enumerate(text.split('\\n')):
+        if not line.strip(): continue
         hover = lsp.hover({'textDocument': document, 'position': {'line': n, 'character': 0}})
         if hover: hovers[n] = hover['contents']['value']
     result = lsp.results.get(LSP_URI)

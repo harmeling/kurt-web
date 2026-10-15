@@ -218,3 +218,29 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - `proofs/tutorial` and `proofs/keywords` are `tutorial/` and `keywords/` (as in Kurt's repository), so a link to a file is readable, `#file=tutorial/02-prove-an-implication.kurt`; `proofs/mafi1` stays. `manifest.json` lists the folders by their path (`folders`), in the order of the menus; `update.sh`, `scripts/generate_manifest.py`, `smoke_test.py`, `cache_name.py`, editor.js (`manifestFiles`, `listDirectory`, `buildExamplesUI`, `FIRST_LESSON`), README and the tests follow. A link to an edited proof still carries the text (`#proof=...`): there is no server to keep it.
 - View: "Details when hovering a line" (a setting, `hover`), off: no tooltip, the problems list stays.
 - `python3 scripts/generate_manifest.py`, `scripts/smoke_test.py` passed. `npx playwright test` can't run on this node (the headless chromium lacks libatk-bridge-2.0): the browser tests run in CI before the deploy.
+
+## 2026-10-15 -- the details of every line, links to other files, the edits of each file kept, the layout
+
+- The hover (and the bar below the editor) is what VS Code shows: the worker asks the language
+  server for the details of every line that says something, not only of the lines with a reason --
+  `bool A, B` ("statements"), `parse ...` (what it printed), `proof`, ... (with Kurt 0.9 or newer:
+  `what_the_line_does` isn't in 0.8.3, the playground's Kurt until the sync).
+- Links in the details: a loaded file (`[island.kurt:12](file:///play/theory/island.kurt#L12)`,
+  the proof's folder in /play) and the theories inside kurt.py (`prop.kurt:75`, `**theory:**
+  \`prop\``, no path) become links `#file=...&line=...`; `manifest.json` lists the scenes of the
+  exercises too (`scenes`, by topic), so those links pass the manifest check. A click opens the
+  file at the line (`openPath`, as from a menu), the browser's Back button returns.
+- The address bar names the file in the editor (`#file=...`; `pushState` from a menu or a link,
+  `replaceState` at the start), and the edits to each file stay by its path (`kurt.drafts`:
+  `{code, original}`; the draft `kurt.draft` of the document stays as it was) -- when the file is
+  opened again from a menu, a link, Back or a reload, and when a proof loads it (`loadedFiles`
+  takes the edited text, as an editor takes an unsaved file). File > "Discard my changes to FILE"
+  (shown for a changed file only) gives the file as it came. Share still puts its link into the
+  address bar (the tests read it there); a changed file's link carries the text, the status says so.
+  No tab bar: todo 27 of kurt-lang-dev weighs one against this.
+- The layout: the editor takes the window down to the footer from 601px on (before: above 960px
+  only; a window of 900px, e.g. half a laptop screen, had the editor at 58vh and empty space below
+  it); a phone keeps the page that scrolls. `100dvh` with `100vh` as the fallback.
+- The browser tests run on ls8-slurm again: the headless chromium lacks libatk-bridge-2.0,
+  libatspi and libasound; `apt-get download` of the three .deb (noble), `dpkg -x` into the session's
+  scratchpad, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu` (no root needed). ~4 min for the suite.

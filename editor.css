@@ -19,14 +19,15 @@
 
 .next-layout { padding: 12px; }
 .next-layout .editor-panel { min-height: 0; }
-@media (min-width: 961px) {
-	/* the panel takes the window between the header and the footer; the editor scrolls inside it */
-	body.next { display: flex; flex-direction: column; height: 100vh; }
+@media (min-width: 601px) {
+	/* the panel takes the window between the header and the footer; the editor scrolls inside it
+	   (also in a narrow window, e.g. half a laptop screen; a phone keeps the page that scrolls) */
+	body.next { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 	.next-layout { flex: 1 1 auto; min-height: 420px; display: flex; flex-direction: column; }
 	.next-layout .editor-panel { flex: 1 1 auto; }
 	.next-layout .editor-wrap { flex: 1 1 auto; height: 0; min-height: 200px; }
 }
-@media (max-width: 960px) {
+@media (max-width: 600px) {
 	.next-layout .editor-wrap { height: clamp(260px, 58vh, 680px); }
 }
 
@@ -99,6 +100,7 @@ body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text d
 .tooltip a { color: var(--accent-2); }
 .tooltip p { margin: 0; }
 
+.dropdown-menu .item.hidden { display: none; }       /* File > Discard my changes: only for a changed file */
 .menu-row input[type="checkbox"] { width: 16px; height: 16px; }
 label.menu-row { cursor: pointer; }
 .next .status { white-space: nowrap; }
