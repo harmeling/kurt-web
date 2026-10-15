@@ -389,7 +389,7 @@ function editorHover(event) {
   if (line === hoverLine) return;
   hoverLine = line; clearTimeout(hoverTimer); hideTooltip();
   markLine(line);
-  if (line === null) return;
+  if (line === null || !settings().hover) return;       // (View: "Details when hovering a line")
   hoverTimer = setTimeout(() => showTooltip(line, event.clientX), 350);
 }
 function showTooltip(line, x) {
@@ -514,7 +514,7 @@ function setEditor(code, filename = 'proof.kurt', folder = null) {
 
 // ---- settings, files, menus ---------------------------------------------------------------------
 function settings() {
-  const defaults = { fontSize: 15, indent: 40, live: true, reasons: true, shellSide: false, shellSize: 0, shellWidth: 0 };
+  const defaults = { fontSize: 15, indent: 40, live: true, reasons: true, hover: true, shellSide: false, shellSize: 0, shellWidth: 0 };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch { return defaults; }
 }
 function updateSettings(patch) {
@@ -522,7 +522,7 @@ function updateSettings(patch) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
   document.documentElement.style.setProperty('--code-font-size', `${next.fontSize}px`);
   $('#indentLabel').textContent = next.indent; $('#indentSlider').value = next.indent; $('#fontSizeLabel').textContent = next.fontSize;
-  $('#liveToggle').checked = next.live; $('#reasonsToggle').checked = next.reasons; $('#shellSideToggle').checked = next.shellSide;
+  $('#liveToggle').checked = next.live; $('#reasonsToggle').checked = next.reasons; $('#hoverToggle').checked = next.hover; $('#shellSideToggle').checked = next.shellSide;
   applyShellLayout(next);
   renderEditor();
 }
@@ -570,8 +570,8 @@ async function manifestFiles(folder) {
   let manifest = {};
   try { manifest = await fetch('manifest.json').then(r => r.json()); } catch {}
   if (folder === 'theories/') return manifest.theories || [];
-  const match = folder.match(/^(proofs|exercises)\/([^/]+)\/$/);
-  return (match && manifest[match[1]]?.[match[2]]) || [];
+  const topic = folder.match(/^exercises\/([^/]+)\/$/)?.[1];
+  return (topic ? manifest.exercises?.[topic] : manifest.folders?.[folder]) || [];
 }
 async function showPlaygroundFile(folder, file) {
   try {
@@ -606,7 +606,7 @@ async function shareProof() {
   try { await navigator.clipboard.writeText(url.href); setStatus(`Link to this ${what} copied`); }
   catch { prompt(`Copy this ${what} link:`, url.href); }
 }
-const FIRST_LESSON = ['proofs/tutorial/', '01-apply-an-implication-modus-ponens.kurt'];
+const FIRST_LESSON = ['tutorial/', '01-apply-an-implication-modus-ponens.kurt'];
 async function loadInitialDraft() {
   if (await openFromLink()) return;
   try { const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (draft?.code) { setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return; } } catch {}
@@ -638,15 +638,16 @@ function buildSymbolBar() {
 async function listDirectory(path) {
   try { const data = await fetch(`/__list?path=${encodeURIComponent(path)}`).then(r => r.json()); const entries = [...data.dirs, ...data.files]; if (entries.length) return entries; } catch {}
   const manifest = await fetch('manifest.json').then(r => r.json());
-  if (path === 'proofs/') return Object.keys(manifest.proofs).map(x => `${x}/`);
   if (path === 'theories/') return manifest.theories;
-  const folder = path.match(/^proofs\/([^/]+)\/$/)?.[1]; return folder ? manifest.proofs[folder] || [] : [];
+  return manifest.folders?.[path] || [];
 }
+// the menus of the proofs: the folders of the manifest, as in Kurt's repository (`tutorial/`,
+// `keywords/`, `proofs/mafi1/`), named by their last part -- so a link to a file is readable,
+// `#file=tutorial/02-prove-an-implication.kurt`
 async function buildExamplesUI() {
-  const order = ['tutorial/', 'keywords/', 'mafi1/'];
-  const rank = folder => (order.indexOf(folder) + order.length + 1) % (order.length + 1);
-  const folders = (await listDirectory('proofs/')).filter(x => x.endsWith('/')).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
-  for (const folder of folders) await createMenu(folder.slice(0, -1), `proofs/${folder}`);
+  let folders = [];
+  try { folders = Object.keys((await fetch('manifest.json').then(r => r.json())).folders || {}); } catch {}
+  for (const folder of folders) await createMenu(folder.slice(0, -1).split('/').pop(), folder);
   await createExercisesMenu();
   await createMenu('theories', 'theories/');
 }
@@ -763,6 +764,7 @@ function setupUI() {
   $('#indentSlider').oninput = event => updateSettings({ indent: Number(event.target.value) });
   $('#liveToggle').onchange = event => { updateSettings({ live: event.target.checked }); if (event.target.checked) checkNow(); };
   $('#reasonsToggle').onchange = event => updateSettings({ reasons: event.target.checked });
+  $('#hoverToggle').onchange = event => { updateSettings({ hover: event.target.checked }); if (!event.target.checked) hideTooltip(); };   // (the details stay in the problems list)
   $('#helpBtn').onclick = () => $('#helpDialog').showModal();
   $('#helpCloseBtn').onclick = () => $('#helpDialog').close();
   $('#helpDialog').addEventListener('click', event => { if (event.target === $('#helpDialog')) $('#helpDialog').close(); });

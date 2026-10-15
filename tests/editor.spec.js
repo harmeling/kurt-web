@@ -144,7 +144,7 @@ test('links a file of the playground by its name, an edited one with its folder,
   // only what the manifest lists
   await other.goto('/#file=../kurt.py');
   await expect(other.locator('#status')).toHaveText('The playground has no file ../kurt.py', { timeout: 60000 });
-  await other.goto('/#file=proofs/tutorial/02-prove-an-implication.kurt');
+  await other.goto('/#file=tutorial/02-prove-an-implication.kurt');
   await expect(other.locator('#editor')).toHaveValue(/show/, { timeout: 60000 });
 });
 

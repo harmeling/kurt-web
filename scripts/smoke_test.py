@@ -9,9 +9,9 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-for folder, files in manifest["proofs"].items():
+for folder, files in manifest["folders"].items():
     for name in files:
-        assert (root / "proofs" / folder / name).is_file(), (folder, name)
+        assert (root / folder / name).is_file(), (folder, name)
 for name in manifest["theories"]:
     assert (root / "theories" / name).is_file(), name
 runtime = (root / "kurt.py").read_text(encoding="utf-8")

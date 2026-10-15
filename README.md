@@ -20,7 +20,7 @@ A minimal, dark-mode playground for the [Kurt proof language](https://github.com
 - `kurt-worker.js` — Pyodide with `kurt.py`: the checks (Kurt's language server), and the run of the shell
   and the certificate.
 - `kurt.py` — The Kurt interpreter. The generated standalone bundle of the latest release, including all standard theories.
-- `proofs/` and `theories/` — the tutorial, the lessons on the keywords, and the standard theories.
+- `tutorial/`, `keywords/`, `proofs/` and `theories/` — the tutorial, the lessons on the keywords, the proofs of a course, and the standard theories, laid out as in Kurt's repository (so a link is readable: `#file=tutorial/02-prove-an-implication.kurt`).
 - `exercises/` — the exercises of Kurt by topic, each with its scene in `theory/` (the menu "exercises"; an exercise loads `theory/NAME`, so a proof may load files from a folder below its own).
 
 ## Local development
@@ -74,7 +74,7 @@ The playground follows the releases of Kurt by itself: every day, and on the "Ru
 This site is fully static and can be hosted on GitHub Pages without any server.
 
 - A GitHub Actions workflow (`.github/workflows/pages.yml`) builds and deploys the site to Pages on every push to `main`.
-- Directory listings for examples/tutorial/theories use a static `manifest.json` fallback when the dev server endpoint is not available. The workflow auto-generates `manifest.json` during the build by scanning `proofs/` and `theories/`.
+- Directory listings for examples/tutorial/theories use a static `manifest.json` fallback when the dev server endpoint is not available. The workflow auto-generates `manifest.json` during the build by scanning `tutorial/`, `keywords/`, `proofs/`, `exercises/` and `theories/`.
 
 To enable Pages:
 
