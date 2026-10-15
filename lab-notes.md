@@ -244,3 +244,9 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - The browser tests run on ls8-slurm again: the headless chromium lacks libatk-bridge-2.0,
   libatspi and libasound; `apt-get download` of the three .deb (noble), `dpkg -x` into the session's
   scratchpad, `LD_LIBRARY_PATH` to its `usr/lib/x86_64-linux-gnu` (no root needed). ~4 min for the suite.
+- Later that day: the "not used" hints of Kurt 0.9 (LSP severity 4, tag unnecessary) counted as
+  todos in the playground ("Checked, 9 todos left" for mafi1/06-subspaces.kurt, found by the
+  browser tests against the checkout). Now a hint: the line is faded (`diag-unused`), not in the
+  problems list or the counts, the summary says "(9 lines not used)", the details show the note.
+  The browser tests with the 0.8.3 content: 27 passed; with the checkout's 0.9 content: 27 passed
+  (`update.sh` in a scratch clone).

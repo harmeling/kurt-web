@@ -294,6 +294,12 @@ test('has the proofs of the course mafi1 in a menu of their own', async ({ page 
   await lesson.click();
   await expect(page.locator('#editor')).toHaveValue(/load vectorspace/);
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 120000 });
+  // a line that nothing later cites is a hint (Kurt 0.9), faded, not a todo
+  if (!/^Kurt 0\.8\./.test(await page.locator('#version').textContent())) {
+    await expect(page.locator('#problemsSummary')).toContainText('not used');
+    await expect(page.locator('#editorHighlight .diag-unused').first()).toBeVisible();
+    await expect(page.locator('#lineNumbers .todo-num')).toHaveCount(0);
+  }
 });
 
 test('resizes the editor and the shell with the bar between them, and puts the shell beside the editor', async ({ page }) => {

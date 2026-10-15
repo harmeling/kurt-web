@@ -97,7 +97,8 @@ function checked(data) {
     diagnosticsByLine.get(line).push({ severity: d.severity, message: d.message });
   }
   for (const h of data.hints) hintByLine.set(h.position.line, h.label.trim());
-  const errors = data.diagnostics.filter(d => d.severity === 1).length, todos = data.diagnostics.length - errors;
+  // the diagnostics: an error (1), a todo (2), or a hint (4: a line that nothing later cites, Kurt 0.9)
+  const errors = data.diagnostics.filter(d => d.severity === 1).length, todos = data.diagnostics.filter(d => d.severity === 2).length;
   if (errors) setStatus(`${errors} error${errors > 1 ? 's' : ''}${todos ? `, ${todos} todo${todos > 1 ? 's' : ''}` : ''}`, 'err');
   else if (todos) setStatus(`Checked, ${todos} todo${todos > 1 ? 's' : ''} left`, 'todo');
   else setStatus('Proof checked', 'ok');
@@ -262,7 +263,7 @@ function colorCode(text) {
 }
 function severityOf(line) {
   const list = diagnosticsByLine.get(line) || [];
-  return list.some(d => d.severity === 1) ? 'err' : list.length ? 'todo' : '';
+  return list.some(d => d.severity === 1) ? 'err' : list.some(d => d.severity === 2) ? 'todo' : list.length ? 'unused' : '';
 }
 // the lines that the step of the hovered line uses (blue), and the line itself (yellow)
 let refLines = new Set(), selfLines = new Set();
@@ -271,14 +272,14 @@ function renderEditor() {
   editorHighlight.innerHTML = lines.map((line, i) => {
     let html = highlightLine(line);
     const severity = severityOf(i);
-    if (severity && line.trim()) html = `<span class="diag-${severity}">${html}</span>`;
+    if (severity && line.trim()) html = `<span class="diag-${severity}">${html}</span>`;       // (`diag-unused`: faded)
     const hint = reasons && hintByLine.get(i);
     if (hint) {
       // at the column of the View menu; on a narrow screen right after the text
       const pad = narrow.matches ? 2 : Math.max(2, indent - [...line].length);
       html += `<span class="hint${hint.startsWith('; qed') ? ' qed' : ''}">${' '.repeat(pad)}${escapeHtml(hint)}</span>`;
     }
-    const classes = [severity && `${severity}-row`, refLines.has(i + 1) && 'ref-line', selfLines.has(i + 1) && 'self-line'].filter(Boolean);
+    const classes = [severity && severity !== 'unused' && `${severity}-row`, refLines.has(i + 1) && 'ref-line', selfLines.has(i + 1) && 'self-line'].filter(Boolean);
     if (!html) html = i === lines.length - 1 ? ' ' : '';     // an empty last line takes its room, as in the textarea
     return classes.length ? `<span class="${classes.join(' ')}">${html || ' '}</span>` : html;
   }).join('\n') || '&nbsp;';
@@ -286,7 +287,7 @@ function renderEditor() {
     const n = i + 1, severity = severityOf(i);
     if (selfLines.has(n)) return `<span class="self-num">${n}</span>`;
     if (refLines.has(n)) return `<span class="ref-num">${n}</span>`;
-    return severity ? `<span class="${severity}-num">${n}</span>` : n;
+    return severity && severity !== 'unused' ? `<span class="${severity}-num">${n}</span>` : n;
   }).join('\n');
   $('#editorWrap').style.setProperty('--line-digits', String(Math.max(2, String(lines.length).length)));
 }
@@ -363,13 +364,13 @@ function markdownToHtml(markdown) {
 function lineDetailsHtml(line) {
   // (0-based) the errors and todos of a line, then how it follows
   const diagnostics = (diagnosticsByLine.get(line) || []).map(d =>
-    `<div class="diag ${d.severity === 1 ? 'err' : 'todo'}">${escapeHtml(d.message)}</div>`).join('');
+    `<div class="diag ${d.severity === 1 ? 'err' : d.severity === 2 ? 'todo' : 'hint'}">${escapeHtml(d.message)}</div>`).join('');
   const hover = results && results.hovers[line];
   return diagnostics + (hover ? markdownToHtml(hover) : '');
 }
 function lineSummary(line) {
   // (0-based) one line about a line, for the bar below the editor
-  const diagnostic = (diagnosticsByLine.get(line) || [])[0];
+  const diagnostic = (diagnosticsByLine.get(line) || []).find(d => d.severity !== 4);
   if (diagnostic) return { text: `${line + 1}: ${diagnostic.message.split('\n')[0]}`, kind: diagnostic.severity === 1 ? 'err' : 'todo' };
   const hint = hintByLine.get(line);
   if (hint) return { text: `${line + 1}: ${editor.value.split('\n')[line].trim()}   ${hint}`, kind: '' };
@@ -433,11 +434,13 @@ function leaveEditor() {
 // all errors and todos, below the editor
 function renderProblems() {
   const list = $('#problemsList'), summary = $('#problemsSummary');
-  const all = [...diagnosticsByLine.entries()].sort((a, b) => a[0] - b[0]).flatMap(([line, ds]) => ds.map(d => ({ line, ...d })));
+  const every = [...diagnosticsByLine.entries()].sort((a, b) => a[0] - b[0]).flatMap(([line, ds]) => ds.map(d => ({ line, ...d })));
+  const all = every.filter(d => d.severity !== 4), unused = every.length - all.length;      // (the hints: in the details only)
   const errors = all.filter(d => d.severity === 1).length, todos = all.length - errors;
+  const hint = unused ? ` <span class="count-hint">(${unused} line${unused > 1 ? 's' : ''} not used)</span>` : '';
   summary.innerHTML = !results ? 'Problems' : all.length
-    ? `Problems: ${[errors && `<span class="count-err">${errors} error${errors > 1 ? 's' : ''}</span>`, todos && `<span class="count-todo">${todos} todo${todos > 1 ? 's' : ''}</span>`].filter(Boolean).join(', ')}`
-    : '<span class="count-ok">No problems</span>: every line is checked';
+    ? `Problems: ${[errors && `<span class="count-err">${errors} error${errors > 1 ? 's' : ''}</span>`, todos && `<span class="count-todo">${todos} todo${todos > 1 ? 's' : ''}</span>`].filter(Boolean).join(', ')}${hint}`
+    : `<span class="count-ok">No problems</span>: every line is checked${hint}`;
   list.innerHTML = '';
   for (const d of all) {
     const row = document.createElement('button'); row.type = 'button';

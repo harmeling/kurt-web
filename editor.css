@@ -40,6 +40,7 @@
 .editor-highlight .diag-todo {
 	text-decoration: underline wavy var(--warn); text-decoration-skip-ink: none; text-underline-offset: 4px;
 }
+.editor-highlight .diag-unused { opacity: 0.55; }           /* a line that nothing later cites (a hint) */
 .editor-highlight .err-row { background: var(--err-line); display: inline-block; min-width: 100%; }
 .editor-highlight .todo-row { background: var(--todo-line); display: inline-block; min-width: 100%; }
 body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text differs from the checked one */
@@ -67,6 +68,7 @@ body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text d
 .problems > summary .count-err { color: var(--err); font-weight: 600; }
 .problems > summary .count-todo { color: var(--warn); font-weight: 600; }
 .problems > summary .count-ok { color: var(--ok); font-weight: 600; }
+.problems > summary .count-hint { color: var(--muted); font-weight: 400; }
 .problems-list { max-height: 30vh; overflow: auto; padding: 0 0 6px; }
 .problem {
 	display: flex; gap: 10px; width: 100%; padding: 4px 12px; border: 0; background: transparent;
@@ -97,6 +99,7 @@ body.stale .editor-highlight .hint { opacity: 0.45; }        /* while the text d
 .tooltip .diag { margin: 0 0 6px; white-space: pre-wrap; font-family: var(--code-font-family); font-size: calc(var(--code-font-size) * 0.85); }
 .tooltip .diag.err { color: var(--err); }
 .tooltip .diag.todo { color: var(--warn); }
+.tooltip .diag.hint { color: var(--muted); }
 .tooltip a { color: var(--accent-2); }
 .tooltip p { margin: 0; }
 
