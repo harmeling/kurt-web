@@ -90,7 +90,7 @@
       <div class="shell-row">
         <span id="shellPrompt" class="shell-prompt">;[1]</span>
         <textarea id="shellInput" class="shell-input" rows="1" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Kurt shell: a line to check (Enter checks it, Shift+Enter a new line, Tab completes)"></textarea>
-        <button id="shellCopyBtn" class="btn small" disabled title="Insert the lines the shell accepted into the editor, where the check stopped">Copy to editor</button>
+        <button id="shellCopyBtn" class="btn small" disabled title="The lines you typed here and Kurt accepted go into the proof, where the shell started: before the failing line, after the breakpoint, or at the end">Insert into the proof</button>
         <button id="shellCloseBtn" class="btn small" aria-label="Close the shell">Close</button>
       </div>
     </section>
@@ -148,8 +148,10 @@
       where it stops -- at a <code>breakpoint</code> line, at the first failing line, or after the last line --
       with the open blocks and the facts there. A line typed there (Enter) is checked at once; Shift+Enter starts
       a new line, Tab completes (the next step, the value after <code>=</code> with <code>calc on</code>,
-      <code>\forall</code>, names). <strong>Copy to editor</strong> inserts the accepted lines into the proof,
-      where the shell started. The bar between the editor and the shell moves (double-click: back to the
+      <code>\forall</code>, names). The shell is for trying steps: when the proof fails at a line, type
+      candidates until one is accepted; <strong>Insert into the proof</strong> then puts the accepted lines
+      into the proof where the shell started (before the failing line, after the breakpoint, or at the end),
+      so what worked in the shell lands in the file. The bar between the editor and the shell moves (double-click: back to the
       default), and <strong>View</strong> puts the shell beside the editor instead of below it.</p>
 
       <h3>More</h3>
