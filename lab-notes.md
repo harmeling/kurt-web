@@ -250,3 +250,6 @@ Operational log for agent-session setup and activity on the `agent` branch.
   problems list or the counts, the summary says "(9 lines not used)", the details show the note.
   The browser tests with the 0.8.3 content: 27 passed; with the checkout's 0.9 content: 27 passed
   (`update.sh` in a scratch clone).
+- 2026-10-16: Kurt 0.9.0. The sync's browser tests failed once in CI: the hover test moved from
+  line 2 to line 3 while the tooltip of line 2 covered line 3 (the mouse was over the tooltip, the
+  editor saw no move). The test moves away between lines now. The sync again by its button.

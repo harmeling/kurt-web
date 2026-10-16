@@ -332,7 +332,11 @@ test('shows the details of a declaration and of a parse, links a rule of a theor
   await expect(page.locator('#status')).toHaveText('Proof checked');
   const box = await page.locator('#editor').boundingBox();
   const lineHeight = await page.locator('#editor').evaluate(e => parseFloat(getComputedStyle(e).lineHeight));
-  const hover = async line => { await page.mouse.move(box.x + 20, box.y + 12 + (line - 0.5) * lineHeight); await expect(page.locator('#tooltip')).toBeVisible(); };
+  const hover = async line => {
+    // away first (the tooltip of the line before may cover this line), then over the line
+    await page.mouse.move(box.x - 40, box.y - 40); await expect(page.locator('#tooltip')).toBeHidden();
+    await page.mouse.move(box.x + 20, box.y + 12 + (line - 0.5) * lineHeight); await expect(page.locator('#tooltip')).toBeVisible();
+  };
   if (!/^Kurt 0\.8\./.test(await page.locator('#version').textContent())) {      // (Kurt 0.9 or newer says what a line without a reason does)
     await hover(2);
     await expect(page.locator('#tooltip')).toContainText('statements');        // `bool A, B`: as in VS Code
