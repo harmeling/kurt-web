@@ -1,5 +1,5 @@
 {
-  "kurtVersion": "0.8.3",
+  "kurtVersion": "0.9.0",
   "declarations": [
     "var",
     "const",
@@ -34,6 +34,8 @@
     "cert",
     "use",
     "def",
+    "inline",
+    "tex",
     "show",
     "proof",
     "qed",

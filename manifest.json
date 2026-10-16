@@ -79,10 +79,11 @@
       "43-list.kurt",
       "44-sort.kurt",
       "45-builtin.kurt",
+      "46-inline.kurt",
       "local-helper.kurt"
     ],
     "proofs/mafi1/": [
-      "001-two-equal-sets.kurt",
+      "01-two-equal-sets.kurt",
       "03-formulas.kurt",
       "06-subspaces.kurt",
       "07-groups.kurt",
@@ -175,14 +176,16 @@
       "recursion.kurt"
     ],
     "08-limits": [
-      "sequences.kurt"
+      "limits.kurt"
     ],
     "09-calculus": [
-      "calculus.kurt"
+      "calculus.kurt",
+      "definitions.kurt"
     ]
   },
   "theories": [
     "analysis.kurt",
+    "continuity.kurt",
     "derivative.kurt",
     "equality.kurt",
     "field.kurt",
@@ -198,6 +201,7 @@
     "numbers.kurt",
     "prop.kurt",
     "rational.kurt",
+    "sequences.kurt",
     "set.kurt",
     "vectorspace.kurt"
   ]
