@@ -30,11 +30,12 @@
       "26-inspect-a-loaded-theory.kurt",
       "27-type-and-reduce-lambda-terms.kurt",
       "28-prove-with-modal-logic.kurt",
+      "29-numbers-sets-and-sorts.kurt",
       "my-theory.kurt"
     ],
     "keywords/": [
       "00-true.kurt",
-      "01-bool.kurt",
+      "01-prop.kurt",
       "02-use.kurt",
       "03-implies.kurt",
       "04-and.kurt",
@@ -80,6 +81,7 @@
       "44-sort.kurt",
       "45-builtin.kurt",
       "46-inline.kurt",
+      "47-default.kurt",
       "local-helper.kurt"
     ],
     "proofs/mafi1/": [
@@ -199,7 +201,8 @@
     "modal.kurt",
     "natural.kurt",
     "numbers.kurt",
-    "prop.kurt",
+    "objects.kurt",
+    "propositional.kurt",
     "rational.kurt",
     "sequences.kurt",
     "set.kurt",

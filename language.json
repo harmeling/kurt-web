@@ -1,5 +1,5 @@
 {
-  "kurtVersion": "0.9.0",
+  "kurtVersion": "0.10.0",
   "declarations": [
     "var",
     "const",
@@ -12,7 +12,7 @@
     "chain",
     "flat",
     "sym",
-    "bool",
+    "prop",
     "calc",
     "alias"
   ],
@@ -27,7 +27,9 @@
     "list",
     "save",
     "syntax",
+    "info",
     "sort",
+    "default",
     "builtin",
     "local",
     "theory",
@@ -36,6 +38,7 @@
     "def",
     "inline",
     "tex",
+    "lean",
     "show",
     "proof",
     "qed",

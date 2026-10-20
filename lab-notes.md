@@ -265,3 +265,6 @@ Operational log for agent-session setup and activity on the `agent` branch.
   generated files of that try are not committed: from the release, the sync makes them.
 - At the release: merge `kurt-0.10` into `main` first, then "Sync with Kurt" (update.sh vX.Y.Z,
   the browser tests, the deploy).
+- 2026-10-20: Kurt v0.10.0 -- `kurt-0.10` merged into `main`, then `./update.sh v0.10.0` (by hand,
+  what sync.yml does: so that no push ran the new tests against the old Kurt); smoke test passed,
+  browser tests on parrot 27 passed; pushed, pages.yml deploys.

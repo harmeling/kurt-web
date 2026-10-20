@@ -52,7 +52,7 @@ import time        # the dates of files, for `--deps`
 import threading   # debounced LSP checks and serialized access to session globals
 import uuid        # the id of a run (`RunState.run_id`)
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias, Literal, Callable, TypeVar, Generic, Iterator, TextIO, Optional, get_args
+from typing import Any, TypeAlias, Literal, Callable, TypeVar, Generic, Iterable, Iterator, TextIO, Optional, get_args
 from pathlib import Path
 from fractions import Fraction   # exact numbers for `calc`: `0.1` is 1/10
 from importlib import resources
@@ -65,7 +65,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.9.0'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.10.0'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -99,6 +99,8 @@ AND_SYMBOL   = 'and'         # conjunction (used for premises and conclusions)
 OR_SYMBOL    = 'or'          # disjunction (used by n-ary case elimination)
 IMPL_SYMBOL  = 'implies'     # implication 
 SUB_SYMBOL   = 'sub'         # substitution
+ANY_SORTS: frozenset[str] = frozenset({'any'})   # the sorts of a binder or variable over all objects
+CORE_SORTS = ('prop', 'any')      # the sorts every file knows: `any` the supersort of all, and of every symbol without a sort (todo 35), `prop` the judgment
 BOUND_SYMBOL = 'bound:'      # a binder's condition with its variable, `[bound:, x, x > 0]` (see `mark_bound_variables`)
 NOT_SYMBOL   = 'not'         # negation
 TRUE_SYMBOL  = 'true'        # true
@@ -164,7 +166,7 @@ CALCULATOR_BOOLEAN_RESULTS = frozenset((*CALCULATOR_RELATIONS, CALCULATOR_MEMBER
 # used as two implications, a `disjunction` is split by `case`, closing an `assume` block with
 # the `falsum` gives the `negation` of the assumption, `def` defines with an `equality` or an
 # `equivalence`
-ENGINE_ROLES: dict[str, list[int]] = {            # the role, and the `bool` signature it needs
+ENGINE_ROLES: dict[str, list[int]] = {            # the role, and the `prop` signature it needs
     'equivalence': [0, 1, 2], 'disjunction': [0, 1, 2], 'negation': [0, 1], 'falsum': [0], 'equality': [0],
     'universal': [0, 2], 'existential': [0, 2],      # (binders: `let` closes with the universal, `pick` opens from the existential)
     # sets (set.kurt, `post_process`'s `set_terms`): `{a, b}` lists its elements, `({} a b)`;
@@ -184,7 +186,7 @@ def shown_builtin_symbol(symbol: str) -> str:
 
 # `_EMBEDDED_THEORIES` is populated (from `theories/*.kurt`) only in the generated single-file
 # bundle produced by `scripts/build_standalone.py` -- empty here, in the real source file. It
-# lets that bundle be a genuinely standalone `kurt.py`: download it alone and `load prop` (etc.)
+# lets that bundle be a genuinely standalone `kurt.py`: download it alone and `load propositional` (etc.)
 # still works, no `theories/` directory required alongside it. See `EmbeddedTheories` below.
 _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   ';\n'
@@ -217,7 +219,11 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; `(lim $v $a $T) = $L ⇔ ...` would be wrong, since `lim v '
                   '0 (1 / v) = lim v 0 (1 / v)` would\n'
                   '; then say that this limit exists.\n'
-                  'load prop, equality, logic, set, numbers, natural\n'
+                  'load propositional, equality, logic, set, numbers, natural\n'
+                  'default real              ; every symbol of this file is a '
+                  'number, except where said otherwise\n'
+                  "; `kurt --lean` with Mathlib: the objects are Mathlib's "
+                  'reals (numbers.kurt)\n'
                   '\n'
                   ';; subtraction and halving, for ε/2 arguments: "sub-def" '
                   'links `-` to `+`, and the laws after it\n'
@@ -247,6 +253,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'const abs\n'
                   'arity abs 1\n'
                   'tex abs \\left|$1\\right|\n'
+                  'lean abs |$1|\n'
                   'use $a >= 0  ⇒  abs($a) = $a                "abs-nonneg"\n'
                   'use $a < 0  ⇒  abs($a) = -$a                "abs-neg"\n'
                   'use abs($a) >= 0                            "abs-ge-zero"\n'
@@ -262,6 +269,14 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'b)`, the body\n'
                   'bindop sum\n'
                   'tex sum \\sum_{$1=$2}^{$3} $4\n'
+                  '; in Lean: `$1`, `$2` the range, `$3` the body (a function) '
+                  '-- the sum of `T(b), T(b - 1), ...,\n'
+                  '; T(a)` for `b - a + 1 = N` terms (`N = ⌈b - a⌉ + 1`), and '
+                  'for `N < 0` its negative, as for a sum\n'
+                  '; over an integer range (`∑_{k=0}^{N-1} = -∑_{k=N}^{-1}`): '
+                  'so "sum-last" holds for any `a`, `b`\n'
+                  'lean sum (∑ n_ ∈ Finset.Ico (0 : ℤ) (⌈$2 - $1⌉ + 1), $3 ($2 '
+                  '- n_) - ∑ n_ ∈ Finset.Ico (⌈$2 - $1⌉ + 1) 0, $3 ($2 - n_))\n'
                   'use (sum $i ($a, $a) $T) = sub $i $a '
                   '$T                                       "sum-one"\n'
                   'use (sum $i ($a, $b + 1) $T) = (sub $i ($b + 1) $T) + (sum '
@@ -277,6 +292,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'bindop max, min\n'
                   'tex max \\max_{$1} $2\n'
                   'tex min \\min_{$1} $2\n'
+                  '; in Lean with a condition: `$1` the condition, `$2` the '
+                  'body (both functions) -- the supremum of\n'
+                  '; the values, which is the maximum where the maximum '
+                  'exists\n'
+                  'lean max (sSup (Set.image $2 {x_ | $1 x_}))\n'
+                  'lean min (sInf (Set.image $2 {x_ | $1 x_}))\n'
                   'use (sub $x $a %C) ∧ (∀ (sub $x $w %C) ((sub $v $w $T) <= '
                   '(sub $v $a $T)))  ⇒  (max (sub $x $v %C) $T) = sub $v $a '
                   '$T   "max-intro"\n'
@@ -298,6 +319,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'bindop argmax, argmin\n'
                   'tex argmax \\operatorname{arg\\,max}_{$1} $2\n'
                   'tex argmin \\operatorname{arg\\,min}_{$1} $2\n'
+                  "; in Lean: a choice (Hilbert's ε) of an element where `T` "
+                  'is largest (smallest), if there is one\n'
+                  'lean argmax (Classical.epsilon (fun a_ => $1 a_ ∧ ∀ w_, $1 '
+                  'w_ → $2 w_ ≤ $2 a_))\n'
+                  'lean argmin (Classical.epsilon (fun a_ => $1 a_ ∧ ∀ w_, $1 '
+                  'w_ → $2 a_ ≤ $2 w_))\n'
                   'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) <= (sub $v $a '
                   '$T)))  ⇒  (argmax $v ∈ $A $T) ∈ $A   "argmax-in"\n'
                   'use ($a ∈ $A) ∧ (∀ ($w ∈ $A) ((sub $v $w $T) <= (sub $v $a '
@@ -319,6 +346,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'bindop sup, inf\n'
                   'tex sup \\sup_{$1} $2\n'
                   'tex inf \\inf_{$1} $2\n'
+                  'lean sup (sSup (Set.image $2 {x_ | $1 x_}))\n'
+                  'lean inf (sInf (Set.image $2 {x_ | $1 x_}))\n'
                   'use (∀ (sub $x $w %C) ((sub $v $w $T) <= $b)) ∧ (sub $x $a '
                   '%C)  ⇒  (sub $v $a $T) <= sup (sub $x $v %C) $T   '
                   '"sup-upper"\n'
@@ -342,6 +371,13 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'arity lim 3\n'
                   'bindop lim\n'
                   'tex lim \\lim_{$1 \\to $2} $3\n'
+                  "; in Lean: Mathlib's limit along the punctured "
+                  'neighbourhoods of the point (with a condition: of\n'
+                  '; the points with it) -- `$1` the point, `$2` the body; '
+                  'with a condition `$1` the condition\n'
+                  'lean lim (Filter.limUnder (nhdsWithin $1 {$1}ᶜ) $2)\n'
+                  'lean lim (Filter.limUnder (nhdsWithin $2 ({$2}ᶜ ∩ {x_ | $1 '
+                  'x_})) $3)\n'
                   'use (∀ $e > 0 ∃ $d > 0 ∀ $y ((0 < abs($y - $a) ∧ abs($y - '
                   '$a) < $d)  ⇒  abs((sub $v $y $T) - $L) < $e))  ⇒  (lim $v '
                   '$a $T) = $L   "lim-intro"\n'
@@ -358,13 +394,17 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   ';; The limit laws are theorems of analysis, stated here as '
                   'axioms (their proofs by ε and δ are\n'
                   ';; long); continuity.kurt says continuity with it '
-                  '("cont-tends").\n'
+                  '("cont-tends"). For Lean they are proved, from\n'
+                  ';; Mathlib\'s limits (`lean "label" ...` at the end of this '
+                  'file).\n'
                   'const tends\n'
                   'arity tends 4\n'
                   'bindop tends                    ; the variable, the point '
                   'and the limit (outside), then the body\n'
-                  'bool tends 0\n'
+                  'prop tends 0\n'
                   'tex tends $4 \\underset{$1 \\to $2}{\\longrightarrow} $3\n'
+                  'lean tends (Filter.Tendsto $3 (nhdsWithin $1 {$1}ᶜ) (nhds '
+                  '$2))\n'
                   'use (tends $v $a $L $T)  ⇔  ∀ $e > 0 ∃ $d > 0 ∀ $y ((0 < '
                   'abs($y - $a) ∧ abs($y - $a) < $d)  ⇒  abs((sub $v $y $T) - '
                   '$L) < $e)   "tends-def"\n'
@@ -388,7 +428,241 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'use (tends $v $a $L $S) ∧ (tends $v $a $M $T)  ⇒  tends $v '
                   '$a ($L * $M) ($S * $T)   "tends-mul"\n'
                   'use (tends $v $a $L $S) ∧ (tends $v $a $M $T) ∧ $M ≠ 0  ⇒  '
-                  'tends $v $a ($L / $M) ($S / $T)   "tends-div"\n',
+                  'tends $v $a ($L / $M) ($S / $T)   "tends-div"\n'
+                  '\n'
+                  ';; the rules as theorems of Mathlib (see numbers.kurt)\n'
+                  'lean "sub-def" intros; ring\n'
+                  'lean "sub-add-cancel" intros; ring\n'
+                  'lean "sub-split" intros; ring\n'
+                  'lean "sub-add" intros; ring\n'
+                  'lean "sub-mul" intros; ring\n'
+                  'lean "sub-zero" intros; linarith\n'
+                  'lean "double" intros; ring\n'
+                  'lean "halves" intros; ring\n'
+                  'lean "le-mul-nonneg" intros; casesm* _ ∧ _; nlinarith\n'
+                  'lean "abs-nonneg" intros; simp_all [abs_of_nonneg]\n'
+                  'lean "abs-neg" intros; simp_all [abs_of_neg]\n'
+                  'lean "abs-ge-zero" intros; positivity\n'
+                  'lean "abs-zero" intros; exact abs_eq_zero\n'
+                  'lean "abs-mul" intros; exact abs_mul _ _\n'
+                  'lean "abs-sub-sym" intros; exact abs_sub_comm _ _\n'
+                  'lean "abs-triangle" intros; exact abs_add_le _ _\n'
+                  'lean "sum-one" intro a T\n'
+                  'lean "sum-one" simp [show Finset.Ico (0 : ℤ) 1 = {0} from '
+                  'rfl]\n'
+                  'lean "sum-empty" intro b T\n'
+                  'lean "sum-empty" have h : ⌈b - (1 + b)⌉ + 1 = 0 := by\n'
+                  'lean "sum-empty"   have : b - (1 + b) = ((-1 : ℤ) : ℝ) := '
+                  'by push_cast; ring\n'
+                  'lean "sum-empty"   rw [this, Int.ceil_intCast]; norm_num\n'
+                  'lean "sum-empty" rw [h]; simp\n'
+                  'lean "sum-last" intro a b T\n'
+                  'lean "sum-last" beta_reduce\n'
+                  'lean "sum-last" -- the sum of `g k` for `k` from 0 to `n - '
+                  '1` (for `n < 0`: minus the sum from `n` to -1)\n'
+                  'lean "sum-last" have step : ∀ (g : ℤ → ℝ) (n : ℤ), (∑ k ∈ '
+                  'Finset.Ico (0 : ℤ) (n + 1), g k - ∑ k ∈ Finset.Ico (n + 1) '
+                  '0, g k) = (∑ k ∈ Finset.Ico (0 : ℤ) n, g k - ∑ k ∈ '
+                  'Finset.Ico n 0, g k) + g n := by\n'
+                  'lean "sum-last"   intro g n\n'
+                  'lean "sum-last"   rcases le_or_gt 0 n with hn | hn\n'
+                  'lean "sum-last"   · rw [← '
+                  'Finset.insert_Ico_right_eq_Ico_add_one hn, '
+                  'Finset.sum_insert (by simp), Finset.Ico_eq_empty_of_le (by '
+                  'omega : (0 : ℤ) ≤ n + 1), Finset.Ico_eq_empty_of_le hn]; '
+                  'simp; ring\n'
+                  'lean "sum-last"   · rw [Finset.Ico_eq_empty_of_le (by omega '
+                  ': n + 1 ≤ 0), Finset.Ico_eq_empty_of_le (by omega : n ≤ 0), '
+                  '← Finset.insert_Ico_add_one_left_eq_Ico hn, '
+                  'Finset.sum_insert (by simp)]; simp\n'
+                  'lean "sum-last" have shift : ∀ (g : ℤ → ℝ) (N : ℤ), (∑ k ∈ '
+                  'Finset.Ico (0 : ℤ) (N + 1), g k - ∑ k ∈ Finset.Ico (N + 1) '
+                  '0, g k) = g 0 + (∑ k ∈ Finset.Ico (0 : ℤ) N, g (k + 1) - ∑ '
+                  'k ∈ Finset.Ico N 0, g (k + 1)) := by\n'
+                  'lean "sum-last"   intro g N\n'
+                  'lean "sum-last"   induction N using Int.induction_on with\n'
+                  'lean "sum-last"   | zero => simp [show Finset.Ico (0 : ℤ) 1 '
+                  '= {0} from rfl]\n'
+                  'lean "sum-last"   | succ n ih => rw [step, ih, step (fun k '
+                  '=> g (k + 1))]; ring\n'
+                  'lean "sum-last"   | pred n ih =>\n'
+                  'lean "sum-last"     have e1 := step g (-(n : ℤ))\n'
+                  'lean "sum-last"     have e2 := step (fun k => g (k + 1)) '
+                  '(-(n : ℤ) - 1)\n'
+                  'lean "sum-last"     simp only [sub_add_cancel] at e2 ⊢\n'
+                  'lean "sum-last"     linarith\n'
+                  'lean "sum-last" have hc : ⌈1 + b - a⌉ = ⌈b - a⌉ + 1 := by '
+                  'rw [show 1 + b - a = (b - a) + 1 by ring, '
+                  'Int.ceil_add_one]\n'
+                  'lean "sum-last" rw [hc, shift (fun k => T (1 + b - k)) (⌈b '
+                  '- a⌉ + 1)]\n'
+                  'lean "sum-last" simp only [Int.cast_zero, sub_zero, '
+                  'Int.cast_add, Int.cast_one]\n'
+                  'lean "sum-last" congr 1\n'
+                  'lean "sum-last" congr 1 <;> apply Finset.sum_congr rfl <;> '
+                  'intro k _ <;> congr 1 <;> ring\n'
+                  'lean "max-intro" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
+                  ": ℝ), C a → (∀ w, C w → T w ≤ T a) → sSup (T '' {x_ | C "
+                  'x_}) = T a := by\n'
+                  'lean "max-intro"   intro C T a ha hmax\n'
+                  'lean "max-intro"   exact IsGreatest.csSup_eq ⟨⟨a, ha, rfl⟩, '
+                  'by rintro _ ⟨w, hw, rfl⟩; exact hmax w hw⟩\n'
+                  'lean "max-intro" intros; beta_reduce at *; apply key <;> '
+                  'tauto\n'
+                  'lean "min-intro" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
+                  ": ℝ), C a → (∀ w, C w → T a ≤ T w) → sInf (T '' {x_ | C "
+                  'x_}) = T a := by\n'
+                  'lean "min-intro"   intro C T a ha hmin\n'
+                  'lean "min-intro"   exact IsLeast.csInf_eq ⟨⟨a, ha, rfl⟩, by '
+                  'rintro _ ⟨w, hw, rfl⟩; exact hmin w hw⟩\n'
+                  'lean "min-intro" intros; beta_reduce at *; apply key <;> '
+                  'tauto\n'
+                  'lean "argmax-in" have key : ∀ (S : Obj) (T : ℝ → ℝ) (a : '
+                  'ℝ), (∀ w, k_emb w ∈ S → T w ≤ T a) ∧ k_emb a ∈ S → k_emb '
+                  '(Classical.epsilon (fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ '
+                  'w_, (fun x => k_emb x ∈ S) w_ → T w_ ≤ T a_)) ∈ S :=\n'
+                  'lean "argmax-in"   fun S T a h => (Classical.epsilon_spec '
+                  '(p := fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => '
+                  'k_emb x ∈ S) w_ → T w_ ≤ T a_) ⟨a, h.2, h.1⟩).1\n'
+                  'lean "argmax-in" intros; apply key <;> first | assumption | '
+                  'exact ⟨‹_›.2, ‹_›.1⟩\n'
+                  'lean "argmax-max" have key : ∀ (S : Obj) (T : ℝ → ℝ) (a : '
+                  'ℝ), (∀ w, k_emb w ∈ S → T w ≤ T a) ∧ k_emb a ∈ S → ∀ w, '
+                  'k_emb w ∈ S → T w ≤ T (Classical.epsilon (fun a_ => (fun x '
+                  '=> k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => k_emb x ∈ S) w_ → T w_ '
+                  '≤ T a_)) :=\n'
+                  'lean "argmax-max"   fun S T a h => (Classical.epsilon_spec '
+                  '(p := fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => '
+                  'k_emb x ∈ S) w_ → T w_ ≤ T a_) ⟨a, h.2, h.1⟩).2\n'
+                  'lean "argmax-max" intros; apply key <;> first | assumption '
+                  '| exact ⟨‹_›.2, ‹_›.1⟩\n'
+                  'lean "argmin-in" have key : ∀ (S : Obj) (T : ℝ → ℝ) (a : '
+                  'ℝ), (∀ w, k_emb w ∈ S → T a ≤ T w) ∧ k_emb a ∈ S → k_emb '
+                  '(Classical.epsilon (fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ '
+                  'w_, (fun x => k_emb x ∈ S) w_ → T a_ ≤ T w_)) ∈ S :=\n'
+                  'lean "argmin-in"   fun S T a h => (Classical.epsilon_spec '
+                  '(p := fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => '
+                  'k_emb x ∈ S) w_ → T a_ ≤ T w_) ⟨a, h.2, h.1⟩).1\n'
+                  'lean "argmin-in" intros; apply key <;> first | assumption | '
+                  'exact ⟨‹_›.2, ‹_›.1⟩\n'
+                  'lean "argmin-min" have key : ∀ (S : Obj) (T : ℝ → ℝ) (a : '
+                  'ℝ), (∀ w, k_emb w ∈ S → T a ≤ T w) ∧ k_emb a ∈ S → ∀ w, '
+                  'k_emb w ∈ S → T (Classical.epsilon (fun a_ => (fun x => '
+                  'k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => k_emb x ∈ S) w_ → T a_ ≤ '
+                  'T w_)) ≤ T w :=\n'
+                  'lean "argmin-min"   fun S T a h => (Classical.epsilon_spec '
+                  '(p := fun a_ => (fun x => k_emb x ∈ S) a_ ∧ ∀ w_, (fun x => '
+                  'k_emb x ∈ S) w_ → T a_ ≤ T w_) ⟨a, h.2, h.1⟩).2\n'
+                  'lean "argmin-min" intros; apply key <;> first | assumption '
+                  '| exact ⟨‹_›.2, ‹_›.1⟩\n'
+                  'lean "sup-upper" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
+                  "b : ℝ), C a → (∀ w, C w → T w ≤ b) → T a ≤ sSup (T '' {x_ | "
+                  'C x_}) := by\n'
+                  'lean "sup-upper"   intro C T a b ha hb\n'
+                  'lean "sup-upper"   exact le_csSup ⟨b, by rintro _ ⟨w, hw, '
+                  'rfl⟩; exact hb w hw⟩ ⟨a, ha, rfl⟩\n'
+                  'lean "sup-upper" intros; beta_reduce at *; casesm* _ ∧ _; '
+                  'exact key _ _ _ _ ‹_› ‹_›\n'
+                  'lean "sup-least" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
+                  "b : ℝ), C a → (∀ w, C w → T w ≤ b) → sSup (T '' {x_ | C "
+                  'x_}) ≤ b := by\n'
+                  'lean "sup-least"   intro C T a b ha hb\n'
+                  'lean "sup-least"   exact csSup_le ⟨T a, a, ha, rfl⟩ (by '
+                  'rintro _ ⟨w, hw, rfl⟩; exact hb w hw)\n'
+                  'lean "sup-least" intros; beta_reduce at *; casesm* _ ∧ _; '
+                  'exact key _ _ _ _ ‹_› ‹_›\n'
+                  'lean "inf-lower" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
+                  "b : ℝ), C a → (∀ w, C w → b ≤ T w) → sInf (T '' {x_ | C "
+                  'x_}) ≤ T a := by\n'
+                  'lean "inf-lower"   intro C T a b ha hb\n'
+                  'lean "inf-lower"   exact csInf_le ⟨b, by rintro _ ⟨w, hw, '
+                  'rfl⟩; exact hb w hw⟩ ⟨a, ha, rfl⟩\n'
+                  'lean "inf-lower" intros; beta_reduce at *; casesm* _ ∧ _; '
+                  'exact key _ _ _ _ ‹_› ‹_›\n'
+                  'lean "inf-greatest" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) '
+                  "(a b : ℝ), C a → (∀ w, C w → b ≤ T w) → b ≤ sInf (T '' {x_ "
+                  '| C x_}) := by\n'
+                  'lean "inf-greatest"   intro C T a b ha hb\n'
+                  'lean "inf-greatest"   exact le_csInf ⟨T a, a, ha, rfl⟩ (by '
+                  'rintro _ ⟨w, hw, rfl⟩; exact hb w hw)\n'
+                  'lean "inf-greatest" intros; beta_reduce at *; casesm* _ ∧ '
+                  '_; exact key _ _ _ _ ‹_› ‹_›\n'
+                  'lean "tends-def" have key : ∀ (f : ℝ → ℝ) (a L : ℝ), '
+                  'Filter.Tendsto f (nhdsWithin a {a}ᶜ) (nhds L) ↔ ∀ e, 0 < e '
+                  '→ ∃ d, 0 < d ∧ ∀ y, (0 < |y - a| ∧ |y - a| < d) → |f y - L| '
+                  '< e := by\n'
+                  'lean "tends-def"   intro f a L\n'
+                  'lean "tends-def"   rw [Metric.tendsto_nhdsWithin_nhds]\n'
+                  'lean "tends-def"   simp only [Real.dist_eq, '
+                  'Set.mem_compl_iff, Set.mem_singleton_iff, gt_iff_lt]\n'
+                  'lean "tends-def"   constructor\n'
+                  'lean "tends-def"   · intro h e he; obtain ⟨d, hd, H⟩ := h e '
+                  'he; exact ⟨d, hd, fun y hy => H (by intro h; simp [h] at '
+                  'hy) hy.2⟩\n'
+                  'lean "tends-def"   · intro h e he; obtain ⟨d, hd, H⟩ := h e '
+                  'he; exact ⟨d, hd, fun y hy1 hy2 => H y ⟨abs_pos.mpr '
+                  '(sub_ne_zero.mpr hy1), hy2⟩⟩\n'
+                  'lean "tends-def" intros; beta_reduce; first | exact key _ _ '
+                  '_ | (rw [key]; simp only [and_comm, and_left_comm, '
+                  'and_assoc])\n'
+                  'lean "tends-lim" intros; exact Filter.Tendsto.limUnder_eq '
+                  '‹_›\n'
+                  'lean "tends-unique" intros; casesm* _ ∧ _; exact '
+                  'tendsto_nhds_unique ‹_› ‹_›\n'
+                  'lean "tends-const" intros; exact tendsto_const_nhds\n'
+                  'lean "tends-id" intros; exact '
+                  'tendsto_nhdsWithin_of_tendsto_nhds Filter.tendsto_id\n'
+                  'lean "tends-add" intros; casesm* _ ∧ _; exact '
+                  'Filter.Tendsto.add ‹_› ‹_›\n'
+                  'lean "tends-sub" intros; casesm* _ ∧ _; exact '
+                  'Filter.Tendsto.sub ‹_› ‹_›\n'
+                  'lean "tends-scale" intros; exact Filter.Tendsto.mul_const _ '
+                  '‹_›\n'
+                  'lean "tends-mul" intros; casesm* _ ∧ _; exact '
+                  'Filter.Tendsto.mul ‹_› ‹_›\n'
+                  'lean "tends-div" intros; casesm* _ ∧ _; exact '
+                  'Filter.Tendsto.div ‹_› ‹_› ‹_›\n'
+                  'lean "lim-intro" have key : ∀ (f : ℝ → ℝ) (a L : ℝ), (∀ e, '
+                  '0 < e → ∃ d, 0 < d ∧ ∀ y, (0 < |y - a| ∧ |y - a| < d) → |f '
+                  'y - L| < e) → Filter.limUnder (nhdsWithin a {a}ᶜ) f = L := '
+                  'by\n'
+                  'lean "lim-intro"   intro f a L h\n'
+                  'lean "lim-intro"   apply Filter.Tendsto.limUnder_eq\n'
+                  'lean "lim-intro"   rw [Metric.tendsto_nhdsWithin_nhds]\n'
+                  'lean "lim-intro"   intro e he; obtain ⟨d, hd, H⟩ := h e he\n'
+                  'lean "lim-intro"   exact ⟨d, hd, fun y hy1 hy2 => H y '
+                  '⟨abs_pos.mpr (sub_ne_zero.mpr hy1), by rwa [Real.dist_eq] '
+                  'at hy2⟩⟩\n'
+                  'lean "lim-intro" intros; beta_reduce at *; apply key; first '
+                  '| assumption | ((try simp only [and_comm, and_left_comm, '
+                  'and_assoc] at *); assumption)\n'
+                  'lean "lim-cond-intro" have key : ∀ (C : ℝ → Prop) (f : ℝ → '
+                  'ℝ) (a L : ℝ), (∀ d, 0 < d → ∃ y, C y ∧ 0 < |y - a| ∧ |y - '
+                  'a| < d) → (∀ e, 0 < e → ∃ d, 0 < d ∧ ∀ y, (C y ∧ 0 < |y - '
+                  'a| ∧ |y - a| < d) → |f y - L| < e) → Filter.limUnder '
+                  '(nhdsWithin a ({a}ᶜ ∩ {x_ | C x_})) f = L := by\n'
+                  'lean "lim-cond-intro"   intro C f a L hacc h\n'
+                  'lean "lim-cond-intro"   haveI : (nhdsWithin a ({a}ᶜ ∩ {x_ | '
+                  'C x_})).NeBot := by\n'
+                  'lean "lim-cond-intro"     rw [← '
+                  'mem_closure_iff_nhdsWithin_neBot, Metric.mem_closure_iff]\n'
+                  'lean "lim-cond-intro"     intro d hd; obtain ⟨y, hy, h1, '
+                  'h2⟩ := hacc d hd\n'
+                  'lean "lim-cond-intro"     refine ⟨y, ⟨fun h => ?_, hy⟩, by '
+                  'rw [dist_comm, Real.dist_eq]; exact h2⟩\n'
+                  'lean "lim-cond-intro"     rw [Set.mem_singleton_iff] at h; '
+                  'subst h; simp at h1\n'
+                  'lean "lim-cond-intro"   apply Filter.Tendsto.limUnder_eq\n'
+                  'lean "lim-cond-intro"   rw '
+                  '[Metric.tendsto_nhdsWithin_nhds]\n'
+                  'lean "lim-cond-intro"   intro e he; obtain ⟨d, hd, H⟩ := h '
+                  'e he\n'
+                  'lean "lim-cond-intro"   exact ⟨d, hd, fun y hy hyd => H y '
+                  '⟨hy.2, abs_pos.mpr (sub_ne_zero.mpr hy.1), by rwa '
+                  '[Real.dist_eq] at hyd⟩⟩\n'
+                  'lean "lim-cond-intro" intros; beta_reduce at *; casesm* _ ∧ '
+                  '_; apply key <;> first | assumption | ((try simp only '
+                  '[and_comm, and_left_comm, and_assoc] at *); assumption)\n',
  'continuity.kurt': '; continuity and derivatives by their definitions\n'
                     ';\n'
                     '; covers: continuity `cont x a T` ("`T` is continuous in '
@@ -403,19 +677,31 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     '(exercises/09-calculus, exercise 2).\n'
                     ';\n'
                     '; The definitions are stated as axioms, as in '
-                    'derivative.kurt (see there).\n'
-                    'load prop, equality, logic, set, numbers, natural, '
-                    'analysis\n'
+                    'derivative.kurt (see there) -- for Lean they are\n'
+                    "; theorems about Mathlib's `ContinuousAt`, "
+                    '`DifferentiableAt`, `deriv` (`lean "label" ...` at the '
+                    'end).\n'
+                    'load propositional, equality, logic, set, numbers, '
+                    'natural, analysis\n'
+                    'default real              ; every symbol of this file is '
+                    'a number, except where said otherwise\n'
                     '\n'
                     ';; syntax\n'
                     'const cont, diff, deriv\n'
                     'arity cont 3, diff 3, deriv 3\n'
                     'bindop cont, diff, deriv        ; the variable, then the '
                     'point (outside of the scope), then the body\n'
-                    'bool cont 0, diff 0\n'
+                    'prop cont 0, diff 0\n'
                     'tex cont \\operatorname{cont}_{$1=$2} $3\n'
                     'tex diff \\operatorname{diff}_{$1=$2} $3\n'
                     'tex deriv \\left.\\frac{d}{d$1} $3\\right|_{$1=$2}\n'
+                    '; in Lean with Mathlib (`kurt --lean`): `$1` the point, '
+                    "`$2` the body (a function) -- Mathlib's\n"
+                    '; continuity, differentiability and derivative at a '
+                    'point; the definitions below are theorems then\n'
+                    'lean cont (ContinuousAt $2 $1)\n'
+                    'lean diff (DifferentiableAt ℝ $2 $1)\n'
+                    'lean deriv (deriv $2 $1)\n'
                     '\n'
                     ';; definitions, by ε and δ\n'
                     'use (cont $v $a $T)  ⇔  ∀ $e > 0 ∃ $d > 0 ∀ $y (abs($y - '
@@ -436,7 +722,59 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     '; "cont-def" (at `y = a` both hold anyway), stated as an '
                     'axiom like the definitions\n'
                     'use (cont $v $a $T)  ⇔  tends $v $a (sub $v $a $T) '
-                    '$T                                "cont-tends"\n',
+                    '$T                                "cont-tends"\n'
+                    '\n'
+                    ';; the definitions as theorems of Mathlib (see '
+                    'numbers.kurt): `lean "label" TACTIC` is a proof in Lean\n'
+                    'lean "cont-def" intros; beta_reduce\n'
+                    'lean "cont-def" rw [Metric.continuousAt_iff]\n'
+                    'lean "cont-def" simp only [Real.dist_eq, gt_iff_lt]\n'
+                    'lean "diff-def" have key : ∀ (f : ℝ → ℝ) (a L : ℝ), '
+                    'HasDerivAt f L a ↔ ∀ e, 0 < e → ∃ d, 0 < d ∧ ∀ h, (0 < '
+                    '|h| ∧ |h| < d) → |(f (a + h) - f a) / h - L| < e := by\n'
+                    'lean "diff-def"   intro f a L\n'
+                    'lean "diff-def"   rw [hasDerivAt_iff_tendsto_slope_zero, '
+                    'Metric.tendsto_nhdsWithin_nhds]\n'
+                    'lean "diff-def"   simp only [Real.dist_eq, '
+                    'Set.mem_compl_iff, Set.mem_singleton_iff, gt_iff_lt, '
+                    'sub_zero, smul_eq_mul]\n'
+                    'lean "diff-def"   constructor\n'
+                    'lean "diff-def"   · intro h e he; obtain ⟨d, hd, H⟩ := h '
+                    'e he\n'
+                    'lean "diff-def"     exact ⟨d, hd, fun t ht => by rw '
+                    '[div_eq_inv_mul]; exact H (abs_pos.mp ht.1) ht.2⟩\n'
+                    'lean "diff-def"   · intro h e he; obtain ⟨d, hd, H⟩ := h '
+                    'e he\n'
+                    'lean "diff-def"     exact ⟨d, hd, fun t ht htd => by rw '
+                    '[← div_eq_inv_mul]; exact H t ⟨abs_pos.mpr ht, htd⟩⟩\n'
+                    'lean "diff-def" intros; beta_reduce\n'
+                    'lean "diff-def" constructor\n'
+                    'lean "diff-def" · intro hd; exact ⟨_, (key _ _ _).mp '
+                    'hd.hasDerivAt⟩\n'
+                    'lean "diff-def" · rintro ⟨L, hL⟩; exact ((key _ _ L).mpr '
+                    '(by simpa only [and_comm, and_left_comm, and_assoc] using '
+                    'hL)).differentiableAt\n'
+                    'lean "deriv-intro" have key : ∀ (f : ℝ → ℝ) (a L : ℝ), (∀ '
+                    'e, 0 < e → ∃ d, 0 < d ∧ ∀ h, (0 < |h| ∧ |h| < d) → |(f (a '
+                    '+ h) - f a) / h - L| < e) → HasDerivAt f L a := by\n'
+                    'lean "deriv-intro"   intro f a L h\n'
+                    'lean "deriv-intro"   rw '
+                    '[hasDerivAt_iff_tendsto_slope_zero, '
+                    'Metric.tendsto_nhdsWithin_nhds]\n'
+                    'lean "deriv-intro"   simp only [Real.dist_eq, '
+                    'Set.mem_compl_iff, Set.mem_singleton_iff, gt_iff_lt, '
+                    'sub_zero, smul_eq_mul]\n'
+                    'lean "deriv-intro"   intro e he; obtain ⟨d, hd, H⟩ := h e '
+                    'he\n'
+                    'lean "deriv-intro"   exact ⟨d, hd, fun t ht htd => by rw '
+                    '[← div_eq_inv_mul]; exact H t ⟨abs_pos.mpr ht, htd⟩⟩\n'
+                    'lean "deriv-intro" intros; beta_reduce at *\n'
+                    'lean "deriv-intro" apply HasDerivAt.deriv; apply key\n'
+                    'lean "deriv-intro" first | assumption | ((try simp only '
+                    '[and_comm, and_left_comm, and_assoc] at *); assumption)\n'
+                    'lean "cont-tends" intros; beta_reduce\n'
+                    'lean "cont-tends" exact '
+                    'continuousWithinAt_compl_self.symm\n',
  'derivative.kurt': '; derivatives\n'
                     ';\n'
                     '; covers: for continuity `cont x a T`, differentiability '
@@ -481,10 +819,15 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     "doesn't have) -- each needs the conditions\n"
                     '; of the theorem. (The definitions "cont-def", '
                     '"diff-def", "deriv-intro" are continuity.kurt\'s.)\n'
-                    'load prop, equality, logic, set, numbers, natural, '
-                    'analysis\n'
+                    "; For Lean they are proved, from Mathlib's calculus: "
+                    '`kurt --lean` writes them as theorems with the\n'
+                    '; proofs at the end of this file (`lean "label" ...`).\n'
+                    'load propositional, equality, logic, set, numbers, '
+                    'natural, analysis\n'
                     'load continuity             ; `cont`, `diff`, `deriv` and '
                     'their definitions (by ε and δ)\n'
+                    'default real              ; every symbol of this file is '
+                    'a number, except where said otherwise\n'
                     '\n'
                     '\n'
                     ';; differentiable functions are continuous\n'
@@ -558,7 +901,90 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     'use ($a < $b) ∧ (∀ $y (($a <= $y ∧ $y <= $b)  ⇒  cont $v '
                     '$y $T)) ∧ (∀ $y (($a < $y ∧ $y < $b)  ⇒  diff $v $y $T))  '
                     '⇒  ∃ $c ($a < $c ∧ $c < $b ∧ (deriv $v $c $T) * ($b - $a) '
-                    '= (sub $v $b $T) - (sub $v $a $T))   "mean-value"\n',
+                    '= (sub $v $b $T) - (sub $v $a $T))   "mean-value"\n'
+                    '\n'
+                    ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                    '`lean "label" TACTIC` is a proof in Lean\n'
+                    'lean "diff-cont" intros; exact '
+                    'DifferentiableAt.continuousAt ‹_›\n'
+                    'lean "diff-const" intros; exact differentiableAt_const _\n'
+                    'lean "deriv-const" intros; exact deriv_const _ _\n'
+                    'lean "diff-id" intros; exact differentiableAt_id\n'
+                    'lean "deriv-id" intros; exact deriv_id _\n'
+                    'lean "diff-add" intros; casesm* _ ∧ _; exact '
+                    'DifferentiableAt.add ‹_› ‹_›\n'
+                    'lean "deriv-add" intros; casesm* _ ∧ _; exact deriv_add '
+                    '‹_› ‹_›\n'
+                    'lean "diff-sub" intros; casesm* _ ∧ _; exact '
+                    'DifferentiableAt.sub ‹_› ‹_›\n'
+                    'lean "deriv-sub" intros; casesm* _ ∧ _; exact deriv_sub '
+                    '‹_› ‹_›\n'
+                    'lean "diff-scale" intros; exact '
+                    'DifferentiableAt.mul_const ‹_› _\n'
+                    'lean "deriv-scale" intros; rw [deriv_mul_const ‹_›]; '
+                    'ring\n'
+                    'lean "diff-mul" intros; casesm* _ ∧ _; exact '
+                    'DifferentiableAt.mul ‹_› ‹_›\n'
+                    'lean "deriv-mul" intros; casesm* _ ∧ _; beta_reduce at *\n'
+                    'lean "deriv-mul" refine (deriv_fun_mul ?_ ?_).trans ?_\n'
+                    'lean "deriv-mul" · assumption\n'
+                    'lean "deriv-mul" · assumption\n'
+                    'lean "deriv-mul" · ring\n'
+                    'lean "diff-div" intros; casesm* _ ∧ _; exact '
+                    'DifferentiableAt.div ‹_› ‹_› ‹_›\n'
+                    'lean "deriv-div" intros; casesm* _ ∧ _; beta_reduce at *\n'
+                    'lean "deriv-div" refine (deriv_fun_div ?_ ?_ ?_).trans '
+                    '?_\n'
+                    'lean "deriv-div" · assumption\n'
+                    'lean "deriv-div" · assumption\n'
+                    'lean "deriv-div" · assumption\n'
+                    'lean "deriv-div" · rw [Real.rpow_two]; ring\n'
+                    'lean "diff-pow" intros; casesm* _ ∧ _\n'
+                    'lean "diff-pow" obtain ⟨m, rfl⟩ := (k_mem_Nat _).mp '
+                    '‹k_emb _ ∈ Nat›\n'
+                    'lean "diff-pow" simp only [Real.rpow_natCast]\n'
+                    'lean "diff-pow" fun_prop\n'
+                    'lean "deriv-pow" intros; exact Real.deriv_rpow_const _ _\n'
+                    'lean "diff-chain" intros; casesm* _ ∧ _; beta_reduce at '
+                    '*\n'
+                    'lean "diff-chain" exact DifferentiableAt.comp _ ‹_› ‹_›\n'
+                    'lean "deriv-chain" intros; casesm* _ ∧ _; beta_reduce at '
+                    '*\n'
+                    'lean "deriv-chain" refine (deriv_comp _ ?_ ?_).trans '
+                    '(mul_comm _ _)\n'
+                    'lean "deriv-chain" · assumption\n'
+                    'lean "deriv-chain" · assumption\n'
+                    'lean "deriv-max" intros; casesm* _ ∧ _; beta_reduce at *\n'
+                    'lean "deriv-max" apply IsLocalMax.deriv_eq_zero\n'
+                    'lean "deriv-max" obtain ⟨d, hd, H⟩ := ‹∃ d, _›\n'
+                    'lean "deriv-max" exact Filter.eventually_of_mem '
+                    '(Metric.ball_mem_nhds _ hd) (fun y hy => H y (by rwa '
+                    '[Metric.mem_ball, Real.dist_eq] at hy))\n'
+                    'lean "deriv-min" intros; casesm* _ ∧ _; beta_reduce at *\n'
+                    'lean "deriv-min" apply IsLocalMin.deriv_eq_zero\n'
+                    'lean "deriv-min" obtain ⟨d, hd, H⟩ := ‹∃ d, _›\n'
+                    'lean "deriv-min" exact Filter.eventually_of_mem '
+                    '(Metric.ball_mem_nhds _ hd) (fun y hy => H y (by rwa '
+                    '[Metric.mem_ball, Real.dist_eq] at hy))\n'
+                    'lean "mean-value" have key : ∀ (f : ℝ → ℝ) (a b : ℝ), a < '
+                    'b → (∀ y, (a ≤ y ∧ y ≤ b) → ContinuousAt f y) → (∀ y, (a '
+                    '< y ∧ y < b) → DifferentiableAt ℝ f y) → ∃ c, a < c ∧ c < '
+                    'b ∧ (b - a) * deriv f c = f b - f a := by\n'
+                    'lean "mean-value"   intro f a b hab hc hd\n'
+                    'lean "mean-value"   obtain ⟨c, ⟨h1, h2⟩, hc\'⟩ := '
+                    'exists_deriv_eq_slope f hab (fun y hy => (hc y '
+                    'hy).continuousWithinAt) (fun y hy => (hd y '
+                    'hy).differentiableWithinAt)\n'
+                    'lean "mean-value"   refine ⟨c, h1, h2, ?_⟩\n'
+                    'lean "mean-value"   rw [hc\']; field_simp '
+                    "[sub_ne_zero.mpr hab.ne']\n"
+                    'lean "mean-value" intros; casesm* _ ∧ _; beta_reduce at '
+                    '*\n'
+                    'lean "mean-value" obtain ⟨c, h1, h2, h3⟩ := key _ _ _ ‹_› '
+                    '‹∀ y, _ ≤ y ∧ y ≤ _ → _› ‹∀ y, _ < y ∧ y < _ → _›\n'
+                    'lean "mean-value" exact ⟨c, by first | exact ⟨h1, h2, h3⟩ '
+                    '| (simp only [and_comm, and_left_comm, and_assoc]; exact '
+                    '⟨h1, h2, h3⟩) | tauto⟩\n',
  'equality.kurt': '; equality\n'
                   ';\n'
                   '; covers: reflexivity ("equal-intro"), Leibniz substitution '
@@ -569,12 +995,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '`=`-chain proofs are built out of\n'
                   "; (numbers.kurt's algebraic rules, set.kurt's "
                   'distributive-law proof, ...).\n'
-                  'load prop\n'
+                  'load propositional\n'
                   '\n'
                   ';; syntax\n'
                   'infix = 20 20  ; higher binding power than space, equality '
                   'is left-associative\n'
-                  'bool  = 0      ; equations are boolean, however, the LHS '
+                  'prop  = 0      ; equations are boolean, however, the LHS '
                   'and RHS can be anything\n'
                   'sym   =        ; equality is symmetric\n'
                   'chain =        ; equality is chainable\n'
@@ -583,9 +1009,9 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '\n'
                   '\n'
                   'infix ≠ 20 20                        ; inequality -- a '
-                  'relation (`bool`), so `a ≠ b ≠ c` on one line is `a ≠ b ∧ b '
+                  'relation (`prop`), so `a ≠ b ≠ c` on one line is `a ≠ b ∧ b '
                   '≠ c`; not transitive (no `chain`)\n'
-                  'bool ≠ 0\n'
+                  'prop ≠ 0\n'
                   'inline $a ≠ $b  iff  not ($a = $b)    ; `a ≠ b` is read as '
                   '`not (a = b)`: one term, nothing to switch\n'
                   '\n'
@@ -602,7 +1028,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '(sub $x $a $A = sub $x $b $A)  "term-replacement"\n'
                   ';  e.g.\n'
                   ';  other notation\n'
-                  ';  $a = $b and $f($a) = $f($a)  implies  $f($a) = $f($b)\n',
+                  ';  $a = $b and $f($a) = $f($a)  implies  $f($a) = $f($b)\n'
+                  '\n'
+                  ";; the rules as theorems of Lean's logic (`kurt --lean`, "
+                  "see propositional.kurt): `=` is Lean's\n"
+                  'lean "equal-intro" grind\n'
+                  'lean "equal-elim" grind\n',
  'field.kurt': '; field -- the axioms of a field `K` with `+`, `·` (`\\cdot`), '
                '`-`, `inv`, `0`, `1`\n'
                ';\n'
@@ -629,7 +1060,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'names, as the slides do after proving\n'
                '; uniqueness: `0` and `1`, `- λ` and `inv λ`. proofs/mafi1/ '
                'uses this theory.\n'
-               'load prop, equality, logic, set\n'
+               'load propositional, equality, logic, set\n'
                'infix + 60 60\n'
                'infix · 70 70\n'
                'infix - 60 60\n'
@@ -1146,7 +1577,111 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '            false\n'
                '        ¬($a = 0)\n'
                '        $a ≠ 0\n'
-               'qed\n',
+               'qed\n'
+               '\n'
+               '; A model, for `kurt --lean` (doc/kurt-soundness.md §11, the '
+               'axiom audit): the field of the reals.\n'
+               '; `K` is the set of the reals embedded into the sets '
+               '(`k_emb`), `0` and `1` are the embedded `0` and\n'
+               '; `1`, and the operations decode their arguments (`k_dec`, the '
+               'inverse of `k_emb`), compute in ℝ and\n'
+               '; embed the result -- so `+` is associative and commutative '
+               'and `·` associative on all objects, as\n'
+               '; `flat` and `sym` say. Lean proves every axiom above true in '
+               'this model, so the theory has a model.\n'
+               'lean K def ZFSet.range (fun x : ℝ => k_emb x)\n'
+               'lean 0 k_emb (0 : ℝ)\n'
+               'lean 1 k_emb (1 : ℝ)\n'
+               'lean + def k_emb ((k_dec $1 : ℝ) + (k_dec $2 : ℝ))\n'
+               'lean · def k_emb ((k_dec $1 : ℝ) * (k_dec $2 : ℝ))\n'
+               'lean - def k_emb ((k_dec $1 : ℝ) - (k_dec $2 : ℝ))\n'
+               'lean - def k_emb (-(k_dec $1 : ℝ))\n'
+               'lean inv def k_emb ((k_dec $1 : ℝ)⁻¹)\n'
+               'lean "zero-in-field" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "one-in-field" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "plus-closed" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "times-closed" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "minus-closed" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "inv-closed" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "plus-associative" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "plus-commutative" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "plus-zero" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "plus-minus" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "times-associative" (try simp only [K_d0, '
+               'ZFSet.mem_range, and_imp, forall_exists_index]); intros; (try '
+               'subst_vars); simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, '
+               'k_u2d_d1, k_u2d_d2, inv_d1]; first | done | ring | (congr 1; '
+               'ring) | field_simp | exact ⟨_, rfl⟩\n'
+               'lean "times-commutative" (try simp only [K_d0, '
+               'ZFSet.mem_range, and_imp, forall_exists_index]); intros; (try '
+               'subst_vars); simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, '
+               'k_u2d_d1, k_u2d_d2, inv_d1]; first | done | ring | (congr 1; '
+               'ring) | field_simp | exact ⟨_, rfl⟩\n'
+               'lean "zero-not-one" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "one-times" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "inv-times" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "distributive" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n'
+               'lean "minus-def" (try simp only [K_d0, ZFSet.mem_range, '
+               'and_imp, forall_exists_index]); intros; (try subst_vars); '
+               'simp_all [k_dec_emb, k_u2b_d2, k_ub7_d2, k_u2d_d1, k_u2d_d2, '
+               'inv_d1]; first | done | ring | (congr 1; ring) | field_simp | '
+               'exact ⟨_, rfl⟩\n',
  'group.kurt': '; groups\n'
                ';\n'
                '; covers: `group(G, (∘), e, inv)` -- the set `G` with the '
@@ -1155,74 +1690,92 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '`associative`, `identity`, `inverse`),\n'
                '; the rules for using it, and the theorems that the identity '
                'and the inverse are unique and\n'
-               '; `inv (inv a) = a`.\n'
+               '; `inv (inv a) = a`. Also `abelian(G, (∘))` (commutativity) '
+               'and `abeliangroup(G, (∘), e, inv)` (a\n'
+               '; group that is also abelian), with "abeliangroup-commute" as '
+               'a thin wrapper.\n'
                ';\n'
-               '; `∘` is a *variable* here (`var ∘`), an operator that stands '
-               'for any operation: the rules and\n'
+               '; The axioms (`identity`, `inverse`) only ask for the LEFT '
+               'identity and the LEFT inverse: `e ∘ a =\n'
+               "; a` and `(inv a) ∘ a = e`. Groups aren't assumed symmetric -- "
+               '`∘` need not be commutative, so\n'
+               "; `a ∘ e = a` and `a ∘ (inv a) = e` don't follow from the "
+               'definitions alone -- but they do follow\n'
+               '; from the other axioms (associativity, closure), for every '
+               "group, abelian or not: that's\n"
+               '; "group-right-identity" and "group-right-inverse" below, '
+               'proved rather than assumed, via\n'
+               '; "group-idempotent" (the classic one-sided-axioms argument; '
+               'see\n'
+               '; exercises/06-groups/theory/groups-scene.kurt for the same '
+               'proof done as a standalone exercise).\n'
+               ';\n'
+               '; `∘` and the inverse `ι` are *variables* here (`var ∘`, `var '
+               'ι`): operators that stand for any\n'
+               '; operation -- an operator is no object, so they are operator '
+               'parameters, not terms (doc/kurt-doc.md\n'
+               '; §5.3). `∘` is an operator that stands for any operation: the '
+               'rules and\n'
                '; theorems hold for every group -- the numbers with `(+)`, '
                '`0`, `(-)` just as well as an abstract\n'
                '; group `G` with its own `∘` (which a file loading this one '
                'can use as an operation, since only\n'
                '; the `infix ∘` is exported, not the `var`). See '
                'tutorial/24-use-a-structure-groups.kurt.\n'
-               'load prop, equality, logic, set\n'
+               'load propositional, equality, logic, set\n'
                'var ∘\n'
-               'infix ∘ 70 70           ; like `*`: `a ∘ b ∈ G` is `(a ∘ b) ∈ '
-               'G`\n'
+               'infix ∘ 70 70\n'
+               'var ι                   ; the inverse, an operator variable '
+               'like `∘` (an operator is no object, doc/kurt-doc.md §5.3)\n'
+               'arity ι 1           ; like `*`: `a ∘ b ∈ G` is `(a ∘ b) ∈ G`\n'
                'arity group (_, _, _, _)\n'
                'arity closed (_, _)\n'
                'arity associative (_, _)\n'
+               'arity abelian (_, _)\n'
                'arity identity (_, _, _)\n'
                'arity inverse (_, _, _, _)\n'
+               'arity abeliangroup (_, _, _, _)\n'
                'def closed($G, (∘))  ⇔  ∀ $a ∈ $G ∀ $b ∈ $G ($a ∘ $b ∈ '
                '$G)                                  "closed"\n'
                'def associative($G, (∘))  ⇔  ∀ $a ∈ $G ∀ $b ∈ $G ∀ $c ∈ $G '
                '(($a ∘ $b) ∘ $c = $a ∘ ($b ∘ $c))    "associative"\n'
+               'def abelian($G, (∘))  ⇔  ∀ $a ∈ $G ∀ $b ∈ $G ($a ∘ $b = $b ∘ '
+               '$a)                             "abelian"\n'
                'def identity($G, (∘), $e)  ⇔  $e ∈ $G ∧ (∀ $a ∈ $G ($e ∘ $a = '
-               '$a ∧ $a ∘ $e = $a))                "identity"\n'
-               'def inverse($G, (∘), $e, $inv)  ⇔  ∀ $a ∈ $G ($inv $a ∈ $G ∧ '
-               '($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = $e)   "inverse"\n'
-               'def group($G, (∘), $e, $inv)  ⇔  closed($G, (∘)) ∧ '
+               '$a))                           "identity"\n'
+               'def inverse($G, (∘), $e, (ι))  ⇔  ∀ $a ∈ $G (ι $a ∈ $G ∧ (ι '
+               '$a) ∘ $a = $e)            "inverse"\n'
+               'def group($G, (∘), $e, (ι))  ⇔  closed($G, (∘)) ∧ '
                'associative($G, (∘)) ∧ identity($G, (∘), $e) ∧ inverse($G, '
-               '(∘), $e, $inv)   "group"\n'
+               '(∘), $e, (ι))   "group"\n'
+               'def abeliangroup($G, (∘), $e, (ι))  ⇔  group($G, (∘), $e, (ι)) '
+               '∧ abelian($G, (∘))         "abeliangroup"\n'
                '\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $e ∘ $a = $a ∧ $a '
-               '∘ $e = $a     "group-identity"\n'
+               '; the parts one by one, straight from the axioms, for single '
+               'steps\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G  ⇒  $a ∘ $b ∈ '
+               '$G     "group-closed"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
-               '(∘), $e) ∧ inverse($G, (∘), $e, $inv)\n'
-               '        identity($G, (∘), $e)\n'
-               '        $e ∈ $G ∧ (∀ $x ∈ $G ($e ∘ $x = $x ∧ $x ∘ $e = $x))\n'
-               '        ∀ $x ∈ $G ($e ∘ $x = $x ∧ $x ∘ $e = $x)\n'
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
+               '        closed($G, (∘))\n'
+               '        ∀ $x ∈ $G ∀ $y ∈ $G ($x ∘ $y ∈ $G)\n'
                '        $a ∈ $G\n'
-               '        $e ∘ $a = $a ∧ $a ∘ $e = $a\n'
+               '        ∀ $y ∈ $G ($a ∘ $y ∈ $G)\n'
+               '        $b ∈ $G\n'
+               '        $a ∘ $b ∈ $G\n'
                'qed\n'
                '\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $inv $a ∈ $G ∧ '
-               '($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = $e     "group-inverse"\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $c ∈ $G  ⇒  '
+               '($a ∘ $b) ∘ $c = $a ∘ ($b ∘ $c)     "group-associative"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        group($G, (∘), $e, $inv)\n'
-               '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
-               '(∘), $e) ∧ inverse($G, (∘), $e, $inv)\n'
-               '        inverse($G, (∘), $e, $inv)\n'
-               '        ∀ $x ∈ $G ($inv $x ∈ $G ∧ ($inv $x) ∘ $x = $e ∧ $x ∘ '
-               '($inv $x) = $e)\n'
-               '        $a ∈ $G\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e\n'
-               'qed\n'
-               '\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $c ∈ $G  '
-               '⇒  ($a ∘ $b) ∘ $c = $a ∘ ($b ∘ $c)     "group-associative"\n'
-               'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $c ∈ '
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $c ∈ '
                '$G\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
-               '(∘), $e) ∧ inverse($G, (∘), $e, $inv)\n'
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
                '        associative($G, (∘))\n'
                '        ∀ $x ∈ $G ∀ $y ∈ $G ∀ $z ∈ $G (($x ∘ $y) ∘ $z = $x ∘ '
                '($y ∘ $z))\n'
@@ -1234,84 +1787,169 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '        ($a ∘ $b) ∘ $c = $a ∘ ($b ∘ $c)\n'
                'qed\n'
                '\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G  ⇒  $a ∘ $b '
-               '∈ $G     "group-closed"\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  $e ∘ $a = $a     '
+               '"group-left-identity"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
-               '(∘), $e) ∧ inverse($G, (∘), $e, $inv)\n'
-               '        closed($G, (∘))\n'
-               '        ∀ $x ∈ $G ∀ $y ∈ $G ($x ∘ $y ∈ $G)\n'
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
+               '        identity($G, (∘), $e)\n'
+               '        $e ∈ $G ∧ (∀ $x ∈ $G ($e ∘ $x = $x))\n'
+               '        ∀ $x ∈ $G ($e ∘ $x = $x)\n'
                '        $a ∈ $G\n'
-               '        ∀ $y ∈ $G ($a ∘ $y ∈ $G)\n'
-               '        $b ∈ $G\n'
-               '        $a ∘ $b ∈ $G\n'
+               '        $e ∘ $a = $a\n'
                'qed\n'
                '\n'
-               'show group($G, (∘), $e, $inv)  ⇒  $e ∈ $G     '
+               'show group($G, (∘), $e, (ι))  ⇒  $e ∈ $G     '
                '"group-identity-in"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv)\n'
+               '    assume group($G, (∘), $e, (ι))\n'
                '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
-               '(∘), $e) ∧ inverse($G, (∘), $e, $inv)\n'
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
                '        identity($G, (∘), $e)\n'
-               '        $e ∈ $G ∧ (∀ $x ∈ $G ($e ∘ $x = $x ∧ $x ∘ $e = $x))\n'
+               '        $e ∈ $G ∧ (∀ $x ∈ $G ($e ∘ $x = $x))\n'
                '        $e ∈ $G\n'
                'qed\n'
                '\n'
-               '; the parts one by one, for single steps\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $e ∘ $a = $a     '
-               '"group-left-identity"\n'
-               'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        $e ∘ $a = $a ∧ $a ∘ $e = $a                ; by '
-               'group-identity\n'
-               '        $e ∘ $a = $a\n'
-               'qed\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $a ∘ $e = $a     '
-               '"group-right-identity"\n'
-               'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        $e ∘ $a = $a ∧ $a ∘ $e = $a                ; by '
-               'group-identity\n'
-               '        $a ∘ $e = $a\n'
-               'qed\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $inv $a ∈ $G     '
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  ι $a ∈ $G     '
                '"group-inverse-in"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e     ; by group-inverse\n'
-               '        $inv $a ∈ $G\n'
-               'qed\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  ($inv $a) ∘ $a = '
-               '$e     "group-left-inverse"\n'
-               'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e     ; by group-inverse\n'
-               '        ($inv $a) ∘ $a = $e\n'
-               'qed\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $a ∘ ($inv $a) = '
-               '$e     "group-right-inverse"\n'
-               'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e     ; by group-inverse\n'
-               '        $a ∘ ($inv $a) = $e\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
+               '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
+               '        inverse($G, (∘), $e, (ι))\n'
+               '        ∀ $x ∈ $G (ι $x ∈ $G ∧ (ι $x) ∘ $x = $e)\n'
+               '        $a ∈ $G\n'
+               '        ι $a ∈ $G ∧ (ι $a) ∘ $a = $e\n'
+               '        ι $a ∈ $G\n'
                'qed\n'
                '\n'
-               ';; theorems\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  (ι $a) ∘ $a = '
+               '$e     "group-left-inverse"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
+               '        closed($G, (∘)) ∧ associative($G, (∘)) ∧ identity($G, '
+               '(∘), $e) ∧ inverse($G, (∘), $e, (ι))\n'
+               '        inverse($G, (∘), $e, (ι))\n'
+               '        ∀ $x ∈ $G (ι $x ∈ $G ∧ (ι $x) ∘ $x = $e)\n'
+               '        $a ∈ $G\n'
+               '        ι $a ∈ $G ∧ (ι $a) ∘ $a = $e\n'
+               '        (ι $a) ∘ $a = $e\n'
+               'qed\n'
+               '\n'
+               ';; theorems that need both axioms together, not just one '
+               'unfolded definition\n'
+               '\n'
+               '; the key lemma that gets the right-handed laws out of the '
+               'left-handed axioms alone: an element\n'
+               '; that is its own square is the identity\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $a ∘ $a = $a  ⇒  $a = '
+               '$e     "group-idempotent"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $a ∘ $a = $a\n'
+               '        group($G, (∘), $e, (ι))\n'
+               '        $a ∈ $G\n'
+               '        $a ∘ $a = $a\n'
+               '        ι $a ∈ $G                                     ; by '
+               'group-inverse-in\n'
+               '        $a = $e ∘ $a                                     ; by '
+               'group-left-identity\n'
+               '          = ((ι $a) ∘ $a) ∘ $a                        ; by '
+               'group-left-inverse\n'
+               '          = (ι $a) ∘ ($a ∘ $a)                        ; by '
+               'group-associative\n'
+               '          = (ι $a) ∘ $a                                ; the '
+               'assumption\n'
+               '          = $e                                            ; by '
+               'group-left-inverse\n'
+               'qed\n'
+               '\n'
+               '; the left inverse is also a right inverse -- holds for every '
+               'group, abelian or not\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  $a ∘ (ι $a) = '
+               '$e     "group-right-inverse"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
+               '        $a ∈ $G\n'
+               '        ι $a ∈ '
+               '$G                                                                '
+               '; by group-inverse-in\n'
+               '        $a ∘ (ι $a) ∈ '
+               '$G                                                          ; '
+               'by group-closed\n'
+               '        ($a ∘ (ι $a)) ∘ ($a ∘ (ι $a)) = $a ∘ ((ι $a) ∘ ($a ∘ '
+               '(ι $a)))    ; by group-associative\n'
+               '                                             = $a ∘ (((ι $a) ∘ '
+               '$a) ∘ (ι $a))   ; by group-associative\n'
+               '                                             = $a ∘ ($e ∘ (ι '
+               '$a))                 ; by group-left-inverse\n'
+               '                                             = $a ∘ (ι '
+               '$a)                        ; by group-left-identity\n'
+               '        $a ∘ (ι $a) = '
+               '$e                                                         ; '
+               'by group-idempotent, for `a ∘ (inv a)`\n'
+               'qed\n'
+               '\n'
+               '; the left identity is also a right identity\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  $a ∘ $e = $a     '
+               '"group-right-identity"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
+               '        $a ∈ $G\n'
+               '        ι $a ∈ $G                             ; by '
+               'group-inverse-in\n'
+               '        (ι $a) ∘ $a = $e                      ; by '
+               'group-left-inverse\n'
+               '        $a ∘ $e = $a ∘ ((ι $a) ∘ $a)\n'
+               '                = ($a ∘ (ι $a)) ∘ $a          ; by '
+               'group-associative\n'
+               '                = $e ∘ $a                        ; by '
+               'group-right-inverse\n'
+               '                = $a                             ; by '
+               'group-left-identity\n'
+               'qed\n'
+               '\n'
+               '; the identity holds from both sides at once -- used where a '
+               'proof needs both halves together,\n'
+               '; e.g. "identity-unique" below\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  $e ∘ $a = $a ∧ $a ∘ '
+               '$e = $a     "group-identity"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        $e ∘ $a = $a                             ; by '
+               'group-left-identity\n'
+               '        $a ∘ $e = $a                             ; by '
+               'group-right-identity\n'
+               '        $e ∘ $a = $a ∧ $a ∘ $e = $a\n'
+               'qed\n'
+               '\n'
+               '; the inverse holds from both sides at once\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  ι $a ∈ $G ∧ (ι $a) '
+               '∘ $a = $e ∧ $a ∘ (ι $a) = $e     "group-inverse"\n'
+               'proof\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        ι $a ∈ $G                             ; by '
+               'group-inverse-in\n'
+               '        (ι $a) ∘ $a = $e                      ; by '
+               'group-left-inverse\n'
+               '        $a ∘ (ι $a) = $e                      ; by '
+               'group-right-inverse\n'
+               '        ι $a ∈ $G ∧ (ι $a) ∘ $a = $e ∧ $a ∘ (ι $a) = $e\n'
+               'qed\n'
                '\n'
                '; the identity is unique: an `f` with `f ∘ a = a` for all `a` '
                'is `e`\n'
-               'show group($G, (∘), $e, $inv) ∧ $f ∈ $G ∧ (∀ $x ∈ $G ($f ∘ $x '
-               '= $x))  ⇒  $f = $e     "identity-unique"\n'
+               'show group($G, (∘), $e, (ι)) ∧ $f ∈ $G ∧ (∀ $x ∈ $G ($f ∘ $x = '
+               '$x))  ⇒  $f = $e     "identity-unique"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $f ∈ $G ∧ (∀ $x ∈ $G ($f '
+               '    assume group($G, (∘), $e, (ι)) ∧ $f ∈ $G ∧ (∀ $x ∈ $G ($f '
                '∘ $x = $x))\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        $f ∈ $G\n'
                '        $e ∘ $f = $f ∧ $f ∘ $e = $f                 ; by '
                'group-identity\n'
@@ -1324,48 +1962,63 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'qed\n'
                '\n'
                '; the inverse is unique: a `b` with `b ∘ a = e` is `inv a`\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $b ∘ $a = '
-               '$e  ⇒  $b = $inv $a     "inverse-unique"\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $b ∘ $a = '
+               '$e  ⇒  $b = ι $a     "inverse-unique"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $b ∘ '
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G ∧ $b ∘ '
                '$a = $e\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        $a ∈ $G\n'
                '        $b ∈ $G\n'
                '        $b ∘ $a = $e\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e     ; by group-inverse\n'
-               '        $inv $a ∈ $G\n'
-               '        $a ∘ ($inv $a) = $e\n'
+               '        ι $a ∈ $G ∧ (ι $a) ∘ $a = $e ∧ $a ∘ (ι $a) = $e     ; '
+               'by group-inverse\n'
+               '        ι $a ∈ $G\n'
+               '        $a ∘ (ι $a) = $e\n'
                '        $e ∘ $b = $b ∧ $b ∘ $e = '
                '$b                                ; by group-identity\n'
                '        $b ∘ $e = $b\n'
-               '        $e ∘ ($inv $a) = $inv $a ∧ ($inv $a) ∘ $e = $inv $a\n'
-               '        $e ∘ ($inv $a) = $inv $a\n'
-               '        ($b ∘ $a) ∘ ($inv $a) = $b ∘ ($a ∘ ($inv '
-               '$a))              ; by group-associative\n'
+               '        $e ∘ (ι $a) = ι $a ∧ (ι $a) ∘ $e = ι $a\n'
+               '        $e ∘ (ι $a) = ι $a\n'
+               '        ($b ∘ $a) ∘ (ι $a) = $b ∘ ($a ∘ (ι $a))              ; '
+               'by group-associative\n'
                '        $b = $b ∘ $e\n'
-               '           = $b ∘ ($a ∘ ($inv $a))\n'
-               '           = ($b ∘ $a) ∘ ($inv $a)\n'
-               '           = $e ∘ ($inv $a)\n'
-               '           = $inv $a\n'
+               '           = $b ∘ ($a ∘ (ι $a))\n'
+               '           = ($b ∘ $a) ∘ (ι $a)\n'
+               '           = $e ∘ (ι $a)\n'
+               '           = ι $a\n'
                'qed\n'
                '\n'
                '; the inverse of the inverse\n'
-               'show group($G, (∘), $e, $inv) ∧ $a ∈ $G  ⇒  $inv ($inv $a) = '
-               '$a     "inverse-inverse"\n'
+               'show group($G, (∘), $e, (ι)) ∧ $a ∈ $G  ⇒  ι (ι $a) = $a     '
+               '"inverse-inverse"\n'
                'proof\n'
-               '    assume group($G, (∘), $e, $inv) ∧ $a ∈ $G\n'
-               '        group($G, (∘), $e, $inv)\n'
+               '    assume group($G, (∘), $e, (ι)) ∧ $a ∈ $G\n'
+               '        group($G, (∘), $e, (ι))\n'
                '        $a ∈ $G\n'
-               '        $inv $a ∈ $G ∧ ($inv $a) ∘ $a = $e ∧ $a ∘ ($inv $a) = '
-               '$e     ; by group-inverse\n'
-               '        $inv $a ∈ $G\n'
-               '        $a ∘ ($inv $a) = $e\n'
-               '        $a = $inv ($inv '
-               '$a)                                         ; by '
-               'inverse-unique, for `inv a`\n'
-               '        $inv ($inv $a) = $a\n'
+               '        ι $a ∈ $G ∧ (ι $a) ∘ $a = $e ∧ $a ∘ (ι $a) = $e     ; '
+               'by group-inverse\n'
+               '        ι $a ∈ $G\n'
+               '        $a ∘ (ι $a) = $e\n'
+               '        $a = ι (ι $a)                                         '
+               '; by inverse-unique, for `inv a`\n'
+               '        ι (ι $a) = $a\n'
+               'qed\n'
+               '\n'
+               "; an abelian group's operation commutes on its elements -- a "
+               'thin wrapper unpacking `abeliangroup`\n'
+               'show abeliangroup($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G  ⇒  $a '
+               '∘ $b = $b ∘ $a     "abeliangroup-commute"\n'
+               'proof\n'
+               '    assume abeliangroup($G, (∘), $e, (ι)) ∧ $a ∈ $G ∧ $b ∈ $G\n'
+               '        abeliangroup($G, (∘), $e, (ι))\n'
+               '        group($G, (∘), $e, (ι)) ∧ abelian($G, (∘))\n'
+               '        abelian($G, (∘))\n'
+               '        ∀ $x ∈ $G ∀ $y ∈ $G ($x ∘ $y = $y ∘ $x)\n'
+               '        $a ∈ $G\n'
+               '        ∀ $y ∈ $G ($a ∘ $y = $y ∘ $a)\n'
+               '        $b ∈ $G\n'
+               '        $a ∘ $b = $b ∘ $a\n'
                'qed\n',
  'integer.kurt': '; integers\n'
                  ';\n'
@@ -1373,11 +2026,25 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'their negatives -- closed under `+`, `-`\n'
                  '; and `*`. As for natural.kurt, they are numbers of '
                  'numbers.kurt, so its laws (and `calc`) apply.\n'
-                 'load prop, equality, set, numbers, natural\n'
+                 'load propositional, equality, set, numbers, natural\n'
+                 'default real              ; every symbol of this file is a '
+                 'number, except where said otherwise:\n'
+                 'set Int                  ; the integers are a set (of '
+                 'numbers)\n'
                  'const Int\n'
                  'builtin Int integers                   ; `calc on` proves '
                  '`-3 ∈ Int`\n'
                  'tex Int \\mathbb{Z}\n'
+                 "; `kurt --lean` with Mathlib: the objects are Mathlib's "
+                 'reals (numbers.kurt), `Int` the integers\n'
+                 '; among them (as `Nat` in natural.kurt)\n'
+                 'lean Int member $1 ∈ Set.range (fun n : ℤ => (n : ℝ))\n'
+                 'alias ℤ Int\n'
+                 'use Int ⊂ Real  "int-sub-real"      ; a set of numbers '
+                 '(natural.kurt\'s "ext-real")\n'
+                 'lean "int-sub-real" simp only [k_u2282]; intro z hz; obtain '
+                 '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
+                 '_).mpr rfl\n'
                  '\n'
                  'use $n ∈ Nat  ⇒  $n ∈ Int                         "int-nat"\n'
                  'use $n ∈ Nat  ⇒  -$n ∈ Int                        '
@@ -1443,7 +2110,44 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '            $z ∈ Nat\n'
                  '        $z ∈ Nat\n'
                  'qed\n'
-                 '\n',
+                 '\n'
+                 '\n'
+                 ';; the rules as theorems of Mathlib (see numbers.kurt and '
+                 'natural.kurt): `Int` by its axiom `k_mem_Int`\n'
+                 'lean "int-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; exact (k_mem_Int _).mpr ⟨n, by simp⟩\n'
+                 'lean "int-neg-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; exact (k_mem_Int _).mpr ⟨-n, by simp⟩\n'
+                 'lean "int-cases" intro z hz\n'
+                 'lean "int-cases" obtain ⟨m, rfl⟩ := (k_mem_Int z).mp hz\n'
+                 'lean "int-cases" obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg '
+                 'm\n'
+                 'lean "int-cases" all_goals first | (left; refine (k_mem_Nat '
+                 '_).mpr ⟨n, ?_⟩; simp; done) | (right; refine (k_mem_Nat '
+                 '_).mpr ⟨n, ?_⟩; simp; done)\n'
+                 'lean "int-add" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_add _ _⟩\n'
+                 'lean "int-sub" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_sub _ _⟩\n'
+                 'lean "int-mul" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_mul _ _⟩\n'
+                 '\n'
+                 ';; the theorems Kurt proves above, as theorems of Mathlib '
+                 'too (see natural.kurt)\n'
+                 'lean "int-zero" exact (k_mem_Int _).mpr ⟨0, by simp⟩\n'
+                 'lean "int-one" exact (k_mem_Int _).mpr ⟨1, by simp⟩\n'
+                 'lean "int-neg" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
+                 'z).mp hz; exact (k_mem_Int _).mpr ⟨-m, by simp⟩\n'
+                 'lean "int-pos-nat" intros; casesm* _ ∧ _\n'
+                 'lean "int-pos-nat" obtain ⟨m, rfl⟩ := (k_mem_Int _).mp '
+                 '‹k_emb _ ∈ Int›; beta_reduce at *\n'
+                 'lean "int-pos-nat" have : 0 < m := by exact_mod_cast (‹_› : '
+                 '(0 : ℝ) < m)\n'
+                 'lean "int-pos-nat" exact (k_mem_Nat _).mpr ⟨m.toNat, by '
+                 'beta_reduce; exact_mod_cast Int.toNat_of_nonneg this.le⟩\n',
  'integral.kurt': '; integrals\n'
                   ';\n'
                   '; covers: the (Riemann) integral `integral x (a, b) T` of '
@@ -1471,9 +2175,13 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; As in derivative.kurt, `$T` is any function of the bound '
                   'variable, and the rules are\n'
                   '; theorems of real analysis stated as axioms, each with the '
-                  'conditions it needs.\n'
-                  'load prop, equality, logic, set, numbers, natural, '
+                  'conditions it needs -- for Lean they\n'
+                  "; are proved, from Mathlib's integrals, but "
+                  '"integral-riemann" (`lean "label" ...` at the end).\n'
+                  'load propositional, equality, logic, set, numbers, natural, '
                   'analysis, continuity, derivative\n'
+                  'default real              ; every symbol of this file is a '
+                  'number, except where said otherwise\n'
                   '\n'
                   ';; syntax: as `sum`, the range in brackets after the '
                   'variable\n'
@@ -1483,7 +2191,17 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'tex integral \\int_{$2}^{$3} $4 \\, d$1\n'
                   'tex integrable \\operatorname{integrable}_{$1 \\in [$2, '
                   '$3]} $4\n'
-                  'bool integrable 0\n'
+                  'prop integrable 0\n'
+                  '; in Lean with Mathlib (`kurt --lean`): `$1`, `$2` the '
+                  'interval, `$3` the body (a function) -- the\n'
+                  "; integral is Mathlib's (`intervalIntegral`), and "
+                  '`integrable` is read as "continuous on [a, b]":\n'
+                  '; the rules make a function integrable only that way '
+                  '("integrable-cont", then sums, multiples and\n'
+                  '; parts of intervals), and every rule holds for it\n'
+                  'lean integral (intervalIntegral $3 $1 $2 '
+                  'MeasureTheory.volume)\n'
+                  'lean integrable (ContinuousOn $3 (Set.Icc $1 $2))\n'
                   '\n'
                   ';; what the integral is: the limit of the Riemann sums (n '
                   'pieces of length (b - a) / n, each\n'
@@ -1545,7 +2263,109 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'use ($a <= $b) ∧ (integrable $v ($a, $b) $T) ∧ (∀ $y (($a '
                   '<= $y ∧ $y <= $b)  ⇒  (diff $v $y $F) ∧ (deriv $v $y $F) = '
                   '(sub $v $y $T)))  ⇒  (integral $v ($a, $b) $T) = (sub $v $b '
-                  '$F) - (sub $v $a $F)   "ftc"\n',
+                  '$F) - (sub $v $a $F)   "ftc"\n'
+                  '\n'
+                  ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                  '`lean "label" TACTIC` is a proof in Lean --\n'
+                  ';; all but "integral-riemann" (that the Riemann sums of a '
+                  'continuous function converge to its\n'
+                  ';; integral is true, but not in Mathlib), which stays an '
+                  '`axiom` in the export\n'
+                  'lean "integrable-cont" intros; casesm* _ ∧ _\n'
+                  'lean "integrable-cont" intro y hy\n'
+                  'lean "integrable-cont" first | exact (‹∀ y, _ ≤ y ∧ y ≤ _ → '
+                  'ContinuousAt _ y› y hy).continuousWithinAt | exact (‹∀ y, y '
+                  '≤ _ ∧ _ ≤ y → ContinuousAt _ y› y ⟨hy.2, '
+                  'hy.1⟩).continuousWithinAt\n'
+                  'lean "integrable-add" intros; casesm* _ ∧ _\n'
+                  'lean "integrable-add" apply ContinuousOn.add <;> '
+                  'assumption\n'
+                  'lean "integrable-scale" intros; casesm* _ ∧ _\n'
+                  'lean "integrable-scale" exact ContinuousOn.mul ‹_› '
+                  'continuousOn_const\n'
+                  'lean "integrable-split" intros; casesm* _ ∧ _\n'
+                  'lean "integrable-split" refine ⟨?_, ?_⟩ <;> apply '
+                  'ContinuousOn.mono ‹ContinuousOn _ _› <;> apply '
+                  'Set.Icc_subset_Icc <;> first | exact le_rfl | assumption\n'
+                  'lean "integral-empty" intros; exact '
+                  'intervalIntegral.integral_same\n'
+                  'lean "integral-swap" intros; exact '
+                  'intervalIntegral.integral_symm _ _\n'
+                  'lean "integral-const" intros; simp only '
+                  '[intervalIntegral.integral_const, smul_eq_mul]; ring\n'
+                  'lean "integral-add" intros; casesm* _ ∧ _\n'
+                  'lean "integral-add" apply intervalIntegral.integral_add <;> '
+                  'apply ContinuousOn.intervalIntegrable_of_Icc <;> '
+                  'assumption\n'
+                  'lean "integral-scale" intros; casesm* _ ∧ _\n'
+                  'lean "integral-scale" simp only '
+                  '[intervalIntegral.integral_mul_const]; ring\n'
+                  'lean "integral-split" intros; casesm* _ ∧ _\n'
+                  'lean "integral-split" apply '
+                  'intervalIntegral.integral_add_adjacent_intervals <;> apply '
+                  'ContinuousOn.intervalIntegrable_of_Icc <;> first | '
+                  'assumption | (apply ContinuousOn.mono ‹ContinuousOn _ _›; '
+                  'apply Set.Icc_subset_Icc <;> first | exact le_rfl | '
+                  'assumption)\n'
+                  'lean "integral-mono" intros; casesm* _ ∧ _\n'
+                  'lean "integral-mono" apply '
+                  'intervalIntegral.integral_mono_on\n'
+                  'lean "integral-mono" · assumption\n'
+                  'lean "integral-mono" · apply '
+                  'ContinuousOn.intervalIntegrable_of_Icc <;> assumption\n'
+                  'lean "integral-mono" · apply '
+                  'ContinuousOn.intervalIntegrable_of_Icc <;> assumption\n'
+                  'lean "integral-mono" · intro x hx; beta_reduce at *; first '
+                  '| exact ‹∀ y, _ ≤ y ∧ y ≤ _ → _ ≤ _› x hx | exact ‹∀ y, y ≤ '
+                  '_ ∧ _ ≤ y → _ ≤ _› x ⟨hx.2, hx.1⟩\n'
+                  'lean "ftc-diff" have key : ∀ (f : ℝ → ℝ) (a c b : ℝ), a < c '
+                  '→ c < b → ContinuousAt f c → ContinuousOn f (Set.Icc a b) → '
+                  'HasDerivAt (fun w => intervalIntegral f a w '
+                  'MeasureTheory.volume) (f c) c := by\n'
+                  'lean "ftc-diff"   intro f a c b hac hcb hfc hf\n'
+                  'lean "ftc-diff"   exact '
+                  'intervalIntegral.integral_hasDerivAt_right ((hf.mono '
+                  '(Set.Icc_subset_Icc le_rfl '
+                  'hcb.le)).intervalIntegrable_of_Icc hac.le) ((hf.mono '
+                  'Set.Ioo_subset_Icc_self).stronglyMeasurableAtFilter '
+                  'isOpen_Ioo c ⟨hac, hcb⟩) hfc\n'
+                  'lean "ftc-diff" intros; casesm* _ ∧ _\n'
+                  'lean "ftc-diff" exact (key _ _ _ _ ‹_› ‹_› ‹_› '
+                  '‹_›).differentiableAt\n'
+                  'lean "ftc-deriv" have key : ∀ (f : ℝ → ℝ) (a c b : ℝ), a < '
+                  'c → c < b → ContinuousAt f c → ContinuousOn f (Set.Icc a b) '
+                  '→ HasDerivAt (fun w => intervalIntegral f a w '
+                  'MeasureTheory.volume) (f c) c := by\n'
+                  'lean "ftc-deriv"   intro f a c b hac hcb hfc hf\n'
+                  'lean "ftc-deriv"   exact '
+                  'intervalIntegral.integral_hasDerivAt_right ((hf.mono '
+                  '(Set.Icc_subset_Icc le_rfl '
+                  'hcb.le)).intervalIntegrable_of_Icc hac.le) ((hf.mono '
+                  'Set.Ioo_subset_Icc_self).stronglyMeasurableAtFilter '
+                  'isOpen_Ioo c ⟨hac, hcb⟩) hfc\n'
+                  'lean "ftc-deriv" intros; casesm* _ ∧ _\n'
+                  'lean "ftc-deriv" exact (key _ _ _ _ ‹_› ‹_› ‹_› ‹_›).deriv\n'
+                  'lean "ftc" have key : ∀ (F f : ℝ → ℝ) (a b : ℝ), a ≤ b → (∀ '
+                  'y, (a ≤ y ∧ y ≤ b) → DifferentiableAt ℝ F y ∧ deriv F y = f '
+                  'y) → ContinuousOn f (Set.Icc a b) → intervalIntegral f a b '
+                  'MeasureTheory.volume = F b - F a := by\n'
+                  'lean "ftc"   intro F f a b hab hF hf\n'
+                  'lean "ftc"   apply '
+                  'intervalIntegral.integral_eq_sub_of_hasDerivAt\n'
+                  'lean "ftc"   · intro y hy; rw [Set.uIcc_of_le hab] at hy\n'
+                  'lean "ftc"     obtain ⟨h1, h2⟩ := hF y hy; rw [← h2]; exact '
+                  'h1.hasDerivAt\n'
+                  'lean "ftc"   · exact hf.intervalIntegrable_of_Icc hab\n'
+                  'lean "ftc" intros; casesm* _ ∧ _; beta_reduce at *\n'
+                  'lean "ftc" apply key _ _ _ _ ‹_› _ ‹_›\n'
+                  'lean "ftc" intro y hy\n'
+                  'lean "ftc" first\n'
+                  'lean "ftc"   | (have H := ‹∀ y, _ ≤ y ∧ y ≤ _ → _ ∧ _› y '
+                  'hy; exact ⟨by first | exact H.1 | exact H.2, by first | '
+                  'exact H.1 | exact H.2⟩)\n'
+                  'lean "ftc"   | (have H := ‹∀ y, y ≤ _ ∧ _ ≤ y → _ ∧ _› y '
+                  '⟨hy.2, hy.1⟩; exact ⟨by first | exact H.1 | exact H.2, by '
+                  'first | exact H.1 | exact H.2⟩)\n',
  'lambda.kurt': '; SIMPLY TYPED LAMBDA CALCULUS\n'
                 ';\n'
                 '; `term`, `type`, `index`, `ctx`, and `typing` are optional '
@@ -1595,7 +2415,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 'ctx ⊢ 1\n'
                 'typing : 0\n'
                 'typing ⊢ 2\n'
-                'bool has 0, value 0, ↦ 0, ⇝ 0, ⊢ 0\n'
+                'prop has 0, value 0, ↦ 0, ⇝ 0, ⊢ 0\n'
                 '\n'
                 'var Γ, M, N, F, x, n, A, B, C\n'
                 'ctx Γ\n'
@@ -1685,7 +2505,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'from `∃`, `∀` and `=`.\n'
                '\n'
                ';; syntax\n'
-               'load prop      ; syntax and rules for prop logic\n'
+               'load propositional      ; syntax and rules for propositional '
+               'logic\n'
                'load equality  ; `=`, for unique existence\n'
                '; the quantifiers: binders with a boolean body, and the roles '
                'the engine gives them -- `let`\n'
@@ -1702,7 +2523,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '...` binds the first symbol of the\n'
                '                                ; condition that is new or a '
                'variable (decided when it is read)\n'
-               'bool    forall 0 2, exists 0 2  ; the body is boolean, and so '
+               'prop    forall 0 2, exists 0 2  ; the body is boolean, and so '
                'is the whole\n'
                'builtin forall universal, exists existential\n'
                'alias   ∀ forall\n'
@@ -1711,16 +2532,16 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'P(x)`, `∃! x P(x)`\n'
                'bindop existsunique       ; binds its variable, also with a '
                'condition: `∃! x ∈ M P(x)`\n'
-               'bool   existsunique 0 2   ; the body is boolean, and so is the '
+               'prop   existsunique 0 2   ; the body is boolean, and so is the '
                'whole\n'
                'alias  ∃! existsunique\n'
                '\n'
                ';; inference rules\n'
                ';use %A                                  implies  forall $x '
                '%A      "forall-intro"\n'
-               'use forall $x %A                        implies  sub $x $a '
+               'use forall $$x %A                        implies  sub $$x $a '
                '%A      "forall-elim"\n'
-               'use sub $x $a %A                        implies  exists $x '
+               'use sub $$x $a %A                        implies  exists $$x '
                '%A      "exists-intro"\n'
                ';use (exists $x %B) and (%B implies %A)  implies  '
                '%A                "exists-elim"\n'
@@ -1730,18 +2551,18 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '; `sub $x $v %C` stands for any condition on the bound '
                'variable `$v` (`%C` is the condition\n'
                '; with the hole `$x` for `$v`, e.g. `$x > 0`)\n'
-               'use (forall (sub $x $v %C) %P) and (sub $x $a %C)  implies  '
-               'sub $v $a %P    "forall-cond-elim"\n'
-               'use (sub $x $a %C) and (sub $v $a %P)  implies  exists (sub $x '
-               '$v %C) %P    "exists-cond-intro"\n'
+               'use (forall (sub $$x $$v %C) %P) and (sub $$x $a %C)  implies  '
+               'sub $$v $a %P    "forall-cond-elim"\n'
+               'use (sub $$x $a %C) and (sub $$v $a %P)  implies  exists (sub '
+               '$$x $$v %C) %P    "exists-cond-intro"\n'
                '; Defining axioms, not `def`: these characterize conditioned '
                'forms of the existing built-in\n'
                '; binders; they do not introduce one fresh predicate or '
                'function symbol.\n'
-               'use (forall (sub $x $v %C) %P)  iff  forall $w ((sub $x $w %C) '
-               'implies (sub $v $w %P))  "forall-cond-def"\n'
-               'use (exists (sub $x $v %C) %P)  iff  exists $w ((sub $x $w %C) '
-               'and (sub $v $w %P))      "exists-cond-def"\n'
+               'use (forall (sub $$x $$v %C) %P)  iff  forall $$w ((sub $$x '
+               '$$w %C) implies (sub $$v $$w %P))  "forall-cond-def"\n'
+               'use (exists (sub $$x $$v %C) %P)  iff  exists $$w ((sub $$x '
+               '$$w %C) and (sub $$v $$w %P))      "exists-cond-def"\n'
                '\n'
                '; rewriting under a binder: an equivalence that holds for '
                'every x may replace one formula by the\n'
@@ -1749,20 +2570,20 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                "`sub` doesn't capture `x`). Axioms,\n"
                '; since a proof for any `%A` that depends on `$x` would need '
                '`sub` in its lines.\n'
-               'use (forall $x (%A iff %B))  implies  ((forall $x %A) iff '
-               '(forall $x %B))   "forall-iff"\n'
-               'use (forall $x (%A iff %B))  implies  ((exists $x %A) iff '
-               '(exists $x %B))   "exists-iff"\n'
+               'use (forall $$x (%A iff %B))  implies  ((forall $$x %A) iff '
+               '(forall $$x %B))   "forall-iff"\n'
+               'use (forall $$x (%A iff %B))  implies  ((exists $$x %A) iff '
+               '(exists $$x %B))   "exists-iff"\n'
                '\n'
                ';; unique existence\n'
                '; The meaning of `∃!` is its definition: there is an x with '
                'P(x), and every y with P(y) is that x.\n'
                '; With a condition, `∃! x ∈ M P(x)` is `∃! x (x ∈ M and '
                'P(x))`, as for `∃`.\n'
-               'use (existsunique $x %A)  iff  exists $x (%A and (forall $y '
-               '((sub $x $y %A) implies ($y = $x))))  "existsunique-def"\n'
-               'use (existsunique (sub $x $v %C) %P)  iff  existsunique $w '
-               '((sub $x $w %C) and (sub $v $w %P))     '
+               'use (existsunique $$x %A)  iff  exists $$x (%A and (forall $$y '
+               '((sub $$x $$y %A) implies ($$y = $$x))))  "existsunique-def"\n'
+               'use (existsunique (sub $$x $$v %C) %P)  iff  existsunique $$w '
+               '((sub $$x $$w %C) and (sub $$v $$w %P))     '
                '"existsunique-cond-def"\n'
                '; Three rules that follow from the definition, for one step '
                'instead of several. Axioms, since a\n'
@@ -1777,12 +2598,13 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'the definition)\n'
                '; - unique: `∃! x P(x)`, `P(a)` and `P(b)` give `a = b` (both '
                'are the witness)\n'
-               'use (sub $x $a %A) and (forall $y ((sub $x $y %A) implies ($y '
-               '= $a)))  implies  existsunique $x %A  "existsunique-intro"\n'
-               'use (existsunique $x %A)  implies  exists $x '
+               'use (sub $$x $a %A) and (forall $$y ((sub $$x $$y %A) implies '
+               '($$y = $a)))  implies  existsunique $$x %A  '
+               '"existsunique-intro"\n'
+               'use (existsunique $$x %A)  implies  exists $$x '
                '%A                                                     '
                '"existsunique-exists"\n'
-               'use (existsunique $x %A) and (sub $x $a %A) and (sub $x $b '
+               'use (existsunique $$x %A) and (sub $$x $a %A) and (sub $$x $b '
                '%A)  implies  $a = $b                    '
                '"existsunique-unique"\n'
                '\n'
@@ -1819,7 +2641,35 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'appropriately, since it appears free\n'
                ';   - case 2: we match `%B` using `%B implies %A`, then we use '
                'that `%B` to match against\n'
-               ';     `exists $%1 %B`\n',
+               ';     `exists $%1 %B`\n'
+               '\n'
+               ';; `kurt --lean`: `∃!` as what "existsunique-def" says (`$1` '
+               'the body, a function; with a\n'
+               ';; condition, `$1` the condition and `$2` the body), so that '
+               "its rules are theorems of Lean's logic\n"
+               'lean existsunique (∃ x_, $1 x_ ∧ ∀ y_, $1 y_ → y_ = x_)\n'
+               'lean existsunique (∃ x_, ($1 x_ ∧ $2 x_) ∧ ∀ y_, ($1 y_ ∧ $2 '
+               'y_) → y_ = x_)\n'
+               '\n'
+               ";; the rules as theorems of Lean's logic (`kurt --lean`, see "
+               "propositional.kurt): `∀`, `∃` are Lean's,\n"
+               ';; `sub $x $a %A` is `(fun x => A x) a`, and `∃!` is what '
+               '"existsunique-def" says (`lean\n'
+               ';; existsunique` above) -- so "existsunique-def" is true by '
+               'its reading, the other rules by `grind`\n'
+               'lean "forall-elim" grind\n'
+               'lean "exists-intro" grind\n'
+               'lean "forall-cond-elim" grind\n'
+               'lean "exists-cond-intro" grind\n'
+               'lean "forall-cond-def" grind\n'
+               'lean "exists-cond-def" grind\n'
+               'lean "forall-iff" grind\n'
+               'lean "exists-iff" grind\n'
+               'lean "existsunique-def" grind\n'
+               'lean "existsunique-cond-def" grind\n'
+               'lean "existsunique-intro" grind\n'
+               'lean "existsunique-exists" grind\n'
+               'lean "existsunique-unique" grind\n',
  'matrix.kurt': '; matrix -- vectors and matrices as literals, computed '
                 'exactly with `calc on`\n'
                 ';\n'
@@ -1887,12 +2737,12 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n'
                  'const true                                   ; declare '
                  'constant symbol\n'
-                 'bool  true                                   ; true has type '
-                 'bool\n'
+                 'prop  true                                   ; true has type '
+                 'prop\n'
                  'infix implies 13 12                          ; logical '
                  'implies, right associative (since 13>12)\n'
                  'infix and     16 16                          ; and operator\n'
-                 'bool  implies 0 1 2, and 0 1 2               ; both take and '
+                 'prop  implies 0 1 2, and 0 1 2               ; both take and '
                  'give booleans\n'
                  'const implies, and                           ; both are '
                  'constants\n'
@@ -1954,16 +2804,16 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '`show`/`proof`/`assume`/`qed` (see `keywords/`,\n'
                  '; lessons 08-proof and 18-assume). `not`/`false` themselves '
                  "also aren't declared here at\n"
-                 '; all -- see `prop.kurt` for those, and for a general, '
-                 'always-available "not-intro".\n'
+                 '; all -- see `propositional.kurt` for those, and for a '
+                 'general, always-available "not-intro".\n'
                  '\n'
                  ';; meanings the engine implements for symbols that theories '
                  'declare\n'
                  ';\n'
                  '; nothing has such a meaning by its name: a trusted theory '
                  'assigns it with `builtin` (doc/kurt-\n'
-                 '; doc.md §10) -- prop.kurt `builtin iff equivalence, or '
-                 'disjunction, not negation, false falsum`,\n'
+                 '; doc.md §10) -- propositional.kurt `builtin iff '
+                 'equivalence, or disjunction, not negation, false falsum`,\n'
                  "; equality.kurt `builtin = equality`, and the calculator's "
                  'operations, e.g. numbers.kurt `builtin\n'
                  '; + add, * multiply, ...` and matrix.kurt `builtin [ ] '
@@ -1979,8 +2829,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'bindop sub                                   ; first arg '
                  'must be a variable that is bound\n'
                  '\n'
-                 '; The minimal core deliberately has no aliases. `prop.kurt` '
-                 'supplies the familiar aliases for\n'
+                 '; The minimal core deliberately has no aliases. '
+                 '`propositional.kurt` supplies the familiar aliases for\n'
                  '; propositional syntax (`⊤`, `⇒`, `∧`, ...), and '
                  '`logic.kurt` the quantifiers with `∀` and `∃`.\n'
                  '; Keeping the glyphs theory-local lets a deeply embedded '
@@ -1996,8 +2846,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'necessitation, ...) say which theorems\n'
                '; follow from which: `(⊢ A) and (⊢ (A → B)) implies (⊢ B)`.\n'
                ';\n'
-               '; prop.kurt and set.kurt use some of these symbols for '
-               "something else, so they can't be loaded\n"
+               '; propositional.kurt and set.kurt use some of these symbols '
+               "for something else, so they can't be loaded\n"
                '; together with modal.kurt.\n'
                '\n'
                'infix → 30 29\n'
@@ -2011,7 +2861,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'infix ⊢ 10 10\n'
                '\n'
                'const →, ⇔, ∧, ∨, ¬, □, ◇, ⊢, ⊥, empty\n'
-               'bool ⊢ 0\n'
+               'prop ⊢ 0\n'
                '\n'
                '; the formulas of modal logic -- a formula is no claim by '
                'itself, `⊢ A` is\n'
@@ -2078,7 +2928,86 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'use ⊢ ((◇A ∨ ◇B) ⇔ ◇(A ∨ B)) "diamond-distrib-or"\n'
                'use ⊢ ((□A ∧ □B) ⇔ □(A ∧ B)) "box-distrib-and"\n'
                'use ⊢ (□A → A) "T"\n'
-               'use ⊢ (A → ◇A) "T-dual"\n',
+               'use ⊢ (A → ◇A) "T-dual"\n'
+               '\n'
+               '; A model, for `kurt --lean` (doc/kurt-soundness.md §11, the '
+               'axiom audit): Kripke semantics. A\n'
+               '; formula is a property of the worlds (here the natural '
+               'numbers) under an accessibility relation\n'
+               '; `R`; `□A` holds where `A` holds in every accessible world, '
+               '`◇A` where in some; `⊢ A` says that\n'
+               '; `A` holds in every world of every reflexive frame (logic T). '
+               'Lean proves every axiom and rule\n'
+               '; above true in this model -- so the theory has a model, and '
+               'its rules are sound for reflexive\n'
+               '; frames.\n'
+               'lean Obj ((Nat → Nat → Prop) → Nat → Prop)\n'
+               'lean → (fun R w => $1 R w → $2 R w)\n'
+               'lean ⇔ (fun R w => ($1 R w ↔ $2 R w))\n'
+               'lean ∧ (fun R w => $1 R w ∧ $2 R w)\n'
+               'lean ∨ (fun R w => $1 R w ∨ $2 R w)\n'
+               'lean ¬ (fun R w => ¬ $1 R w)\n'
+               'lean □ (fun R w => ∀ v, R w v → $1 R v)\n'
+               'lean ◇ (fun R w => ∃ v, R w v ∧ $1 R v)\n'
+               'lean ⊥ (fun (_ : Nat → Nat → Prop) (_ : Nat) => False)\n'
+               'lean empty (fun (_ : Nat → Nat → Prop) (_ : Nat) => True)\n'
+               'lean ⊢ (∀ R : Nat → Nat → Prop, (∀ w, R w w) → ∀ w, $1 R w)\n'
+               'lean ⊢ (∀ R : Nat → Nat → Prop, (∀ w, R w w) → ∀ w, $1 R w → '
+               '$2 R w)\n'
+               'lean "Peirce" intros; first | grind | (simp_all; done) | aesop '
+               '| tauto\n'
+               'lean "T" intros; first | grind | (simp_all; done) | aesop | '
+               'tauto\n'
+               'lean "T-dual" intros; first | grind | (simp_all; done) | aesop '
+               '| tauto\n'
+               'lean "and-elim-left" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "and-elim-right" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "and-intro" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "bottom-elim" intro A h R hR w; exact (h (fun a b => a = '
+               'b) (fun _ => rfl) 0).elim\n'
+               'lean "box-distrib-and" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "box-duality" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "diamond-distrib-or" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "diamond-duality" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "empty-sequent-to-theorem" intros; first | grind | '
+               '(simp_all; done) | aesop | tauto\n'
+               'lean "excluded-middle" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "iff-elim-backward" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "iff-elim-forward" intros; first | grind | (simp_all; '
+               'done) | aesop | tauto\n'
+               'lean "iff-intro" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "implication-K" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "implication-S" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "modal-K" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "modus-ponens" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "necessitation" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "not-elim" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "not-intro" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "or-elim" intros; first | grind | (simp_all; done) | '
+               'aesop | tauto\n'
+               'lean "or-intro-left" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "or-intro-right" intros; first | grind | (simp_all; done) '
+               '| aesop | tauto\n'
+               'lean "theorem-to-empty-sequent" intros; first | grind | '
+               '(simp_all; done) | aesop | tauto\n',
  'natural.kurt': '; natural numbers\n'
                  ';\n'
                  '; covers: `Nat` membership (0 is a natural number, and the '
@@ -2100,16 +3029,48 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; arithmetic comes from numbers.kurt: natural numbers are '
                  'real numbers, so all of its laws\n'
                  '; (and `calc`) apply to them as well.\n'
-                 'load prop, equality\n'
+                 'load propositional, equality\n'
                  'load set\n'
                  'load numbers\n'
                  'load logic\n'
+                 'default real              ; every symbol of this file is a '
+                 'number, except where said otherwise:\n'
                  '\n'
                  ';; inference rules\n'
+                 'set Nat                  ; the natural numbers are a set (of '
+                 'numbers)\n'
                  'const Nat\n'
                  'builtin Nat naturals                   ; `calc on` proves `3 '
                  '∈ Nat`\n'
                  'tex Nat \\mathbb{N}\n'
+                 "; `kurt --lean` with Mathlib: the numbers are Mathlib's "
+                 'reals (numbers.kurt), embedded into the sets\n'
+                 '; (objects.kurt), and `Nat` is the set of the natural '
+                 'numbers among them -- a definition (the set of\n'
+                 '; the embedded reals that are natural numbers), and what `x '
+                 '∈ Nat` means a theorem, `k_mem_Nat`; the\n'
+                 '; rules below are theorems then (each `lean "label" ...`)\n'
+                 'lean Nat member $1 ∈ Set.range (fun n : ℕ => (n : ℝ))\n'
+                 '\n'
+                 '; the real numbers as a set (`Real`, `ℝ`): every number is '
+                 'in it -- a fact about the numbers, not a\n'
+                 '; sort (decision 11 of dev/todo-sorts.md: `x ∈ Real` gives '
+                 '`x` no sort; `real x` is what makes `x` a\n'
+                 '; number). With it, two sets of numbers are equal when they '
+                 'have the same numbers ("ext-real"):\n'
+                 '; extensionality over all objects ("extensionality", '
+                 'set.kurt) needs every object, and a binder of a\n'
+                 '; `default real` file ranges over the numbers only\n'
+                 'set Real\n'
+                 'const Real\n'
+                 'alias ℝ Real\n'
+                 'tex Real \\mathbb{R}\n'
+                 'lean Real member $1 = $1\n'
+                 'use $x ∈ Real  "real-all"\n'
+                 'use Nat ⊂ Real  "nat-sub-real"\n'
+                 'use (∀ $n ($n ∈ $A ⇔ $n ∈ $B)) ∧ $A ⊂ Real ∧ $B ⊂ Real  ⇒  '
+                 '$A = $B   "ext-real"\n'
+                 'alias ℕ Nat\n'
                  '\n'
                  'use 0 in Nat  "nat-zero"\n'
                  'use $n in Nat  implies  $n+1 in Nat  "nat-succ"\n'
@@ -2453,7 +3414,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'qed\n'
                  '\n'
                  ';; even and odd numbers\n'
-                 'bool even, odd\n'
+                 'prop even, odd\n'
                  'arity even 1, odd 1\n'
                  'def even $m  iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)       '
                  '"even-def"\n'
@@ -2650,7 +3611,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n'
                  ';; divisibility\n'
                  'infix ∣ 20 20\n'
-                 'bool ∣ 0\n'
+                 'prop ∣ 0\n'
                  'def $a ∣ $b  ⇔  ∃ $k ($k ∈ Nat ∧ $b = $a * $k)       '
                  '"divides"\n'
                  '\n'
@@ -2752,8 +3713,284 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'use $a < $b ∧ $x ∈ {$a, $b, ...}  ⇒  ∃ $k ∈ Nat ($x = $a + '
                  '$k * ($b - $a))                  "progression-infinite"\n'
                  'use $a < $b ∧ (∃ $k ∈ Nat ($x = $a + $k * ($b - $a)))  ⇒  $x '
-                 '∈ {$a, $b, ...}                '
-                 '"progression-infinite-intro"\n',
+                 '∈ {$a, $b, ...}                "progression-infinite-intro"\n'
+                 '; ... in Lean: the sets of the embedded numbers so made '
+                 '(`k_numset`) -- the six rules above are then\n'
+                 '; theorems (their `lean "label" ...` below), the definitions '
+                 'of these notations\n'
+                 'lean {_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ ∧ '
+                 'x_ ≤ $2)\n'
+                 'lean {_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_)\n'
+                 'lean {_,_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ '
+                 '* ($2 - $1) ∧ x_ ≤ $3)\n'
+                 'lean {_,_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ * '
+                 '($2 - $1))\n'
+                 '\n'
+                 ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                 '`Nat` by its axiom `k_mem_Nat` (`lean Nat\n'
+                 ';; member ...` above: `x ∈ Nat` iff `x` is `↑n` for an `n : '
+                 'ℕ`)\n'
+                 'lean "real-all" intro x; exact (k_mem_Real _).mpr rfl\n'
+                 'lean "nat-sub-real" simp only [k_u2282]; intro z hz; obtain '
+                 '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
+                 '_).mpr rfl\n'
+                 'lean "ext-real" intro A B ⟨h, hA, hB⟩; simp only [k_u2282] '
+                 'at hA hB; apply ZFSet.ext; intro z; constructor\n'
+                 'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
+                 'k_numset_elem _ z (hA z hz); exact (h x).mp hz\n'
+                 'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
+                 'k_numset_elem _ z (hB z hz); exact (h x).mpr hz\n'
+                 'lean "nat-zero" exact (k_mem_Nat _).mpr ⟨0, by simp⟩\n'
+                 'lean "nat-succ" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; exact (k_mem_Nat _).mpr ⟨n + 1, by push_cast; '
+                 'ring⟩\n'
+                 'lean "nat-add" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                 'And.intro ((k_mem_Nat _).mp h.1) ((k_mem_Nat _).mp h.2); '
+                 'exact (k_mem_Nat _).mpr ⟨m + n, by push_cast; ring⟩\n'
+                 'lean "nat-mul" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                 'And.intro ((k_mem_Nat _).mp h.1) ((k_mem_Nat _).mp h.2); '
+                 'exact (k_mem_Nat _).mpr ⟨m * n, by push_cast; ring⟩\n'
+                 'lean "nat-nonneg" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; positivity\n'
+                 'lean "induction" intro P h x hx\n'
+                 'lean "induction" beta_reduce at h ⊢\n'
+                 'lean "induction" have base : P 0 := by first | exact h.1 | '
+                 'exact h.2\n'
+                 'lean "induction" have step : ∀ y, k_emb y ∈ Nat → P y → P (y '
+                 '+ 1) := by\n'
+                 'lean "induction"   intro y hy py\n'
+                 'lean "induction"   first | exact h.1 y hy py | exact h.2 y '
+                 'hy py | (rw [add_comm]; first | exact h.1 y hy py | exact '
+                 'h.2 y hy py)\n'
+                 'lean "induction" have all : ∀ n : ℕ, P n := by\n'
+                 'lean "induction"   intro n\n'
+                 'lean "induction"   induction n with\n'
+                 'lean "induction"   | zero => simpa using base\n'
+                 'lean "induction"   | succ m ih => simpa using step m '
+                 '((k_mem_Nat _).mpr ⟨m, rfl⟩) ih\n'
+                 'lean "induction" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp hx\n'
+                 'lean "induction" exact all n\n'
+                 '\n'
+                 ';; the theorems Kurt proves above, as theorems of Mathlib '
+                 'too: a proof that loads this file cites them,\n'
+                 ';; and its export proves them in Lean then, instead of '
+                 "taking them as axioms (this file's own export\n"
+                 ';; translates the proofs above) -- those about `⊂`, `even`, '
+                 '`odd`, `∣`, `coprime` too: the export\n'
+                 ';; makes the `def`s of the symbols in what a proof cites '
+                 'Lean `def`s (`coprime($a, $b)`, a `def`\n'
+                 ';; over a pair, is `coprime a b`, a function of two '
+                 'arguments), so the proofs below unfold them\n'
+                 'lean "nat-one" exact (k_mem_Nat _).mpr ⟨1, by simp⟩\n'
+                 'lean "nat-two" exact (k_mem_Nat _).mpr ⟨2, by norm_num⟩\n'
+                 'lean "nat-succ-ne-zero" intro x hx; obtain ⟨n, rfl⟩ := '
+                 '(k_mem_Nat x).mp hx; beta_reduce\n'
+                 'lean "nat-succ-ne-zero" intro h; have : (0 : ℝ) ≤ n := '
+                 'n.cast_nonneg; linarith\n'
+                 'lean "nat-pos" intros; casesm* _ ∧ _\n'
+                 'lean "nat-pos" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp ‹k_emb _ '
+                 '∈ Nat›; beta_reduce at *\n'
+                 'lean "nat-pos" have : n ≠ 0 := by rintro rfl; simp_all\n'
+                 'lean "nat-pos" exact_mod_cast Nat.pos_of_ne_zero this\n'
+                 'lean "nat-zero-or-succ" intro x hx; obtain ⟨n, rfl⟩ := '
+                 '(k_mem_Nat x).mp hx; beta_reduce\n'
+                 'lean "nat-zero-or-succ" rcases n with _ | m\n'
+                 'lean "nat-zero-or-succ" · simp\n'
+                 'lean "nat-zero-or-succ" · first | refine Or.inr ⟨(m : ℝ), '
+                 '?_, ?_⟩ | refine Or.inl ⟨(m : ℝ), ?_, ?_⟩\n'
+                 'lean "nat-zero-or-succ"   all_goals first | exact (k_mem_Nat '
+                 '_).mpr ⟨m, rfl⟩ | (push_cast; ring)\n'
+                 'lean "nat-pred" intros; casesm* _ ∧ _\n'
+                 'lean "nat-pred" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp ‹k_emb _ '
+                 '∈ Nat›; beta_reduce at *\n'
+                 'lean "nat-pred" rcases n with _ | m\n'
+                 'lean "nat-pred" · simp at *\n'
+                 'lean "nat-pred" · refine ⟨(m : ℝ), ?_, ?_⟩\n'
+                 'lean "nat-pred"   all_goals first | exact (k_mem_Nat _).mpr '
+                 '⟨m, rfl⟩ | (push_cast; ring)\n'
+                 'lean "nat-discrete" intro x hx y hy\n'
+                 'lean "nat-discrete" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp hx; '
+                 'obtain ⟨k, rfl⟩ := (k_mem_Nat y).mp hy; beta_reduce\n'
+                 'lean "nat-discrete" have : (k : ℝ) ≤ n ∨ (n : ℝ) + 1 ≤ k := '
+                 'by\n'
+                 'lean "nat-discrete"   rcases le_or_gt k n with h | h\n'
+                 'lean "nat-discrete"   · left; exact_mod_cast h\n'
+                 'lean "nat-discrete"   · right; exact_mod_cast h\n'
+                 'lean "nat-discrete" rcases this with h | h <;> first | '
+                 '(left; linarith) | (right; linarith)\n'
+                 'lean "nat-ge-two" intros; casesm* _ ∧ _\n'
+                 'lean "nat-ge-two" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp ‹k_emb '
+                 '_ ∈ Nat›; beta_reduce at *\n'
+                 'lean "nat-ge-two" have h0 : n ≠ 0 := by rintro rfl; '
+                 'simp_all\n'
+                 'lean "nat-ge-two" have h1 : n ≠ 1 := by rintro rfl; '
+                 'simp_all\n'
+                 'lean "nat-ge-two" have : 2 ≤ n := by omega\n'
+                 'lean "nat-ge-two" exact_mod_cast this\n'
+                 'lean "nat-lt-mul" intros; casesm* _ ∧ _\n'
+                 'lean "nat-lt-mul" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp ‹k_emb '
+                 '_ ∈ Nat›; beta_reduce at *\n'
+                 'lean "nat-lt-mul" have h0 : n ≠ 0 := by rintro rfl; '
+                 'simp_all\n'
+                 'lean "nat-lt-mul" have : (0 : ℝ) < n := by exact_mod_cast '
+                 'Nat.pos_of_ne_zero h0\n'
+                 'lean "nat-lt-mul" nlinarith\n'
+                 'lean "even-ne-odd" intro x hx y hy\n'
+                 'lean "even-ne-odd" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp hx; '
+                 'obtain ⟨m, rfl⟩ := (k_mem_Nat y).mp hy; beta_reduce\n'
+                 'lean "even-ne-odd" intro h; have : 2 * n = 1 + 2 * m := by '
+                 'exact_mod_cast h\n'
+                 'lean "even-ne-odd" omega\n'
+                 'lean "well-ordering" intro S h; casesm* _ ∧ _\n'
+                 'lean "well-ordering" obtain ⟨x, hx⟩ : ∃ x, k_emb x ∈ S := by '
+                 'assumption\n'
+                 'lean "well-ordering" have hsub : k_u2282 S Nat := by '
+                 'assumption\n'
+                 'lean "well-ordering" simp only [k_u2282] at hsub\n'
+                 'lean "well-ordering" obtain ⟨n0, rfl⟩ := (k_mem_Nat x).mp '
+                 '(hsub (k_emb x) hx)\n'
+                 'lean "well-ordering" have ex : ∃ n : ℕ, k_emb (n : ℝ) ∈ S := '
+                 '⟨n0, hx⟩\n'
+                 'lean "well-ordering" classical\n'
+                 'lean "well-ordering" refine ⟨(Nat.find ex : ℝ), ?_⟩\n'
+                 'lean "well-ordering" constructor <;> first\n'
+                 'lean "well-ordering"   | exact Nat.find_spec ex\n'
+                 'lean "well-ordering"   | (intro y hy; obtain ⟨m, rfl⟩ := '
+                 '(k_mem_Nat y).mp (hsub (k_emb y) hy); beta_reduce at hy ⊢; '
+                 "exact_mod_cast Nat.find_min' ex hy)\n"
+                 'lean "even-or-odd" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; simp only [even, odd]\n'
+                 'lean "even-or-odd" rcases Nat.even_or_odd\' n with ⟨k, rfl | '
+                 'rfl⟩\n'
+                 'lean "even-or-odd" all_goals first\n'
+                 'lean "even-or-odd"   | (left; refine ⟨(k : ℝ), ?_⟩; '
+                 'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, rfl⟩ | '
+                 '(push_cast; first | done | ring1))\n'
+                 'lean "even-or-odd"   | (right; refine ⟨(k : ℝ), ?_⟩; '
+                 'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, rfl⟩ | '
+                 '(push_cast; first | done | ring1))\n'
+                 'lean "not-even-and-odd" intro x h; casesm* _ ∧ _\n'
+                 'lean "not-even-and-odd" have he : even x := by assumption\n'
+                 'lean "not-even-and-odd" have ho : odd x := by assumption\n'
+                 'lean "not-even-and-odd" simp only [even, odd] at he ho\n'
+                 'lean "not-even-and-odd" obtain ⟨a, ha⟩ := he; obtain ⟨b, hb⟩ '
+                 ':= ho; casesm* _ ∧ _\n'
+                 'lean "not-even-and-odd" obtain ⟨i, rfl⟩ := (k_mem_Nat a).mp '
+                 '(by assumption)\n'
+                 'lean "not-even-and-odd" obtain ⟨j, rfl⟩ := (k_mem_Nat b).mp '
+                 '(by assumption)\n'
+                 'lean "not-even-and-odd" have e : ((2 * i : ℕ) : ℝ) = ((2 * j '
+                 '+ 1 : ℕ) : ℝ) := by push_cast; linarith\n'
+                 'lean "not-even-and-odd" have := Nat.cast_injective e\n'
+                 'lean "not-even-and-odd" omega\n'
+                 'lean "odd-square" intro x h; casesm* _ ∧ _\n'
+                 'lean "odd-square" have ho : odd x := by assumption\n'
+                 'lean "odd-square" simp only [odd] at ho ⊢\n'
+                 'lean "odd-square" obtain ⟨b, hb⟩ := ho; casesm* _ ∧ _\n'
+                 'lean "odd-square" obtain ⟨j, rfl⟩ := (k_mem_Nat b).mp (by '
+                 'assumption)\n'
+                 'lean "odd-square" have e : x = 2 * j + 1 := by linarith\n'
+                 'lean "odd-square" subst e\n'
+                 'lean "odd-square" refine ⟨((2 * j * j + 2 * j : ℕ) : ℝ), '
+                 '?_⟩\n'
+                 'lean "odd-square" constructor <;> first | exact (k_mem_Nat '
+                 '_).mpr ⟨_, rfl⟩ | (push_cast; first | done | ring1)\n'
+                 'lean "even-square" intro x h; casesm* _ ∧ _\n'
+                 'lean "even-square" have he : even (x * x) := by assumption\n'
+                 'lean "even-square" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp (by '
+                 'assumption)\n'
+                 'lean "even-square" simp only [even] at he ⊢\n'
+                 'lean "even-square" obtain ⟨a, ha⟩ := he; casesm* _ ∧ _\n'
+                 'lean "even-square" obtain ⟨i, rfl⟩ := (k_mem_Nat a).mp (by '
+                 'assumption)\n'
+                 'lean "even-square" have e : ((n * n : ℕ) : ℝ) = ((2 * i : ℕ) '
+                 ': ℝ) := by push_cast; linarith\n'
+                 'lean "even-square" have e\' := Nat.cast_injective e\n'
+                 'lean "even-square" have : Even (n * n) := ⟨i, by omega⟩\n'
+                 'lean "even-square" obtain ⟨t, ht⟩ := (Nat.even_mul.mp '
+                 'this).elim id id\n'
+                 'lean "even-square" refine ⟨(t : ℝ), ?_⟩\n'
+                 'lean "even-square" constructor <;> first | exact (k_mem_Nat '
+                 '_).mpr ⟨t, rfl⟩ | (rw [ht]; push_cast; first | done | '
+                 'ring1)\n'
+                 'lean "divides-refl" intro x hx; simp only [k_u2223]; refine '
+                 '⟨1, ?_⟩\n'
+                 'lean "divides-refl" constructor <;> first | exact (k_mem_Nat '
+                 '_).mpr ⟨1, by simp⟩ | ring1\n'
+                 'lean "one-divides" intro x hx; simp only [k_u2223]; refine '
+                 '⟨x, ?_⟩\n'
+                 'lean "one-divides" constructor <;> first | exact hx | ring1\n'
+                 'lean "divides-trans" intro a b c h\n'
+                 'lean "divides-trans" obtain ⟨h1, h2⟩ := h\n'
+                 'lean "divides-trans" simp only [k_u2223] at h1 h2 ⊢\n'
+                 'lean "divides-trans" obtain ⟨p, hp⟩ := h1; obtain ⟨q, hq⟩ := '
+                 'h2; casesm* _ ∧ _\n'
+                 'lean "divides-trans" obtain ⟨i, rfl⟩ := (k_mem_Nat p).mp (by '
+                 'assumption)\n'
+                 'lean "divides-trans" obtain ⟨j, rfl⟩ := (k_mem_Nat q).mp (by '
+                 'assumption)\n'
+                 'lean "divides-trans" refine ⟨((i * j : ℕ) : ℝ), ?_⟩\n'
+                 'lean "divides-trans" constructor <;> first | exact '
+                 '(k_mem_Nat _).mpr ⟨_, rfl⟩ | (push_cast; subst_vars; first | '
+                 'done | ring1)\n'
+                 'lean "even-divides" intro x; simp only [even, k_u2223]\n'
+                 'lean "even-divides" first | done | (constructor <;> rintro '
+                 '⟨k, h1, h2⟩ <;> first | exact ⟨k, h1, h2⟩ | exact ⟨k, h2, '
+                 'h1⟩)\n'
+                 'lean "coprime-not-both-even" intro a b h he\n'
+                 'lean "coprime-not-both-even" obtain ⟨ha, hb⟩ := he\n'
+                 'lean "coprime-not-both-even" simp only [even] at ha hb\n'
+                 'lean "coprime-not-both-even" simp only [coprime, k_u2223] at '
+                 'h\n'
+                 'lean "coprime-not-both-even" have two := h 2 ((k_mem_Nat '
+                 '_).mpr ⟨2, by norm_num⟩)\n'
+                 'lean "coprime-not-both-even" obtain ⟨p, hp⟩ := ha; obtain '
+                 '⟨q, hq⟩ := hb; casesm* _ ∧ _\n'
+                 'lean "coprime-not-both-even" have : (2 : ℝ) = 1 := by\n'
+                 'lean "coprime-not-both-even"   apply two\n'
+                 'lean "coprime-not-both-even"   constructor\n'
+                 'lean "coprime-not-both-even"   · refine ⟨p, ?_⟩; constructor '
+                 '<;> assumption\n'
+                 'lean "coprime-not-both-even"   · refine ⟨q, ?_⟩; constructor '
+                 '<;> assumption\n'
+                 'lean "coprime-not-both-even" norm_num at this\n'
+                 'lean "range" intros; rw [k_mem_numset]; simp only '
+                 '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
+                 'lean "range" all_goals constructor <;> rintro ⟨n, h⟩ <;> '
+                 'exact ⟨n, by first | (constructor <;> linarith [h.1, h.2]) | '
+                 'linarith [h]⟩\n'
+                 'lean "range-infinite" intros; rw [k_mem_numset]; simp only '
+                 '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
+                 'lean "range-infinite" all_goals constructor <;> rintro ⟨n, '
+                 'h⟩ <;> exact ⟨n, by first | (constructor <;> linarith [h.1, '
+                 'h.2]) | linarith [h]⟩\n'
+                 'lean "progression" intros; casesm* _ ∧ _\n'
+                 'lean "progression" obtain ⟨n, h⟩ := (k_mem_numset _ _).mp '
+                 '‹_›\n'
+                 'lean "progression" exact ⟨n, (k_mem_Nat _).mpr ⟨n, rfl⟩, by '
+                 'first | (constructor <;> linarith [h.1, h.2]) | linarith '
+                 '[h]⟩\n'
+                 'lean "progression-intro" intros; casesm* _ ∧ _\n'
+                 'lean "progression-intro" obtain ⟨k, hk, h⟩ := ‹∃ _, _›\n'
+                 'lean "progression-intro" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp '
+                 'hk\n'
+                 'lean "progression-intro" exact (k_mem_numset _ _).mpr ⟨n, by '
+                 'first | (constructor <;> linarith [h.1, h.2]) | linarith '
+                 '[h]⟩\n'
+                 'lean "progression-infinite" intros; casesm* _ ∧ _\n'
+                 'lean "progression-infinite" obtain ⟨n, h⟩ := (k_mem_numset _ '
+                 '_).mp ‹_›\n'
+                 'lean "progression-infinite" exact ⟨n, (k_mem_Nat _).mpr ⟨n, '
+                 'rfl⟩, by first | (constructor <;> linarith [h.1, h.2]) | '
+                 'linarith [h]⟩\n'
+                 'lean "progression-infinite-intro" intros; casesm* _ ∧ _\n'
+                 'lean "progression-infinite-intro" obtain ⟨k, hk, h⟩ := ‹∃ _, '
+                 '_›\n'
+                 'lean "progression-infinite-intro" obtain ⟨n, rfl⟩ := '
+                 '(k_mem_Nat _).mp hk\n'
+                 'lean "progression-infinite-intro" exact (k_mem_numset _ '
+                 '_).mpr ⟨n, by first | (constructor <;> linarith [h.1, h.2]) '
+                 '| linarith [h]⟩\n',
  'numbers.kurt': '; numbers -- the laws of numbers (N, Z, Q, R: an ordered '
                  'field), formerly arith.kurt\n'
                  ';\n'
@@ -2779,7 +4016,11 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; proofs/arithmetic/factorial-with-calc.kurt) -- but it '
                  "doesn't solve: `$b / 3` doesn't match\n"
                  '; `0` while `$b` is unknown.\n'
-                 'load prop, equality\n'
+                 'load propositional, equality\n'
+                 'load objects               ; the sorts: `real`, and `real ⊂ '
+                 'set`\n'
+                 'default real                ; every symbol of this file is a '
+                 "number, every position a number's\n"
                  '\n'
                  ';; syntax\n'
                  'infix   +  60 60           ; binary plus\n'
@@ -2798,7 +4039,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n'
                  'flat +, *\n'
                  'sym  +, *\n'
-                 'bool <  0, <= 0\n'
+                 'prop <  0, <= 0\n'
                  'chain   = <= <\n'
                  'alias   ≤ <=\n'
                  'alias   ≥ >=\n'
@@ -2817,6 +4058,36 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; how `kurt --latex` writes them\n'
                  'tex / \\frac{$1}{$2}\n'
                  'tex ^ {$1}^{$2}\n'
+                 '\n'
+                 '; how `kurt --lean` writes them with Mathlib '
+                 "(doc/kurt-doc.md, `--lean`): the numbers are Mathlib's\n"
+                 '; reals -- for every theory of numbers (natural.kurt, '
+                 'integer.kurt, rational.kurt: `Nat`, `Int`,\n'
+                 '; `Rat` are sets of them, as here) --, embedded into the '
+                 'sets of Mathlib, the objects (`lean Obj\n'
+                 '; ZFSet`, objects.kurt: every number is a set), a number `2` '
+                 'is `(2 : ℝ)`, `^` the real power\n'
+                 '; (`Real.rpow`), and `n!` is `Γ(n + 1)` (`Real.Gamma`: `0! = '
+                 '1` and `n! = n (n - 1)!` for every\n'
+                 '; `n > 0`, as the rules below say, and `n!` the factorial '
+                 'for a natural number). With `ℝ`, `x / 0 =\n'
+                 "; 0` (Mathlib's convention); no rule below says otherwise. "
+                 'Each rule is a theorem of Mathlib: its\n'
+                 '; proof is the `lean "label" ...` after it (a tactic; only '
+                 "output, Kurt doesn't read it), and\n"
+                 '; `kurt --lean` writes the rule as a `theorem` with it, '
+                 'which Lean checks.\n'
+                 'lean real ℝ                 ; a number is a real (and a set: '
+                 '`k_emb x`, where a set is required)\n'
+                 'lean + $1 + $2\n'
+                 'lean - $1 - $2\n'
+                 'lean - -$1\n'
+                 'lean * $1 * $2\n'
+                 'lean / $1 / $2\n'
+                 'lean ^ $1 ^ $2\n'
+                 'lean < $1 < $2\n'
+                 'lean <= $1 ≤ $2\n'
+                 'lean ! Real.Gamma ($1 + 1)\n'
                  '\n'
                  ';; rules\n'
                  'use $a = $b  ⇒  $a + $c = $b + $c   "add-eq"\n'
@@ -2943,227 +4214,393 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '\n'
                  ';; factorial\n'
                  'use 0! = 1                              "factorial-base"\n'
-                 'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n',
- 'prop.kurt': '; propositional logic\n'
-              ';\n'
-              '; covers: not, or, invimplies (backwards implication), iff, and '
-              'the standard elimination/\n'
-              '; introduction rules connecting them and the hardcoded '
-              'connectives (and-intro/elim, or-intro/\n'
-              '; elim, iff-intro, iff-elim-forward/backward, not-intro/elim, '
-              'bottom-intro/elim, top-elim).\n'
-              '; `true`/`implies`/`and` themselves are hardcoded directly in '
-              'kurt.py (see minimal.kurt for\n'
-              '; exactly what) -- this file adds `false`, `not`, `or`, '
-              '`invimplies`, `iff`, and the rules\n'
-              '; relating them.\n'
-              ';\n'
-              '; loaded (directly or transitively) by nearly every other '
-              'theory here -- logic.kurt,\n'
-              '; equality.kurt, set.kurt, and numbers.kurt all `load prop` '
-              'first.\n'
-              '\n'
-              ';; builtin syntax\n'
-              '; infix  implies 13 12  ; logical implies, right associative '
-              '(since 13>12)\n'
-              '; bool   implies 0 1 2  ; and and its inputs have type bool\n'
-              '; infix  and     16 16  ; logical and\n'
-              '; bool   and     0 1 2  ; and and its inputs have type bool\n'
-              '; flat   and            ; (a and b) and c  iff  a and b and c\n'
-              '; sym    and            ; a and b  iff  b and a\n'
-              '; bool   true           ; true has type bool\n'
-              'alias  ⊤ true\n'
-              'alias  ⇒ implies\n'
-              'alias  ∧ and\n'
-              '\n'
-              ';; syntax\n'
-              'prefix not        18     ; logical not\n'
-              'infix  or      14 14     ; logical or\n'
-              'infix  invimplies 13 12  ; logical implies backwards, right '
-              'associative (since 13>12)\n'
-              'infix  iff     10 10     ; logical if-and-only-if\n'
-              'bool   not     0 1       ; `not` and its inputs have type bool\n'
-              'bool   or      0 1 2     ; `or` and its inputs have type bool\n'
-              'bool   invimplies 0 1 2  ; `invimplies` and its inputs have '
-              'type bool\n'
-              'bool   iff     0 1 2     ; `and` and its inputs have type bool\n'
-              'bool   false             ; false has type bool\n'
-              '; the meaning the engine gives these symbols (and nothing has '
-              'it by its name alone): an `iff`\n'
-              '; fact is used as two implications, `case` splits an `or`, an '
-              '`assume` block whose last line is\n'
-              '; `false` also gives `not` of its assumption, and `def` may '
-              'define with `iff`\n'
-              'builtin iff equivalence, or disjunction, not negation, false '
-              'falsum\n'
-              '\n'
-              'flat   or\n'
-              'sym    or\n'
-              'sym    iff\n'
-              '\n'
-              'chain  iff implies       ; implies left-to-right\n'
-              'chain  iff invimplies    ; implies right-to-left\n'
-              '\n'
-              'alias  ¬ not\n'
-              'alias  ∨ or\n'
-              'alias  ⊥ false\n'
-              'alias  contradiction false\n'
-              'alias  ⇔ iff\n'
-              'alias  ⇐ invimplies\n'
-              'alias  ≡ iff\n'
-              '\n'
-              ';; inference rules\n'
-              ';\n'
-              '; all rules have the form (with finitely many premises)\n'
-              ';\n'
-              ';     premise1   premise2\n'
-              ';     -------------------\n'
-              ';     conclusion\n'
-              ';\n'
-              '; which we write in kurt as:\n'
-              '; \n'
-              ';     premise1 and premise2 implies conclusion\n'
-              ';\n'
-              '; (the commented out axioms are implemented in `kurt.py`\n'
-              '\n'
-              ';; builtin\n'
-              '; use %A implies %A                 "restatement" ; special '
-              'case of "impl-elim"\n'
-              '; use (%A implies %B) implies (%A implies '
-              '%B)                       "impl-intro"\n'
-              '; use ((%A implies %B) and %A) implies '
-              '%B                           "impl-elim"\n'
-              '; use '
-              'true                                                          '
-              '"top-intro"\n'
-              '\n'
-              'use %A  and  %B   implies   %A and '
-              '%B                               "and-intro"\n'
-              'use %A  and  %B   implies   '
-              '%A                                      "and-elim"   ; `and` is '
-              'symmetric and flat\n'
-              '; notes\n'
-              '; "and-intro" looks somewhat weird:  however, it will be used '
-              'from the python code\n'
-              '; such that the formulas of the LHS conjunction will be '
-              'searched for in the theory\n'
-              '\n'
-              'use %A   implies   %A or '
-              '%B                                         "or-intro"   ; `or` '
-              'is symmetric and flat\n'
-              'use (%A or %B) and (%A implies %C) and (%B implies %C) implies '
-              '%C   "or-elim"\n'
-              '\n'
-              '; `case` supports any finite number of alternatives. The binary '
-              'rule above supplies the logical\n'
-              '; meaning. The engine recognizes a stored flat disjunction plus '
-              'one implication to the same goal\n'
-              '; for every alternative, and the kernel checks both the rule '
-              'and that exact list. It does not\n'
-              '; synthesize an n-premise schema, so matching does not grow '
-              'through a Cartesian product of facts.\n'
-              ';\n'
-              '; Keep the previously published 3/4-branch theorems as named '
-              'compatibility lemmas. Their proofs\n'
-              '; now also exercise the general case-elimination certificate.\n'
-              'show (%A or %B or %C) and (%A implies %D) and (%B implies %D) '
-              'and (%C implies %D) implies %D   "or-elim-3"\n'
-              'proof\n'
-              '    assume (%A or %B or %C) and (%A implies %D) and (%B implies '
-              '%D) and (%C implies %D)\n'
-              '        %A or %B or %C\n'
-              '        %A implies %D\n'
-              '        %B implies %D\n'
-              '        %C implies %D\n'
-              '        %D\n'
-              'qed\n'
-              'show (%A or %B or %C or %E) and (%A implies %D) and (%B implies '
-              '%D) and (%C implies %D) and (%E implies %D) implies %D   '
-              '"or-elim-4"\n'
-              'proof\n'
-              '    assume (%A or %B or %C or %E) and (%A implies %D) and (%B '
-              'implies %D) and (%C implies %D) and (%E implies %D)\n'
-              '        %A or %B or %C or %E\n'
-              '        %A implies %D\n'
-              '        %B implies %D\n'
-              '        %C implies %D\n'
-              '        %E implies %D\n'
-              '        %D\n'
-              'qed\n'
-              '\n'
-              '; A defining axiom, not `def`: `invimplies` already '
-              'participates in the `chain` declarations\n'
-              '; above, so it is no longer a fresh symbol without meaning when '
-              'this equivalence is stated.\n'
-              'use (%A invimplies %B) iff (%B implies '
-              '%A)                         "invimplies-def"\n'
-              '\n'
-              'use (%A implies %B) and (%B implies %A) implies (%A iff '
-              '%B)         "iff-intro"\n'
-              'use (%A iff %B) implies (%A implies '
-              '%B)                             "iff-elim-forward"\n'
-              'use (%A iff %B) implies (%B implies '
-              '%A)                             "iff-elim-backward"\n'
-              'use %A iff '
-              '%A                                                       '
-              '"iff-reflexive"\n'
-              'use (sub %x %a %A) and (%a iff %b)  implies  (sub %x %b '
-              '%A)         "iff-subst"\n'
-              '\n'
-              'use (true implies %A) implies '
-              '%A                                    "top-elim"\n'
-              '\n'
-              '; a formula equivalent to `true` holds, and a formula that '
-              'holds is equivalent to `true` (e.g.\n'
-              '; after a chain of equivalences that ends in `⊤`)\n'
-              'show (%A iff true) implies '
-              '%A                                       "iff-true-elim"\n'
-              'proof\n'
-              '    assume %A iff true\n'
-              '        true implies %A\n'
-              '        %A\n'
-              'qed\n'
-              'show %A implies (%A iff '
-              'true)                                       "iff-true-intro"\n'
-              'proof\n'
-              '    assume %A\n'
-              '        assume %A\n'
-              '            true\n'
-              '        assume true\n'
-              '            %A\n'
-              '        %A iff true\n'
-              'qed\n'
-              '\n'
-              'use %A and not %A implies '
-              'false                                     "bottom-intro"\n'
-              'use false implies '
-              '%A                                                '
-              '"bottom-elim"\n'
-              '\n'
-              'use (%A implies false) implies not '
-              '%A                               "not-intro"\n'
-              'use not not %A implies '
-              '%A                                           "not-elim"\n'
-              'use %A implies not not '
-              '%A                                           "not-not-intro"\n'
-              'use %A iff not not '
-              '%A                                               "not-not"\n'
-              '\n'
-              '; the excluded middle, proven (not an axiom): from "not-elim"\n'
-              'show %A or not '
-              '%A                                                   '
-              '"excluded-middle"\n'
-              'proof\n'
-              '    assume not (%A or not %A)\n'
-              '        assume %A\n'
-              '            %A or not %A\n'
-              '            false\n'
-              '        not %A\n'
-              '        %A or not %A\n'
-              '        false\n'
-              '    not not (%A or not %A)\n'
-              '    %A or not %A\n'
-              'qed\n',
+                 'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n'
+                 '\n'
+                 ';; the rules as theorems of Mathlib: `lean "label" TACTIC` '
+                 'is a proof in Lean of the rule "label"\n'
+                 ';; (in `ℝ`, see `lean real ℝ` above) -- `kurt --lean` writes '
+                 'the rule as a `theorem` with it, and\n'
+                 ";; Lean checks it; Kurt itself doesn't read the tactic "
+                 "(doc/kurt-doc.md, `--lean`). The tactics don't\n"
+                 ';; name the variables (`intros`): Kurt orders the arguments '
+                 'of `+` and `*` its own way.\n'
+                 'lean "add-eq" intros; subst_vars; rfl\n'
+                 'lean "sub-eq" intros; subst_vars; rfl\n'
+                 'lean "mul-eq" intros; subst_vars; rfl\n'
+                 'lean "div-eq" intros; subst_vars; rfl\n'
+                 'lean "distrib-add" intros; ring\n'
+                 'lean "distrib-sub" intros; ring\n'
+                 'lean "add-sub" intros; ring\n'
+                 'lean "add-inverse" intros; ring\n'
+                 'lean "sub-inverse" intros; ring\n'
+                 'lean "mul-identity" intros; ring\n'
+                 'lean "div-identity" intros; ring\n'
+                 'lean "mul-neg-one" intros; ring\n'
+                 'lean "double-negation" intros; ring\n'
+                 'lean "mul-zero" intros; ring\n'
+                 'lean "zero-div" intros; simp\n'
+                 'lean "div-self" intros; field_simp\n'
+                 'lean "mul-div" intros; field_simp\n'
+                 'lean "div-mul" intros; field_simp\n'
+                 'lean "div-add" intros; ring\n'
+                 'lean "div-mul-div" intros; ring\n'
+                 'lean "mul-ne-zero" intros; simp_all\n'
+                 'lean "add-identity" intros; ring\n'
+                 'lean "sub-identity" intros; ring\n'
+                 'lean "pow-identity" intros; simp\n'
+                 'lean "pow-zero" intros; simp\n'
+                 'lean "pow-add" intros; rw [← Real.rpow_add ‹_›]\n'
+                 'lean "pow-mul" intros; rw [← Real.rpow_mul (le_of_lt ‹_›)]\n'
+                 'lean "lt-add" intros; linarith\n'
+                 'lean "lt-sub" intros; linarith\n'
+                 'lean "lt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "lt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "lt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "lt-div-neg" intros; casesm* _ ∧ _; exact '
+                 '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
+                 'lean "le-add" intros; linarith\n'
+                 'lean "le-sub" intros; linarith\n'
+                 'lean "le-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "le-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "le-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "le-div-neg" intros; casesm* _ ∧ _; exact '
+                 '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
+                 'lean "gt-add" intros; linarith\n'
+                 'lean "gt-sub" intros; linarith\n'
+                 'lean "gt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "gt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "gt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "gt-div-neg" intros; casesm* _ ∧ _; exact '
+                 '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
+                 'lean "ge-add" intros; linarith\n'
+                 'lean "ge-sub" intros; linarith\n'
+                 'lean "ge-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "ge-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "ge-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                 'lean "ge-div-neg" intros; casesm* _ ∧ _; exact '
+                 '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
+                 'lean "lt-add-lt" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "gt-add-gt" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "mul-pos" intros; casesm* _ ∧ _; positivity\n'
+                 'lean "div-pos" intros; casesm* _ ∧ _; positivity\n'
+                 'lean "pow-pos" intros; apply Real.rpow_pos_of_pos; '
+                 'assumption\n'
+                 'lean "pow-lt" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "pow-gt" intros; casesm* _ ∧ _; gcongr\n'
+                 'lean "lt-not-ge" intros; linarith\n'
+                 'lean "gt-not-le" intros; linarith\n'
+                 'lean "le-not-gt" intros; linarith\n'
+                 'lean "ge-not-lt" intros; linarith\n'
+                 'lean "le-ge" intros; exact Iff.rfl\n'
+                 'lean "lt-gt" intros; exact Iff.rfl\n'
+                 'lean "lt-le" intros; linarith\n'
+                 'lean "le-refl" intros; exact le_refl _\n'
+                 'lean "lt-ne" intros; linarith\n'
+                 'lean "le-ge-antisym" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "gt-ne" intros; linarith\n'
+                 'lean "sub-ge-zero" intros; linarith\n'
+                 'lean "lt-gt-contra" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "lt-ge-contra" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "gt-le-contra" intros; casesm* _ ∧ _; linarith\n'
+                 'lean "trichotomy" intro a b; rcases lt_trichotomy a b with h '
+                 '| h | h <;> tauto\n'
+                 'lean "factorial-base" norm_num\n'
+                 'lean "factorial-step" intro n h; rw [sub_add_cancel, '
+                 "Real.Gamma_add_one h.ne']\n",
+ 'objects.kurt': '; objects -- the sorts of the objects of numbers.kurt and '
+                 'set.kurt: every number is a set\n'
+                 ';\n'
+                 '; `real ⊂ set`: a number fits wherever a set is required (`3 '
+                 "∈ Nat`, `{1, 2}`), but a set doesn't\n"
+                 '; fit where a number is required (`{1, 2} + 0` is a type '
+                 'error). The rules of set.kurt are written\n'
+                 '; once, with `set` variables, and hold for numbers too; the '
+                 'rules of numbers.kurt are about\n'
+                 '; numbers only. Both theories load this file, so the two '
+                 'sorts are declared once, in one file,\n'
+                 '; and a file can load either theory, or both, in any order '
+                 '(doc/kurt-doc.md §5.2).\n'
+                 'sort set real\n'
+                 '; `kurt --lean` (doc/kurt-doc.md, `--lean`): the objects are '
+                 "the sets of Mathlib's model of ZFC, and a\n"
+                 "; sort with a type of its own (numbers.kurt's `lean real ℝ`) "
+                 'is embedded into them -- so a proof that\n'
+                 '; mixes sets and numbers is checked by Lean in one model of '
+                 'both\n'
+                 'lean Obj ZFSet\n',
+ 'propositional.kurt': '; propositional logic\n'
+                       ';\n'
+                       '; covers: not, or, invimplies (backwards implication), '
+                       'iff, and the standard elimination/\n'
+                       '; introduction rules connecting them and the hardcoded '
+                       'connectives (and-intro/elim, or-intro/\n'
+                       '; elim, iff-intro, iff-elim-forward/backward, '
+                       'not-intro/elim, bottom-intro/elim, top-elim).\n'
+                       '; `true`/`implies`/`and` themselves are hardcoded '
+                       'directly in kurt.py (see minimal.kurt for\n'
+                       '; exactly what) -- this file adds `false`, `not`, '
+                       '`or`, `invimplies`, `iff`, and the rules\n'
+                       '; relating them.\n'
+                       ';\n'
+                       '; loaded (directly or transitively) by nearly every '
+                       'other theory here -- logic.kurt,\n'
+                       '; equality.kurt, set.kurt, and numbers.kurt all `load '
+                       'propositional` first.\n'
+                       '\n'
+                       ';; builtin syntax\n'
+                       '; infix  implies 13 12  ; logical implies, right '
+                       'associative (since 13>12)\n'
+                       '; prop   implies 0 1 2  ; and and its inputs have type '
+                       'prop\n'
+                       '; infix  and     16 16  ; logical and\n'
+                       '; prop   and     0 1 2  ; and and its inputs have type '
+                       'prop\n'
+                       '; flat   and            ; (a and b) and c  iff  a and '
+                       'b and c\n'
+                       '; sym    and            ; a and b  iff  b and a\n'
+                       '; prop   true           ; true has type prop\n'
+                       'alias  ⊤ true\n'
+                       'alias  ⇒ implies\n'
+                       'alias  ∧ and\n'
+                       '\n'
+                       ';; syntax\n'
+                       'prefix not        18     ; logical not\n'
+                       'infix  or      14 14     ; logical or\n'
+                       'infix  invimplies 13 12  ; logical implies backwards, '
+                       'right associative (since 13>12)\n'
+                       'infix  iff     10 10     ; logical if-and-only-if\n'
+                       'prop   not     0 1       ; `not` and its inputs have '
+                       'type prop\n'
+                       'prop   or      0 1 2     ; `or` and its inputs have '
+                       'type prop\n'
+                       'prop   invimplies 0 1 2  ; `invimplies` and its inputs '
+                       'have type prop\n'
+                       'prop   iff     0 1 2     ; `and` and its inputs have '
+                       'type prop\n'
+                       'prop   false             ; false has type prop\n'
+                       '; the meaning the engine gives these symbols (and '
+                       'nothing has it by its name alone): an `iff`\n'
+                       '; fact is used as two implications, `case` splits an '
+                       '`or`, an `assume` block whose last line is\n'
+                       '; `false` also gives `not` of its assumption, and '
+                       '`def` may define with `iff`\n'
+                       'builtin iff equivalence, or disjunction, not negation, '
+                       'false falsum\n'
+                       '\n'
+                       'flat   or\n'
+                       'sym    or\n'
+                       'sym    iff\n'
+                       '\n'
+                       'chain  iff implies       ; implies left-to-right\n'
+                       'chain  iff invimplies    ; implies right-to-left\n'
+                       '\n'
+                       'alias  ¬ not\n'
+                       'alias  ∨ or\n'
+                       'alias  ⊥ false\n'
+                       'alias  contradiction false\n'
+                       'alias  ⇔ iff\n'
+                       'alias  ⇐ invimplies\n'
+                       'alias  ≡ iff\n'
+                       '\n'
+                       ';; inference rules\n'
+                       ';\n'
+                       '; all rules have the form (with finitely many '
+                       'premises)\n'
+                       ';\n'
+                       ';     premise1   premise2\n'
+                       ';     -------------------\n'
+                       ';     conclusion\n'
+                       ';\n'
+                       '; which we write in kurt as:\n'
+                       '; \n'
+                       ';     premise1 and premise2 implies conclusion\n'
+                       ';\n'
+                       '; (the commented out axioms are implemented in '
+                       '`kurt.py`\n'
+                       '\n'
+                       ';; builtin\n'
+                       '; use %A implies %A                 "restatement" ; '
+                       'special case of "impl-elim"\n'
+                       '; use (%A implies %B) implies (%A implies '
+                       '%B)                       "impl-intro"\n'
+                       '; use ((%A implies %B) and %A) implies '
+                       '%B                           "impl-elim"\n'
+                       '; use '
+                       'true                                                          '
+                       '"top-intro"\n'
+                       '\n'
+                       'use %A  and  %B   implies   %A and '
+                       '%B                               "and-intro"\n'
+                       'use %A  and  %B   implies   '
+                       '%A                                      "and-elim"   ; '
+                       '`and` is symmetric and flat\n'
+                       '; notes\n'
+                       '; "and-intro" looks somewhat weird:  however, it will '
+                       'be used from the python code\n'
+                       '; such that the formulas of the LHS conjunction will '
+                       'be searched for in the theory\n'
+                       '\n'
+                       'use %A   implies   %A or '
+                       '%B                                         '
+                       '"or-intro"   ; `or` is symmetric and flat\n'
+                       'use (%A or %B) and (%A implies %C) and (%B implies %C) '
+                       'implies %C   "or-elim"\n'
+                       '\n'
+                       '; `case` supports any finite number of alternatives. '
+                       'The binary rule above supplies the logical\n'
+                       '; meaning. The engine recognizes a stored flat '
+                       'disjunction plus one implication to the same goal\n'
+                       '; for every alternative, and the kernel checks both '
+                       'the rule and that exact list. It does not\n'
+                       '; synthesize an n-premise schema, so matching does not '
+                       'grow through a Cartesian product of facts.\n'
+                       ';\n'
+                       '; Keep the previously published 3/4-branch theorems as '
+                       'named compatibility lemmas. Their proofs\n'
+                       '; now also exercise the general case-elimination '
+                       'certificate.\n'
+                       'show (%A or %B or %C) and (%A implies %D) and (%B '
+                       'implies %D) and (%C implies %D) implies %D   '
+                       '"or-elim-3"\n'
+                       'proof\n'
+                       '    assume (%A or %B or %C) and (%A implies %D) and '
+                       '(%B implies %D) and (%C implies %D)\n'
+                       '        %A or %B or %C\n'
+                       '        %A implies %D\n'
+                       '        %B implies %D\n'
+                       '        %C implies %D\n'
+                       '        %D\n'
+                       'qed\n'
+                       'show (%A or %B or %C or %E) and (%A implies %D) and '
+                       '(%B implies %D) and (%C implies %D) and (%E implies '
+                       '%D) implies %D   "or-elim-4"\n'
+                       'proof\n'
+                       '    assume (%A or %B or %C or %E) and (%A implies %D) '
+                       'and (%B implies %D) and (%C implies %D) and (%E '
+                       'implies %D)\n'
+                       '        %A or %B or %C or %E\n'
+                       '        %A implies %D\n'
+                       '        %B implies %D\n'
+                       '        %C implies %D\n'
+                       '        %E implies %D\n'
+                       '        %D\n'
+                       'qed\n'
+                       '\n'
+                       '; A defining axiom, not `def`: `invimplies` already '
+                       'participates in the `chain` declarations\n'
+                       '; above, so it is no longer a fresh symbol without '
+                       'meaning when this equivalence is stated.\n'
+                       'use (%A invimplies %B) iff (%B implies '
+                       '%A)                         "invimplies-def"\n'
+                       '\n'
+                       'use (%A implies %B) and (%B implies %A) implies (%A '
+                       'iff %B)         "iff-intro"\n'
+                       'use (%A iff %B) implies (%A implies '
+                       '%B)                             "iff-elim-forward"\n'
+                       'use (%A iff %B) implies (%B implies '
+                       '%A)                             "iff-elim-backward"\n'
+                       'use %A iff '
+                       '%A                                                       '
+                       '"iff-reflexive"\n'
+                       'use (sub %x %a %A) and (%a iff %b)  implies  (sub %x '
+                       '%b %A)         "iff-subst"\n'
+                       '\n'
+                       'use (true implies %A) implies '
+                       '%A                                    "top-elim"\n'
+                       '\n'
+                       '; a formula equivalent to `true` holds, and a formula '
+                       'that holds is equivalent to `true` (e.g.\n'
+                       '; after a chain of equivalences that ends in `⊤`)\n'
+                       'show (%A iff true) implies '
+                       '%A                                       '
+                       '"iff-true-elim"\n'
+                       'proof\n'
+                       '    assume %A iff true\n'
+                       '        true implies %A\n'
+                       '        %A\n'
+                       'qed\n'
+                       'show %A implies (%A iff '
+                       'true)                                       '
+                       '"iff-true-intro"\n'
+                       'proof\n'
+                       '    assume %A\n'
+                       '        assume %A\n'
+                       '            true\n'
+                       '        assume true\n'
+                       '            %A\n'
+                       '        %A iff true\n'
+                       'qed\n'
+                       '\n'
+                       'use %A and not %A implies '
+                       'false                                     '
+                       '"bottom-intro"\n'
+                       'use false implies '
+                       '%A                                                '
+                       '"bottom-elim"\n'
+                       '\n'
+                       'use (%A implies false) implies not '
+                       '%A                               "not-intro"\n'
+                       'use not not %A implies '
+                       '%A                                           '
+                       '"not-elim"\n'
+                       'use %A implies not not '
+                       '%A                                           '
+                       '"not-not-intro"\n'
+                       'use %A iff not not '
+                       '%A                                               '
+                       '"not-not"\n'
+                       '\n'
+                       '; the excluded middle, proven (not an axiom): from '
+                       '"not-elim"\n'
+                       'show %A or not '
+                       '%A                                                   '
+                       '"excluded-middle"\n'
+                       'proof\n'
+                       '    assume not (%A or not %A)\n'
+                       '        assume %A\n'
+                       '            %A or not %A\n'
+                       '            false\n'
+                       '        not %A\n'
+                       '        %A or not %A\n'
+                       '        false\n'
+                       '    not not (%A or not %A)\n'
+                       '    %A or not %A\n'
+                       'qed\n'
+                       '\n'
+                       ";; `kurt --lean`: `invimplies` is Lean's `→` backwards "
+                       '(what "invimplies-def" says)\n'
+                       'lean invimplies ($2 → $1)\n'
+                       '\n'
+                       ";; the rules as theorems of Lean's logic (`kurt "
+                       "--lean`, doc/kurt-doc.md): each fact's proof in\n"
+                       ';; Lean, `lean "label" TACTIC` -- the export writes '
+                       'the rule as a `theorem` with it, which Lean\n'
+                       ";; checks (never trusted by Kurt). `grind` (Lean's "
+                       "own, classical) proves each of them; Kurt's\n"
+                       ';; theorems above too, for the export of a proof that '
+                       'cites one\n'
+                       'lean "and-intro" grind\n'
+                       'lean "and-elim" grind\n'
+                       'lean "or-intro" grind\n'
+                       'lean "or-elim" grind\n'
+                       'lean "or-elim-3" grind\n'
+                       'lean "or-elim-4" grind\n'
+                       'lean "invimplies-def" grind\n'
+                       'lean "iff-intro" grind\n'
+                       'lean "iff-elim-forward" grind\n'
+                       'lean "iff-elim-backward" grind\n'
+                       'lean "iff-reflexive" grind\n'
+                       'lean "iff-subst" grind\n'
+                       'lean "top-elim" grind\n'
+                       'lean "iff-true-elim" grind\n'
+                       'lean "iff-true-intro" grind\n'
+                       'lean "bottom-intro" grind\n'
+                       'lean "bottom-elim" grind\n'
+                       'lean "not-intro" grind\n'
+                       'lean "not-elim" grind\n'
+                       'lean "not-not-intro" grind\n'
+                       'lean "not-not" grind\n'
+                       'lean "excluded-middle" grind\n',
  'rational.kurt': '; rational numbers\n'
                   ';\n'
                   '; covers: `Rat`, the fractions m / n of an integer m and a '
@@ -3173,11 +4610,26 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; ("lowest-terms", proven from the well-ordering of '
                   'natural.kurt). As for natural.kurt, they are\n'
                   '; numbers of numbers.kurt, so its laws (and `calc`) apply.\n'
-                  'load prop, equality, logic, set, numbers, natural, integer\n'
+                  'load propositional, equality, logic, set, numbers, natural, '
+                  'integer\n'
+                  'default real              ; every symbol of this file is a '
+                  'number, except where said otherwise:\n'
+                  'set Rat                  ; the rationals are a set (of '
+                  'numbers)\n'
                   'const Rat\n'
                   'builtin Rat rationals                  ; `calc on` proves '
                   '`1 / 3 ∈ Rat`\n'
                   'tex Rat \\mathbb{Q}\n'
+                  "; `kurt --lean` with Mathlib: the objects are Mathlib's "
+                  'reals (numbers.kurt), `Rat` the rationals\n'
+                  '; among them (as `Nat` in natural.kurt)\n'
+                  'lean Rat member $1 ∈ Set.range (fun q : ℚ => (q : ℝ))\n'
+                  'alias ℚ Rat\n'
+                  'use Rat ⊂ Real  "rat-sub-real"      ; a set of numbers '
+                  '(natural.kurt\'s "ext-real")\n'
+                  'lean "rat-sub-real" simp only [k_u2282]; intro z hz; obtain '
+                  '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
+                  '_).mpr rfl\n'
                   '\n'
                   '; A defining axiom, not `def`: `Rat` is an existing '
                   'calculator-bound carrier, and this\n'
@@ -3278,15 +4730,16 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '    assume $q ∈ Rat ∧ $q > 0\n'
                   '        ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
                   '$n)     ; rat-pos\n'
-                  '        ; the denominators\n'
+                  '        ; the denominators -- a subset of `Nat`: for every '
+                  'element, not only the numbers among\n'
+                  '        ; them, so `c` is any set (`set c`; the `default '
+                  'real` would make it a number)\n'
+                  '        set c\n'
                   '        let c\n'
                   '            assume c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
                   '∧ $q = $i / $j) }\n'
-                  '                c ∈ Nat ∧ c ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
-                  '/ c)    ; separation\n'
-                  '                c ∈ Nat\n'
-                  '        ∀ $c ($c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
-                  '$q = $i / $j) }  implies  $c ∈ Nat)\n'
+                  '                c ∈ Nat                                     '
+                  '; separation-in\n'
                   '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
                   '$j) } ⊂ Nat\n'
                   '        pick m with ∃ $n (m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q '
@@ -3403,7 +4856,108 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'coprime(m, $j) ∧ $q = m / $j)\n'
                   '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
                   'coprime($i, $j) ∧ $q = $i / $j)\n'
-                  'qed\n',
+                  'qed\n'
+                  '\n'
+                  ';; the rules as theorems of Mathlib (see numbers.kurt and '
+                  'natural.kurt): `Rat` by its axiom `k_mem_Rat`\n'
+                  'lean "rat-def" intro q; rw [k_mem_Rat]; constructor\n'
+                  'lean "rat-def" · rintro ⟨r, rfl⟩\n'
+                  'lean "rat-def"   refine ⟨r.num, r.den, ?_⟩\n'
+                  'lean "rat-def"   refine ⟨?_, ?_, ?_, ?_⟩ <;> first | exact '
+                  '(k_mem_Int _).mpr ⟨r.num, rfl⟩ | exact (k_mem_Nat _).mpr '
+                  '⟨r.den, rfl⟩ | exact Rat.cast_def r | (simp [r.den_nz]; '
+                  'done)\n'
+                  'lean "rat-def" · rintro ⟨m, n, h⟩\n'
+                  'lean "rat-def"   casesm* _ ∧ _\n'
+                  'lean "rat-def"   obtain ⟨i, rfl⟩ := (k_mem_Int m).mp ‹_›\n'
+                  'lean "rat-def"   obtain ⟨j, rfl⟩ := (k_mem_Nat n).mp ‹_›\n'
+                  'lean "rat-def"   subst_vars\n'
+                  'lean "rat-def"   exact ⟨(i : ℚ) / (j : ℚ), by push_cast; '
+                  'ring⟩\n'
+                  'lean "rat-add" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_add _ _⟩\n'
+                  'lean "rat-sub" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_sub _ _⟩\n'
+                  'lean "rat-mul" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_mul _ _⟩\n'
+                  'lean "rat-div" intro a b h; casesm* _ ∧ _\n'
+                  'lean "rat-div" obtain ⟨p, rfl⟩ := (k_mem_Rat a).mp ‹_›\n'
+                  'lean "rat-div" obtain ⟨q, rfl⟩ := (k_mem_Rat b).mp ‹_›\n'
+                  'lean "rat-div" exact (k_mem_Rat _).mpr ⟨_, Rat.cast_div _ '
+                  '_⟩\n'
+                  '\n'
+                  ';; the theorems Kurt proves above, as theorems of Mathlib '
+                  'too (see natural.kurt), "lowest-terms" too\n'
+                  ";; (`coprime` and `∣` unfolded; `Rat.reduced`: a rational's "
+                  'numerator and denominator are coprime)\n'
+                  'lean "rat-int" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
+                  'z).mp hz; exact (k_mem_Rat _).mpr ⟨m, by simp⟩\n'
+                  'lean "rat-pos" intros; casesm* _ ∧ _\n'
+                  'lean "rat-pos" obtain ⟨r, rfl⟩ := (k_mem_Rat _).mp ‹k_emb _ '
+                  '∈ Rat›; beta_reduce at *\n'
+                  'lean "rat-pos" have hr : 0 < r := by exact_mod_cast (‹_› : '
+                  '(0 : ℝ) < r)\n'
+                  'lean "rat-pos" have hnum : 0 ≤ r.num := (Rat.num_pos.mpr '
+                  'hr).le\n'
+                  'lean "rat-pos" refine ⟨(r.num.toNat : ℝ), (r.den : ℝ), ?_⟩\n'
+                  'lean "rat-pos" refine ⟨?_, ?_, ?_, ?_⟩\n'
+                  'lean "rat-pos" all_goals first\n'
+                  'lean "rat-pos"   | exact (k_mem_Nat _).mpr ⟨_, rfl⟩\n'
+                  'lean "rat-pos"   | (simp [r.den_nz]; done)\n'
+                  'lean "rat-pos"   | (rw [show ((r.num.toNat : ℕ) : ℝ) = '
+                  '((r.num.toNat : ℤ) : ℝ) from (Int.cast_natCast _).symm, '
+                  'Int.toNat_of_nonneg hnum]; exact Rat.cast_def r)\n'
+                  'lean "frac-cancel" intros; casesm* _ ∧ _\n'
+                  'lean "frac-cancel" field_simp\n'
+                  'lean "lowest-terms" intro q h; casesm* _ ∧ _\n'
+                  'lean "lowest-terms" obtain ⟨r, rfl⟩ := (k_mem_Rat q).mp (by '
+                  'assumption)\n'
+                  'lean "lowest-terms" have hr : 0 < r := by exact_mod_cast '
+                  '(by assumption : (0 : ℝ) < r)\n'
+                  'lean "lowest-terms" have key : ∃ a b : ℕ, b ≠ 0 ∧ '
+                  'Nat.Coprime a b ∧ (r : ℝ) = (a : ℝ) / (b : ℝ) := by\n'
+                  'lean "lowest-terms"   have h0 : 0 ≤ r.num := '
+                  '(Rat.num_pos.mpr hr).le\n'
+                  'lean "lowest-terms"   refine ⟨r.num.toNat, r.den, r.den_nz, '
+                  '?_, ?_⟩\n'
+                  'lean "lowest-terms"   · have e : r.num.toNat = r.num.natAbs '
+                  ':= by omega\n'
+                  'lean "lowest-terms"     rw [e]; exact r.reduced\n'
+                  'lean "lowest-terms"   · have hnum : ((r.num.toNat : ℕ) : ℤ) '
+                  '= r.num := Int.toNat_of_nonneg h0\n'
+                  'lean "lowest-terms"     rw [Rat.cast_def r]; congr 1; '
+                  'exact_mod_cast hnum.symm\n'
+                  'lean "lowest-terms" obtain ⟨a, b, hb, hab, he⟩ := key\n'
+                  'lean "lowest-terms" refine ⟨(a : ℝ), (b : ℝ), ?_⟩\n'
+                  'lean "lowest-terms" refine ⟨?_, ?_, ?_, ?_, ?_⟩\n'
+                  'lean "lowest-terms" all_goals first\n'
+                  'lean "lowest-terms"   | exact he\n'
+                  'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨a, rfl⟩\n'
+                  'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨b, rfl⟩\n'
+                  'lean "lowest-terms"   | exact_mod_cast hb\n'
+                  'lean "lowest-terms"   | (simp only [coprime]\n'
+                  'lean "lowest-terms"      intro d hd hdiv\n'
+                  'lean "lowest-terms"      obtain ⟨e, rfl⟩ := (k_mem_Nat '
+                  'd).mp hd\n'
+                  'lean "lowest-terms"      have dvd : ∀ c : ℕ, k_u2223 (e : '
+                  'ℝ) (c : ℝ) → e ∣ c := by\n'
+                  'lean "lowest-terms"        intro c hc; simp only [k_u2223] '
+                  'at hc; obtain ⟨s, hs⟩ := hc; casesm* _ ∧ _\n'
+                  'lean "lowest-terms"        obtain ⟨s\', rfl⟩ := (k_mem_Nat '
+                  's).mp (by assumption)\n'
+                  'lean "lowest-terms"        exact ⟨s\', by exact_mod_cast '
+                  "(by linarith : (c : ℝ) = e * s')⟩\n"
+                  'lean "lowest-terms"      have hda := dvd a (by first | '
+                  'exact hdiv.1 | exact hdiv.2)\n'
+                  'lean "lowest-terms"      have hdb := dvd b (by first | '
+                  'exact hdiv.1 | exact hdiv.2)\n'
+                  'lean "lowest-terms"      have := Nat.dvd_gcd hda hdb\n'
+                  'lean "lowest-terms"      rw [Nat.Coprime.gcd_eq_one hab] at '
+                  'this\n'
+                  'lean "lowest-terms"      simp [Nat.dvd_one.mp this])\n',
  'sequences.kurt': '; sequences and series\n'
                    ';\n'
                    '; covers: the limit of a sequence, `converges n L T` ("T, '
@@ -3422,19 +4976,37 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    '; geometric series are theorems of analysis, stated here '
                    'as axioms (their proofs by ε and N are\n'
                    '; long); proofs/analysis/sequences-and-series.kurt proves '
-                   '1/n → 0 from the definition.\n'
-                   'load prop, equality, logic, set, numbers, natural, '
-                   'analysis\n'
+                   '1/n → 0 from the definition. For Lean\n'
+                   '; they are proved, from Mathlib (`lean "label" ...` at the '
+                   'end of this file).\n'
+                   'load propositional, equality, logic, set, numbers, '
+                   'natural, analysis\n'
+                   'default real              ; every symbol of this file is a '
+                   'number, except where said otherwise\n'
                    '\n'
                    'const converges, seqlim, series\n'
                    'arity converges 3, seqlim 2, series 3\n'
                    'bindop converges, seqlim, series      ; the variable, then '
                    '(outside) the limit or the start, then the body\n'
-                   'bool converges 0\n'
+                   'prop converges 0\n'
                    'tex converges $3 \\underset{$1 \\to '
                    '\\infty}{\\longrightarrow} $2\n'
                    'tex seqlim \\lim_{$1 \\to \\infty} $2\n'
                    'tex series \\sum_{$1=$2}^{\\infty} $3\n'
+                   '; in Lean with Mathlib (`kurt --lean`): the sequence of '
+                   'the values at the natural numbers `0, 1,\n'
+                   "; 2, ...` and its limit (Mathlib's `Tendsto` and "
+                   '`limUnder` along `atTop`); `series` is the limit of\n'
+                   "; the partial sums `sum i (a, n) T` (analysis.kurt's `lean "
+                   'sum`), as "series-def" says\n'
+                   'lean converges (Filter.Tendsto (fun k_ : ℕ => $2 (k_ : ℝ)) '
+                   'Filter.atTop (nhds $1))\n'
+                   'lean seqlim (Filter.limUnder Filter.atTop (fun k_ : ℕ => '
+                   '$1 (k_ : ℝ)))\n'
+                   'lean series (Filter.limUnder Filter.atTop (fun k_ : ℕ => '
+                   '(∑ n_ ∈ Finset.Ico (0 : ℤ) (⌈(k_ : ℝ) - $1⌉ + 1), $2 ((k_ '
+                   ': ℝ) - n_) - ∑ n_ ∈ Finset.Ico (⌈(k_ : ℝ) - $1⌉ + 1) 0, $2 '
+                   '((k_ : ℝ) - n_))))\n'
                    '\n'
                    ';; the limit of a sequence, by ε and N\n'
                    'use (converges $n $L $T)  ⇔  ∀ $e > 0 ∃ $N ∀ $m ∈ Nat ($m '
@@ -3478,7 +5050,90 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    '; (the first summand is `$q ^ 0`: not for `$q = 0`, whose '
                    '`0 ^ 0` numbers.kurt leaves open)\n'
                    'use (abs($q) < 1 ∧ $q ≠ 0)  ⇒  converges $n (1 / (1 - $q)) '
-                   '(sum $i (0, $n) ($q ^ $i))   "geometric"\n',
+                   '(sum $i (0, $n) ($q ^ $i))   "geometric"\n'
+                   '\n'
+                   ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                   '`lean "label" TACTIC` is a proof in Lean\n'
+                   'lean "converges-def" have key : ∀ (f : ℝ → ℝ) (L : ℝ), '
+                   'Filter.Tendsto (fun k_ : ℕ => f (k_ : ℝ)) Filter.atTop '
+                   '(nhds L) ↔ ∀ e, 0 < e → ∃ N : ℝ, ∀ m, k_emb m ∈ Nat → N < '
+                   'm → |f m - L| < e := by\n'
+                   'lean "converges-def"   intro f L\n'
+                   'lean "converges-def"   rw [Metric.tendsto_atTop]\n'
+                   'lean "converges-def"   simp only [Real.dist_eq, '
+                   'gt_iff_lt]\n'
+                   'lean "converges-def"   constructor\n'
+                   'lean "converges-def"   · intro h e he; obtain ⟨N, H⟩ := h '
+                   'e he\n'
+                   'lean "converges-def"     refine ⟨(N : ℝ) - 1, fun m hm hNm '
+                   '=> ?_⟩\n'
+                   'lean "converges-def"     obtain ⟨k, rfl⟩ := (k_mem_Nat '
+                   'm).mp hm\n'
+                   'lean "converges-def"     have : N < k + 1 := by '
+                   'exact_mod_cast (show (N : ℝ) < k + 1 by simp only [] at '
+                   'hNm; linarith)\n'
+                   'lean "converges-def"     exact H k (by omega)\n'
+                   'lean "converges-def"   · intro h e he; obtain ⟨N, H⟩ := h '
+                   'e he\n'
+                   'lean "converges-def"     obtain ⟨K, hK⟩ := exists_nat_gt '
+                   'N\n'
+                   'lean "converges-def"     exact ⟨K, fun k hk => H k '
+                   '((k_mem_Nat _).mpr ⟨k, rfl⟩) (lt_of_lt_of_le hK (by '
+                   'exact_mod_cast hk))⟩\n'
+                   'lean "converges-def" intros; beta_reduce\n'
+                   'lean "converges-def" first | exact key _ _ | (rw [key]; '
+                   'simp only [and_comm, and_left_comm, and_assoc])\n'
+                   'lean "converges-seqlim" intros; exact '
+                   'Filter.Tendsto.limUnder_eq ‹_›\n'
+                   'lean "converges-unique" intros; casesm* _ ∧ _; exact '
+                   'tendsto_nhds_unique ‹_› ‹_›\n'
+                   'lean "converges-const" intros; exact tendsto_const_nhds\n'
+                   'lean "converges-add" intros; casesm* _ ∧ _; exact '
+                   'Filter.Tendsto.add ‹_› ‹_›\n'
+                   'lean "converges-sub" intros; casesm* _ ∧ _; exact '
+                   'Filter.Tendsto.sub ‹_› ‹_›\n'
+                   'lean "converges-scale" intros; exact '
+                   'Filter.Tendsto.mul_const _ ‹_›\n'
+                   'lean "converges-mul" intros; casesm* _ ∧ _; exact '
+                   'Filter.Tendsto.mul ‹_› ‹_›\n'
+                   'lean "converges-div" intros; casesm* _ ∧ _; exact '
+                   'Filter.Tendsto.div ‹_› ‹_› ‹_›\n'
+                   'lean "archimedes" intro x; obtain ⟨n, hn⟩ := exists_nat_gt '
+                   'x\n'
+                   'lean "archimedes" exact ⟨n, (k_mem_Nat _).mpr ⟨n, rfl⟩, '
+                   'hn⟩\n'
+                   'lean "series-def" intros; rfl\n'
+                   'lean "series-intro" intros; exact '
+                   'Filter.Tendsto.limUnder_eq ‹_›\n'
+                   'lean "geometric" intro q h\n'
+                   'lean "geometric" have h1 : |q| < 1 := by first | exact h.1 '
+                   '| exact h.2\n'
+                   'lean "geometric" beta_reduce\n'
+                   'lean "geometric" have e : ∀ (q : ℝ) (n : ℕ), (∑ n_ ∈ '
+                   'Finset.Ico (0 : ℤ) (⌈(n : ℝ) - 0⌉ + 1), q ^ ((n : ℝ) - n_) '
+                   '- ∑ n_ ∈ Finset.Ico (⌈(n : ℝ) - 0⌉ + 1) 0, q ^ ((n : ℝ) - '
+                   'n_)) = ∑ i ∈ Finset.range (n + 1), q ^ i := by\n'
+                   'lean "geometric"   intro q n\n'
+                   'lean "geometric"   rw [show (n : ℝ) - 0 = ((n : ℤ) : ℝ) by '
+                   'simp, Int.ceil_intCast, Finset.Ico_eq_empty_of_le (by '
+                   'omega : (0 : ℤ) ≤ (n : ℤ) + 1), Finset.sum_empty, '
+                   'sub_zero, Int.Ico_eq_finset_map, Finset.sum_map]\n'
+                   'lean "geometric"   simp only '
+                   '[Function.Embedding.trans_apply, Nat.castEmbedding_apply, '
+                   'addLeftEmbedding_apply, zero_add, show ((n : ℤ) + 1 - '
+                   '0).toNat = n + 1 by omega]\n'
+                   'lean "geometric"   rw [← Finset.sum_range_reflect]\n'
+                   'lean "geometric"   apply Finset.sum_congr rfl\n'
+                   'lean "geometric"   intro i hi\n'
+                   'lean "geometric"   rw [Finset.mem_range] at hi\n'
+                   'lean "geometric"   rw [show n + 1 - 1 - i = n - i by '
+                   'omega, Int.cast_natCast, Nat.cast_sub (by omega : i ≤ n), '
+                   'sub_sub_cancel, Real.rpow_natCast]\n'
+                   'lean "geometric" simp only [e]\n'
+                   'lean "geometric" have h := '
+                   '((hasSum_geometric_of_abs_lt_one h1).tendsto_sum_nat).comp '
+                   '(Filter.tendsto_add_atTop_nat 1)\n'
+                   'lean "geometric" rw [one_div]; exact h\n',
  'set.kurt': '; set theory\n'
              ';\n'
              '; covers: separation (`{$z ∈ $A | P($z)}`, the subset of `$A` of '
@@ -3506,7 +5161,15 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              "applied with kurt's ordinary\n"
              '; space-application `$f $a` -- see the comment further down, '
              'right above "function-space".\n'
-             'load prop, equality, logic\n'
+             'load propositional, equality, logic\n'
+             'load objects             ; the sorts: `set`, and `real ⊂ set` -- '
+             'every number is a set\n'
+             '                         ; -- a set, a number, or one of no sort '
+             '(`term`); every place that must be a set is\n'
+             '                         ; declared below (`set ∈ 2`). The '
+             "default doesn't cross `load`: a student's `∀ x` is over\n"
+             '                         ; `term`; with `any x` (or `default '
+             'any`) it is over all objects, as here (todo 35)\n'
              '\n'
              '; syntax\n'
              'infix    in 25 25        ; element\n'
@@ -3520,8 +5183,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '`not (x ∈ A)`\n'
              'infix    ∪  30 30        ; union\n'
              'infix    ∩  40 40        ; intersection\n'
-             'bool     in 0\n'
-             'bool     ⊂ 0\n'
+             'prop     in 0\n'
+             'prop     ⊂ 0\n'
              'alias    ∈ in            ; `∈` inherits all properties of `in`\n'
              'brackets { }             ; curly brackets\n'
              '; sets written with braces: `{a, b, c}` by its elements, `{x ∈ A '
@@ -3543,6 +5206,56 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'builtin in element\n'
              'infix    × 45 45         ; Cartesian product\n'
              '\n'
+             '; the sorts: the places that are sets -- the right of `∈`, both '
+             'sides of `⊂`, the results of the\n'
+             '; set operations; not an element (the left of `∈`, the elements '
+             'of `{a, b}`, the variable of a\n'
+             '; set-builder, the components of a pair), which may be any '
+             'object\n'
+             'set      in 2            ; `x ∈ A`: `A` a set, `x` anything '
+             '(also `:` and `∉`, aliases)\n'
+             'set      ∉ 2\n'
+             'set      ⊂ 1 2\n'
+             'set      ⊃ 1 2\n'
+             'set      ∪ 0 1 2\n'
+             'set      ∩ 0 1 2\n'
+             'set      × 0 1 2\n'
+             'set      → 0 1 2\n'
+             'set      Pow 0 1         ; the power set\n'
+             'set      { 0             ; `{a, b}`, `{x ∈ A | P}`: a set, its '
+             'elements anything\n'
+             'set      | 0             ; the set-builder `{x ∈ A | P}`: a set, '
+             'its variable anything\n'
+             'set      ( 0             ; the pair `(a, b)`: a set '
+             '(Kuratowski), its components anything\n'
+             '; the elements of `A → B` and of `Pow(A)` are sets, but a fact '
+             'or a position says nothing about the sort of\n'
+             '; an element (todo 35): a proof that needs `c ∈ Pow(A)` as a set '
+             'says so, `set c`\n'
+             '\n'
+             '; how `kurt --lean` writes them (doc/kurt-doc.md, `--lean`): in '
+             "the sets of Mathlib's model of ZFC\n"
+             "; (`ZFSet`, objects.kurt's `lean Obj ZFSet`) -- `∈` is its "
+             'membership, `{z ∈ A | P}` its separation\n'
+             "; (`ZFSet.sep`), `{a, b, c}` Lean's own, `(a, b)` the Kuratowski "
+             'pair, `A → B` the set of the\n'
+             '; mappings (`ZFSet.funs`), and a mapping applied, `f a`, the `b` '
+             'with `(a, b) ∈ f` (`k_apply`). Each\n'
+             '; rule below is a theorem of Mathlib: its proof is the `lean '
+             '"label" ...` at the end of the file\n'
+             'lean in $1 ∈ $2\n'
+             'lean ∪ $1 ∪ $2\n'
+             'lean ∅ (∅ : Obj)\n'
+             'lean Pow ZFSet.powerset $1\n'
+             'lean , ZFSet.pair $1 $2\n'
+             'lean , ZFSet.pair $1 (ZFSet.pair $2 $3)\n'
+             'lean × ZFSet.prod $1 $2\n'
+             'lean → ZFSet.funs $1 $2\n'
+             'lean fst Classical.epsilon (fun a_ => ∃ b_, $1 = ZFSet.pair a_ '
+             'b_)\n'
+             'lean snd Classical.epsilon (fun b_ => ∃ a_, $1 = ZFSet.pair a_ '
+             'b_)\n'
+             '\n'
              '; we assume that all objects are sets\n'
              '\n'
              '; extensionality: two sets are equal iff they have the same '
@@ -3556,8 +5269,16 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'ordinary variable, and a `sub` could\n'
              '; take just some of its occurrences: `{ y ∈ Nat | y = y }` then '
              'gave `(0 + 1) = y`)\n'
-             'use $a ∈ { $z ∈ $A | %F }  ≡  $a ∈ $A ∧ sub $z $a '
+             'use $a ∈ { $$z ∈ $A | %F }  ≡  $a ∈ $A ∧ sub $$z $a '
              '%F               "separation"\n'
+             '; ... one half of it on its own: an element of a part of `$A` is '
+             'in `$A` -- also an element of\n'
+             '; every sort for a part chosen among the numbers (`{n ∈ Nat | n '
+             '> 2}`, its `n` a number), where\n'
+             '; "separation" says what it says about the numbers only '
+             '(doc/kurt-doc.md §5.2)\n'
+             'use $a ∈ { $$z ∈ $A | %F }  ⇒  $a ∈ '
+             '$A                            "separation-in"\n'
              '\n'
              '; subset\n'
              'def $a ⊂ $b ≡ ∀ $c  ($c ∈ $a implies $c ∈ $b)                    '
@@ -3619,6 +5340,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '\n'
              '; the empty set, unions and power sets exist\n'
              'const ∅\n'
+             'set ∅\n'
              'builtin ∅ emptyset       ; `{}` is `∅`\n'
              'use not ($a ∈ ∅)                                                 '
              '"empty-set"\n'
@@ -3685,6 +5407,10 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              'const fst, snd\n'
              'arity fst 1\n'
              'arity snd 1\n'
+             '; (`fst`, `snd` without a sort: of anything -- `fst c` of a `let '
+             'c` in a proof about all objects\n'
+             "; mustn't make `c` a set; for an object that is no pair, they "
+             'are some object, as in Lean)\n'
              'use fst($a, $b) = '
              '$a                                              "fst"\n'
              'use snd($a, $b) = '
@@ -3706,6 +5432,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; extensionality of sets); only ∅ is a mapping from ∅. '
              "(Application `f a` is kurt's ordinary\n"
              '; space-application, also written `f(a)`.)\n'
+             'set $f, $g              ; mappings are sets: `f ∈ (A → B)` says '
+             'nothing about the sort of `f` (a fact gives no sort, todo 35)\n'
              'use $f ∈ ($A → $B)  ≡  $f ⊂ $A × $B ∧ (∀ $a ∈ $A ∃ $b (($a, $b) '
              '∈ $f)) ∧ ∀ $a ∀ $b ∀ $c (($a, $b) ∈ $f ∧ ($a, $c) ∈ $f  implies  '
              '$b = $c)   "function-space"\n'
@@ -3799,7 +5527,134 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '        $g ⊂ $f\n'
              '        $f ⊂ $g ∧ $g ⊂ $f\n'
              '        $f = $g                                        ; eq-def\n'
-             'qed\n',
+             'qed\n'
+             '\n'
+             ';; the rules as theorems of Mathlib (see the `lean` declarations '
+             'above): the sets are those of\n'
+             ";; Mathlib's model of ZFC, so every rule is a theorem there -- "
+             'separation too, for every property;\n'
+             ";; the tactics don't name the variables (`intros`): Kurt orders "
+             'them its own way\n'
+             'lean "extensionality" intros; exact ⟨fun h _ => h ▸ Iff.rfl, fun '
+             'h => ZFSet.ext h⟩\n'
+             'lean "separation" intros; simp only [ZFSet.mem_sep]; try exact '
+             'and_comm\n'
+             'lean "separation-in" intros; exact (ZFSet.mem_sep.mp ‹_›).1\n'
+             'lean "empty-set" intros; exact ZFSet.notMem_empty _\n'
+             'lean "singleton" intros; exact ZFSet.mem_singleton\n'
+             'lean "union" intros; simp only [ZFSet.mem_union]; try exact '
+             'or_comm\n'
+             'lean "power-set" intros; simp only [ZFSet.mem_powerset, '
+             'ZFSet.subset_def, k_u2282]\n'
+             'lean "pair-eq" intros; exact ZFSet.pair_inj\n'
+             'lean "triple-eq" intros; simp only [ZFSet.pair_inj]\n'
+             'lean "fst" have key : ∀ a b : Obj, Classical.epsilon (fun a_ => '
+             '∃ b_, ZFSet.pair a b = ZFSet.pair a_ b_) = a := fun a b =>\n'
+             'lean "fst"   (ZFSet.pair_inj.mp (Classical.epsilon_spec (p := '
+             'fun a_ => ∃ b_, ZFSet.pair a b = ZFSet.pair a_ b_) ⟨a, b, '
+             'rfl⟩).choose_spec).1.symm\n'
+             'lean "fst" intros; apply key\n'
+             'lean "snd" have key : ∀ a b : Obj, Classical.epsilon (fun b_ => '
+             '∃ a_, ZFSet.pair a b = ZFSet.pair a_ b_) = b := fun a b =>\n'
+             'lean "snd"   (ZFSet.pair_inj.mp (Classical.epsilon_spec (p := '
+             'fun b_ => ∃ a_, ZFSet.pair a b = ZFSet.pair a_ b_) ⟨b, a, '
+             'rfl⟩).choose_spec).2.symm\n'
+             'lean "snd" intros; apply key\n'
+             'lean "product" intros; exact ZFSet.pair_mem_prod\n'
+             'lean "product-pairs" have key : ∀ p A B : Obj, p ∈ ZFSet.prod A '
+             'B → p = ZFSet.pair (Classical.epsilon (fun a_ => ∃ b_, p = '
+             'ZFSet.pair a_ b_)) (Classical.epsilon (fun b_ => ∃ a_, p = '
+             'ZFSet.pair a_ b_)) := by\n'
+             'lean "product-pairs"   intro p A B h\n'
+             'lean "product-pairs"   obtain ⟨a, _, b, _, rfl⟩ := '
+             'ZFSet.mem_prod.mp h\n'
+             'lean "product-pairs"   have h1 := (ZFSet.pair_inj.mp '
+             '(Classical.epsilon_spec (p := fun a_ => ∃ b_, ZFSet.pair a b = '
+             'ZFSet.pair a_ b_) ⟨a, b, rfl⟩).choose_spec).1\n'
+             'lean "product-pairs"   have h2 := (ZFSet.pair_inj.mp '
+             '(Classical.epsilon_spec (p := fun b_ => ∃ a_, ZFSet.pair a b = '
+             'ZFSet.pair a_ b_) ⟨b, a, rfl⟩).choose_spec).2\n'
+             'lean "product-pairs"   rw [← h1, ← h2]\n'
+             'lean "product-pairs" intros; apply key; assumption\n'
+             'lean "function-space" have key : ∀ f A B : Obj, f ∈ ZFSet.funs A '
+             'B ↔ (k_u2282 f (ZFSet.prod A B) ∧ (∀ a, a ∈ A → ∃ b, ZFSet.pair '
+             'a b ∈ f) ∧ ∀ a b c, ZFSet.pair a b ∈ f ∧ ZFSet.pair a c ∈ f → b '
+             '= c) := by\n'
+             'lean "function-space"   intro f A B\n'
+             'lean "function-space"   rw [ZFSet.mem_funs, ZFSet.IsFunc, '
+             'ZFSet.subset_def]\n'
+             'lean "function-space"   constructor\n'
+             'lean "function-space"   · rintro ⟨hs, hu⟩\n'
+             'lean "function-space"     refine ⟨fun z hz => hs hz, fun a ha => '
+             '(hu a ha).exists, fun a b c ⟨hb, hc⟩ => ?_⟩\n'
+             'lean "function-space"     exact (hu a (ZFSet.pair_mem_prod.mp '
+             '(hs hb)).1).unique hb hc\n'
+             'lean "function-space"   · rintro ⟨hs, he, hu⟩\n'
+             'lean "function-space"     refine ⟨fun z hz => hs z hz, fun a ha '
+             '=> ?_⟩\n'
+             'lean "function-space"     obtain ⟨b, hb⟩ := he a ha\n'
+             'lean "function-space"     exact ⟨b, hb, fun c hc => hu a c b '
+             '⟨hc, hb⟩⟩\n'
+             'lean "function-space" intros; rw [key]; tauto\n'
+             'lean "apply" have key : ∀ f A B a b : Obj, f ∈ ZFSet.funs A B → '
+             'ZFSet.pair a b ∈ f → k_apply f a = b := by\n'
+             'lean "apply"   intro f A B a b hf h\n'
+             'lean "apply"   obtain ⟨hs, hu⟩ := ZFSet.mem_funs.mp hf\n'
+             'lean "apply"   exact (hu a (ZFSet.pair_mem_prod.mp '
+             '(ZFSet.subset_def.mp hs h)).1).unique (Classical.epsilon_spec (p '
+             ':= fun b => ZFSet.pair a b ∈ f) ⟨b, h⟩) h\n'
+             'lean "apply" intros; casesm* _ ∧ _; apply key <;> assumption\n'
+             '\n'
+             ';; ... and the theorems above, for a proof that cites them (this '
+             "file's own export translates their proofs)\n"
+             'lean "subset-cond" intros; exact Iff.rfl\n'
+             'lean "eq-def" intros; simp only [k_u2282]; exact ⟨fun h => h ▸ '
+             '⟨fun _ => id, fun _ => id⟩, fun ⟨h1, h2⟩ => ZFSet.ext fun z => '
+             '⟨h1 z, h2 z⟩⟩\n'
+             'lean "nonempty-element" intro U h; by_contra hn; exact h '
+             '(ZFSet.ext fun z => ⟨fun hz => absurd ⟨z, hz⟩ hn, fun hz => '
+             'absurd hz (ZFSet.notMem_empty z)⟩)\n'
+             'lean "element-nonempty" intros; rintro rfl; exact '
+             'ZFSet.notMem_empty _ ‹_›\n'
+             'lean "in-intersection" intros; simp only [k_u2229, '
+             'ZFSet.mem_sep]; try exact and_comm\n'
+             'lean "apply-in" have key : ∀ f A B a : Obj, f ∈ ZFSet.funs A B → '
+             'a ∈ A → ZFSet.pair a (k_apply f a) ∈ f ∧ k_apply f a ∈ B := by\n'
+             'lean "apply-in"   intro f A B a hf ha\n'
+             'lean "apply-in"   obtain ⟨hs, hu⟩ := ZFSet.mem_funs.mp hf\n'
+             'lean "apply-in"   have hp : ZFSet.pair a (k_apply f a) ∈ f := '
+             'Classical.epsilon_spec (p := fun b => ZFSet.pair a b ∈ f) (hu a '
+             'ha).exists\n'
+             'lean "apply-in"   exact ⟨hp, (ZFSet.pair_mem_prod.mp '
+             '(ZFSet.subset_def.mp hs hp)).2⟩\n'
+             'lean "apply-in" intros; casesm* _ ∧ _; first | (apply key <;> '
+             'assumption) | (constructor <;> first | exact (key _ _ _ _ ‹_› '
+             '‹_›).1 | exact (key _ _ _ _ ‹_› ‹_›).2)\n'
+             'lean "function-extensionality" have sub : ∀ f g A B : Obj, f ∈ '
+             'ZFSet.funs A B → g ∈ ZFSet.funs A B → (∀ a, a ∈ A → k_apply f a '
+             '= k_apply g a) → ∀ z, z ∈ f → z ∈ g := by\n'
+             'lean "function-extensionality"   intro f g A B hf hg he z hz\n'
+             'lean "function-extensionality"   obtain ⟨fs, fu⟩ := '
+             'ZFSet.mem_funs.mp hf\n'
+             'lean "function-extensionality"   obtain ⟨_, gu⟩ := '
+             'ZFSet.mem_funs.mp hg\n'
+             'lean "function-extensionality"   obtain ⟨a, ha, b, _, rfl⟩ := '
+             'ZFSet.mem_prod.mp (ZFSet.subset_def.mp fs hz)\n'
+             'lean "function-extensionality"   have hfa : k_apply f a = b := '
+             '(fu a ha).unique (Classical.epsilon_spec (p := fun b => '
+             'ZFSet.pair a b ∈ f) ⟨b, hz⟩) hz\n'
+             'lean "function-extensionality"   have hga := '
+             'Classical.epsilon_spec (p := fun b => ZFSet.pair a b ∈ g) (gu a '
+             'ha).exists\n'
+             'lean "function-extensionality"   rw [← hfa, he a ha]; exact hga\n'
+             'lean "function-extensionality" have key : ∀ f g A B : Obj, f ∈ '
+             'ZFSet.funs A B → g ∈ ZFSet.funs A B → (∀ a, a ∈ A → k_apply f a '
+             '= k_apply g a) → f = g :=\n'
+             'lean "function-extensionality"   fun f g A B hf hg he => '
+             'ZFSet.ext fun z => ⟨sub f g A B hf hg he z, sub g f A B hg hf '
+             '(fun a ha => (he a ha).symm) z⟩\n'
+             'lean "function-extensionality" intros; casesm* _ ∧ _; apply key '
+             '<;> assumption\n',
  'vectorspace.kurt': '; vectorspace -- vector spaces over the field `K` of '
                      'field.kurt: `vectorspace($V)` for each one\n'
                      ';\n'
@@ -3828,41 +5683,273 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                      'vector-distributive (V7),\n'
                      '; vector-distributive-scalars (V8). proofs/mafi1/ uses '
                      'this theory.\n'
-                     'load equality, logic, set, field\n'
+                     'load propositional, equality, logic, set, field\n'
                      'arity vectorspace 1\n'
                      '\n'
-                     'use vectorspace($V)  ⇒  0 ∈ '
-                     '$V                                                       '
-                     '"zero-vector-in"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $x + $y ∈ '
-                     '$V                             "vector-plus-closed"\n'
-                     'use vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V  ⇒  $a · $x ∈ '
-                     '$V                              "vector-times-closed"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V  ⇒  - $x ∈ '
-                     '$V                                          '
-                     '"vector-minus-closed"\n'
+                     '; the definition (mafi1 04, 05: (V1)-(V8), and the '
+                     'closure under `+`, `·`, `-` with the zero\n'
+                     '; vector), in three parts: `vectorspace($V)` is exactly '
+                     'these properties -- `def`s, so each rule\n'
+                     '; below is a theorem proved from them, none an axiom '
+                     '(the axiom audit, dev/todo.md 11; before\n'
+                     '; 2026-10-20 the rules were `use`s). (Three parts of '
+                     'four, not one conjunction of twelve: with `+`\n'
+                     '; and `·` flat and symmetric, unfolding twelve at once '
+                     'is slow.)\n'
+                     'arity vectorclosed 1\n'
+                     'arity vectoradditive 1\n'
+                     'arity vectorscalar 1\n'
+                     'def vectorclosed($V)  ⇔  0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V '
+                     '($u + $w ∈ $V))) ∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) '
+                     '∧ (∀ $u ∈ $V (- $u ∈ $V))   "vectorclosed"      ; '
+                     'closed: the zero vector, `+`, `·` and `-`\n'
+                     'def vectoradditive($V)  ⇔  (∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ '
+                     '$V (($u + $w) + $t = $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ '
+                     '$w ∈ $V ($u + $w = $w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = '
+                     '$u)) ∧ (∀ $u ∈ $V ($u + (- $u) = 0))   '
+                     '"vectoradditive"      ; the laws of `+`, (V1)-(V4)\n'
+                     'def vectorscalar($V)  ⇔  (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V '
+                     '($p · ($q · $u) = ($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · '
+                     '$u = $u)) ∧ (∀ $p ∈ K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + '
+                     '$w) = $p · $u + $p · $w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u '
+                     '∈ $V (($p + $q) · $u = $p · $u + $q · $u))))   '
+                     '"vectorscalar"      ; the laws of `·`, (V5)-(V8)\n'
+                     'def vectorspace($V)  ⇔  vectorclosed($V) ∧ '
+                     'vectoradditive($V) ∧ vectorscalar($V)   "vectorspace"\n'
                      '\n'
-                     'use vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V ∧ $z ∈ $V  ⇒  '
-                     '($x + $y) + $z = $x + ($y + $z) '
+                     'show vectorspace($V)  ⇒  0 ∈ $V   "zero-vector-in"\n'
+                     'proof\n'
+                     '    assume vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorclosed($V)\n'
+                     '        0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))) '
+                     '∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ $V (- '
+                     '$u ∈ $V))\n'
+                     '        0 ∈ $V\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $x + $y ∈ '
+                     '$V   "vector-plus-closed"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorclosed($V)\n'
+                     '        0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))) '
+                     '∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ $V (- '
+                     '$u ∈ $V))\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))\n'
+                     '        $x ∈ $V\n'
+                     '        ∀ $w ∈ $V ($x + $w ∈ $V)\n'
+                     '        $y ∈ $V\n'
+                     '        $x + $y ∈ $V\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V  ⇒  $a · $x ∈ '
+                     '$V   "vector-times-closed"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorclosed($V)\n'
+                     '        0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))) '
+                     '∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ $V (- '
+                     '$u ∈ $V))\n'
+                     '        ∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))\n'
+                     '        $a ∈ K\n'
+                     '        ∀ $u ∈ $V ($a · $u ∈ $V)\n'
+                     '        $x ∈ $V\n'
+                     '        $a · $x ∈ $V\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V  ⇒  - $x ∈ $V   '
+                     '"vector-minus-closed"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorclosed($V)\n'
+                     '        0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))) '
+                     '∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ $V (- '
+                     '$u ∈ $V))\n'
+                     '        ∀ $u ∈ $V (- $u ∈ $V)\n'
+                     '        $x ∈ $V\n'
+                     '        - $x ∈ $V\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V ∧ $z ∈ $V  ⇒  '
+                     '($x + $y) + $z = $x + ($y + $z)   '
                      '"vector-plus-associative"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $x + $y = $y '
-                     '+ $x                        "vector-plus-commutative"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V  ⇒  $x + 0 = '
-                     '$x                                        '
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V ∧ $z ∈ '
+                     '$V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectoradditive($V)\n'
+                     '        (∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = '
+                     '$w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ (∀ $u ∈ $V ($u '
+                     '+ (- $u) = 0))\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))\n'
+                     '        $x ∈ $V\n'
+                     '        ∀ $w ∈ $V (∀ $t ∈ $V (($x + $w) + $t = $x + ($w '
+                     '+ $t)))\n'
+                     '        $y ∈ $V\n'
+                     '        ∀ $t ∈ $V (($x + $y) + $t = $x + ($y + $t))\n'
+                     '        $z ∈ $V\n'
+                     '        ($x + $y) + $z = $x + ($y + $z)\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $x + $y = '
+                     '$y + $x   "vector-plus-commutative"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V ∧ $y ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectoradditive($V)\n'
+                     '        (∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = '
+                     '$w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ (∀ $u ∈ $V ($u '
+                     '+ (- $u) = 0))\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = $w + $u))\n'
+                     '        $x ∈ $V\n'
+                     '        ∀ $w ∈ $V ($x + $w = $w + $x)\n'
+                     '        $y ∈ $V\n'
+                     '        $x + $y = $y + $x\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V  ⇒  $x + 0 = $x   '
                      '"vector-plus-zero"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V  ⇒  $x + (- $x) = '
-                     '0                                    '
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectoradditive($V)\n'
+                     '        (∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = '
+                     '$w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ (∀ $u ∈ $V ($u '
+                     '+ (- $u) = 0))\n'
+                     '        ∀ $u ∈ $V ($u + 0 = $u)\n'
+                     '        $x ∈ $V\n'
+                     '        $x + 0 = $x\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V  ⇒  $x + (- $x) = 0   '
                      '"vector-plus-minus"\n'
-                     'use vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V  ⇒  $a · '
-                     '($b · $x) = ($a · $b) · $x  "vector-times-associative"\n'
-                     'use vectorspace($V) ∧ $x ∈ $V  ⇒  1 · $x = '
-                     '$x                                        '
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectoradditive($V)\n'
+                     '        (∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = '
+                     '$w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ (∀ $u ∈ $V ($u '
+                     '+ (- $u) = 0))\n'
+                     '        ∀ $u ∈ $V ($u + (- $u) = 0)\n'
+                     '        $x ∈ $V\n'
+                     '        $x + (- $x) = 0\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V  ⇒  $a '
+                     '· ($b · $x) = ($a · $b) · $x   '
+                     '"vector-times-associative"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorscalar($V)\n'
+                     '        (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · $u = $u)) ∧ (∀ $p ∈ '
+                     'K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = $p · $u + $p · '
+                     '$w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u '
+                     '= $p · $u + $q · $u))))\n'
+                     '        ∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))\n'
+                     '        $a ∈ K\n'
+                     '        ∀ $q ∈ K (∀ $u ∈ $V ($a · ($q · $u) = ($a · $q) '
+                     '· $u))\n'
+                     '        $b ∈ K\n'
+                     '        ∀ $u ∈ $V ($a · ($b · $u) = ($a · $b) · $u)\n'
+                     '        $x ∈ $V\n'
+                     '        $a · ($b · $x) = ($a · $b) · $x\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $x ∈ $V  ⇒  1 · $x = $x   '
                      '"vector-one-times"\n'
-                     'use vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $a '
-                     '· ($x + $y) = $a · $x + $a · $y "vector-distributive"\n'
-                     'use vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V  ⇒  ($a '
-                     '+ $b) · $x = $a · $x + $b · $x '
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorscalar($V)\n'
+                     '        (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · $u = $u)) ∧ (∀ $p ∈ '
+                     'K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = $p · $u + $p · '
+                     '$w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u '
+                     '= $p · $u + $q · $u))))\n'
+                     '        ∀ $u ∈ $V (1 · $u = $u)\n'
+                     '        $x ∈ $V\n'
+                     '        1 · $x = $x\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V ∧ $y ∈ $V  ⇒  $a '
+                     '· ($x + $y) = $a · $x + $a · $y   "vector-distributive"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $a ∈ K ∧ $x ∈ $V ∧ $y ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorscalar($V)\n'
+                     '        (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · $u = $u)) ∧ (∀ $p ∈ '
+                     'K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = $p · $u + $p · '
+                     '$w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u '
+                     '= $p · $u + $q · $u))))\n'
+                     '        ∀ $p ∈ K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = '
+                     '$p · $u + $p · $w)))\n'
+                     '        $a ∈ K\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V ($a · ($u + $w) = $a · $u + '
+                     '$a · $w))\n'
+                     '        $x ∈ $V\n'
+                     '        ∀ $w ∈ $V ($a · ($x + $w) = $a · $x + $a · $w)\n'
+                     '        $y ∈ $V\n'
+                     '        $a · ($x + $y) = $a · $x + $a · $y\n'
+                     'qed\n'
+                     '\n'
+                     'show vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V  ⇒  ($a '
+                     '+ $b) · $x = $a · $x + $b · $x   '
                      '"vector-distributive-scalars"\n'
+                     'proof\n'
+                     '    assume vectorspace($V) ∧ $a ∈ K ∧ $b ∈ K ∧ $x ∈ $V\n'
+                     '        vectorspace($V)\n'
+                     '        vectorclosed($V) ∧ vectoradditive($V) ∧ '
+                     'vectorscalar($V)\n'
+                     '        vectorscalar($V)\n'
+                     '        (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · $u = $u)) ∧ (∀ $p ∈ '
+                     'K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = $p · $u + $p · '
+                     '$w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u '
+                     '= $p · $u + $q · $u))))\n'
+                     '        ∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u = '
+                     '$p · $u + $q · $u)))\n'
+                     '        $a ∈ K\n'
+                     '        ∀ $q ∈ K (∀ $u ∈ $V (($a + $q) · $u = $a · $u + '
+                     '$q · $u))\n'
+                     '        $b ∈ K\n'
+                     '        ∀ $u ∈ $V (($a + $b) · $u = $a · $u + $b · $u)\n'
+                     '        $x ∈ $V\n'
+                     '        ($a + $b) · $x = $a · $x + $b · $x\n'
+                     'qed\n'
                      '\n'
                      '; lecture 04: the zero vector is unique\n'
                      'show vectorspace($V) ∧ $o ∈ $V ∧ (∀ $x ∈ $V ($x + $o = '
@@ -4021,42 +6108,73 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                      '; the definition the other way: a set with the zero '
                      'vector, closed under `+`, `·` and `-`, in which\n'
                      '; (V1)-(V8) hold, is a vector space (mafi1 06: a '
-                     'subspace is one) -- `vectorspace($V)` is read as\n'
-                     '; exactly these properties, so this is consistent with '
-                     'the rules above\n'
-                     'use 0 ∈ $V ∧ (∀ $x ∈ $V ∀ $y ∈ $V ($x + $y ∈ $V)) ∧ (∀ '
-                     '$a ∈ K ∀ $x ∈ $V ($a · $x ∈ $V)) ∧ (∀ $x ∈ $V (- $x ∈ '
-                     '$V)) ∧ (∀ $x ∈ $V ∀ $y ∈ $V ∀ $z ∈ $V (($x + $y) + $z = '
-                     '$x + ($y + $z))) ∧ (∀ $x ∈ $V ∀ $y ∈ $V ($x + $y = $y + '
-                     '$x)) ∧ (∀ $x ∈ $V ($x + 0 = $x)) ∧ (∀ $x ∈ $V ($x + (- '
-                     '$x) = 0)) ∧ (∀ $a ∈ K ∀ $b ∈ K ∀ $x ∈ $V ($a · ($b · $x) '
-                     '= ($a · $b) · $x)) ∧ (∀ $x ∈ $V (1 · $x = $x)) ∧ (∀ $a ∈ '
-                     'K ∀ $x ∈ $V ∀ $y ∈ $V ($a · ($x + $y) = $a · $x + $a · '
-                     '$y)) ∧ (∀ $a ∈ K ∀ $b ∈ K ∀ $x ∈ $V (($a + $b) · $x = $a '
-                     '· $x + $b · $x)) ⇒  vectorspace($V)   '
-                     '"vectorspace-intro"\n'}
+                     'subspace is one) -- by the three definitions\n'
+                     'show (0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))) ∧ '
+                     '(∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ $V (- $u '
+                     '∈ $V))) ∧ ((∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + '
+                     '$t = $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w '
+                     '= $w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ (∀ $u ∈ $V '
+                     '($u + (- $u) = 0))) ∧ ((∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V '
+                     '($p · ($q · $u) = ($p · $q) · $u)))) ∧ (∀ $u ∈ $V (1 · '
+                     '$u = $u)) ∧ (∀ $p ∈ K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + '
+                     '$w) = $p · $u + $p · $w)))) ∧ (∀ $p ∈ K (∀ $q ∈ K (∀ $u '
+                     '∈ $V (($p + $q) · $u = $p · $u + $q · $u)))))  ⇒  '
+                     'vectorspace($V)   "vectorspace-intro"\n'
+                     'proof\n'
+                     '    assume (0 ∈ $V ∧ (∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ '
+                     '$V))) ∧ (∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))) ∧ (∀ $u ∈ '
+                     '$V (- $u ∈ $V))) ∧ ((∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V '
+                     '(($u + $w) + $t = $u + ($w + $t))))) ∧ (∀ $u ∈ $V (∀ $w '
+                     '∈ $V ($u + $w = $w + $u))) ∧ (∀ $u ∈ $V ($u + 0 = $u)) ∧ '
+                     '(∀ $u ∈ $V ($u + (- $u) = 0))) ∧ ((∀ $p ∈ K (∀ $q ∈ K (∀ '
+                     '$u ∈ $V ($p · ($q · $u) = ($p · $q) · $u)))) ∧ (∀ $u ∈ '
+                     '$V (1 · $u = $u)) ∧ (∀ $p ∈ K (∀ $u ∈ $V (∀ $w ∈ $V ($p '
+                     '· ($u + $w) = $p · $u + $p · $w)))) ∧ (∀ $p ∈ K (∀ $q ∈ '
+                     'K (∀ $u ∈ $V (($p + $q) · $u = $p · $u + $q · $u)))))\n'
+                     '        0 ∈ $V\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V ($u + $w ∈ $V))\n'
+                     '        ∀ $p ∈ K (∀ $u ∈ $V ($p · $u ∈ $V))\n'
+                     '        ∀ $u ∈ $V (- $u ∈ $V)\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V (∀ $t ∈ $V (($u + $w) + $t '
+                     '= $u + ($w + $t))))\n'
+                     '        ∀ $u ∈ $V (∀ $w ∈ $V ($u + $w = $w + $u))\n'
+                     '        ∀ $u ∈ $V ($u + 0 = $u)\n'
+                     '        ∀ $u ∈ $V ($u + (- $u) = 0)\n'
+                     '        ∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V ($p · ($q · $u) = '
+                     '($p · $q) · $u)))\n'
+                     '        ∀ $u ∈ $V (1 · $u = $u)\n'
+                     '        ∀ $p ∈ K (∀ $u ∈ $V (∀ $w ∈ $V ($p · ($u + $w) = '
+                     '$p · $u + $p · $w)))\n'
+                     '        ∀ $p ∈ K (∀ $q ∈ K (∀ $u ∈ $V (($p + $q) · $u = '
+                     '$p · $u + $q · $u)))\n'
+                     '        vectorclosed($V)\n'
+                     '        vectoradditive($V)\n'
+                     '        vectorscalar($V)\n'
+                     '        vectorspace($V)\n'
+                     'qed\n'}
 # ... and their certificates (the `.kurtc` of each theory, compressed: zlib, then base64): the
 # bundle can't write them next to its theories, and checking natural.kurt etc. from scratch takes
 # seconds every time
-_EMBEDDED_CERTIFICATES: dict[str, str] = {'analysis.kurt': 'eNpt0klumzEMBtC7/OugFTVwCIJepOiCk1qjbuJ6WASB7145y9paSZTAB0Lfx/b7cjz79gxPn7vteYMgU+zeocn2tJ3eLkfPVddX3b+fdqcvn+/WxS+tA9eFzAkjpSVUJUlw5krehmXSQKfWGJt5lF5BW9GCwXg7asOMVlevyEO+xml7/v6xzd3+xr3cmG9fD8e3w53IAtjIVwd0rJISn66EEHatE0V9eE4bRh6NRRmaMqVFK0SxXZ/+d/LvRfe78/udZSCsANa99erGTSKDavY2nGUSETIslkrL4XPObtMgclXCYeIDa//2c+d3EGId0XtWbSNZLWJWnWo8AAvpZKYaGgRqE4CFqCtP79yRaxvlAXTK8x3jZonpUAjnKIgxLDoK9cTFkaxTcGqLMOilJ2QWU8n1cc1K0gPm9fLH8ngfjFHGKFMhVHoXRHZThRziWfroUwNVG/tEsIqrtobvhcNrEU6Zjyg9X466v6NShpWxZiqetAKZC+srDvMGlTGxz/WFKisvsRYVaDRm+DArhq7b9cfqds7DyuDH9foPDJ3oxw==',
- 'continuity.kurt': 'eNpt0smOkzEMAOB3+c8jyOplhHgRxMErVJS2dDmg0bw76Rxpc0qcyJ8c+237dTtfbXutLx+77XWrjiowbNTO28t2Od7OFitux8N1d7jtrn8/fbxcVz+lTVhX6tnDKrZEVCIgBNcET+Y5VrqJjBxYZoFRXUEAybE6m7SWdGc8TnHwy/b67W3L3f4OfrkzXz+fzsfTg0hcoaOVIWDQONgXUI2dEYa0BBabFqlT0bwTC9UuhKHeC6Jv7y//O/HnJvun1VUmqVWH9dFMqbOHY4vRpxGvkhGoLhZLj2mZOTS1eqyIW014Yu2PP3b2AAG06WNEkz6DRN2zSYrSrFBQkgiby/o40ayVGHEIpQ0aQK3P8gS6xPWBMdWA1a6CkKsj4FN9AOMIWBzyOjmFdHeto4yoEUWFoxfpWgKfMIfbb43z5YGaZc6SUl14DAYgU5Eaky3KmCPFQaSTJVRtsGKr+FHIrRWm4HxGyfV2lv0DFTx1DRhCsUDOjIWNNQ55h8pMGLlaKLzmxdfCUjvOdJuqRcHkCSUH2f+97B7LWunrDO5Rm3zMHVFD61MjcIJh7wRdzctoVda3FXCC+1E6hPe2vX9f2a5xWvP+9v7+D/oXCW0=',
- 'derivative.kurt': 'eNptk0lumzEMhe/yr4NWI4eg6EWKLjipNeraqYcARZC7l86ytlYSJfHTEx/ftl/X08W25/r0Mduet+qoAsNG7bw9befj9WSRcY/T7lUuu9f49HEyt35Km3Dbaligcq1S2zRSKtg7AwUQckQX7mXpnILSKwIVN2Ppea12IbhhPF7i4Oft+dvbtnb7G/DLDfP188vp+HJHJK7Q0coQMGgc7Amqxs4IQ9oCFpsWCVU078RCNxSGei+Ivr0//c+JP1fZ7y5/71hamaRWHdZHM6XOHo4tRk+tvBBTUaoaWHpMW2sNXVo9MuJWFzxg7Y8/dnYHAmjTx4gmfQaJuq8mS5RmhYKyiLC5OFbRVSsx4hBaNmgAtT7LA9A5LncYUw0IqwVhzQLgU30A4whIHHKunCLL41pHGVEjigpHL9K1BD7AHK6/NU7nO9Qsc5Yl1YXHYAAyFakx2aKMOZY4iHSyBVUbZCzFj0JurTAFr0couVxPsr9DBU8tMzUVC+S10ns20g7rBipzwVhZQuH0i+fAUjvO5TZVi4LJA5QcZP/3vLuXlenrDO5Rm3z4jqih9akROMHS/ARdzctoVfLbCjjBbSkdwnt7wLLj4bI7XB/6z1fPcmFLqylR9hS4LvDFPEc260TOR2CKh1FdQQApTeJs0toi3t6/Z7ZLvGR3vb2//wOIaSjC',
- 'equality.kurt': 'eNplzUtuwzAMBNC7aB20pn4UjSAXKboQP0KDBo3j2IvC8N2jZJsdMUPM29zvOi/iRji8Ljc6UOSao0QI5A7ufl1nsZ7bba2X8/L/8frrxU/1KfeCgUoF4CgheuESSE3RWwxJCjVEzAUwRxyCJWmtRW4Maj1RgZb7ltpkf3p349fm2vny5I5P5vQ5zdfpTSwEOaAMsWbJnowUyUBIqTPVt0xVkljjxCgaCtUCoRY01jAgqtu/+9piUxe3fX8AfglNYA==',
- 'field.kurt': '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',
- 'group.kurt': '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',
- 'integer.kurt': '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',
- 'integral.kurt': 'eNptk0luHDEMRe9SayMRNXAwglwkyIIiqaSRTtvpwUBg+O6hvUyXViVK4KtP/f+6/bqdr7Y9wsPH1/a4gdNU7NahyfawXZ5uZ4usH07X+HHW46ePe3nwU+vAPMARTdfsYFDZRuEpdfbh3Qu3EC46SEHDOpowQwHxSoAIxAVKzV4ez3Hyy/b47XVbh+M77ss75uvn5/PT8x2RBbCRla5oWCXESQJMXAi71oWiNizWHJPMG4syNGWK6a0Q+fb28D8n/tz0eLj+vWNNEFaA2a31apObeDjV6G0YyyIiZEgslRbD1lp9rgkeWXGDhTus49OPg92PEWvOrEfVNoJ1uq+qSycPwEK6mKm6OoHOBcBC1JWXde7ItY2yA7rE9Q5jcwaGQSFcoyD6mN5RqAcmjiR3zqHNfUIvPSCiTJVoRdssQTuY0+33jPPlDjXKGGUpuErvgsg2VSGGWJQ++lJH1ca2EGbFrKX4XtitFuGQtYfS623PgyFjlpGaigXJWpGwnnZY76AyFvaVT6iSfvFcVKDRWG5jzjLRdAelJz3+vRzuZWV7GCEtoOqH75grWRszggYatcbYpnnpFTTHVtAZ37faMLzVHZY9na6H023Xf75aPhfVtNpkRib0udCXyOgZ1UGSP0EpHjv4REXiNImLaa2LZYfmcT686PXwEne0DGZBEACFmv6eXFKOIOc8k5I5l1YyVkNJW7qei5tJmiXznAHDpH3Pbtd4ziy/vr39A9S0RyI=',
- 'lambda.kurt': 'eNodjEkKwzAMAP+icyiWrNh1vlJykCWFQreQ5RTy95rchmGYA177sikM2F0EA6DlKomVMRboYP3ti3rzb/lUk9tVNf0U6lPTngn1jphCFXUmLyo5JnbnotEmZZtEqXcNWAUjJaucQ3AMuQSl9jKf/WsrDI+xjTefGx7n+QcdxC5T',
- 'logic.kurt': 'eNplz0lOA0EMQNG71LoF7ZrsihAXQSxcHiAiIk2GBWr13alkSXbWl+Unr+HrerpI2MF0n8IugGLnmiVDamEK5+P1JDb64fixl6f70qifHEsdtdZYNGeLnIoRd1WP7NypQJ2RnQijsiJwdwBqiJnJJVOuFFOZxy21xb71HHZva/D94Wa93JjX5+V0XB5EalATypy5So3NmmIzkKYNa+botbEUMe+lo2iixgSJCa1rmhE1bNN/x36ufNhffh+sDo0YoGdJOUqn1NQUo+VUhJojYiUYLM7Jirh77t5BbRQV8Bq293HtYsv4bt22P8UKa6s=',
- 'matrix.kurt': 'eNpljctqw0AMRf9l1iH1vKQZU/ojpQuNpCGmaZo6NrQY/3uVbLO7HC7nbO5znRd2oz88lhudF2wEiZOP1R3c7XudWY1/0TJPv8fHy/CJQgbDHLL0TNg14hBUEAOBFigMkQTDUDODECeRliNUatE+Jg8+hYZqLtGrXuTmxvfN9el8j73eM28v+rPSeVr+nqrN10Let8QxBW4lVrF00BQzl9oREYpHSDhEzdx7T603L2pE2Hdw+4fZFr1addv3fx5ETg8=',
- 'modal.kurt': 'eNrtWM2O0zAQfhdrj1mof5LaFeLAFRCHPaGqQo7tsBFpEiUNQqq4cuDII/BoPAl2siuCYoOzSdqutGql2GM7nhnP9311j+BTUx0E2MCgbYENgHId84gIAjEDAaiLphJK2/eF5NmzdpK23nIURtoqaBRxpFZKYgohkzTCYs1QRCXjAsYhXdGEIQwpRUIhjmImWEypDNeUKMqkfpdUpcplDTbbnX7xQZW6eQSEasMRfCx4Zrrag+0W3Lx/++rdG73m1/efYBcMzd9+aHPPcHUlVu6J3usHlt1Xm818AlA1mTIuJ6l5ghcmZS+f/5W+LM3NEF6bNo+VDhGk+zJLBT+kRX792qQlrZQwPbDJmywLgPpSVtNSAX0nItvSLj4dYFJUe+1wwoWJxTzuDq+s1D6t1YekUvVtZxJFLrKm1mH0rWZNv/+ZZ42qW7/avSzJDbadY5MOzXwDQNjypeXnzlO9LF8vw6G2CMLVg4vg8mhnKU89q3gyCEbCgDpgcDMXDJZGB57h2KBtH9+zgC6XHj/Fd2/BbuDDswH/VHAaAyaCemDSE5r6uixyldcjsNRiUB+uJXCeS2s+2jRbJCOYqlcWSDhyanHhbvofAJjIegDwSmifnZbRZTyxRLEd/S5GMMn7f9xaUOeP2yscMsP6gWWQDjIDZ5OJLvlyg3N5e5zz0bibqx8JVQb3anSBV8l/CFk3RNwah2a84dgT/yQxZ5QYdk6J8dKSEboBL1A3TsXGJ+HiMb+bZ6DCcdz7MH7Dl8RvIVocjtD1B8u57mrt3r8BAi6KMA==',
- 'natural.kurt': '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',
- 'numbers.kurt': 'eNplz0tOAzEMgOG7ZF1BnIcTVxUXQSwc2xEVpR1mOgtUzd1Ju6Q765flT765r3W+itvD7jG5vQMtjTFJgkhu55bLOouNfl6/m83Ly2Nt9E8OGUfPPmffGZQpJUKs0pjBMon5lFNnReZYpSO0gKMlC8lXleCpGvVxS22ysy5u/35z/Xi6a4c78/Y6zZfpSawEGIv4xCgYyEgLGQgpFUwcOhJLFusttyIaK3GFyLVY0+hLUbft/jv2s/LpeP19shpQZYCWJKYgrUZS0xIsxSyVeikFKwy2+GhZeu+p9QZqo6hAR7d9jGtXm8Z3t237AxvJbLw=',
- 'prop.kurt': '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',
- 'rational.kurt': 'eNrtXUtv40p2/isNogedNKQ060myYfciuwGSCXCTTdBoBHyprxCJtmW5Z+7c9CarIH8j/2x+SaiHbUqsoupxqkTJNYs7bVtUFavO+c77nN+j/3xarcvoM5ps/xV9jlCVFDmnJUUkiybR493Tqqzb36/y9fyuyRf/sP1c+4dfc8x4+4c4I2maJ7OyIlkak7QuM4Ljqi7iOk3rFHNeFClPcZrGZVGWZZ4wyvM4K6qcs/Z37XdV9X3dVI/R56+/R7P5YrPczWaZL5/uV3f3vRXTDHGSlDHNeclxVmdVktWozKos4TTHM57lJSvrWcGKpN1VmuUpInma1EVF4iSpop+T43Xqh6d8MV//1lurQFmaI1TQklBcFinJqrpKcE0JK9NsliQJT1G7bBKTmpWz2YwWswJVdfubqkQzLlhrcfd9XvYW4hyzitIa54TVaV5U1Qzns7xIGeJxks/SNMFVXiUoL2YIpVmS0DydlTSl7dkSFgsWeqzXvWXKoqh5XaI44TMWc16xoqI8S2jN2+WS9lZoldY5qaoC0ZjWqK7jIs9qEuekvdFEsEzztCzq1WNvKRYzFs9yVOUZpRnnaVnkOapZVtYxZXSWVzzPSVrOOCowb3/XvjyN06rEcZbW2Uy0VL5+WglosM5YEbP2neKyTrLZrG4Xoy05zDYLxWzG6ay9wjxr6aVq/5fEiCRsVpWsKOKCl7lgqXmzrr/Xq/5bzdCsJWtC+KxOWiKrUJaQeHOMVbkh+IpjRCvMMEl4WaZJnLdr8CIv2zPE7YlHP7+137au71ty/z3CZEv03+/yxebHdv2vX6N//fd//sd/+ad20XkTfZt8jf74p3+LJmjzr5e//ClfR9++/ZxEq6fNpk+c02LebP5I+ObfeVG3a0XtR6Z37a9b7puv6nLD3NHn5mmxmET1X+5XJrtptzO7Wy3bL5/l5Wbdzf9tuLp94/tVvZw/1v8xW9WPv+5+Vd415eLpsV24+9vNM92ff+SLp3r7JZuDw8nQed1GB9t6/9f2596HPgk+9PJW7SLyQz2k8/2hctw51Gr+Yzqv6mbdQonGyd6q7PN9GR/utP9X11fwdbfO8fF9211NOnQ1eVOJXhLoxgw4R/bI8TIvP/+xkTzY3K3lr/a6g+2/4u1+5TTWlXd7AktYh8DaY5y2yLS60+Hb5f1i3t6fYI+7W+n84g9/2FNZ9zdI/N4aD3cJc7OdDmEen8CxnrE/hZbxX09Bk7XsCawvHmTbJGbbVMBW1R1gqx2cIn/1fTCzfehz008gbNuSryuI2vy45YaJKjSOHcL2qJ8NoX79l/nj+lEoyDxIiJ50BD2z3oPvj9FPek+Dxy2R+C/HLpUdB3bFs8qHOly4uw1I+fH4VPT2jHq/wT2hQMTnIiEXJH4eQKikZhgVlJkDkgQEYBL5BgbkAxgQNDAgATBMvu6YrUNOW4gmMRRED/Cn01vrIavWvfWeHt3NjR/Uce83pAfKVAvUsfh5AFDPzEBdsk/mX1dhPiCJQRM2ExE2oGig0ZgACVsBEh49IO2ECZH4eloEOu22lJLpL8POSwlfI9rh6/Yz06qeHbJ3tFpEcsCbzQasrAFp8YvshHWIbwAETQlVIqM/qSnkyqSKzEkVQ5MqFstOe5nRqkiQMoNokAB1j1VEtKgyARBzAqDQBEDFBPDTvXeb4EHEk2tTsOqoGJu0sRTj6YESCaM4wqIHkryqhxAHigTeox0ZDMafbrrkefAVD0MCT+T050dO/3oxX/r3+fc+BQC1CajP5dSRn6a0BxmduXUrn9j4gL9Y9Q22b6+qoj1oqWiBYt8gxaruQ065p2h+B7Gplm3xAGFbkKQAipqJt+MhM4JkDiST9Lhys+M6sQ0Px0TH7Ax9CM7QnwbarIJnYLGC8AxgO8+AL7NQ4ld4g4YhgPBP3QoGOKMFRz1A3SEe1kmZU4Gg5eGPzbAJ+qZ0RYqdRpQtbuckhS4N2bkB5eUmchleVsnvMT9j4xyf8d+BljEpeYuADwEfLhAf1M5Bn/d93t248EGym4APAR+uAB/E7zNufFhCZAca44PhtwbACIBxiYBhuq+rQBBFtNzHAijRiQXo2R1ShgIKBSwl9TPuXdxU59D0lDHpoZUwhybejY9DY0OHBiyhpKdYOaiZkm/Px7Hy8zofpSedw5QTmu/Yx+GbJas0+pXlPDmqLL+/e4RUr8ZSfKUT0n6pObNW8ahbbFXdBvMLTq5y+prnwAiLT2FT75cf+5s2xKvDT2g3HciOmg4snxYw/GbOHROjI7RJY477Z/kaC7fmuisi94kgq3H5wgbIlg2OY5uNGHjBmEeXW1i3KL/llGn9AMMst6qpGVa8IcjdV3lUmvYPwBv87NqTs4zvhxd+wXI+Mtr0jtuwG247LU/KX/N58269ypvH+Xr+Y77+7V1LBO++frj9MHn34cvuvx++fenk1XRuefv0dPv0NJ7GTpU7S7Yyrn65VWU/ew5iyJyDxgfHyjoki929NqAyBosuRvclxKDlIAbBXegOqYi69Wj2ippiHOH4SI67tjJPGnd6j0izNDUPcyADFCDhLXOU2quqWyTA6zfwHC3WF5DEzKRGXhgwKU6kUhx7YB4gKa5Rbn3jUYoTCFo1BE91oYt96xpu5emr3WwtI8VHu2NbZhF6OhFFOeot+ox8XZ2w/chGvE2bfD02EadcU2DVNQuAOymwJFnqCTLiNI7oSqC9+oU4QD9PjyFn5V5YzvMHQnPPy/MnKQtT5oSrtYMxISb0pioBxgNue+GQeG77aXAXOl0/TY87NP28uKafjF9LxuR4QGEcHUDNMAJ5wAjf/T8FXqg01L2P+/pCE1DAJqAsGU0TUDNUYh5QKbQAtYIj0BagI4QjUQvQV+9QZtgPz6cf8rU9XmjeqUtk/pp3ajcfmrIUvHehAVkS5bMktmRJNciSWZElUSNLatG0Wr39y9lklqc+k0TaZ5JT+3KU90WomBTgB6eg9r/xXZh+UzXSgsX+Kw54QY3f1b6OuP+lgS0CW7hjiwqeLQoBW2yEBkANozp3SOmocBkT6u/PQyEd5z6lsfRgc6cHW5zjYBOjbPiTCmrV/1kELaddjIVMq/2kkhxVRYqm7EfhXRztXz9jNkH9MrFp+/9OTSZzrwOscTkBpCdRq0ykSlNU3YT/pFYVJOnbaVkVFHQIhzpE39qrJInDnT9QkX0oCvNscWqHqKk2oqqBZ3fwtF6tanIEQo/1YnYhxaoqMaj4+HgA+Ih5VqGcZcdXL3SZGda9Pc+chBbeao/qUTo6qk+BGgX/UTb/80UMCX7nZ06K8dluqSKJjdDKu+I1EjVU32ZIgFP/3b0ycqx5I0vN+6xjhxJ0yXwCAeJy0q8fnvJFC7LHI6666ffbz4D76syrj9XyLYhCUpy0Yb/aFzpLwOApIPJoa6jKCcxJDLxNA5ZjFyWamIw/oUcZPF/mRJr6MX7cM4isSvFPvfuE+HL3zzO5kMGXKmQs9PlL7oqhLFxu1VL5VLtiINnDtkIjQedHY3puBYhKAVZVqPEMvOBXY//M3AqXPPrTvcXq35X/kl1njGYqPkJ3+vhJaUJgEwQhfX02iZGQaog0h9SqB4hZ7mps6mKg0wT7SsdTvjgCSATUNRFQU5NAa4Lbabh9kePnS36TYBp6+VMPcPAz4KRxGM1sp36lcRQG3YbRzIFiw2hm8WjmFIUiwostIpSVU7Cj4bnnbKqHTctT9EsqrnsYrw5hXs4w3jcH9wNjfVNm0J7pTI05+sBZAvQHU3m8BKXtUr3X02O9HmoW+Fjf5zsidzKoXChH/0v0y+Luqak+q2HWaRju+JEVw5Tq8z0kXmfT0nVpKBUApoCaM5W2t8gUj5ZJOGxiiSvcPa5wq0JErgEtthWFP10lipQvzpFDl8rubeTh07HLCM1a59jFXWJZA6yU67QHLcPEWylYMlCdzkGtvlk7iNK6F8RINBzProsSaHzu1ROC8YXuAWywUOBv//vftspHbDW3zV758OBLQuYNB6UOIUuBJW4eqC57BHZLV/S0unX7iSObZbXQtll29KVkS/QfbuVNvlioeWkGBN9pV4iWR4rKo2kAUpJMUw4eZZWYAlZszxUX4o7YPnHP9onoZZTZPnHB9lziC7ax/kSCf/P5NDJ3ZQWJch0SZdjgFMXp02fHZRafdyTwm7Kusjg0ux1xs9vQhdy8C/nE0XCWgA8BH8aMD2rnoM/7Pu9uXPjQBHwI+HC1+NBcID4sz4oPht8aACMAxiUChum+rgJBFNFyHzTJkLuhkFKGKiKnE8ecN/nLsM6hNTCHVrqdj+b+0Ih9y8nGsuNkFld+x7t5OFZ6Xuej9KTz6OwTEN0fPrvIiaJhoKe+FkijSxnomSGn4vUKfMWKXLJjcT7CuZD9kGADk1cYZjICNf7I2JVZjZc0ErF/sQ1EzFnUp/ZlfFSWXHL1SuOpeuUtTyrvYw1WV2wkDwMAlWESlk4RIizpEnPSJVLSVdeucDSGOeUZudQ55Si6ehzcq57YPE3B09DzLNV1ZIV0tytJdwOv8zTImZbUC1jRGFFcSF6cfihmmX2dJ1ZtyWfa4ZZB1XlmiY/SJf9FlI2jCsqLDZwJx6rvpBaLLhJmyblhlkgH2FNBTvFO/GZQviWJELVCUmRWxg4mrfFlDryGb9B4Eb45cqp86FlOafWzEco5aymXwplwobLoWiqLAE1cFimroAGhrwahRcK+eRb1KEaO/cNBBbh+FcBFVXu449Hc8aWlahBxxymrhwEqy7NploEGNVgoNX+DCqFGNCY1tCgA4DtVJJnUEclk7kkmE72MMslkLkgmVYRvxzkTQT8MusPPQxNE0hovKIrXrijuzUziOF3xpVWRC7I5R4dXMPr0n/qi2U+S+OonKfnOm1sHvesDyVwPyQyMJ8/XT6ue2o0ODN4/14vF9G5V1at5891pw3+dpvpKfdWkSQairnLqvY0B4u/acJ8oHkKifgg3twpNkhPzEP/r2hDuh42n10MShY7dZ4WRmeJCmaukLQ9ZgCgWvY56PoGTTs2ZVzdwuOYxXbPTAoxdM7ugOF2J4rQ3/AbrgLXFeHAhhRCjWPtqpBnOo+0WI4tTCSr/7LU/Cqr9aTNuiFW9zViVCeMyne52gViuKLDpNiwVtI2gbbjWNgZiXQG9rhq9dBuhhpLFay9ZPL+FIetDIijZv3gLQyfMEYY9XsuwRzNhTb1ZGIFYRkUsgBYG9qHiBTk/Ijm/1+1BTMsgrYK00pRWzxEVFpqjBEtDVScvRlJTHCKzI0pp89CCGMU8BH6DK3aMgV85WBr2BtcmZp1mUFbEbJj6CUbMzD0xM3PjfkDrtSJmCknMxFvXeBSHXrFj7hVr2gFvsYLogHeuOphODy1hWbZNBzykOghd1FkIK3TtplAd8DZW3zgU+eBPGJE/ATD1Fon67sknT0ti3GMXEppGWezLKNsL4NT7AKeUTFPDVtsDschgmF25YWbFPdcjDA27+oLRJHVPk9SqpSn11dIUVhjGsm5pmcdhcW9qnOnG+PRQnugfxBtHCB6GoxoORw2UcTBpFaE4TBIbAdbKxvAI8PdCsPZSZ+5cF9aGuTbjmWuDEDrvVNy3pVIi2I4XVzbscPxjTieOBsAHLghcMMQFituQUzggG+3lBtZxDC8hHMMt3QDljkkGNnsIaCMyyiH07dG+hSn0CA2mgP3tf/7vcGdVb98Bwvf0wkEhXO3ktR9rvICz0uYHsFntLYaUD6VvCIQbCNdkF+aEu+y020WJM+SVX7WhTFPajRdxldocWmN2aIWbQ2u8HVrm13u8FH3m4+BZaNZz6DuPxV1g6cHU0mr+Y16152admte7eWEeG9YeaWdq/0kiJx+BZ2PK3bUQYipxCV2uZqMuX3K0DnO3qpdwNfYc2mkCcwbmBGfO1KWIdDy4eIg5dWIBKmIv771uCAU8ExF26gS1uJ2T7JWPIhJg/oYagYDcPhCQh0BA4AFXcYDcMg5gwUR7kaEVBshBwgAYKgyQny0MgMlZJa38ZGGiAOY79nL4VOPwVQyIIqg5cpKiLiHe4nZOokMxCjXH/A011JzCXs0pgpoTeMCVmlNYqjkWTLQXGVodjgoYNQeqU05xPjWHn1XSyk8WRs0x37GXw89gDn+fNXr0UkPnXj885Yv5+rejc8fd3gDbz4BjvHIfq15Fo2mFfSzuZwtZsk+AahRxCkL11WEusfLo7w0anJnrgGvTn89A3oTRYOt9oihe9bleIeCr85bEmuzeucM+I5e/5vPm3XqVN4/z9fxHy8zvWuJ79/XD7YfJuw9fdv/98O1L53o7l7t9erp9ehpP47Fy+K1qZETtYWlhvz3nZq45Rw7yff5unpZFvXo82iTvVkAvnxbTv9arO829qm/upTFKF4lcVttOXiMqHbbfIYHumYraWBSvjIw8VvRK67EMKc5wez70IYINekmdwE33LZZEljI7spTnzVqL1YBMZZuHAUCRxGCgaKTOEOSXRby7nbrLy01tU4rfM2XXEd5tYJgvHuv2GXWuQLR7H8Xden239MEZkgMR+JEOvUv7N4RgBOzaveQG8s5L0Xv6S5wZyVUwki/QSCYwRmoRjGS/RnI1YCR3dOs0GMnXaiST5AxGchWMZHAjuZIayR1vVxaMZBdGMo2DkXxVRnJ6ZiM5C0aytZFMUTCSbRmBxsFINjWSKTulNQsr/k0yAMEyWT4NrlUYJQ7wrqNltsrLaZk3Zb1wqrqbD2iC7bE7gbt4eV9hlUdj9ZbEn9R8E0BlQYRPD/EVXN4VfZVQPfg/3ThbHW6uciWMe5VM+UAl07D9T/lI26+Qt9B9hSYgp28kV9TvKDhmx5m9RM5emqCsa/KzczOoE9fovJT9vXa9ioWAv3wF/PR8kGOYcRyA6cKA6ewRG3VgShwDE5Bo9gtfhSP4sj2M19iIEOReZ0DQDFqrVTWXQwRsTBEwmo6RvU3FoAasMfP3vlDPlbMw3ubyX+N4RpuTh/x809AOHhlATMsGNY2bCYRwlzYCZv4sLwljqnvksNMuBuNry55Ly1psu7FsuRxdxNCYwmlrscXd93l5RGgHecq7c4BEB5H5hU4ZZM/ml3LLMXfmG4vP3oweWm4A8j6JXPMHMucP2VzNbh7SQdBgjxT4koeKF56GihegA2iKi0rmkU2+snkYAqoMg4ujmYZVgHRw1FCxmNsOCmOODL+ReV3FSOZ1OYfLZ+FFdDuRWI0TjjVmabsYJ4zcExSyav+LXIwTjiUjriUS87FeHyEO68aEHuv7fIdMR+2EVwvtdsKSQaDnGFm9m+V8nDHYcjHTJL3Tw02fl1KzfoiC9cPAso4YbPWfhA+5ez7k5sDOx6znOkuDKqLnqioWXSTOknPjrGhs+852pFF/tb0AHuweeXM7OMazGGoEJnTedCO2LVDki8W0pZzKfYh/t5iqxydW8NiIpgcTdViNRZgstrRMvVTUmZcpNkwSkN+CRJgyRQnHbKU2V1yIO9IME/eIlYheRhmxEheIxcWaoeg7T0DRjgb07GlG4OxpK+JLFYkvdUR8mXviy0Qvo0x8mQviS8XEB6jgUImCI3JDn6Zv1MnkwZGyHRtg8Wpgca+ypQoq2/ZhLMg90Jrig1k3B6f9zPR7PV3/+c6pqqbsjxlJdVHnu9C3E+JLcC2vHhr7ST5dB/GiXlvItMrSR3yOAh11wc89bQy5zW56bSDABnMmbxT0FavWxBL0yI7RY7GeLp/cFhieZjQLA911DeKNmifjo7rXF8IlZ5iHeUIShbiXx7hXr7iwkBQXvkIKjzUh5fSsVv38aiLNr8ZuUQQyvxqrl/jeeMyvZobZhWDS5G22EYslfDgw3tBoz3suRq78u1KyolbiYnAvPsp6uUk+lQocGr1xSJvWBzYegwFbf+K38iaQQzZwmw2tcA4Dac5KVL1nNbN2ueJmdIf5ZN9bY6PexJZafWGsmsLNrUb2hpM2Qhw22u4QBT0IYCSpR+RMox7xyPjXambVDY629sJ0YzPoprgoN6vS6WEFoWy2thOH9QcZemN8F5Mcb2BPVIPNQ8q7+9V8WYte7+/ev3//96I/TFQ6Kei6cNgBqD5vyzrvCuD9hloniWBGO/SMzZKrBkIf+sJFNO5e0vPJ9GGkXuqL+6wE4rSeIs485RMYJuc5v1TSY17VGyXijk166UIIPrmr38LkhJRNPZW1LhUPzCUGnyTBpaL7+fi5BtRtHXrWQuDbCJqhKdsDhh1VHPKK+uYRUAXy0jJMEKcw+2hs93HNzYot2GHAdyERM0EUiETBs+DORlipvlSvgoG/3G701d39ekmLCdX5oHnTPD17dX5Qf0fSv9xxL4KluqXvBAGRFwT0kaYjjc/u5F8SQ8m/8xUzxV6JRdd1ZyH5zkUy4xeb+JQnqYUoqiU2sfh5CLGZgXaKYN6VT+YVepkX6GXQfMREfAQocGk0JsjFviEXW0IuHj3kimasvfbOTgYzoUwD/+I5dbGpCfeLPNCgQ6oDCG3XYdaoMBq7JWzpgsDUacETyoSNpQWRell4aTzdKKZmfkhQViDKh0lsWYFqsAKzYgWixgrUqyIwtKDiFdCxqwPuZ7sIZMge0Ldr/z/I3DzB',
- 'sequences.kurt': 'eNptk8uOkzEMhd/lX4/AzsV2RogXQSwcX6CidEovCzTqu5POkjar2I785cQn79uv6+li2yu+fOy21w2dp1KzhnVsL9v57XqyWPlz/LnGweL86ePgqvzU0mlVehpI09mM2QSQwruM1YQ7UK0OatpcOCQSKKg6SkAEpaD7KKuXxzEOft5ev71vudvfeV/umK+fj6e34wNRBlJlg6ZkVEYM5xFowwdT05I01LpFzj7ZvMpQwarrBtMrMPt2e/mfs9Tpfnf5+8CaOEQRl7raik2pw8O5RKvdZCQzk+DCMtTolplt5kSPlXHDpCes/duPnT2AiEr31qJo7SE63bNo6pSOBKwpwsXVGXUmogzmppLWpJGU2uEJ6ByXB4zNGRSGwJRrPuR9eqPBLWjheKzIJbS6T2zQAiNg6ogKWicEP8Ecrr9nnJ4YA3qHVHQdrQ0isamK0YcFtN5SnVSrWBLOQiu3xDcQtwJDYuQzlF6uJ90/oGL0CX1pAgsembFgbdkh7yDoSS3XCHUsv/haDFi5p1ufEyaZPkHpQfd/z7tHWas99hg1sOiH70QKW+0zgjsZ1ypUpzm0grqeDciF7qHW9TVq2W7fV7dLHJff32+3f0KtCUY=',
- 'set.kurt': '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',
- 'vectorspace.kurt': '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'}
+_EMBEDDED_CERTIFICATES: dict[str, str] = {'analysis.kurt': 'eNptks2KWzEMhd/lrkPrH1k/w9AXKV3YktxemiZpcrMYQt69yiybgDFGMvrOQee2/L6eN13e8u7ztbwtOL2qlKLD+rJbLsfrWT3q/dD3H5f18uXzXzR+9dIwGsRaJEvtVSk7UZGWgNusXCeMXIbWknmkykRYDQEFBMBS8+lYZswyP/nBLsvb99sy1/0D9/7AfPt6Oh9Px8u6rcfAP6HNgXoLoUze1avlgdRchAWntFEUNGfjePdaZZIMSqomgZU4y333P9D/Xvt+3T6eWJxLrjy5GGQDqL1zBxgzNdIB3mEMKPTw1a0ZsytgMVZJGdnZXrD2x5+rPoFyRW+Wp41qtfbUICdwQ1MBTMMlFtR4tBFXqVpghJPkk8lyiMAXoItvT5hRsFNuDkmszonMGjI7iCQW7TkmUiawNhNAsexhaaqoYW9t4Cs/h+uf4efnhHBKpAW5qES0oJZS2CMzSTjrTOEI1XUimbYUZiQKVhWjo9zp1ZoOfbueXyUCQh1giwk4htUcKSvACdH6cBcYFO1HHlRdaqYmxJKMtEkBh+X+I6Ztfoow3u73fw7D6gM=',
+ 'continuity.kurt': 'eNptksuO2zAMRf/F60GrB8XHYNAfKbqQSKo1miZp4iwGg/x7mVk2BgxDJgXee8z7sfy+XTZdXvPL52l5XXB6VSlFh/XlZbmebhf1qOvpuK3H27q9f/m8Ga1fvTSM1phUTGZSy1QTGCTsXiFb4REVbB2N44OSQlwbJplHnywjZ+mVYpb52Y92XV6/fyxzPTwE3x4y376eL6fz6bpu6+nYD0/S5kC9hVUm7+rV8kBqLsKCU9ooCpqzcZx7rTJJRrhQEyxT4lnuL/8L+t9bP+xhci658uRigQZQe+cOMGZqpAO8wxhQCMBSt2bMroDFWCVlZGfb0Tqcfq76JJQrerM8bVSrtacGOYEbmgpgGi6xosajjXiVqgVGkCSfTJbDBO4IXX17XlvBTrk5JLE6JzJr2Owgkli055hImcDaTADFsgfSVFHD3trAPZ7j7c/wy/X516VEWpCLSoQLaimFvUhOwllnCiJU14lk2lLASBSsKkZHudPemo59u132EgHhDrDFBBzDak7NC3BCtD7cBQZF+5EHVZeaqQmxJCNtUsBhR6pH8t6v6zMWsQaE1F6VshMVaQm4zcp1wshlaC0R9VSZCKshoIA8AtJ8eiRwuf+IaZufI/gf9/s/Tw8KbA==',
+ 'derivative.kurt': 'eNptk8uO2zAMRf/F60GrB8XHoOiPFF1IJNUaTZM0cQYYDPLvZbpsDBiGLMr38EpXH8uv22XT5TW//BstrwtOryql6LC+vCzX0+2iHvPml/Wtb+ubf/q3Mko/e2kYJcCuFZoPjD8T5jKpNzHKOTSIc/EQhMQ1kbc8snQT4Nl75YJOKbTMz3606/L67WOZ6+EB/PLAfP18vpzOp+u6radjPzyhzSFYgWHyrl4tD6TmIiw4pY2ioDkbx7jXKpNkUFI1wTIlnuX+8j/Q/9z6Yd3en1hhJFeeXAyyAdTeuQOMmRrpAO8wBhQCsNStGbMrYDGOLcnIzrbDOpx+rPoEyhW9WZ42qtXaU4OcwA1NBTANlziixqONeJWqBUY4ST6ZLEcTuAO6+vaEGQU75eaQxOqcyKzRZgeRxKI9hyJlAmszARTLHpamihr21gbu+Tnefg+/XJ+3LiXSglxUIiJQSynsRXISzjpTOEJ1nUimLYUZiQmrilFR7rR3TMe+3S57iYDoDrCFAo5hNafmBTghWh/uAoOi/MiDqkvN1IRYkpG2CKnDDqpH8t6v67MtYg0TUntVyk5UpCXgNivXCSOXobVkHqkyEVZDQAF5BKT59EjgDktPx2093vbyNyYVk5nUMtUEBgm718hi4REz2Doax0cEHGLZMAl2nywjx5WrtNy/h9rm57hmH/f7X+erKkE=',
+ 'equality.kurt': 'eNpljktuwzAMRO+iddBYEiVRRpGLBF1QJIUaNWLXn0Vh+O5Rsi0wi8EMMY+H+dmXjU1vL29nehOres7OcREyF7NO+8Lacv3daRy2v4/3XSu+yYXYCrTOeqzoBKwAeCIkgFK7kLiAEpQCLgFIRxIEURmiE+Tc2YiK0rZEZ33Iavr7YeowvnCfL8ztOi/TPK3DNkwPGv+hRSFRaI9iUmL1YktMQXPGHGsOxTGwtYLNk/e5plxSxyw5upqbzPnV1jadG/o4zydHYVHe',
+ 'field.kurt': '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',
+ 'group.kurt': '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',
+ 'integer.kurt': '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',
+ 'integral.kurt': 'eNptlN2O3DYMhd/F14uUlCiKXBR5kaAXEkmlRjcz2/kJECz23cvJZceAYciiwY/HOscf2z/3y822V3z5vdpeN15RTUux6WN72a7n+8Ui9/fTLb5fxtuX3+9l4e9RGmchkGpgBcUh4AsJ+yIDLmQdekzlpcIGlMUCvS4wmAt0cPQZZNnL4z1Oft1ev31sa3974P58YL7+8X45v5+v+20/nw7QHtRHy0Glx7CojpN7C1V5QNssRobokutRq66us4OZK5eleW2fL/8Hxr/38bbffj2xBAtWWVKc0InqGDKIUkjrNikGzUmlEzkMby4SRlxcTAFZQvyA9Xb+vtsTCCtHc1w+q9c6oBEChbObEsMMzQNqMtvMW6lWaKYSiCXdMYfgA9A1bk+YWXh0bEGgXtdiEcsxB6mCqA3Mjh07eVtAVBwjJS1Tcx6tTT7Sc7r/mHG5Pn86gG6FpZimtaiWUiSKIqigLUhFbGGLu1uDFKO54dU4KyajHx3TadzuR2Z0yumIW3bgOb0itCgkwOxjRijNnuWHH8xCK/amXRS8W9NCQQeokc77dd2fZXWxFKF1VOsYvRdtQNJWlbpoYplWC8qEKr1zdSZW0odBWqxIBx6w7Hy67af7kf/m6sU1w+PYK5AT8IiaXiwyc4fbYJd8SINTvjZdkz2W6ETUUfsBzeOy/xy3/Wc80YiHVWoxOU8MGMvKoKl3xExbzyxE/iMIpGbCG84kuJKsMaqUzDVsn39lt1u8Z6g/Pj//A2eCSYw=',
+ 'lambda.kurt': 'eNodzUsOgzAMBNC7eI0q4oCxuUrFInYcVeoP8Vkh7t6U3ehpNHPAc182gzE0V4IRqHg0QTTNCRpYv/tiXv2V3lVuV6vyI2FPlZXcjTqUxNaLsXSWlUNpWyykQ+ekGkm4DbEoKkcZAhdhE2Yc7H+RffZPXmG8T3V487nG4zx/Ts0ucA==',
+ 'logic.kurt': 'eNplj81qAzEMhN/F59D6R7blUPoipQfrx+3SpbtNNocS9t2r5NiAEGIQ881c3dfltLE7hsP9ckdXhiZuMTJJdwd3Xi4nVtPn5WPip/uTqZ895mJqSEWzhCGUJKXuMwQPKkW4QfGkzdwyUiZbMXEEiqN5HVglAFExL9FVv+Xsjm9XN6b5xnq5YV6f19OyLudpm5bvPj+gRaH2bCmxamdNEqjUrK1hK6NligwcgqDdPaU2aqPqmaUVi2Dj9sN/oP5c+jxtvw8sDDEkHBgFggCk3rED0PC5MoF2qwKxAojvkgVRGUoU5OZDQUVx+7u5bbpazeu+/wHoXHB3',
+ 'matrix.kurt': 'eNpljUFuwzAMBP+ic5BKFCXRRtGPFD1QJIUYTdPUsYEWhv9eJdfcFoPdnc19rvMibgyHR3Kjy82iDABSld3B3b7XWazzL17m6ff4aHV8Yki5Y4GkLXHpq+LBtBTgbJRJcmQt4IckWVlQtaaYB66xdzBECAi1WP9Su9pFb25831ybznfZ613z9mI/K5+n5e/JSgFCpEagGBQxMhMj1uZTkYrGWCtCQVTPmpTIBDMoyeBDJiN1+0d/W+zardu+/wOXbk5S',
+ 'modal.kurt': 'eNrtWM2OmzAQfhdrj94ttiFAVPXQa1v1sKcqiir/0UV1AEFYVYp67aHHPkIfrU9SG3a1rLBbWCDJSqtEwh7beGY83/fFOYCvdbnnYI1g0wJrsEok4THGnAkKIKjyuuRS23e5oOqqmaStNxQHKzObS0IwjRj3MItWFCEasCjECUrC2PMigUgQxTTkcSg8HDFEqEgER4xzxpgk+l1CFjITFVhvtvrFe1no5gH4kTYcwJecKtPVHmw24PrTh7cf3+s1f37+BlvYN//4pc0dw8UF99wTB6/vWbbfbTbzgaCslTQuJ6l5gtcmZW9ePUqfSjMzRELTpkzqEEG6K1TK6T7Ns8t3Ji1pKbnpgXVWKwWB/FaU01KBhk7EtqVtfDrAJC932uGEchOLedwdXlHKXVrJz0kpq5vWxPOMq7rSYXStZk23f0tVLavGr2YvS3LhpnVs0qGZLwR+vHxpDXPnpV6Wr5f+UFMEgffkIjg/2lnK04FVPBkEI2EQOWBwPRcMlkYHmeHYkG2foWeBXC49f4pv30LcwEcnA/6x4DQGTD7ugElPqKvLIs9kVo3AUoNBfbiWwGkmrPlo0myRDDhVryyQcOTU4sLd9AcAmMg6ABiU0C47LaPLZGKJEjv6XYxgkvf/uLWgzh/3oHD8Gdb3LL10+DNwtj/RpaHc4FzeHOd8NO7m6mdClfBejc7wKvkPIWuHfLfG4RlvOPbEv0jMCSUmPqXEDNKSEbqBzlA3jsXGR+HiMb+bZ6DCcdz7NH4j58RvAV4cjsj1B8up7mrN3n8BReOLzA==',
+ 'natural.kurt': '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',
+ 'numbers.kurt': 'eNptkMtOAzEMRf8l6wrycBK7QvwIYpHYjhgonWEeC1TNv5N2SSt5cXX9OLYv5mubVzZHd7gpczSpaWDynqsUczDLuM2s3T9v31Xn5elW1v2P4mPqPlqb2Sf0TL0Pgvce1ZOzhI6bVWqJlVvKwtH6RtQNCZx6hrFk6rNEJz3LYo5vF9OG05X2csW8Pk/zOI3LsA7juZzu0KKQS+x7YtbCGsTVlKMSIaVGsXoGdk6w6xICtUw1W2ah1PfoYfbDf6D+bOU0rL/3ZzrvAjb0Ak4AQilYAGqzMXMFLVAr+AwgtkgURGVIXpDJuoSK8oA11k/l9cFHQ84SKmZMuSXoNwWXWxOUykjIURJYSTFGBQyJrA22QK+C4iRQMPt7n7bq1D962fc/tsaOng==',
+ 'objects.kurt': 'eNodjEEKgzAQAP+yZynRTTaJXyk9JLsbSgtVjJ7Ev3fxNgzDnPA9tp1hHoebYAZqipyniasUGKAvx8Zqfqkf5b0/7sz8u0yBzCeMUbCmmCg28pUijrE1SVI55cRByDuhEIL6hJSdQ1e8Vb6MghntJbrqTzrMz5eNd10Nz+v6A1RRLdo=',
+ 'propositional.kurt': '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',
+ 'rational.kurt': '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',
+ 'sequences.kurt': 'eNptksuOkzEMhd/lX48gdhzHHiFeBLFIbAcqhrb0shiN+u64LGmlKIrsyOec5PvYfl1PF9te4eXfaXvdeEU1RbTpY3vZzofrySLr5/hzjb3F+dO/i9n5ObBxdgB4ldUZsTWfRtbKlKUEsipx1dXrXICz4MJSewFAXAyEVjHmtJzlcYy9n7fXbx/b2r3d9b7cZb5+Pp4Ox8N5d9kd9uPtQdqD+mjpVHoMi+owubdQFeWlbWK6AfB000a9O9HZi5kr49Jc2+3lf8GMOd52l/cHLQGEKkvQCZyojiGDaK7Suk2KQXMSdiIvw5uLhBGji2kBlhB/ovV2+LGzx/esHM1h+axe6yiNoFA4uylxmaH5Q01mm7lhNaSZSUos6Q5pgp8InePyIDORR4cWVNTrWixiaXOQahG1ATmxQydvqxChQ2SkZWrOo7XJz/Lsr79nnB4JkVK6IQuaJltUEVECFYoK2CqZiC1scfdkJ8NoFrwaZ8dk9GfftB+X6+kZEZTuiFtO4Dm9QmmBJIXZx4xQmj3bdx7MQiv0pl20eLemSEFPpEaS937ePcbqYhlC66jWIXpHbYWkrSp10UziE3CQWar0ztWZWEnvgLRYkQRut+857RLHBP/jdvsLRBEJNQ==',
+ 'set.kurt': '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',
+ 'vectorspace.kurt': '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'}
 
 class _EmbeddedTheoryFile:
     def __init__(self, files: dict[str, str], name: str) -> None:
@@ -4121,6 +6239,20 @@ class RunState:
     current_comment: list[Optional[str]] = field(default_factory=lambda: [None])
     origin_names: dict[str, str] = field(default_factory=lambda: {})
     internal_variable_sorts: dict[str, frozenset[str]] = field(default_factory=lambda: {})
+    # the sorts inferred for the line being checked (todo 34, `infer_line_sorts`): of its schematic
+    # and bound variables (only for this line), and of its constants and operators (symbol ->
+    # position -> sort, with how they got it), which `commit_line_sorts` stores when the line is checked
+    line_var_sorts: dict[str, frozenset[str]] = field(default_factory=lambda: {})
+    line_var_placed: set[str] = field(default_factory=lambda: set())
+    allowed_bare_operators: set[int] = field(default_factory=lambda: set())   # (ids of `(+)` at an operator parameter, `allowed_bare_operators`)
+    applied_variables: set[str] = field(default_factory=lambda: set())   # (the variables a line applies, `R(x, x)`: relations, no statements)
+    operator_parameters_cache: dict = field(default_factory=lambda: {})       # (`operator_parameters`, by the size of the theory)   # ... those of them with a sorted place (not only the default)
+    pending_sigs: dict[str, dict[int, str]] = field(default_factory=lambda: {})
+    pending_how: dict[str, tuple[str, str, int]] = field(default_factory=lambda: {})
+    generalized_sorts: dict[str, frozenset[str]] = field(default_factory=lambda: {})   # a closing block's (`block_result_sorts`)
+    goal_binders: set[str] = field(default_factory=lambda: set())   # the bound variables of goals (`rename_all_vars`): never relativized
+    parametric_binders: set[str] = field(default_factory=lambda: set())   # ... of the stored formulas that may be (`parametric_binders`)
+    poly_variables: set[str] = field(default_factory=lambda: set())   # the variables written `$$x` (polymorphic: a sort variable, todo 35), and the names they were renamed to
     dependent_vars: dict[str, str] = field(default_factory=lambda: {})
     run_id: str = field(default_factory=lambda: uuid.uuid4().hex)   # which run made a bundle (`ExportBundle.run_id`, `bundle_variables_are_new`)
     chain_source: 'Optional[tuple[Token, Expr, Expr]]' = None   # the statement being read, before `inline`: a relation's operator and sides (a chain, see `post_process`)
@@ -4132,6 +6264,7 @@ class RunState:
     stored_kurtc: dict[str, tuple[str, dict]] = field(default_factory=lambda: {})   # file -> where its certificates came from, and them
     replayed: int = 0             # how many steps a stored certificate saved the search (`replay_certificate`)
     load_dependencies: dict[str, list[str]] = field(default_factory=lambda: {})   # file -> the files it loads
+    file_theories: dict[str, list['Formula']] = field(default_factory=lambda: {})   # file -> the facts at its top level, as checked (the list itself; `foundation`)
     _loading_in_progress: set[str] = field(default_factory=lambda: set())
     _checked_exports: 'dict[tuple, tuple[ExportBundle, list[tuple[str, Optional[str]]], list[tuple]]]' = field(default_factory=lambda: {})
     _load_resolutions: list[list[tuple]] = field(default_factory=lambda: [])
@@ -4142,6 +6275,7 @@ class RunState:
     indirect_noted: dict[str, set[str]] = field(default_factory=lambda: {})
     indirect_report: dict[str, dict[str, set[str]]] = field(default_factory=lambda: {})   # file -> theory -> its symbols (`kurt --deps`)
     quiet: list[int] = field(default_factory=lambda: [0])
+    ignore_sorts: list[int] = field(default_factory=lambda: [0])   # `ignoring_sorts`: a diagnostic-only retry, never the live search (todo 38)
     place_links: bool = False     # `formula_place` as a Markdown link to the file and line (the editors' hover)
     line_numbers: bool = True     # the number of a source line in front of its output (`log`)
     var_counter: int = 0          # the fresh variables (`new_var_name`)
@@ -4152,6 +6286,14 @@ class RunState:
     progress: Optional[Callable[[dict], None]] = None   # told which line of which file is checked (`RunConfig.progress`)
     progress_files: list[str] = field(default_factory=lambda: [])   # ... the files checked so far in this check
     progress_lines: dict[str, int] = field(default_factory=lambda: {})   # ... and how many lines they have
+    main_kb: 'Optional[tuple[str, KnowledgeBase]]' = None   # the main file (its name as its formulas carry it) and its final level, when its check ran to the end (`CheckResult.proves`)
+    # the budget of the search for one line (`RunConfig.time_limit`, `step_limit`; None: none), and a
+    # way to stop the check (`RunConfig.cancel`): see `budget_step`
+    time_limit: Optional[float] = None
+    step_limit: Optional[int] = None
+    cancel: Optional[Callable[[], bool]] = None
+    line_steps: int = 0           # the steps of the search for the line being checked ...
+    line_start: Optional[float] = None   # ... and when it started (`time.monotonic()`; None: no line, the next step starts the clock)
 
 run_state = RunState()            # the state of the command line, and of calls without a `Session`
 
@@ -4163,7 +6305,12 @@ if _EMBEDDED_THEORIES:
     packaged_theory_paths.append(run_state.theory_path[-1])
 
 def is_packaged_path(path) -> bool:
-    return any(str(path) == str(p) for p in packaged_theory_paths)
+    return any(same_path(path, p) for p in packaged_theory_paths)
+
+def same_path(a: object, b: object) -> bool:
+    # one file or directory, also under two spellings: a symbolic link on the way (Kurt installed
+    # through a link, the editor naming the real path), `/private` on macOS (found 2026-10-20)
+    return str(a) == str(b) or source_name(a) == source_name(b)
 
 # `--strict` (for grading): only trusted theory files may contain unproven statements
 
@@ -4193,7 +6340,7 @@ def is_trusted_file(fname: str) -> bool:
     if fname.startswith('<embedded>/') or fname.startswith('<chain transitivity') or fname.startswith(ENUMERATION_SOURCE):
         return True
     packaged = packaged_theory_file(os.path.basename(fname))
-    if packaged is not None and str(packaged) == fname:
+    if packaged is not None and same_path(packaged, fname):
         return True
     try:
         parent = Path(fname).resolve().parent
@@ -4236,17 +6383,26 @@ def check_strict(keyword: str, filename: str) -> None:
 
 CORE_FILE = 'minimal.kurt'     # the core: read when Kurt starts (`read_core`), never loaded
 
+_packaged_theory_files: dict[tuple, object] = {}    # the answers of `packaged_theory_file`, by name and the paths
+
 def packaged_theory_file(filename: str):
-    # the packaged theory called `filename` (e.g. `prop.kurt`), if there is one -- those can't
+    # the packaged theory called `filename` (e.g. `propositional.kurt`), if there is one -- those can't
     # be shadowed by a file of the same name elsewhere, since `def` and `--strict` rely on
-    # their content (see `load_file`)
+    # their content (see `load_file`). Remembered: the theories that come with Kurt don't change
+    # while it runs, and `is_file` of a packaged path lists the whole directory each time (3 ms,
+    # 280 times for `load rational`, a third of its time; 2026-10-16)
     if '/' in filename or '\\' in filename:
         return None
-    for path in packaged_theory_paths:
-        candidate = path / filename
-        if candidate.is_file():
-            return candidate
-    return None
+    key = (filename, tuple(str(p) for p in packaged_theory_paths))
+    if key not in _packaged_theory_files:
+        found = None
+        for path in packaged_theory_paths:
+            candidate = path / filename
+            if candidate.is_file():
+                found = candidate
+                break
+        _packaged_theory_files[key] = found
+    return _packaged_theory_files[key]
 
 # debugging
 debug_flag = False
@@ -4309,6 +6465,10 @@ REPLACEMENTS: dict[str, str] = {
     '\\setminus': '∖',     # set difference (not the backslash `\\`)
     '\\complement': '∁',   # complement
     '\\emptyset': '∅',     # empty set
+    '\\N':        'ℕ',     # the sets of numbers, aliases of `Nat`, `Int`, `Rat`, `Real` (as in Lean)
+    '\\Z':        'ℤ',
+    '\\Q':        'ℚ',
+    '\\R':        'ℝ',
     '\\equiv':    '≡',     # equivalence
     '\\circ':     '∘',     # function composition
     '\\mapsto':   '↦',     # maps to
@@ -4442,6 +6602,39 @@ class KurtException(Exception):
                 return k
         return None    # message didn't start with (or wasn't prefixed by) a known kind
 
+class ResourceError(KurtException):
+    # the search for a line stopped early: its budget (`RunConfig.time_limit`, `step_limit`; the
+    # command line's `--budget`) was used up, or the check was cancelled (`RunConfig.cancel`). It
+    # is no verdict about the line -- neither proved nor refuted -- so it is a kind of its own,
+    # apart from a `ProofError`, and `expect` can't name it (like a `KernelError`): a proof file
+    # can't depend on a budget. A budget never changes which steps are accepted, it only stops the
+    # search (`budget_step`); the kernel is not involved.
+    def __init__(self, msg: str, cancelled: bool = False) -> None:
+        super().__init__(msg, kind='ResourceError')
+        self.cancelled = cancelled          # (a cancelled check stops; a used-up budget fails the line)
+
+BUDGET_NOTE = ('the line is neither proved nor refuted; a larger budget may decide it '
+               '(`kurt --budget SECONDS`; from Python `RunConfig(time_limit=...)`; the editors: the option `budget`)')
+
+def budget_step() -> None:
+    # one step of the search: an attempt to derive a goal from one fact (`impl_elim`), or to find a
+    # premise among the facts (`match_all_theory`) -- where the search spends its time. The budget
+    # of the line -- its steps, then its time -- and a cancellation are checked here, and nowhere
+    # else (not in the kernel)
+    rs = run_state
+    if rs.line_start is None:       # a search outside a line (the shell's hints, ...): its own budget
+        rs.line_start, rs.line_steps = time.monotonic(), 0
+    rs.line_steps += 1
+    if rs.step_limit is not None and rs.line_steps > rs.step_limit:
+        raise ResourceError(f'ResourceError: the search for this line stopped after {rs.step_limit} steps, its budget -- {BUDGET_NOTE}')
+    if rs.time_limit is not None and time.monotonic() - rs.line_start > rs.time_limit:
+        raise ResourceError(f'ResourceError: the search for this line stopped after {rs.time_limit:g} s, its budget -- {BUDGET_NOTE}')
+    if rs.cancel is not None and rs.cancel():
+        raise cancelled_error()
+
+def cancelled_error() -> 'ResourceError':
+    return ResourceError('ResourceError: the check was cancelled at this line (it is neither proved nor refuted, and the lines after it are not checked)', cancelled=True)
+
 # types
 Label:  TypeAlias = Literal['SYMBOL', 'INT', 'FLOAT', 'STRING', 'END', 'TODO']
 Value:  TypeAlias = str | int | Fraction      # a number is an `int`, or an exact `Fraction` (a decimal like `0.1`)
@@ -4456,11 +6649,12 @@ keywords: dict[str, str] = {
     'tokenize':    'tokenize a string and print its tokens',
     'format':      'choose print representation, i.e. one of "sexpr", "normal", "source"',
     'summary':     'print where the proof is: the open blocks, the claims still to prove, the latest facts, what could come next',
-    'load':        'load file(s), e.g. load prop, numbers or load foo.kurt',
+    'load':        'load file(s), e.g. load propositional, numbers or load foo.kurt',
     'list':        'list loaded files, or retained content by category and source, e.g. list natural or list const natural',
     'save':        'save the lines accepted so far (in the shell: without the ones that failed) as a `.kurt` file, e.g. save "session.kurt" (path is relative to the current working directory)',
 
     'syntax':      'print the current syntax',
+    'info':        'print everything known about one symbol: its declarations, its `def` (if any), and the theory facts that mention it, e.g. info four',
     'prefix':      'add prefix operator with right binding power',
     'infix':       'add infix operator with left/right binding powers (lbp, rbp), note: lbp > rbp means right associative',
     'postfix':     'add postfix operator with left binding power',
@@ -4469,8 +6663,9 @@ keywords: dict[str, str] = {
     'bindop':      'declare a constant binding operator',
     'flat':        'declare a constant infix operator to be flat',
     'sym':         'declare a constant infix operator to be symmetric',
-    'sort':        'declare optional term sorts; each sort name then declares positional signatures like `bool`',
-    'bool':        'declare symbols to have output type boolean',
+    'sort':        'declare optional term sorts, and subsorts as a chain: `sort set real int` (`int ⊂ real ⊂ set`: a `real` fits where a `set` is required); each sort name then declares positional signatures like `prop`; alone: the sorts and subsorts',
+    'default':     'the sort of the symbols of this file that get none otherwise, from this line on: `default real` (after `sort real`; not across `load`; alone: the default in force)',
+    'prop':        'declare statements: `prop P` (a statement), `prop even 0` (`even n` is a statement), `prop ∧ 0 1 2` (the places that take statements) -- statements are no sort, no object',
     'calc':        'switch calculation on/off: `calc on` computes the symbols bound to the calculator (see `builtin`)',
     'builtin':     'give a constant symbol a meaning built into Kurt: a calculator operation (`builtin + add`) or a role of the engine (`builtin iff equivalence`)',
     'chain':       'declare constant boolean relations (at most three) as a chain, with automatic transitivity -- with `--strict`, its rules must be proved before it',
@@ -4487,6 +6682,7 @@ keywords: dict[str, str] = {
     'def':         'define new constant symbol using an equation or equivalence',
     'inline':      'a definition applied while reading: `inline $a > $b iff $b < $a` reads `x > 0` as `0 < x`',
     'tex':         'how a symbol is written in LaTeX (`kurt --latex`): `tex alpha \\alpha`, `tex sum \\sum_{$1=$2}^{$3} $4` ($1, ... the places of its arguments)',
+    'lean':        'how a symbol is written in Lean with Mathlib (`kurt --lean`): `lean + $1 + $2`, `lean pi Real.pi`, `lean Obj ZFSet` (the type of the objects), `lean real ℝ` (the type of a sort), `lean - opaque $1` (no Lean meaning), `lean Nat member $1 ∈ S` (what `x ∈ Nat` means); `lean "add-eq" intros; ring` a line of the proof in Lean of the fact "add-eq" (raw to the end of the line)',
 
     'show':        'plan to prove a formula',
     'proof':       'start a proof block to prove the last planned formula',
@@ -4565,6 +6761,8 @@ class Reason:
     kind: str = 'other'           # 'step', 'claim', 'open', 'close', 'assumed', 'load', 'declaration', 'expect', 'other'
     steps: list[tuple[str, list[str], bool]] = field(default_factory=list)   # a step: (rule, used lines, in brackets) of each
     label: str = ''
+    admitted: bool = False        # the line rests on an admission: a `todo`, or a line admitted after an error (`Formula.admitted`)
+    certificates: 'tuple[Certificate, ...]' = field(default=(), compare=False, repr=False)   # a step: the certificates behind it (not printed; `foundation` walks them)
 
     def __str__(self) -> str:
         # the text Kurt prints -- the only place where a reason becomes text (with `render_step`)
@@ -4585,7 +6783,21 @@ class Reason:
 def step_reason(certs: 'list[Certificate]', filename: str, line_id: str, label: str = '',
                 own_lines: bool = False) -> Reason:
     # the reason of a checked line: its number and the step(s) of its certificate(s)
-    return Reason(line_id, '', 'step', [c.step(filename, own_lines) for c in certs], label)
+    return Reason(line_id, '', 'step', [c.step(filename, own_lines) for c in certs], label, admitted=rests_on_admission(certs), certificates=tuple(certs))
+
+def rests_on_admission(certs: 'list[Certificate]') -> bool:
+    # do these steps rest on something admitted -- a `todo` (the step itself, or a fact it uses
+    # that was admitted or derived from one), or a line admitted after an error (all errors)?
+    # The facts a certificate uses: its rule (for a block, the block's last line), its facts, and
+    # for a `pick` block the existential it picks from. This follows every derivation back to the
+    # file's axioms, so `CheckResult.proves` can tell a proved theorem from an admitted one
+    for cert in certs:
+        if cert.kind == 'todo':
+            return True
+        used = [cert.rule, *cert.facts, cert.block.pick_source if cert.block is not None else None]
+        if any(f is not None and f.admitted for f in used):
+            return True
+    return False
 
 def render_step(rule: str, uses: list[str], parens: bool) -> str:
     return f'by {rule}({", ".join(uses)})' if parens else f'by {rule}'
@@ -4611,9 +6823,11 @@ class Formula:
         self.keyword: str          = keyword            # one of `use`, `assume`, `show`, `todo`
         self.local: bool           = local              # `label local "..."`: not exported when this file is `load`ed elsewhere
         self.schema_vars: set[str] = set()              # named free variables captured before freshening
+        self.sort_reading: tuple = ()                   # how the sorts read it as written (`sort_reading`)
         self.schema: str           = ''                 # stable rendering of the freshened schema
         self.def_symbol: Optional[str] = None           # for `def`-created formulas: the symbol it defines (see `eval_def`)
         self.direction_of: Optional[Expr] = None        # for `L ⇒ R` made from an `iff`: that `iff` (see `impl_elim`)
+        self.lean_proof: Optional[str] = None           # `lean "label" TACTIC`: its proof in Lean, for `kurt --lean` (never trusted by Kurt)
         self.first_order: frozenset[str] = frozenset()  # the variables of `simplified_expr` that were its outer `∀`s (see `dependent_vars_of_formula`)
         self.id: int               = Formula.next_id    # a unique id for every formula
         Formula.next_id += 1
@@ -4643,6 +6857,12 @@ class Formula:
         # when this file is `load`ed elsewhere; an unlabelled or `local`-labelled one isn't
         return len(self.label) > 0 and not self.local
 
+    @property
+    def admitted(self) -> bool:
+        # does it rest on an admission: it is a `todo` (`todo F`, or the joker `todo`), or it was
+        # derived from one (`rests_on_admission`), or admitted after an error (all errors)
+        return self.keyword == 'todo' or (isinstance(self.reason, Reason) and self.reason.admitted)
+
     def clone(self, new_expr: Expr, kb: KnowledgeBase) -> Formula:
         cloned_f = Formula(
             kb,
@@ -4660,6 +6880,7 @@ class Formula:
         cloned_f.schema_vars = set(self.schema_vars)
         cloned_f.schema = self.schema
         cloned_f.first_order = self.first_order
+        cloned_f.lean_proof = self.lean_proof
         return cloned_f
 
     def prefix_str(self) -> str:
@@ -4752,6 +6973,9 @@ class State:
     # the rule (the pattern side) may take a value containing one -- except a boolean `%A`,
     # which may depend on it by definition -- see `block_eigen`
     eigen: frozenset[str] = frozenset()
+    # the sort of the polymorphic binders (`$$x`, todo 35) of this use of a rule, once the first
+    # of them is matched: all of them range over the same sort (one sort per use, `binder_target`)
+    poly_sort: Optional[frozenset[str]] = None
 
     @staticmethod
     def empty() -> State:
@@ -4781,7 +7005,7 @@ class State:
         # lookups, which loses badly once a derivation accumulates more than a handful of bindings)
         assert not self.occurs(v, e), f'occurs check failed: cannot bind {v} to {e}'
         new_subst[v] = deepcopy_expr(e)
-        return State(new_subst, self.blocked_as_domain, self.blocked_as_range, self.eigen)
+        return State(new_subst, self.blocked_as_domain, self.blocked_as_range, self.eigen, self.poly_sort)
 
     def block_as_domain(self, v: str) -> State:
         # this is for free variables of the goal, e.g.,
@@ -4789,21 +7013,21 @@ class State:
         #   D
         # to prove D we first unify D with C, but must block the free variables of D as domain
         # (`subst` itself is untouched by this, and immutable, so it's shared as-is, not copied)
-        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range, self.eigen)
+        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range, self.eigen, self.poly_sort)
 
     def block_always(self, v: str) -> State:
         # this is for blocking bound variables
-        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range | {v}, self.eigen)
+        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range | {v}, self.eigen, self.poly_sort)
 
     def unblock(self, v: str) -> State:
-        return State(self.subst, self.blocked_as_domain - {v}, self.blocked_as_range - {v}, self.eigen)
+        return State(self.subst, self.blocked_as_domain - {v}, self.blocked_as_range - {v}, self.eigen, self.poly_sort)
 
     def block_eigen(self, v: str) -> State:
         # a fresh variable for the bound variable of a premise `forall $x ...`: it stands for an
         # arbitrary object, so it must not be assigned (blocked as domain), and no other variable
         # of the rule may take a value containing it -- e.g. `$T` in `(forall $x ($x = $T))
         # implies Q` is one fixed term, `$T := v ^ 1` would make it depend on `$x`
-        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range, self.eigen | {v})
+        return State(self.subst, self.blocked_as_domain | {v}, self.blocked_as_range, self.eigen | {v}, self.poly_sort)
 
     def contains_eigen(self, e: Expr) -> bool:
         e = self.walk(e)
@@ -5132,6 +7356,7 @@ class ExportBundle:
     arity_shape: dict[str, 'Shape']
     inline: dict[str, 'Inline']
     tex: dict[str, str]
+    lean: dict[str, dict[int, str]]
     bindop: set[str]
     flat: set[str]
     sym: set[str]
@@ -5142,7 +7367,7 @@ class ExportBundle:
     nud: dict[str, 'Nud']
     led: dict[str, 'Led']
     const: set[str]
-    bool: dict[str, list[int]]
+    prop: dict[str, list[int]]
     sorts: set[str]
     sort_sigs: dict[str, dict[str, list[int]]]
     builtins: dict[str, list[str]]
@@ -5160,10 +7385,12 @@ class ExportBundle:
     variable_sorts: dict[str, frozenset[str]] = field(default_factory=dict)
     dependent_vars: dict[str, str] = field(default_factory=dict)
     run_id: str = ''                                 # the run (`RunState.run_id`) that made it
+    subsorts: set[tuple[str, str]] = field(default_factory=set)   # the subsorts (sub, sup) it declared or loaded (todo 34)
+    sort_how: dict[str, tuple[str, str, int]] = field(default_factory=dict)   # how its symbols got their sorts (inferred, default, ...)
 
 # the fields of `ExportBundle` that are symbol-keyed attributes of `KnowledgeBase`, of this level only
-EXPORTED_SYMBOL_ATTRS = ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'arity_shape', 'inline', 'tex', 'bindop', 'flat', 'sym', 'alias',
-                         'used', 'lbp', 'rbp', 'nud', 'led', 'const', 'bool', 'builtins', 'roles', 'frozen', 'declared_in')
+EXPORTED_SYMBOL_ATTRS = ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'arity_shape', 'inline', 'tex', 'lean', 'bindop', 'flat', 'sym', 'alias',
+                         'used', 'lbp', 'rbp', 'nud', 'led', 'const', 'prop', 'builtins', 'roles', 'frozen', 'declared_in')
 
 def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula'], set[str]]:
     exported = [f for f in child.theory if f.is_exported()]
@@ -5184,7 +7411,10 @@ def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula
     symbols |= set(child.builtins)
     symbols |= set(child.roles)                    # (a role of the engine, `builtin iff equivalence`, too)
     symbols |= set(child.inline)                   # (`inline`: read away, so in no fact -- but it is a notation of the file)
+    if any(NUMBERS_KEY in signatures for node in child.levels() for signatures in node.sort_sigs.values()):
+        symbols.add(NUMBERS_KEY)                   # (the sort of the number literals, `top_sorts`, like a symbol's)
     symbols |= set(child.tex)                      # (`tex`: how the file's symbols are written in LaTeX)
+    symbols |= set(child.lean)                     # (`lean`: ... and in Lean, `lean Obj ℝ` the type of the objects)
     # the declarations written out at the top level (todo 28) -- not a symbol whose `def` is `local`:
     # a `def`'s symbol and its meaning travel together or stay together (doc/kurt-soundness.md §7)
     local_defs = {f.def_symbol for f in child.theory if f.def_symbol is not None and not f.is_exported()}
@@ -5217,8 +7447,10 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
         assert isinstance(value, set), f'BUG: unexpected type for {attr}: {type(value)}'
         return {s for s in value if s in symbols}
     selected = {attr: select(attr) for attr in EXPORTED_SYMBOL_ATTRS}
+    # (not the one of a `$`/`%` variable, `set $S` of natural.kurt: a name of the file -- its
+    # facts carry the sort, `variable_sorts`)
     sort_sigs = {
-        sort: {symbol: list(positions) for symbol, positions in signatures.items() if symbol in symbols}
+        sort: {symbol: list(positions) for symbol, positions in signatures.items() if symbol in symbols and symbol[0] not in '$%'}
         for sort, signatures in child.sort_sigs.items()
     }
     sort_sigs = {sort: signatures for sort, signatures in sort_sigs.items() if signatures}
@@ -5237,13 +7469,14 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
     chains = [list(c) for c in child.chain if all(op in symbols for op in c)]
     origin_keys: dict[str, set[str]] = {}
     for keyword in ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'bindop', 'flat', 'sym',
-                    'alias', 'const', 'bool'):
+                    'alias', 'const', 'prop'):
         value = selected[keyword]
         origin_keys[keyword] = set(value)
     origin_keys['sort'] = sorts
     for sort, signatures in sort_sigs.items():
         origin_keys[sort] = set(signatures)
     origin_keys['chain'] = {' '.join(c) for c in chains}
+    origin_keys['subsort'] = {f'{sub} {sup}' for sub, sup in child.subsorts}
     property_origins = {
         keyword: {key: origin for key, origin in origins.items() if key in origin_keys.get(keyword, set())}
         for keyword, origins in child.property_origins.items()
@@ -5257,7 +7490,8 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
         origin_names={v: run_state.origin_names[v] for v in internal if v in run_state.origin_names},
         variable_sorts={v: run_state.internal_variable_sorts[v] for v in internal if v in run_state.internal_variable_sorts},
         dependent_vars={v: run_state.dependent_vars[v] for v in internal if v in run_state.dependent_vars},
-        run_id=run_state.run_id)
+        run_id=run_state.run_id, subsorts=set(child.subsorts),
+        sort_how={sym: how for sym, how in child.sort_how.items() if sym in symbols})
 
 def validate_exports(bundle: ExportBundle, child: 'KnowledgeBase', parent: 'KnowledgeBase', own_file: Optional[str]) -> None:
     # an exported fact of the file itself must not need a `local` definition -- exporting a fact
@@ -5291,6 +7525,8 @@ def apply_exports(parent: 'KnowledgeBase', bundle: ExportBundle) -> None:
     run_state.internal_variable_sorts.update(bundle.variable_sorts)
     run_state.dependent_vars.update(bundle.dependent_vars)
     parent.sorts.update(bundle.sorts)
+    parent.subsorts.update(pair for pair in bundle.subsorts if not (pair[0] == pair[1] or pair[1] in parent.supersorts(pair[0])))
+    parent.sort_how.update(bundle.sort_how)
     for sort, signatures in bundle.sort_sigs.items():
         parent.sort_sigs.setdefault(sort, {}).update({symbol: list(positions) for symbol, positions in signatures.items()})
     for keyword, origins in bundle.property_origins.items():
@@ -5359,6 +7595,7 @@ class KnowledgeBase:
         self.arity_shape: dict[str, Shape]       = {}     # `arity g (_, _)`: the shape of each argument, if not all `_`
         self.inline:   dict[str, Inline]         = {}     # `inline $a > $b iff $b < $a`: the parameters and the right side
         self.tex:      dict[str, str]            = {}     # `tex sum \sum_{$1=$2}^{$3} $4`: how a symbol is written in LaTeX
+        self.lean:     dict[str, dict[int, str]] = {}     # `lean + $1 + $2`: how a symbol is written in Lean, per number of arguments (never changed, replaced)
         self.vocabulary: set[str]                = set()  # the symbols a top-level declaration of the file names (`const pi`, `infix ++ 50 50`): exported (todo 28)
         self.local_vocabulary: set[str]          = set()  # ... declared with `local` at the end (`const helper local`): not exported, so no exported fact may need them
         self.chain:    list[list[str]]           = []     # for chaining operators, i.e., 18 = 1+17 <= 20 < 21
@@ -5380,11 +7617,21 @@ class KnowledgeBase:
         self.const:    set[str]                  = set()  # set of constants with unused values
 
         # types
-        self.bool:     dict[str, list[int]]      = {}     # dict of symbols declared to have boolean output
-        # Optional, lightweight term sorts. `bool` keeps its established storage and inference;
+        self.prop:     dict[str, list[int]]      = {}     # the statement places of symbols (`prop P`, `prop ∧ 0 1 2`)
+        # Optional, lightweight term sorts. `prop` keeps its established storage and inference;
         # every user sort has the same sparse symbol -> positions representation here.
         self.sorts: set[str] = set()
         self.sort_sigs: dict[str, dict[str, list[int]]] = {}
+        # subsorts (todo 34): `sort set real int` gives the pairs (real, set), (int, real) -- the
+        # direct ones, of this level; a value of sort `real` fits where a `set` is required
+        self.subsorts: set[tuple[str, str]] = set()
+        # how a symbol got the sort of its position 0 when no declaration gave it (`infer_line_sorts`):
+        # symbol -> (how, file, line), how is 'inferred' or 'default' (may become smaller later in the
+        # file that gave it), 'def' (the sort of its definition) or 'pick' (the sort of the witness)
+        self.sort_how: dict[str, tuple[str, str, int]] = {}
+        # `default real`: the sort, the file and the line (see `current_default`)
+        self.default_sort: Optional[tuple[str, str, int]] = None
+        self._sort_memory: tuple = (-1, {}, {})   # the supersorts and the positions' sorts (see `symbol_version`)
 
         # theory
         self.theory: list[Formula] = []                   # list of formulas (axioms added by 'use' or 'todo', 
@@ -5433,7 +7680,7 @@ class KnowledgeBase:
         boolean_result = operation in CALCULATOR_BOOLEAN_RESULTS
         if signature and (0 in signature) != boolean_result:
             result_kind = 'boolean' if boolean_result else 'non-boolean'
-            raise KurtException(f'EvalError: calculator operation `{operation}` has a {result_kind} result, inconsistent with `bool {symbol} {" ".join(map(str, signature))}`')
+            raise KurtException(f'EvalError: calculator operation `{operation}` has a {result_kind} result, inconsistent with `prop {symbol} {" ".join(map(str, signature))}`')
         if boolean_result and not signature:
             self.add_bool(symbol, [0])
         # one operation per symbol -- and a unary one, `negate`, besides (like `-`); `calc q power,
@@ -5448,7 +7695,7 @@ class KnowledgeBase:
 
     def bind_engine_role(self, symbol: str, role: str) -> None:
         # `builtin iff equivalence`: the engine gives `symbol` this meaning (see `ENGINE_ROLES`) --
-        # one role per symbol, and one symbol per role, with the `bool` signature the role needs
+        # one role per symbol, and one symbol per role, with the `prop` signature the role needs
         if self.is_var(symbol):
             raise KurtException(f'EvalError: variable `{symbol}` can not have a role of the engine')
         needed = ENGINE_ROLES[role]
@@ -5459,7 +7706,7 @@ class KnowledgeBase:
         if role == 'setbuilder' and self.role_symbol('setbrackets') is None:
             raise KurtException('EvalError: the role `setbuilder` needs the brackets of sets first (`builtin { } setbrackets`)')
         if self.bool_sig(symbol) != needed:
-            raise KurtException(f'EvalError: the role `{role}` needs `bool {symbol} {" ".join(map(str, needed))}`, got `bool {symbol} {" ".join(map(str, self.bool_sig(symbol)))}`'.rstrip())
+            raise KurtException(f'EvalError: the role `{role}` needs `prop {symbol} {" ".join(map(str, needed))}`, got `prop {symbol} {" ".join(map(str, self.bool_sig(symbol)))}`'.rstrip())
         other_roles = [r for r in self.all_roles.get(symbol, []) if r != role]
         if other_roles:
             raise KurtException(f'EvalError: `{symbol}` has the role `{other_roles[0]}` already, it can not also be the `{role}`')
@@ -5549,13 +7796,13 @@ class KnowledgeBase:
         elif keyword == 'sym':      return f'sym {key}'
         elif keyword == 'bindop':   return f'bindop {key}'
         elif keyword == 'sort':     return f'sort {key}'
-        elif keyword == 'bool':     
-            assert isinstance(value, list), f'BUG!  Unexpected value for `bool`, got {value}'
+        elif keyword == 'prop':
+            assert isinstance(value, list), f'BUG!  Unexpected value for `prop`, got {value}'
             # A bool declaration written for a left bracket is stored on the combined internal
             # bracket operator (`[$$$]`), just like its calculator binding. Print the source
             # spelling so listings and `save` output can be read back.
             shown_key = key.split('$$$', 1)[0] if '$$$' in key else key
-            return f'bool {shown_key} {" ".join(map(str, value))}'
+            return f'prop {shown_key} {" ".join(map(str, value))}'
         elif self.is_sort_name(keyword):
             assert isinstance(value, list), f'BUG! Unexpected signature for sort `{keyword}`, got {value}'
             shown_key = key.split('$$$', 1)[0] if '$$$' in key else key
@@ -5634,18 +7881,24 @@ class KnowledgeBase:
 
     def sort_names_str_all_levels(self, source: Optional[str] = None) -> str:
         ambiguous = self._ambiguous_origin_basenames()
-        lines = [] if source is not None else [f'{"sort bool":<{run_state.comment_indent}}; level 0, builtin']
+        lines = [] if source is not None else [f'{"sort any":<{run_state.comment_indent}}; level 0, builtin']     # (`prop` is no sort: not listed)
         for node in reversed(list(self.levels())):
             for sort in sorted(node.sorts):
                 origin = node.property_origins.get('sort', {}).get(sort)
                 if source is not None and (origin is None or origin[0] != source):
                     continue
                 lines.append(f'{f"sort {sort}":<{run_state.comment_indent}}; level {node.level}{node._property_origin_str("sort", sort, ambiguous)}')
+        for node in reversed(list(self.levels())):
+            for sub, sup in sorted(node.subsorts):
+                origin = node.property_origins.get('subsort', {}).get(f'{sub} {sup}')
+                if source is not None and (origin is None or origin[0] != source):
+                    continue
+                lines.append(f'{f"sort {sup} {sub}":<{run_state.comment_indent}}; {sub} ⊂ {sup}, level {node.level}{node._property_origin_str("subsort", f"{sub} {sup}", ambiguous)}')
         return '\n'.join(lines)
 
     def sort_signature_str_all_levels(self, sort: str, source: Optional[str] = None) -> str:
-        if sort == 'bool':
-            return self.dict_or_set_str_all_levels('bool', source=source)
+        if sort == 'prop':
+            return self.dict_or_set_str_all_levels('prop', source=source)
         ambiguous = self._ambiguous_origin_basenames()
         lines: list[str] = []
         for node in reversed(list(self.levels())):
@@ -5679,7 +7932,7 @@ class KnowledgeBase:
         for node in reversed(list(self.levels())):
             all_syntax = [node.dict_or_set_str(keyword, key, ambiguous, source) for keyword in
                           ('prefix', 'infix', 'postfix', 'arity', 'chain', 'bindop', 'brackets',
-                           'flat', 'sym', 'alias', 'var', 'const', 'bool')]
+                           'flat', 'sym', 'alias', 'var', 'const', 'prop')]
             if key is None:
                 sort_lines = []
                 for sort in sorted(node.sorts):
@@ -5696,7 +7949,9 @@ class KnowledgeBase:
                     if source is not None and (origin is None or origin[0] != source):
                         continue
                     entry = node._entry_str(sort, symbol, positions)
-                    lines.append(f'{entry:<{run_state.comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}')
+                    how = node.sort_how.get(symbol)
+                    told = f' ({ {"inferred": "inferred", "default": "by default", "def": "of its definition", "pick": "of the witness"}.get(how[0], how[0]) })' if how else ''
+                    lines.append(f'{entry:<{run_state.comment_indent}}; level {node.level}{node._property_origin_str(sort, symbol, ambiguous)}{told}')
                 all_syntax.append('\n'.join(lines))
             section = '\n'.join(syntax for syntax in all_syntax if syntax)
             if section:
@@ -5861,7 +8116,7 @@ class KnowledgeBase:
     def declared_symbols(self) -> set[str]:
         # every symbol declared on this level (not the parents)
         symbols = set(self.infix) | set(self.prefix) | set(self.postfix) | set(self.bindop) | set(self.const)
-        symbols |= set(self.bool) | set(self.arity) | self.flat | self.sym | set(self.alias)
+        symbols |= set(self.prop) | set(self.arity) | self.flat | self.sym | set(self.alias)
         for signatures in self.sort_sigs.values():
             symbols |= set(signatures)
         return symbols
@@ -5873,23 +8128,27 @@ class KnowledgeBase:
         return s in self.alias   or (self.parent is not None and self.parent.is_alias(s))
 
     def bool_sig(self, s: str) -> list[int]:   # get the bool signature
-        if s in self.bool:
-            return self.bool[s]
+        if s in self.prop:
+            return self.prop[s]
         if self.parent is None:
             return []
         return self.parent.bool_sig(s)
 
     def is_sort_name(self, sort: str) -> bool:
-        return sort == 'bool' or sort in self.sorts or (self.parent is not None and self.parent.is_sort_name(sort))
+        if sort in CORE_SORTS:
+            return True
+        if not self.sorts_in_use():
+            return False
+        return sort in self.sorts or (self.parent is not None and self.parent.is_sort_name(sort))
 
     def all_sort_names(self) -> list[str]:
-        names = {'bool'}
+        names = set(CORE_SORTS)
         for node in self.levels():
             names.update(node.sorts)
         return sorted(names)
 
     def sort_sig(self, sort: str, symbol: str) -> list[int]:
-        if sort == 'bool':
+        if sort == 'prop':
             return self.bool_sig(symbol)
         signatures = self.sort_sigs.get(sort)
         if signatures is not None and symbol in signatures:
@@ -5901,12 +8160,111 @@ class KnowledgeBase:
     def position_sorts(self, symbol: str, position: int) -> set[str]:
         return {sort for sort in self.all_sort_names() if position in self.sort_sig(sort, symbol)}
 
+    def _sorts_memory(self) -> tuple[dict, dict]:
+        if self._sort_memory[0] != symbol_version[0]:
+            self._sort_memory = (symbol_version[0], {}, {})
+        return self._sort_memory[1], self._sort_memory[2]
+
+    def all_subsorts(self) -> frozenset[tuple[str, str]]:
+        # the direct pairs (sub, sup) of this level and the ones above
+        pairs: set[tuple[str, str]] = set()
+        for node in self.levels():
+            pairs |= node.subsorts
+        return frozenset(pairs)
+
+    def supersorts(self, sort: str) -> frozenset[str]:
+        # the sorts a value of `sort` also fits, transitively (not `sort` itself) -- remembered
+        supers, _ = self._sorts_memory()
+        found = supers.get(sort)
+        if found is None:
+            pairs = self.all_subsorts()
+            result: set[str] = set()
+            todo = [sort]
+            while todo:
+                s = todo.pop()
+                for sub, sup in pairs:
+                    if sub == s and sup not in result:
+                        result.add(sup)
+                        todo.append(sup)
+            if sort not in ('any', 'prop'):
+                result.add('any')           # (`any` is the supersort of every sort, todo 35)
+            found = supers[sort] = frozenset(result)
+        return found
+
+    def sort_fits(self, value_sort: str, required: str) -> bool:
+        # a value of `value_sort` fits a position or variable of sort `required` (todo 34)
+        return value_sort == required or required in self.supersorts(value_sort)
+
+    def has_subsorts(self, sort: str) -> bool:
+        return any(sup == sort for _, sup in self.all_subsorts())
+
+    def pos_sort(self, symbol: str, position: int) -> Optional[str]:
+        # the user sort of `symbol` at `position` (0: its result), declared or inferred -- also an
+        # inference of the line being checked (`run_state.pending_sigs`)
+        pending = run_state.pending_sigs.get(symbol)
+        if pending is not None and position in pending:
+            return pending[position]
+        _, positions = self._sorts_memory()
+        key = (symbol, position)
+        if key in positions:
+            return positions[key]
+        found: Optional[str] = None
+        for node in self.levels():
+            for sort, signatures in node.sort_sigs.items():
+                if position in signatures.get(symbol, ()):
+                    found = sort
+                    break
+            if found is not None:
+                break
+        positions[key] = found
+        return found
+
+    def sorts_in_use(self) -> bool:
+        # whether any user sort is declared (otherwise there is nothing to infer) -- remembered
+        supers, _ = self._sorts_memory()
+        found = supers.get('')
+        if found is None:
+            found = supers[''] = any(node.sorts for node in self.levels())
+        return found
+
+    def current_default(self) -> Optional[tuple[str, str, int]]:
+        # the `default` in force: the last one of the file being checked (it doesn't cross `load`)
+        node: Optional[KnowledgeBase] = self
+        while node is not None:
+            if node.default_sort is not None:
+                return node.default_sort
+            if node.is_load_boundary or node.parent is None:
+                return None
+            node = node.parent
+        return None
+
+    def get_sort_how(self, symbol: str) -> Optional[tuple[str, str, int]]:
+        pending = run_state.pending_how.get(symbol)
+        if pending is not None:
+            return pending
+        return self.lookup('sort_how', symbol)
+
     def variable_sorts(self, symbol: str) -> set[str]:
         """Optional sorts constraining a schema variable, including its fresh internal name."""
         if symbol in run_state.internal_variable_sorts:
-            return set(run_state.internal_variable_sorts[symbol])
-        return {sort for sort in self.all_sort_names()
-                if sort != 'bool' and 0 in self.sort_sig(sort, symbol)}
+            found = set(run_state.internal_variable_sorts[symbol])
+        elif symbol in run_state.generalized_sorts:
+            found = set(run_state.generalized_sorts[symbol])
+        elif symbol in run_state.line_var_sorts:
+            found = set(run_state.line_var_sorts[symbol])
+        else:
+            sort = self.pos_sort(symbol, 0)
+            if sort is None:
+                return set()
+            found = {sort}
+        return found
+
+    def binder_sorts(self, node: Expr) -> frozenset[str]:
+        return binder_node_sorts(node, self)
+
+    def generalized_sorts(self, symbol: str) -> frozenset[str]:
+        # the sorts the result of a closing block gives its variable `symbol` (`block_result_sorts`), for the kernel
+        return run_state.generalized_sorts.get(symbol, frozenset())
 
     def is_bool(self, s: str) -> bool:
         return 0 in self.bool_sig(s)  or  s[0] == '%'
@@ -5929,7 +8287,7 @@ class KnowledgeBase:
         return self.is_lbracket(left) and self.is_rbracket(right)
 
     def is_declared(self, s: str) -> bool:
-        # declared in some way before its first use, e.g. by `bool A`, `arity f 1`, `infix + 60 60`
+        # declared in some way before its first use, e.g. by `prop A`, `arity f 1`, `infix + 60 60`
         return (self.is_var(s) or self.is_const(s) or any(self.sort_sig(sort, s) for sort in self.all_sort_names()) or self.is_arity_set(s)
                 or self.is_operator(s) or self.is_bindop(s) or self.is_alias(s))
 
@@ -5994,7 +8352,8 @@ class KnowledgeBase:
             return None
 
     def get_load_level(self, fname: str) -> Optional[int]:
-        if fname in self.libs:
+        # (the same file under another name counts too: `lib2/op.kurt` through a symlink `lib2 -> lib`)
+        if fname in self.libs or any(same_file(fname, other) for other in self.libs):
             return self.level
         elif self.parent is not None:
             return self.parent.get_load_level(fname)
@@ -6006,6 +8365,15 @@ class KnowledgeBase:
         for node in self.levels():
             for k, v in node.tex.items():
                 found.setdefault(k, v)
+        return found
+
+    def all_lean(self) -> dict[str, dict[int, str]]:
+        # the `lean` declarations here, per symbol and number of arguments -- an inner one (or one of
+        # the file, after a `load`) replaces an outer one for the same number of arguments
+        found: dict[str, dict[int, str]] = {}
+        for node in reversed(list(self.levels())):
+            for k, v in node.lean.items():
+                found[k] = {**found.get(k, {}), **v}
         return found
 
     def all_inlines(self) -> dict[str, 'Inline']:
@@ -6146,7 +8514,7 @@ class KnowledgeBase:
         for op in c:
             signature = self.bool_sig(op)
             if signature and 0 not in signature:
-                raise KurtException(f'EvalError: operator `{op}` in a chain must have boolean output (`bool {op} 0`)')
+                raise KurtException(f'EvalError: operator `{op}` in a chain must have boolean output (`prop {op} 0`)')
             if not self.is_const(op):
                 self.add_const(op)
             if not signature:
@@ -6259,7 +8627,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{rbracket}` has been already used in a formula')
         for bracket in (lbracket, rbracket):
             if self.is_arity_set(bracket) or self.bool_sig(bracket) or self.get_builtins(bracket):
-                raise KurtException(f'EvalError: bracket symbol `{bracket}` already has an `arity`, `bool`, or `calc` declaration')
+                raise KurtException(f'EvalError: bracket symbol `{bracket}` already has an `arity`, `prop`, or `calc` declaration')
         if self.is_operator(lbracket) or self.is_const(lbracket) or self.is_var(lbracket):
             raise KurtException(f'EvalError: symbol `{lbracket}` already exist as {self._find_symbol(lbracket)}')
         if self.is_operator(rbracket) or self.is_const(rbracket) or self.is_var(rbracket):
@@ -6340,7 +8708,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` is already a constant')
         if self.is_known(s):
             # an alias is a new name: it takes over everything of its symbol, so it can't have
-            # declarations of its own (`bool ∈ 0`, then `alias ∈ in`), which might differ
+            # declarations of its own (`prop ∈ 0`, then `alias ∈ in`), which might differ
             raise KurtException(f'EvalError: symbol `{s}` is already declared -- an alias must be a new name')
         if self.get_builtins(s):
             raise KurtException(f'EvalError: calculator symbol `{s}` already has a meaning -- an alias must be a new name')
@@ -6350,7 +8718,7 @@ class KnowledgeBase:
         t = self.get_alias(t) or t    # another name for an alias is one for its symbol
         if t == s:
             raise KurtException(f'EvalError: `alias {s}` would make `{s}` another name for itself')
-        self.declare_origin(s)    # an alias declares its name too (`∧` of prop.kurt vs. modal.kurt)
+        self.declare_origin(s)    # an alias declares its name too (`∧` of propositional.kurt vs. modal.kurt)
         self.alias[s] = t         # add a key `s` with value `t`
         self.record_property_origin('alias', s)
 
@@ -6360,10 +8728,10 @@ class KnowledgeBase:
         if len(self.bool_sig(s)) > 0:
             raise KurtException(f'EvalError: symbol `{s}` is already declared bool')
         if len(v) != len(set(v)):
-            raise KurtException(f'EvalError: `bool` positions of `{s}` must be different')
+            raise KurtException(f'EvalError: `prop` positions of `{s}` must be different')
         if (self.is_flat(s) or self.is_sym(s)) and ((1 in v) != (2 in v) or (v and max(v) > 2)):
-            raise KurtException(f'EvalError: `bool` signature does not work for flat or symmetric operator `{s}`')
-        conflicts = {sort for position in v for sort in self.position_sorts(s, position) if sort != 'bool'}
+            raise KurtException(f'EvalError: `prop` signature does not work for flat or symmetric operator `{s}`')
+        conflicts = {sort for position in v for sort in self.position_sorts(s, position) if sort != 'prop'}
         if conflicts:
             raise KurtException(f'EvalError: `{s}` already has sort {", ".join(sorted(conflicts))} at one of these positions')
         builtins = self.get_builtins(s)
@@ -6383,15 +8751,15 @@ class KnowledgeBase:
         else:
             max_args = None
         if max_args is not None and any(position < 0 or position > max_args for position in v):
-            raise KurtException(f'EvalError: `bool` position of `{s}` must be between 0 and its arity {max_args}')
+            raise KurtException(f'EvalError: `prop` position of `{s}` must be between 0 and its arity {max_args}')
         if self.is_bindop(s) and 1 in v:
             raise KurtException(f'EvalError: first position of binding operator `{s}` can not be declared boolean')
-        self.bool[s] = v          # add a key and set the value to the tuple of positions that are bool
-        self.record_property_origin('bool', s)
+        self.prop[s] = v          # add a key and set the value to the tuple of positions that are bool
+        self.record_property_origin('prop', s)
 
     def add_sort(self, sort: str) -> None:
-        if sort == 'bool':
-            raise KurtException('EvalError: `bool` is the built-in judgment sort and cannot be redeclared')
+        if sort == 'prop':
+            raise KurtException('EvalError: `prop` declares statements -- it is no sort and cannot be declared as one')
         if sort in keywords or sort in helper_keywords:
             raise KurtException(f'EvalError: `{sort}` is a Kurt keyword and cannot name a sort')
         if not re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', sort):
@@ -6403,14 +8771,36 @@ class KnowledgeBase:
         self.sorts.add(sort)
         self.sort_sigs[sort] = {}
         self.record_property_origin('sort', sort)
+        symbols_changed()
+
+    def occurs_in_theory(self, symbol: str) -> bool:
+        # whether a fact (of this file or a loaded one) contains `symbol` free -- as stored, with its
+        # variables renamed (a loaded file's `var A` is not this file's `A`), not as a bound variable
+        def free_in(e: Expr, bound: frozenset[str]) -> bool:
+            match e:
+                case Token(label='SYMBOL', value=v):
+                    return v == symbol and v not in bound
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and self.is_bindop(op):
+                    try:
+                        bv, _ = unpack_condition(cond, self)
+                    except KurtException:
+                        bv = None
+                    inner = bound | {bv} if bv is not None else bound
+                    return any(free_in(c, inner) for c in [cond, *body])
+                case [*children]:
+                    return any(free_in(c, bound) for c in children)
+            return False
+        return any(free_in(f.simplified_expr, frozenset()) for f in self.all_theory())
 
     def add_sort_signature(self, sort: str, symbol: str, positions: list[int]) -> None:
-        if sort == 'bool':
+        if sort == 'prop':
             self.add_bool(symbol, positions)
             return
         if not self.is_sort_name(sort):
             raise KurtException(f'EvalError: sort `{sort}` is not declared')
-        if self.is_used(symbol):
+        if self.is_used(symbol) or (not self.is_var(symbol) and self.occurs_in_theory(symbol)):
+            # (also a declared constant: a sort now would change what the facts with it mean -- a
+            # variable is renamed in each fact, with the sort it had there)
             raise KurtException(f'EvalError: symbol `{symbol}` has been already used in a formula')
         if self.sort_sig(sort, symbol):
             raise KurtException(f'EvalError: symbol `{symbol}` already has a `{sort}` signature')
@@ -6442,6 +8832,37 @@ class KnowledgeBase:
                 raise KurtException(f'EvalError: position {position} of `{symbol}` already has sort {other}')
         self.sort_sigs.setdefault(sort, {})[symbol] = list(positions)
         self.record_property_origin(sort, symbol)
+        symbols_changed()      # (the positions' sorts are remembered, see `pos_sort`)
+
+    def add_subsort(self, sub: str, sup: str) -> None:
+        # `sort set real`: a `real` fits where a `set` is required -- the relation stays a DAG
+        if sub == sup:
+            raise KurtException(f'EvalError: a sort is not a subsort of itself, got `sort {sup} {sub}`')
+        if sub in self.supersorts(sup):
+            raise KurtException(f'EvalError: `{sup}` is a subsort of `{sub}` already, so `{sub}` ⊂ `{sup}` would be a cycle')
+        if sup in self.supersorts(sub):
+            return                      # (known already, maybe through another sort)
+        self.subsorts.add((sub, sup))
+        self.record_property_origin('subsort', f'{sub} {sup}')
+        symbols_changed()
+
+    def set_inferred_sort(self, symbol: str, positions: dict[int, str], how: tuple[str, str, int]) -> None:
+        # store sorts that a line inferred (`commit_line_sorts`) on this level: each position's sort
+        # replaces the one it had (a sort that became smaller, see `infer_line_sorts`)
+        for position, sort in positions.items():
+            for signatures in self.sort_sigs.values():
+                if position in signatures.get(symbol, ()):
+                    signatures[symbol] = [p for p in signatures[symbol] if p != position]
+                    if not signatures[symbol]:
+                        del signatures[symbol]
+            signature = self.sort_sigs.setdefault(sort, {}).setdefault(symbol, [])
+            if position not in signature:
+                signature.append(position)
+                signature.sort()
+            self.property_origins.setdefault(sort, {})[symbol] = (how[1], how[2])
+        if 0 in positions or symbol not in self.sort_how:
+            self.sort_how[symbol] = how
+        symbols_changed()
 
     def get_nud(self, token: Token) -> Nud:
         if token.label == 'SYMBOL':
@@ -6521,7 +8942,7 @@ class KnowledgeBase:
         # since the operator at their top is another constant one (only a filter before
         # `cannot_unify`, which checks more): an index by that operator, per level
         key = index_key(pattern, self)
-        if not key.startswith('op ') or self.calc:
+        if not (key.startswith('op ') or key.startswith('sym ')) or self.calc:
             yield from self.all_theory()
             return
         node: Optional[KnowledgeBase] = self
@@ -6534,15 +8955,16 @@ class KnowledgeBase:
 
     def theory_str(self, op:Optional[str]=None, keyword:Optional[str]=None,
                    source:Optional[str]=None, locations:bool=False,
-                   ambiguous:Optional[set[str]]=None) -> str:
+                   ambiguous:Optional[set[str]]=None, symbol:Optional[str]=None) -> str:
         # the formulas level by level, levels without any are left out
         if ambiguous is None:
             ambiguous = self._ambiguous_origin_basenames()
         s: str = self.parent.theory_str(op=op, keyword=keyword, source=source, locations=locations,
-                                       ambiguous=ambiguous) if self.parent is not None else ''
+                                       ambiguous=ambiguous, symbol=symbol) if self.parent is not None else ''
         lines: list[str] = []
         for f in self.theory:
-            if (source is None or f.filename == source) and (op is None or is_op_expr(f.expr, op)):
+            if (source is None or f.filename == source) and (op is None or is_op_expr(f.expr, op)) \
+                    and (symbol is None or symbol in free_symbols(f.expr, self)):
                 if keyword is None or f.keyword==keyword:
                     text = f.formula_str(self)
                     annotations = ([f'schema: {f.schema_str(self)}'] if f.schema_str(self) else [])
@@ -6606,7 +9028,7 @@ class KnowledgeBase:
     def _add_new_bools(self, e: Expr, bool_pos: bool) -> None:
         # bool_pos indicates whether the current expression is in a position that must be boolean
 
-        # automatically infer the `bool` signature
+        # automatically infer the `prop` signature
         def _get_new_bool_sigs(e: Expr, bool_pos: bool) -> dict[str, list[int]]:
             match e:
                 case Token(label='SYMBOL', value=s):
@@ -6618,7 +9040,7 @@ class KnowledgeBase:
                         if not self.is_bool(s):    # might be already declared as boolean
                             if self.is_const(s) and any(s in node.term_used for node in self.levels()):
                                 # `const a`, `a = a`, then `assume a`: a term is not a statement (2026-10-15, todo 45)
-                                raise KurtException(f'TypeError: `{s}` is a term (a constant used in one) and can not be a statement too -- `bool {s}` makes it a statement, declare it before its first use')
+                                raise KurtException(f'TypeError: `{s}` is a term (a constant used in one) and can not be a statement too -- `prop {s}` makes it a statement, declare it before its first use')
                             return {s: [0]}   # mark as boolean
 
                 case [Token(label='SYMBOL', value=op), *args]:
@@ -6641,7 +9063,7 @@ class KnowledgeBase:
                                 bool_sigs |= _get_new_bool_sigs(args[i], False)
                             return bool_sigs
                         else:
-                            # case 4: operator has not been used and has no boolean signature, let's try to infer its `bool` signature
+                            # case 4: operator has not been used and has no boolean signature, let's try to infer its `prop` signature
                             bool_sig_local = [0] if bool_pos else []  # no recursive call for the operator itself
                             flat = self.is_flat(op)
                             sym = self.is_sym(op)
@@ -6662,7 +9084,10 @@ class KnowledgeBase:
                                 for i in range(len(args)):
                                     if i == 0 and self.is_bindop(op):
                                         bool_sigs |= _get_new_bool_sigs(args[i], False)   # a binder's variable, or its condition
-                                    elif bool_expr(args[i], self):
+                                    elif op != COMMA_SYMBOL and bool_expr(args[i], self):
+                                        # (not the comma of a tuple: its places are terms -- `reflexive((R), $A)`
+                                        # passes an operator `(R)`, no statement, and `prop , 1` made every
+                                        # later `(x, x)` a pair of statements)
                                         bool_sig_local.append(i+1)    # collect information from the args
                                         bool_sigs |= _get_new_bool_sigs(args[i], True)
                                     else:
@@ -6708,13 +9133,16 @@ class KnowledgeBase:
     def simplify(self, f: Formula) -> None:
         # the formula as the search uses it: without its outer `∀`s (their variables stand for
         # anything), all variables renamed (unique names)
+        check_poly_marks(f._simplified_expr, self)
         stripped, fresh = remove_outer_forall_quantifiers(f._simplified_expr, self)
         f.simplified_expr, renaming = rename_all_vars_rec(deepcopy_expr(stripped), self)
         if self.calc:
             computed = calculate_normalized(f._simplified_expr, self)
             if not equal_expr(computed, f._simplified_expr, self):
                 f.computed = computed                   # (written with `calc on`: also computed)
+        f.sort_reading = sort_reading(f._simplified_expr, self)    # (for a restatement, `eval_expression`)
         f.first_order = frozenset(str(v.value) for x in fresh if isinstance(v := renaming.lookup(x), Token))
+        run_state.parametric_binders |= parametric_binders(f.simplified_expr, self)   # (a rule of logic.kurt has no sorts, used with them)
         f.schema = normalized_schema_str(f.simplified_expr, f.schema_vars, self)
 
     def show_append(self, f: Formula) -> None:
@@ -6940,16 +9368,16 @@ def is_equality(expr: Expr) -> bool:
     return is_op_expr(expr, EQUAL_SYMBOL)
 
 def is_iff(expr: Expr, kb: 'KnowledgeBase') -> bool:
-    # an equivalence: its symbol has the engine role (`builtin iff equivalence`, prop.kurt), not
+    # an equivalence: its symbol has the engine role (`builtin iff equivalence`, propositional.kurt), not
     # just the name `iff`
     return isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'equivalence')
 
 def is_disjunction(expr: Expr, kb: 'KnowledgeBase') -> bool:
-    # a disjunction (`builtin or disjunction`, prop.kurt)
+    # a disjunction (`builtin or disjunction`, propositional.kurt)
     return isinstance(expr, list) and len(expr) >= 3 and isinstance(expr[0], Token) and kb.has_role(expr[0].value, 'disjunction')
 
 def is_falsum(expr: Expr, kb: 'KnowledgeBase') -> bool:
-    # `false` (`builtin false falsum`, prop.kurt)
+    # `false` (`builtin false falsum`, propositional.kurt)
     return isinstance(expr, Token) and kb.has_role(expr.value, 'falsum')
 
 def negation_of(expr: Expr, kb: 'KnowledgeBase') -> Optional[Expr]:
@@ -6993,6 +9421,9 @@ def equal_expr_alpha(t1: Expr, t2: Expr, kb: 'KnowledgeBase', bmap1: dict, bmap2
             bv2, c2 = unpack_condition(cond2, kb)
             if (c1 is None) != (c2 is None):
                 return False
+            if kb.sorts_in_use() and not run_state.ignore_sorts[0] \
+                    and bounded_sorts(t1, binder_node_sorts(t1, kb), kb) != bounded_sorts(t2, binder_node_sorts(t2, kb), kb):
+                return False    # `∀ x` over the numbers is not `∀ x` over everything (todo 34)
             new_bmap1 = {**bmap1, bv1: bv2}
             new_bmap2 = {**bmap2, bv2: bv1}
             if c1 is not None and not equal_expr_alpha(c1, c2, kb, new_bmap1, new_bmap2, keep_order):
@@ -7040,11 +9471,13 @@ scanner: re.Pattern = re.compile(fr'''
   (?P<LOAD>(?i:load)\s+(?P<LOAD_BODY>[^\n;]*))    | # captures everything after `load` up to ';' or EOL
   (?P<LIST>(?i:list)\s+(?P<LIST_BODY>[^\n;]*))    | # `list` arguments are categories/file names, not expressions
   (?P<TEX>tex\s+(?P<TEX_SYMBOL>\S+)\s+(?P<TEX_BODY>[^\n;]*[^\s;])) | # `tex sum \sum_{{$1=$2}}^{{$3}} $4`: the LaTeX of a symbol, raw
+  (?P<LEANPROOF>lean\s+"(?P<LEANPROOF_LABEL>[^"\n]+)"[^\S\n](?P<LEANPROOF_BODY>[^\n]*[^\s])) | # `lean "add-eq" intro a b c h; rw [h]`: a line of a fact's proof in Lean, raw to the end of the line (`;` too; more spaces: indented)
+  (?P<LEAN>lean\s+(?P<LEAN_SYMBOL>\S+)\s+(?P<LEAN_BODY>[^\n;]*[^\s;])) | # `lean + $1 + $2`: the Lean of a symbol, raw
   (?P<COMMENT> [;].*$)                            | # comments
   (?P<FLOAT>   [0-9]+\.[0-9]+)                    | # floating point literals
   (?P<INT>     [0-9]+)                            | # integer literals
   (?P<STRING>  ["][^"]*["])                       | # string literals
-  (?P<SYMBOL>  [$%](?:[A-Za-z][A-Za-z0-9]*|[{re.escape(GREEK_VARIABLE_LETTERS)}][0-9]*)'* | # variables: ASCII identifiers or one Greek letter, optionally numbered, with primes (`$a'`)
+  (?P<SYMBOL>  (?:\$\$|[$%])(?:[A-Za-z][A-Za-z0-9]*|[{re.escape(GREEK_VARIABLE_LETTERS)}][0-9]*)'* | # variables: ASCII identifiers or one Greek letter, optionally numbered, with primes (`$a'`)
                [A-Za-z][A-Za-z0-9]*'*             | # symbols 1: plain identifiers stay ASCII, with primes: `a'`, `f''`
                [{re.escape(GREEK_VARIABLE_LETTERS)}](?:[0-9]+'*|'+) | # symbols 1b: a Greek letter with digits or primes, `λ1`, `ε'` (alone: symbols 5)
                [(){{}}\[\]]                       | # symbols 2: round/curly/square brackets -- always single char, never
@@ -7151,7 +9584,7 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             names = split_filenames(body)
             covered = re.sub(r'\s', '', ''.join(m.group(0) for m in filenames_pattern.finditer(body)))
             if covered != re.sub(r'\s', '', body):
-                # `load prop numbers` read `numbers` only, `prop` was lost silently (2026-10-15)
+                # `load propositional numbers` read `numbers` only, `propositional` was lost silently (2026-10-15)
                 words = [w for w in re.split(r'[\s,]+', body.strip()) if w]
                 raise KurtException(f'ScanError: `load {body.strip()}` -- the files are separated by commas: `load {", ".join(words)}` (a name with spaces in quotes)', column)
             for i, name in enumerate(names):
@@ -7162,6 +9595,14 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             yield Token('SYMBOL', 'tex', column)
             yield Token('STRING', match.group('TEX_SYMBOL'), column + 4)
             yield Token('STRING', match.group('TEX_BODY'), match.start('TEX_BODY'))
+        elif label == 'LEANPROOF':
+            yield Token('SYMBOL', 'lean', column)
+            yield Token(LEAN_PROOF_TOKEN, match.group('LEANPROOF_LABEL'), column + 5)
+            yield Token('STRING', match.group('LEANPROOF_BODY'), match.start('LEANPROOF_BODY'))
+        elif label == 'LEAN':
+            yield Token('SYMBOL', 'lean', column)
+            yield Token('STRING', match.group('LEAN_SYMBOL'), column + 5)
+            yield Token('STRING', match.group('LEAN_BODY'), match.start('LEAN_BODY'))
         elif label == 'LIST':
             body = match.group('LIST_BODY')
             yield Token('SYMBOL', 'list', column)
@@ -7228,7 +9669,7 @@ def is_relation(op: Value, kb: KnowledgeBase) -> bool:
 
 def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str] = frozenset()) -> list[str]:
     # the symbols in `expr` that are neither declared nor used before (so, e.g., not `$x`,
-    # a bound variable, or a symbol declared with `bool`), in order of appearance
+    # a bound variable, or a symbol declared with `prop`), in order of appearance
     found: list[str] = []
     def walk(e: Expr, bound: frozenset[str]) -> None:
         match e:
@@ -7732,8 +10173,9 @@ def post_process(kb: KnowledgeBase, expr: Expr) -> tuple[Expr, str, bool]:
     expr = merge_applications(expr, kb)                 # `(g a) b` is `g a b` for a `g` without arity
     expr = set_terms(expr, kb)                          # `{a, b}`, `{x ∈ A | P}`, `{}` (set.kurt's `builtin { } setbrackets`)
     run_state.chain_source = chain_source(expr, kb)     # (a relation as written, for a chain: `a > b` is about to become `b < a`)
+    expr = mark_bound_variables(expr, kb)               # `∀ x > 0 ...`: `x` is bound, stored with the condition --
+                                                        # before `inline`: the first symbol as written (`∀ x > y`: `x`)
     expr = expand_inlines(expr, kb)                     # `x > 0` is `0 < x` (`inline $a > $b iff $b < $a`)
-    expr = mark_bound_variables(expr, kb)               # `∀ x > 0 ...`: `x` is bound, stored with the condition
     expr, label, local = check_expr_label(expr, kb)     # check and split `expr`, `label`, and `local`
     expr = flatten_all(expr, kb)                        # flatten `flat` operators
     expr = symmetrize_all(expr, kb)                     # symmetrize `sym` operators
@@ -7742,6 +10184,8 @@ def post_process(kb: KnowledgeBase, expr: Expr) -> tuple[Expr, str, bool]:
 
 def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optional[Token], list[Expr], str, bool]:
     assert isinstance(ts.peek, Token)
+    run_state.line_var_sorts, run_state.pending_sigs, run_state.pending_how = {}, {}, {}   # (a new line, see `infer_line_sorts`)
+    run_state.line_var_placed = set()
     keyword_token: Optional[Token] = None
     keyword: str = ''
     label: str = ''
@@ -7767,12 +10211,17 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
         check_for_helper_keywords(expr_list)    # `with` is only allowed on top level
         check_no_keyword(expr_list)             # keywords are not allowed in expressions
         try:
-            type_check_expression(expr, kb)                       # (some) type checking
+            infer_line_sorts(expr_list, keyword, kb)              # the sorts of its symbols (todo 34)
+            run_state.applied_variables = applied_variables(expr_list, kb)
+            for item in expr_list:
+                type_check_expression(item, kb)                   # (some) type checking -- each item: `let p, q` is a list of names, no term
         except KurtException as e:
             if keyword_token is not None and keyword_token.value == 'parse':
                 print(f'type check failed: {e.msg}', file=sys.stderr)   # `parse` shows it anyway
             else:
-                print(f'parsed as: {expr_str(expr, kb)}', file=sys.stderr)
+                # how the line was read, as part of the error -- it went straight to stderr, outside
+                # what `check_text`, `--json` and the editors report, and also inside `expect` (todo 33)
+                e.msg += f'\n(the line was read as `{expr_str(expr, kb)}`)'
                 raise e      # reraise it
     else:
         tokens = list(ts)[:-1]                                # [:-1] removes end_token
@@ -7781,8 +10230,8 @@ def parse_tokenstream(ts: PeekableGenerator, kb: KnowledgeBase) -> tuple[Optiona
             tokens.pop()                                      # `const helper local`: not exported (todo 28)
             local = True
         expr_list = split_by_comma(tokens, kb)
-        if keyword != 'sort':
-            check_no_keyword(expr_list)         # don't check the `keyword` and the `label`
+        if keyword not in ('sort', 'default'):
+            check_no_keyword(expr_list)         # don't check the `keyword` and the `label` (`default bool`: refused by its own message)
     return keyword_token, expr_list, label, local
 
 def parse_let_with(tokens: list[Token], kb: KnowledgeBase) -> Expr:
@@ -7796,6 +10245,7 @@ def parse_let_with(tokens: list[Token], kb: KnowledgeBase) -> Expr:
     condition = parse_expression(ts, kb, begin_rbp)
     condition, _, _ = post_process(kb, condition)
     check_no_keyword(condition)
+    infer_line_sorts([condition], 'let', kb)          # (the sorts, todo 34)
     type_check_expression(condition, kb)
     name = pre[0].value
     bound, _ = unpack_condition(condition, kb)
@@ -7817,7 +10267,7 @@ def strip_keyword(s: str, column: int) -> str:
     return s[(1+column):]                  # get rid of the keyword at the beginning
 
 def decorate_reason(plain: bool, reason: str, filename: str, line_str: str) -> str:
-    # `5 ...`, or with the file, `prop.kurt:5 ...` (a warning or a `todo` of a loaded file)
+    # `5 ...`, or with the file, `propositional.kurt:5 ...` (a warning or a `todo` of a loaded file)
     if plain:
         return f'{line_str} {reason}'
     else:
@@ -7919,7 +10369,7 @@ def raise_declaration_usage(keyword: str, arg: object, keyword_token: Token) -> 
     msg = create_usage(keyword, [[], ['STRING']])
     raise KurtException(f'EvalError: wrong arguments (their number or kind), possible is:\n{msg}', keyword_token.column)
 
-DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'prop'}     # (for the message only)
+DEF_THEORIES = {EQUAL_SYMBOL: 'equality', IFF_SYMBOL: 'propositional'}     # (for the message only)
 
 def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filename: str, line: int, local: bool = False) -> tuple[Formula, str]:
     # `def` defines with the equality or the equivalence of a trusted theory (`builtin = equality`,
@@ -7934,7 +10384,11 @@ def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filenam
             lhs_candidates = extract_by_condition(LHS, lambda s: not kb.is_const(s) and not kb.is_var(s) and not kb.is_bracket_placeholder(s), kb)
             if len(lhs_candidates) == 0:
                 declared = extract_by_condition(LHS, lambda s: kb.is_const(s) and not kb.is_frozen(s) and not kb.is_bracket_placeholder(s), kb)
-                hint = f' -- `{declared[0]}` is declared already: `def` declares it itself, so remove its `const` (an `arity` or `bool` before the `def` is fine)' if len(declared) == 1 else ''
+                if len(declared) == 1 and (kb.is_sym(declared[0]) or kb.is_flat(declared[0])):
+                    # (`sym`/`flat` declare the operator a constant, so this is where `def` meets it;
+                    # the hint "remove its `const`" misled, there was no `const`, todo 33)
+                    raise KurtException(f'EvalError: `{declared[0]}` is declared `sym` or `flat`, which `def` would have to prove -- define it without, and prove the law')
+                hint = f' -- `{declared[0]}` is declared already: `def` declares it itself, so remove its `const` (an `arity` or `prop` before the `def` is fine)' if len(declared) == 1 else ''
                 raise KurtException(f'EvalError: `def` requires exactly one new constant on the left-hand side, got none in `{expr_str(expr, kb)}`{hint}')
             if len(lhs_candidates) != 1:
                 raise KurtException(f'EvalError: `def` requires exactly one new constant on the left-hand side, got `{lhs_candidates}` in `{expr_str(expr, kb)}`')
@@ -7983,8 +10437,6 @@ def eval_def(kb: KnowledgeBase, expr: Expr, input_line: str, label: str, filenam
             extra = sorted(free_bound_vars(RHS, kb)[0] - set(lhs_vars))
             if extra:
                 raise KurtException(f'EvalError: the variables {", ".join(f"`{v}`" for v in extra)} of the right-hand side of `def` must occur on the left-hand side too')
-            if kb.is_sym(lhs_const) or kb.is_flat(lhs_const):
-                raise KurtException(f'EvalError: `{lhs_const}` is declared `sym` or `flat`, which `def` would have to prove -- define it without')
             meaning = operator_meaning(lhs_const, kb)
             if meaning is not None:
                 raise KurtException(f'EvalError: `def` needs a new symbol without a meaning, but `{lhs_const}` {meaning}')
@@ -8003,8 +10455,9 @@ def operator_meaning(op: str, kb: KnowledgeBase) -> Optional[str]:
         return 'is used in a fact'
     if kb.get_builtins(op):
         return 'is bound to the calculator'
-    if kb.is_flat(op) or kb.is_sym(op):
-        return 'is `flat` or `sym`'
+    # (no `is_flat`/`is_sym` check here: `add_flat`/`add_sym` make `op` a constant as a side
+    # effect, so `op` is only ever passed in here after `eval_def` already excluded a constant --
+    # a `sym`/`flat` operator is caught earlier, by the "got none" error with its own hint)
     if kb.is_chainable(op):
         return 'is in a `chain`'
     if kb.is_bindop(op):
@@ -8090,9 +10543,16 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     if kb.mode_str == 'expect':
         assert len(kb.mode_args) in (1, 2) and isinstance(kb.mode_args[0], Token)
         expected_kind = kb.mode_args[0].value
+        # the block is finished (the user already dedented past it) and didn't do what it
+        # promised, so -- like a `confirmed` expect, or a `sandbox` -- it's discarded, not left
+        # open: there's nothing more it could do to still raise. `kb_after` lets the caller (and
+        # `scan_parse_check_eval`'s indent-stack fixup) see the block as already closed.
+        popped = kb.pop_level()
         # deliberately not one of `KurtException.KNOWN_KINDS`, so this can never be
         # mistaken by `read_eval_loop` for the very error it says didn't happen
-        raise KurtException(f'ExpectationError: this `expect "{expected_kind}"` block finished without raising a `{expected_kind}`')
+        e = KurtException(f'ExpectationError: this `expect "{expected_kind}"` block finished without raising a `{expected_kind}`')
+        e.kb_after = popped
+        raise e
     if len(kb.theory) == 0:
         raise KurtException(f'ProofError: no formula has been proven, this block can only be closed after a successful proof step')
     if kb.theory[-1].expr == todo_token:
@@ -8111,6 +10571,8 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
             expr = last_expr
             for condition, name in reversed(list(zip(kb.mode_args, kb.let_names))):
                 assert kb.parent is not None
+                if kb.is_bool(name):
+                    raise KurtException(LET_STATEMENT_MESSAGE.format(name))     # (a new name used as a statement in the block)
                 if not is_bool_var_token(condition, kb.parent):
                     if isinstance(condition, list):
                         condition = bound_condition(name, condition)     # `let x > 0` binds `x`
@@ -8141,7 +10603,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     # (`arity`, `infix`, ...) are discarded when this level is popped regardless (`pop_level`
     # does not merge symbol tables the way `merge_and_pop` does for a `load`), so there is
     # nothing left to leak except the plain symbol name inside the one formula this block is
-    # already handing up on purpose. Excluding them fixes false rejections like `bool P; arity P
+    # already handing up on purpose. Excluding them fixes false rejections like `prop P; arity P
     # 1; let x / use P x / P x` -- `P` used for the first time inside the block used to be
     # wrongly treated as if it were as scoped as a `let`/`pick`/`const`-introduced individual.
     assert kb.parent is not None, f'BUG: we should be one-level up in `eval_done`'
@@ -8156,8 +10618,30 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     if reading_problem is not None:
         raise KurtException(f'ProofError: {reading_problem}')
 
+    # the variables of the result have the sorts their constants had in the block (todo 34): `let
+    # x`, then `x + 1 > x`, gives `∀ x (...)` over the numbers, also if the last line doesn't say so
+    saved_sorts = run_state.generalized_sorts
+    run_state.generalized_sorts = {**saved_sorts, **block_result_sorts(kb)}
+    try:
+        return close_block_with(kb, mode_str, expr, last_expr, filename)
+    finally:
+        run_state.generalized_sorts = saved_sorts
+
+def block_result_sorts(block: KnowledgeBase) -> dict[str, frozenset[str]]:
+    # the sort of each constant of `block` that becomes a variable of its result: the names of a
+    # `let`, the fixed variables of an `assume`, `case` or `let` condition
+    names = list(block.let_names) + sorted(block.fixed_vars) if block.mode_str in ('let', 'assume', 'case') else []
+    found: dict[str, frozenset[str]] = {}
+    for name in names:
+        sort = block.pos_sort(name, 0)
+        if sort is not None:
+            found[name] = frozenset({sort})
+    return found
+
+def close_block_with(kb: KnowledgeBase, mode_str: str, expr: Expr, last_expr: Expr, filename: str) -> KnowledgeBase:
     # the kernel checks the step, with the block's level (see `kernel_verify_block`)
     block = kb
+    assumption = kb.mode_args[0] if kb.mode_args else None
     rule_name = {'assume': 'impl-intro', 'case': 'impl-intro', 'let': 'forall-intro', 'pick': 'exists-elim'}[mode_str]
     # the result is numbered by the lines of the block (the next line has a number of its own)
     lines = block_lines(block, kb.theory[-1])
@@ -8262,13 +10746,15 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: 'int | str', implicit: bool
     if implicit:
         line = id_after(proven_f.line)
     if proven_expr == todo_token:
-        reason = Reason(str(line), '', 'step', [('todo', [], False)])
+        reason = step_reason([record_certificate(Certificate('todo', planned_expr, frozenset(), proven_f), kb)], filename, str(line))
     else:
         # block all free variables of the planned expression, since they are universally quantified
         blocked_as_domain = frozenset(free_vars_only(planned_expr, kb))
         s = State({}, blocked_as_domain, frozenset())
         certs, _ = derive_expr(planned_expr, filename, s, kb)  # this might raise ProofError exceptions
         reason = step_reason(certs, filename, str(line))
+        if kb._todos:
+            reason.admitted = True      # a `todo` in the proof, needed by the last step or not: the claim is admitted (`CheckResult.proves`)
     # carry the `show`'s own label/local marker forward -- a proved, named theorem must stay
     # exportable exactly like a labelled `use`/`def` axiom would be (see doc/kurt-doc.md's
     # `load` section); this used to be silently dropped (`label = ''` unconditionally) here
@@ -8287,7 +10773,7 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: 'int | str', implicit: bool
     return kb
 
 def is_new_symbol_or_existing_variable(s: str, kb: KnowledgeBase) -> bool:
-    # a variable, or a symbol without any declaration (a predicate declared with `bool`/`arity`
+    # a variable, or a symbol without any declaration (a predicate declared with `prop`/`arity`
     # but not used yet is not a new symbol)
     return kb.is_var(s) or not (kb.is_const(s) or kb.is_operator(s) or kb.is_arity_set(s) or len(kb.bool_sig(s)) > 0 or kb.is_bindop(s))
 
@@ -8362,8 +10848,15 @@ def unpack_condition(expr: Expr, kb: KnowledgeBase) -> tuple[str, Optional[Expr]
 
 # in the block that is opened, `x` will be constant
 # `x` can not be an existing constant
+# `let` fixes a term, never a statement (decided 2026-10-20): binders range over terms, and a statement
+# variable needs no `let` -- in a proof it stays the same statement, an `assume` holds it fixed
+LET_STATEMENT_MESSAGE = ('TypeError: `let` fixes a term, but `{}` is a statement -- a statement variable needs no `let`: '
+                         'in a proof it stays the same statement, and an `assume` holds it fixed in its block')
+
 def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line: int) -> KnowledgeBase:
     new_const, condition = unpack_condition(expr, kb)
+    if new_const.startswith('%') or kb.is_bool(new_const):
+        raise KurtException(LET_STATEMENT_MESSAGE.format(new_const))
     if kb.is_fixed_var(new_const):
         # `assume P $x` / `let $x` would turn the fixed `$x` of the assumption into "for all x"
         raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `let` needs a new name')
@@ -8442,6 +10935,8 @@ def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_li
             try:
                 certs, _ = derive_expr(goal, filename, State.empty(), kb)
                 break
+            except ResourceError:
+                raise                   # (the budget of the line: not another goal)
             except KurtException:
                 continue
         else:
@@ -8459,6 +10954,25 @@ def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_li
     # (3) open a new block, add a new constant and the fact
     kb = kb.push_level('pick', [new_const_expr])     # open a new block
     kb.add_const(new_const)                            # add the new constant to the knowledgebase
+    # the witness has the sort of the bound variable, and no other (todo 34): a witness of `∃ x`
+    # over everything is not made a number by a use as one
+    witness_how = ('pick', filename, line)
+    try:
+        bound, _ = unpack_condition(source.simplified_expr[1], kb)    # type: ignore[index]
+        bound_sorts = kb.variable_sorts(bound)
+    except (KurtException, IndexError, TypeError):
+        bound_sorts = set()
+    declared = kb.pos_sort(new_const, 0)
+    if declared is not None and not all(kb.sort_fits(b, declared) for b in (bound_sorts or {'any'})):
+        # (`real w` before `pick w` from `∃ x` over all objects: the existential gives an object, not
+        # a number -- the kernel's `exists-elim` check, soundness §8.48)
+        over = '/'.join(sorted(bound_sorts)) or 'any'
+        raise KurtException(f'TypeError: the witness `{new_const}` is declared `{declared}`, but the existential is over `{over}`: '
+                            f'it gives an object of `{over}`, not necessarily a `{declared}` -- use another name for the witness')
+    if len(bound_sorts) == 1:
+        kb.set_inferred_sort(new_const, {0: next(iter(bound_sorts))}, witness_how)
+    elif kb.sorts_in_use():
+        kb.sort_how[new_const] = witness_how
     reason = f'added as a fact for witness `{new_const}`'
     # split the input_line into LHS + 'with' + RHS
     input_line = input_line.split('with')[1].strip() if 'with' in input_line else ''
@@ -8500,6 +11014,8 @@ def eval_global_toggle(keyword: str, args: list[Expr], kb: KnowledgeBase) -> Non
     else:
         raise KurtException(f'EvalError: wrong arguments, possible is:\n    {keyword} on\n    {keyword} off')
 
+CHAIN_SOURCE = '<chain transitivity for '     # the "file" of the rules a `chain` generates
+
 def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> KnowledgeBase:
     # for a declared `chain [op_0, ..., op_{n-1}]` (weakest to strongest, e.g. `chain = <= <`),
     # generate and register the genuine two-fact transitivity inference for every ordered
@@ -8511,7 +11027,7 @@ def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> Knowledg
     # `<`/`<=`/`=` chain -- see doc/kurt-soundness.md for the writeup and numbers.kurt's own
     # trimmed-down transitivity section for the before/after).
     # a chain's operators relate either two boolean arguments (e.g. `iff`/`implies`, where
-    # `bool iff 0 1 2` marks positions 1 and 2 boolean too, not just the result) or two
+    # `prop iff 0 1 2` marks positions 1 and 2 boolean too, not just the result) or two
     # ordinary/non-boolean ones (e.g. `<`/`<=`/`=`, where only the result, position 0, is
     # boolean) -- pick `%`- or `$`-prefixed schema variables to match, since a `%`-prefixed
     # name is unconditionally boolean-typed and a bare argument like `$a` defaults to
@@ -8520,7 +11036,7 @@ def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> Knowledg
     lines = [f'use {rule} "chain-trans-{k // n}-{k % n}"' for k, rule in enumerate(chain_transitivity_rules(kb, chain))]
     source = '\n'.join(lines) + '\n'
     stream = io.StringIO(source)
-    stream.name = f'<chain transitivity for {chain}>'   # read_eval_loop needs a real `.name`
+    stream.name = f'{CHAIN_SOURCE}{chain}>'   # read_eval_loop needs a real `.name`
     with quietly():
         return read_eval_loop(stream, kb)
 
@@ -8544,6 +11060,8 @@ def check_chain_transitivity(kb: KnowledgeBase, chain: list[str], filename: str)
         try:
             with quietly():
                 kb = read_eval_loop(stream, kb)
+        except ResourceError:
+            raise                       # (a budget or a cancellation, not a missing rule)
         except KurtException:
             missing.append(rule)
     if missing:
@@ -8622,7 +11140,7 @@ def generate_enumeration_rules(exprs: list[Expr], kb: KnowledgeBase) -> None:
     stream.name = f'{ENUMERATION_SOURCE}>'
     run_state.generating_enumeration = True
     try:
-        with quietly():
+        with quietly(), preserved_line_sorts():
             read_eval_loop(stream, root)
     finally:
         run_state.generating_enumeration = False
@@ -8636,11 +11154,14 @@ def inside_sandbox_or_expect(kb: KnowledgeBase) -> bool:
         node = node.parent
     return False
 
-def block_forbidding_use(kb: KnowledgeBase) -> Optional[str]:
-    # `use` inside a proof-like block would leak an unproven axiom into a seemingly proven result
-    # (e.g. `assume A` + `use B` gives `A implies B`) -- the kind of the innermost such block, or
-    # `None` if `use` is fine here: at the top level of a file, or anywhere inside a `sandbox` or
-    # `expect`, whose content is discarded
+def block_forbidding_declaration(kb: KnowledgeBase) -> Optional[str]:
+    # `use`/`load`/`def`/`chain`/`inline`, and a grammar declaration (`infix`, `prefix`, `postfix`,
+    # `brackets`, `arity`, `bindop`, `flat`, `sym`, `alias`, `sort`) inside a proof-like block would
+    # either leak an unproven axiom into a seemingly proven result (e.g. `assume A` + `use B` gives
+    # `A implies B`) or make the block's notation permanently stick once a surviving formula uses it
+    # (doc/kurt-doc.md §11.2) -- the kind of the innermost such block, or `None` if it's fine here:
+    # at the top level of a file, or anywhere inside a `sandbox` or `expect`, whose content is
+    # discarded
     innermost: Optional[str] = None
     node: Optional[KnowledgeBase] = kb
     while node is not None:
@@ -8656,21 +11177,21 @@ def block_forbidding_use(kb: KnowledgeBase) -> Optional[str]:
 # the input lines of each file or shell session that were accepted, for `save` (see `read_eval_loop`)
 
 # the declarations that make a file's vocabulary (exported, todo 28; `const helper local` not)
-VOCABULARY_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'bool', 'chain', 'const',
-                       'alias', 'tex')
+VOCABULARY_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'prop', 'chain', 'const',
+                       'alias', 'tex', 'lean')
 
 # the statements that declare how symbols are read (`sub` may appear in them, e.g. `arity sub 3`)
-DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'bool',
+DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'prop',
                         'chain', 'var', 'const', 'alias', 'sort')
 
 # statements that only show something: not saved
-SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'list', 'summary',
+SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'info', 'list', 'summary',
                     'tokenize', 'parse', 'breakpoint', 'format'}
 # ... and those that only list something when they come without arguments
 LISTING_KEYWORDS = {'load', 'use', 'def', 'show', 'prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop',
-                    'flat', 'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias', 'builtin'}
+                    'flat', 'sym', 'sort', 'default', 'prop', 'chain', 'var', 'const', 'alias', 'builtin'}
 LIST_PROPERTY_KEYWORDS = ('prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop', 'flat',
-                          'sym', 'sort', 'bool', 'chain', 'var', 'const', 'alias')
+                          'sym', 'sort', 'prop', 'chain', 'var', 'const', 'alias')
 LIST_CATEGORIES = {'files', 'theory', 'use', 'def', 'syntax', 'symbols', 'declarations',
                    *LIST_PROPERTY_KEYWORDS}
 
@@ -8722,26 +11243,32 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     assert isinstance(keyword, str)
     assert isinstance(args, list)
 
-    if keyword in ('infix', 'prefix', 'postfix', 'bool', 'arity', 'bindop', 'brackets', 'alias') or (
-            kb.is_sort_name(keyword) and keyword != 'bool'):
+    if keyword in ('infix', 'prefix', 'postfix', 'prop', 'arity', 'bindop', 'brackets', 'alias') or (
+            kb.is_sort_name(keyword) and keyword != 'prop'):
         # a declaration changes how a symbol is read: not for the symbols of a theory of Kurt
-        # (`infix Nat 50 50`, `bool Nat`, found in the soundness review of 2026-09-29)
-        declared = [t.value for a in args for t in (a if isinstance(a, list) else [a])[:2 if keyword == 'brackets' else 1]
+        # (`infix Nat 50 50`, `prop Nat`, found in the soundness review of 2026-09-29)
+        def element_form(a: Expr) -> bool:
+            # `real ∈ Nat`: the sort of the elements of `Nat` (todo 34) -- about `Nat`, not `∈`
+            return (kb.is_sort_name(keyword) and isinstance(a, list) and len(a) == 2 and isinstance(a[0], Token)
+                    and isinstance(a[0].value, str) and CALCULATOR_MEMBERSHIP in kb.get_builtins(kb.get_alias(a[0].value) or a[0].value))
+        declared = [t.value for a in args for t in ((a[1:] if element_form(a) else a) if isinstance(a, list) else [a])[:2 if keyword == 'brackets' else 1]
                     if isinstance(t, Token) and isinstance(t.value, str)]
         reserved = sorted(symbol for symbol in declared if kb.is_sort_name(symbol))
         if reserved:
-            raise KurtException(f'EvalError: sort name(s) {", ".join(f"`{symbol}`" for symbol in reserved)} cannot also be term symbols')
+            hint = f' -- a subsort is declared with `sort {keyword} {reserved[0]}`' if kb.is_sort_name(keyword) and keyword != 'prop' else ''
+            raise KurtException(f'EvalError: sort name(s) {", ".join(f"`{symbol}`" for symbol in reserved)} cannot also be term symbols{hint}')
         check_not_frozen(declared, keyword, filename, kb)
 
     # a declaration written out at the top level of a file is its vocabulary: exported with all that
     # is known about the symbol (todo 28) -- not in a block, not `var` (it would make a loader's `x`
     # a variable), not with `local` at its end (`const helper local`)
-    if keyword in VOCABULARY_KEYWORDS or (kb.is_sort_name(keyword) and keyword != 'bool'):
+    if keyword in VOCABULARY_KEYWORDS or (kb.is_sort_name(keyword) and keyword != 'prop'):
         if kb.is_load_boundary or kb.mode_str == 'root':
             count = 2 if keyword == 'brackets' else (None if keyword in ('chain', 'flat', 'sym') else 1)
             names = {t.value for a in args for t in (a if isinstance(a, list) else [a])[:count]
                      if isinstance(t, Token) and isinstance(t.value, str) and t.label in ('SYMBOL', 'STRING')
-                     and t.value[:1] not in ('$', '%')}
+                     and t.value[:1] not in ('$', '%')
+                     and not (keyword == 'lean' and kb.is_sort_name(t.value))}   # (`lean real ℝ`: a sort's type, no symbol)
             if local:
                 kb.local_vocabulary |= names
             else:
@@ -8873,7 +11400,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if len(args) == 0:
             log(kb, kb.loaded_files_str().strip())
         else:
-            proof_block = block_forbidding_use(kb)
+            proof_block = block_forbidding_declaration(kb)
             if proof_block is not None:
                 # like `use`: the loaded axioms would look proven inside the block
                 raise KurtException(f'EvalError: `load` is not allowed inside `{proof_block}` -- load before the proof', keyword_token.column)
@@ -8882,7 +11409,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                 match arg[0]:
                     case Token(label='STRING', value=fname):
                         assert isinstance(fname, str)
-                        s_paths = [Path(filename).parent.resolve()] + run_state.theory_path
+                        s_paths = [Path(os.path.abspath(filename)).parent] + run_state.theory_path     # (absolute, symlinks kept: see `same_file`)
                         already_loaded = is_already_loaded(fname, kb, s_paths)
                         try:
                             kb = load_file(fname, kb, search_paths=s_paths, main=False)
@@ -8984,9 +11511,24 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             msg = '\n'.join(sorted([line for line in msg.split('\n') if len(line) > 0]))
         if printing():
             log(kb, msg)
+    elif keyword == 'info':
+        match args:
+            case [[Token(label='STRING'|'SYMBOL', value=s)]] if isinstance(s, str):
+                declarations = kb.syntax_str_all_levels(s).strip()
+                facts = kb.theory_str(symbol=s, locations=True).strip()
+                parts = [part for part in (declarations, facts) if part]
+                msg = '\n'.join(parts) if parts else f'; nothing known about `{s}`'
+            case _:
+                usage = create_usage(keyword, [['SYMBOL']])
+                raise KurtException(f'EvalError: wrong arguments (their number or kind), possible is:\n{usage}', keyword_token.column)
+        if printing():
+            log(kb, msg)
     elif keyword == 'prefix':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `prefix` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9001,6 +11543,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'postfix':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `postfix` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9015,6 +11560,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'infix':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `infix` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9030,6 +11578,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'arity':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `arity` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff: list[tuple[str, int, Optional[Shape]]] = []
         for arg in args:
             match arg:
@@ -9048,6 +11599,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'brackets':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `brackets` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9063,6 +11617,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'bindop':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `bindop` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9075,7 +11632,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'chain':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
-        proof_block = block_forbidding_use(kb) if args else None
+        proof_block = block_forbidding_declaration(kb) if args else None
         if proof_block is not None:
             # a chain is transitivity axioms, like `use`
             raise KurtException(f'EvalError: `chain` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
@@ -9117,7 +11674,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             # source declaration rather than `<chain transitivity ...>:N` in property listings.
             location = run_state.current_line[0]
             if location is not None:
-                for property_name in ('const', 'bool'):
+                for property_name in ('const', 'prop'):
                     origins = kb.property_origins.get(property_name, {})
                     for op in chain:
                         origin = origins.get(op)
@@ -9129,6 +11686,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'flat':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `flat` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9144,6 +11704,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'sym':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `sym` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for arg in args:
             match arg:
@@ -9162,17 +11725,57 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'sort':
         if len(args) == 0:
             log(kb, kb.sort_names_str_all_levels())
-        new_sorts: list[str] = []
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `sort` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
+        # each item is one name (a new sort) or a chain of names, read like `chain`: `sort set real
+        # int` declares the names that are new and `int ⊂ real ⊂ set` (todo 34)
+        items: list[list[str]] = []
         for arg in args:
-            match arg:
-                case [Token(label='SYMBOL', value=sort)] if isinstance(sort, str):
-                    new_sorts.append(sort)
-                case _:
-                    msg = create_usage(keyword, [[], ['SYMBOL']])
-                    raise KurtException(f'EvalError: wrong arguments (their number or kind), possible is:\n{msg}', keyword_token.column)
-        apply_declaration_batch(kb, lambda target: [target.add_sort(sort) for sort in new_sorts])
+            if not arg or any(not (isinstance(t, Token) and t.label == 'SYMBOL' and isinstance(t.value, str)) for t in arg):
+                msg = create_usage(keyword, [[], ['SYMBOL'], ['SYMBOL', 'SYMBOL', '...']])
+                raise KurtException(f'EvalError: wrong arguments (their number or kind), possible is:\n{msg}', keyword_token.column)
+            items.append([t.value for t in arg])   # type: ignore[union-attr]
+        def declare_sorts(target: KnowledgeBase) -> None:
+            for item in items:
+                if len(item) == 1:
+                    target.add_sort(item[0])
+                    continue
+                for sort in item:
+                    if not target.is_sort_name(sort):
+                        target.add_sort(sort)
+                    elif sort == 'prop':
+                        raise KurtException('EvalError: `prop` declares statements -- it is no sort: it has no subsorts and is no subsort')
+                for sup, sub in zip(item, item[1:]):
+                    target.add_subsort(sub, sup)
+        apply_declaration_batch(kb, declare_sorts)
+        relations = [f'{sub} ⊂ {sup}' for item in items for sup, sub in zip(item, item[1:])]
+        if relations and printing():
+            log(kb, f'sort {", ".join(" ".join(item) for item in items)}', Reason(str(line), ', '.join(relations), 'declaration'), kb.level)
 
-    elif kb.is_sort_name(keyword) and keyword != 'bool':
+    elif keyword == 'default':
+        # `default real`: from this line on, a symbol of this file without a declared or inferred
+        # sort gets it (`infer_line_sorts`); the last `default` counts, and it doesn't cross `load`
+        if len(args) == 0:
+            current = kb.current_default()
+            log(kb, f'default {current[0]}' if current is not None else '; no default sort')
+            return kb
+        proof_block = block_forbidding_declaration(kb)
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `default` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
+        match args:
+            case [[Token(label='SYMBOL', value=sort)]] if isinstance(sort, str):
+                pass
+            case _:
+                raise KurtException('EvalError: `default` takes one sort, e.g. `default real`', keyword_token.column)
+        if sort == 'prop':
+            raise KurtException('EvalError: `prop` can not be the default sort -- a statement is boolean by its place', keyword_token.column)
+        if not kb.is_sort_name(sort):
+            raise KurtException(f'EvalError: `{sort}` is not a sort -- declare it first with `sort {sort}`', keyword_token.column)
+        location = run_state.current_line[0]
+        kb.default_sort = (sort, location[0] if location is not None else filename, location[1] if location is not None else line)
+
+    elif kb.is_sort_name(keyword) and keyword != 'prop':
         if len(args) == 0:
             log(kb, kb.sort_signature_str_all_levels(keyword))
         new_stuff: list[tuple[str, list[int]]] = []
@@ -9180,6 +11783,8 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             if not arg or not isinstance(arg[0], Token) or arg[0].label not in ('STRING', 'SYMBOL') or not isinstance(arg[0].value, str):
                 raise KurtException(f'EvalError: `{keyword}` expects a symbol followed by zero or more positions', keyword_token.column)
             op = arg[0].value
+            if kb.is_sort_name(op):
+                raise KurtException(f'EvalError: `{op}` is a sort, not a symbol -- a subsort is declared with `sort {keyword} {op}`', keyword_token.column)
             if any(not isinstance(position, Token) or position.label != 'INT' or not isinstance(position.value, int)
                    for position in arg[1:]):
                 raise KurtException(f'EvalError: `{keyword}` positions must be integers', keyword_token.column)
@@ -9193,18 +11798,18 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         apply_declaration_batch(kb, lambda target: [target.add_sort_signature(keyword, op, positions)
                                                     for op, positions in new_stuff])
 
-    elif keyword == 'bool':
+    elif keyword == 'prop':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
         new_stuff: list[tuple[str, list[int]]] = []
         for args_i in args:
             match args_i:
                 case []:
-                    assert False, f'BUG: empty args in `bool` should have been caught earlier'
+                    assert False, f'BUG: empty args in `prop` should have been caught earlier'
                 case [Token(label='STRING'|'SYMBOL', value=op)]:
                     assert isinstance(op, str)
                     if kb.is_rbracket(op):
-                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                        raise KurtException(f'EvalError: declare `prop` on the left bracket of a bracket pair, not `{op}`')
                     if kb.is_lbracket(op):
                         right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
                         op = f'{op}$$${right}'
@@ -9213,7 +11818,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     assert isinstance(a, int)
                     if kb.is_rbracket(op):
-                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                        raise KurtException(f'EvalError: declare `prop` on the left bracket of a bracket pair, not `{op}`')
                     if kb.is_lbracket(op):
                         right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
                         op = f'{op}$$${right}'
@@ -9222,7 +11827,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     assert isinstance(a, int) and isinstance(b, int)
                     if kb.is_rbracket(op):
-                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                        raise KurtException(f'EvalError: declare `prop` on the left bracket of a bracket pair, not `{op}`')
                     if kb.is_lbracket(op):
                         right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
                         op = f'{op}$$${right}'
@@ -9231,7 +11836,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     assert isinstance(op, str)
                     assert isinstance(a, int) and isinstance(b, int) and isinstance(c, int)
                     if kb.is_rbracket(op):
-                        raise KurtException(f'EvalError: declare `bool` on the left bracket of a bracket pair, not `{op}`')
+                        raise KurtException(f'EvalError: declare `prop` on the left bracket of a bracket pair, not `{op}`')
                     if kb.is_lbracket(op):
                         right = next(r for node in kb.levels() for r, left in node.brackets.items() if left == op)
                         op = f'{op}$$${right}'
@@ -9282,6 +11887,9 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     elif keyword == 'alias':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `alias` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
         new_stuff = []
         for args_i in args:
             match args_i:
@@ -9350,7 +11958,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if len(args) == 0:
             log(kb, kb.theory_str(keyword=keyword).strip())
         else:
-            proof_block = block_forbidding_use(kb)
+            proof_block = block_forbidding_declaration(kb)
             if run_state.strict_mode and proof_block is None and not inside_sandbox_or_expect(kb):
                 check_strict(keyword, filename)
             if proof_block is not None:
@@ -9384,6 +11992,53 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     log(kb, f'tex {shown_builtin_symbol(symbol)} {template}', Reason(str(line), 'how it is written in LaTeX'), kb.level)
             case _:
                 raise KurtException('EvalError: write `tex SYMBOL LATEX`, e.g. `tex alpha \\alpha` or `tex sum \\sum_{$1=$2}^{$3} $4`', keyword_token.column)
+    elif keyword == 'lean':
+        # `lean + $1 + $2`, `lean Obj ℝ`: how a symbol is written by `kurt --lean` with Mathlib (see
+        # `LeanTranslator`), per number of arguments (the largest `$N`) -- only output, like `tex`
+        if len(args) == 0:
+            entries = kb.all_lean()
+            log(kb, '\n'.join(f'lean {k} {t}' for k, v in sorted(entries.items()) for _, t in sorted(v.items()))
+                or '; no lean declarations')
+            return kb
+        match args[0]:
+            case [Token(label=label_kind, value=fact_label), Token(label='STRING', value=tactic)] if label_kind == LEAN_PROOF_TOKEN and isinstance(fact_label, str) and isinstance(tactic, str):
+                # `lean "add-eq" intro a b c h; rw [h]`: a proof in Lean (Mathlib) of the file's fact
+                # "add-eq" -- `kurt --lean` writes the fact as a `theorem` with it, not an `axiom`, and
+                # Lean checks it; Kurt doesn't (only output, like `tex`; see `LeanWriter.require`)
+                level = kb
+                while level.mode_str == 'expect' and level.parent is not None:
+                    level = level.parent             # (inside `expect`: the file's level)
+                if not (level.is_load_boundary or level.mode_str == 'root'):
+                    raise KurtException(f'EvalError: `lean "{fact_label}" ...` only at the top level of a file, after the fact', keyword_token.column)
+                facts = [f for f in level.theory if f.label == fact_label]
+                if not facts:
+                    raise KurtException(f'EvalError: `lean "{fact_label}" ...`: no fact "{fact_label}" of this file before it', keyword_token.column)
+                for f in facts:                  # (two chains give two "chain-trans-0-1")
+                    # (several lines for one fact: the lines of its proof, in their order)
+                    f.lean_proof = tactic if f.lean_proof is None else f'{f.lean_proof}\n{tactic}'
+                if printing():
+                    # (not the tactic: its `;` would read as the start of a comment)
+                    log(kb, f'lean "{fact_label}" ...', Reason(str(line), 'a line of its proof in Lean'), kb.level)
+            case [Token(label='STRING', value=symbol), Token(label='STRING', value=template)] if isinstance(symbol, str) and isinstance(template, str):
+                places = [int(n) for n in re.findall(r'\$(\d+)', template)]
+                arity = max(places, default=0)
+                if symbol == LEAN_CARRIER and arity:
+                    raise KurtException(f'EvalError: `lean {LEAN_CARRIER} TYPE` names the Lean type of the objects, e.g. `lean {LEAN_CARRIER} ℝ` -- without `$1`', keyword_token.column)
+                if sorted(set(places)) != list(range(1, arity + 1)):
+                    raise KurtException(f'EvalError: `lean {symbol} {template}`: the places of the arguments are $1 to ${arity}, each at least once', keyword_token.column)
+                if kb.is_lbracket(symbol):      # a bracket pair by its left bracket, as for `tex`
+                    right = next(r for node in kb.levels() for r, l in node.brackets.items() if l == symbol)
+                    symbol = f'{symbol}$$${right}'
+                elif kb.is_sort_name(symbol) and symbol != 'prop':
+                    # `lean real ℝ`: the Lean type of a sort (not a symbol of the file's vocabulary)
+                    if arity:
+                        raise KurtException(f'EvalError: `lean {symbol} TYPE` names the Lean type of the sort `{symbol}` -- without `$1`', keyword_token.column)
+                    symbol = LEAN_SORT_PREFIX + symbol
+                kb.lean[symbol] = {**kb.lean.get(symbol, {}), arity: template}   # (a new dict: a bundle may share the old one)
+                if printing():
+                    log(kb, f'lean {shown_builtin_symbol(symbol.removeprefix(LEAN_SORT_PREFIX))} {template}', Reason(str(line), 'how it is written in Lean'), kb.level)
+            case _:
+                raise KurtException(f'EvalError: write `lean SYMBOL LEAN`, e.g. `lean + $1 + $2`, `lean pi Real.pi` or `lean {LEAN_CARRIER} ℝ` (or `lean "label" TACTIC`, a proof in Lean of the fact "label")', keyword_token.column)
     elif keyword == 'inline':
         # `inline $a > $b iff $b < $a`, `inline sq $x = $x * $x`: a definition applied while reading
         # -- each use of the new symbol is read as the right side (`expand_inlines`), so it is in no
@@ -9392,7 +12047,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             entries = kb.all_inlines()
             log(kb, '\n'.join(f'inline {k}: {inline_text(v)}' for k, v in sorted(entries.items())) or '; no inline definitions')
             return kb
-        proof_block = block_forbidding_use(kb)
+        proof_block = block_forbidding_declaration(kb)
         if proof_block is not None:
             raise KurtException(f'EvalError: `inline` is not allowed inside `{proof_block}` -- write it before the proof', keyword_token.column)
         for expr in args:
@@ -9447,7 +12102,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if len(args) == 0:
             log(kb, kb.theory_str(keyword=keyword).strip())
         else:
-            proof_block = block_forbidding_use(kb)
+            proof_block = block_forbidding_declaration(kb)
             if proof_block is not None:
                 # like `use`: a symbol defined inside a block would leave it with a meaning that
                 # depends on the block's constants (`let x` / `def k iff P x` gives `∀ x (k iff P x)`)
@@ -9467,7 +12122,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     f, lc = eval_def(pending, expr, input_line, label, filename, line, local)
                     unknown = [s for s in undeclared_symbols(expr, pending) if s != lc]
                     if unknown and run_state.strict_mode and not is_trusted_file(filename):
-                        raise KurtException(f'EvalError: {", ".join(f"`{s}`" for s in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
+                        raise KurtException(f'EvalError: {", ".join(f"`{s}`" for s in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `prop`, ...)')
                     pending.add_new_symbols(expr)
                     formulas.append(f)
                     lhs_consts.append(lc)
@@ -9697,7 +12352,7 @@ def add_assumption_parts(kb: KnowledgeBase, f: Formula, input_line: str, filenam
     # its own step ("and-elim", which the kernel checks) -- as a conjunction to prove is split into
     # its parts. They go before the assumption in the block, whose last fact is its result (an
     # `assume A ∧ B` without another line still gives `A ∧ B ⇒ A ∧ B`). Without a rule for them
-    # (no `load prop`), nothing is added.
+    # (no `load propositional`), nothing is added.
     expr = f.expr
     if not (isinstance(expr, list) and len(expr) > 2 and isinstance(expr[0], Token) and expr[0].value == AND_SYMBOL):
         return
@@ -9707,6 +12362,8 @@ def add_assumption_parts(kb: KnowledgeBase, f: Formula, input_line: str, filenam
     for clause, letter in zip(expr[1:], letters):
         try:
             certs, _ = derive_expr(clause, filename, State.empty(), kb)
+        except ResourceError:
+            raise                       # (the budget of the line)
         except KurtException:
             return
         line_str = f'{line}{letter}'
@@ -9768,7 +12425,7 @@ def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input
                 raise KurtException(f'EvalError: must evaluate to boolean, got `{expr_str(expr, kb)}`')
             if len(kb.theory) > 0:
                 last_formula = kb.theory[-1]
-                if equal_expr(last_formula.expr, expr, kb):
+                if equal_expr(last_formula.expr, expr, kb) and getattr(last_formula, 'sort_reading', ()) == sort_reading(expr, kb):
                     # short-cut to avoid duplicates: restating the last formula is logged, not added again
                     if printing():
                         reason = Reason(str(line), f'by {line_ref(last_formula, filename, quoted=True)}', 'step',
@@ -9779,7 +12436,7 @@ def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input
                     continue
             unknown = undeclared_symbols(expr, kb)
             if len(unknown) > 0 and run_state.strict_mode and not is_trusted_file(filename):
-                raise KurtException(f'EvalError: {", ".join(f"`{n}`" for n in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
+                raise KurtException(f'EvalError: {", ".join(f"`{n}`" for n in unknown)} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `prop`, ...)')
             try:
                 certs, _ = derive_expr(expr, filename, State.empty(), kb)  # this might raise ProofError exceptions
             except KurtException as e:
@@ -9807,7 +12464,7 @@ def eval_expression(keyword_token: Optional[Token], expr_list: list[Expr], input
                         log(kb, sub_f.formula_str(kb), reason, kb.level)
                 # a bare claim can be labelled too, exactly like `use`/`show` -- same mechanism,
                 # since every statement (bare or keyworded) shares `check_expr_label`/`post_process`
-                reason = Reason(str(line), '', 'step', [('and-intro', line_strs, True)], label)
+                reason = Reason(str(line), '', 'step', [('and-intro', line_strs, True)], label, admitted=rests_on_admission(certs), certificates=tuple(certs))
             f = Formula(kb, expr, input_line, str(line), filename, label, reason, keyword='', local=local)
             kb.theory_append(f)                         # add it to the knowledge base
             if printing():
@@ -9848,26 +12505,50 @@ def bool_expr(expr: Expr, kb: KnowledgeBase, strict: bool=True) -> bool:
             return bool_expr(tail[2], kb, strict)
         case [Token(label='SYMBOL', value=v), *_]:
             return bool_expr(expr[0], kb, strict)
+        case [[*_] as head, *_]:
+            # an operator that is itself a compound, `(¬¬=) c c`: what its head is -- the hole of a
+            # `sub` can be cut at an operator (`%b := =` in `c = c`), and "iff-subst" then gave the
+            # `$x` of a fact the value `(¬¬=) c c`, a formula read as a term (soundness §8.39)
+            return bool_expr(head, kb, strict)
     return False
+
+# the key under which the sort of the number literals is stored, like a symbol's (`real` for all
+# of them, inferred where a theory first uses one at a sorted position): no symbol can be called so
+NUMBERS_KEY = 'number literals'
+
+def top_sorts(expr: Expr, kb: KnowledgeBase, bound_sorts: Optional[dict[str, set[str]]] = None) -> set[str]:
+    # the user sorts of the value `expr` (of its top): a symbol's, a variable's, an operator's result
+    match expr:
+        case Token(label='SYMBOL', value=value) if isinstance(value, str):
+            found = kb.variable_sorts(value)
+            if bound_sorts is not None and value in bound_sorts:
+                found = found | (bound_sorts[value] - {'prop'})
+            return found
+        case Token(label='INT' | 'FLOAT'):
+            sort = kb.pos_sort(NUMBERS_KEY, 0)
+            return {sort} if sort is not None else set()
+        case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
+            return top_sorts(body, kb, bound_sorts)
+        case [Token(label='SYMBOL', value=op), *_] if isinstance(op, str):
+            if kb.is_var(op):
+                return kb.variable_sorts(op)       # a variable operator, `$f $a`: the sort of its results
+            sort = kb.pos_sort(op, 0)
+            return {sort} if sort is not None else set()
+    return set()
 
 def sort_expr(expr: Expr, sort: str, kb: KnowledgeBase, strict: bool = True,
               bound_sorts: Optional[dict[str, set[str]]] = None) -> bool:
-    """Whether the top of ``expr`` has an explicitly declared optional sort.
+    """Whether the top of ``expr`` has the optional sort `sort` or a subsort of it (todo 34).
 
-    `bool` retains its established first-use inference. User sorts are deliberately sparse and
-    never inferred: an unconstrained expression simply has no user sort information.
+    `prop` retains its established first-use inference. A user sort is declared, or inferred
+    when a line is read (`infer_line_sorts`); an expression without one fits no sorted position.
     """
-    if sort == 'bool':
+    if sort == 'prop':
         return bool_expr(expr, kb, strict)
-    match expr:
-        case Token(label='SYMBOL', value=value) if isinstance(value, str):
-            return ((bound_sorts is not None and sort in bound_sorts.get(value, set()))
-                    or sort in kb.variable_sorts(value) or 0 in kb.sort_sig(sort, value))
-        case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
-            return sort_expr(body, sort, kb, strict, bound_sorts)
-        case [Token(label='SYMBOL', value=op), *_] if isinstance(op, str):
-            return 0 in kb.sort_sig(sort, op)
-    return False
+    if sort == 'any':
+        return True                     # (every value fits where `any` is required, todo 35)
+    found_sorts = top_sorts(expr, kb, bound_sorts)
+    return any(kb.sort_fits(found, sort) for found in found_sorts)
 
 def expr_column(expr : Expr) -> int:
     match expr:
@@ -9880,9 +12561,151 @@ def expr_column(expr : Expr) -> int:
             assert len(children) > 0
             return expr_column(children[0])
 
+def bare_operator_as_value(e: Expr, kb: KnowledgeBase) -> bool:
+    # a concrete operator on its own (`f` with `arity f 1`, `+`, `∪`) where a term is required -- no
+    # object (doc/kurt-doc.md §5.3, decided 2026-10-20). An operator variable (`var ∘`) on its own is
+    # a schematic operator, allowed: only an operator is put in for it (`k_has_kind`)
+    return (isinstance(e, Token) and e.label == 'SYMBOL' and isinstance(e.value, str) and e != LHS_token
+            and takes_arguments(e.value, kb) and not kb.is_var(e.value) and not kb.is_fixed_var(e.value))
+
+def operator_parameters(op: str, kb: KnowledgeBase) -> set[tuple[int, ...]]:
+    # the places of `op`'s arguments that take an operator: an operator variable there in a fact --
+    # the left side of a definition, `def group($G, (∘), $e, (ι)) ⇔ ...` (`(1, 2)`: the second
+    # element of the tuple that is the first argument), a rule, `converges((σ), $L) ⇔ ...`, also
+    # below the top, `def (φ ∘ ψ)($x) = φ(ψ($x))`. Remembered until the theory grows
+    size = sum(len(node.theory) for node in kb.levels())
+    key = (op, size, symbol_version[0])
+    cached = run_state.operator_parameters_cache.get(key)
+    if cached is not None:
+        return cached
+    found: set[tuple[int, ...]] = set()
+    def operator_variable(e: Expr, applied: set[str]) -> bool:
+        # (an operator variable, also by its fresh name in a stored fact -- or, in the left side of a
+        # definition, any operator: a loading file doesn't see `var ∘`, only `infix ∘` -- or a variable
+        # the fact applies to arguments, `R` of `reflexive((R), $A) ⇔ ∀ x ∈ $A (R(x, x))`, a relation)
+        return isinstance(e, Token) and isinstance(e.value, str) and (
+            (is_operator_variable(e.value, kb) and (kb.is_var(e.value) or is_internal_name(e.value) or not kb.is_const(e.value)))
+            or e.value in applied)
+    def places(e: Expr, path: tuple[int, ...], applied: set[str]) -> None:
+        if operator_variable(e, applied):
+            found.add(path)
+        elif isinstance(e, list) and e and isinstance(e[0], Token) and (e[0].value == ',' or kb.is_bracket_placeholder(str(e[0].value))):
+            for i, c in enumerate(e[1:], 1):
+                places(c, path + (i,), applied)
+    def search(e: Expr, applied: set[str]) -> None:
+        if isinstance(e, list) and e:
+            if isinstance(e[0], Token) and e[0].value == op:
+                for i, arg in enumerate(e[1:], 1):
+                    places(arg, (i,), applied)
+            for c in e:
+                search(c, applied)
+    if not kb.is_var(op):
+        for f in kb.all_theory():
+            search(f.expr, applied_variables([f.expr], kb) | {v for v in applied_variables_internal(f.expr)})
+    run_state.operator_parameters_cache[key] = found
+    return found
+
+def allowed_bare_operators(expr: Expr, kb: KnowledgeBase) -> set[int]:
+    # the ids of the bare operators of `expr`'s arguments at operator parameters (`(+)` of `group(R,
+    # (+), 0, (-))`), which the type check lets through
+    allowed: set[int] = set()
+    if not (isinstance(expr, list) and expr and isinstance(expr[0], Token) and isinstance(expr[0].value, str)):
+        return allowed
+    for path in operator_parameters(expr[0].value, kb):
+        node: Expr = expr
+        for i in path:
+            if isinstance(node, list) and len(node) > i:
+                node = node[i]
+            else:
+                node = None      # type: ignore[assignment]
+                break
+        if isinstance(node, Token):
+            allowed.add(id(node))
+    return allowed
+
+def bare_operator_as_statement(e: Expr, kb: KnowledgeBase) -> bool:
+    # a boolean operator on its own (`P` with `prop P` and `arity P 2`, `(=)`, `(∧)`) where a
+    # statement is required: it yields a statement only applied to its arguments. A variable is
+    # never one (an operator variable, `var rel`, is matched as an operator); a symbol of arity 0
+    # (`prop A`) is a statement
+    return (isinstance(e, Token) and e.label == 'SYMBOL' and isinstance(e.value, str) and e != LHS_token
+            and not kb.is_var(e.value) and kb.is_bool(e.value) and takes_arguments(e.value, kb))
+
+def operator_usage(e: Expr, kb: KnowledgeBase) -> str:
+    # how the operator `e` makes a statement, for a message: `P a b`, `a = b`, `¬ a`
+    assert isinstance(e, Token) and isinstance(e.value, str)
+    v = e.value
+    if kb.is_infix(v):
+        return f'write it between its arguments, e.g. `a {v} b`'
+    if kb.is_prefix(v):
+        return f'write it before its argument, e.g. `{v} a`'
+    if kb.is_postfix(v):
+        return f'write it after its argument, e.g. `a {v}`'
+    n = kb.get_arity(v)
+    return f'apply it to its {n} argument{"s" if n != 1 else ""}, e.g. `{v} {" ".join("abcdefgh"[:max(n, 1)])}`'
+
+def statement_variable_bound(name: str, expr: Expr, kb: KnowledgeBase) -> bool:
+    # whether the binder `expr` binds `name` as a statement: a `%` variable, a declared statement
+    # (`var p; prop p`), or a name the body uses at a statement place (`∀ q (q ∨ ¬q)`)
+    if name.startswith('%') or kb.is_bool(name):
+        return True
+    def at_statement_place(e: Expr) -> bool:
+        if not isinstance(e, list) or not e:
+            return False
+        head = e[0]
+        if isinstance(head, Token) and isinstance(head.value, str):
+            signature = kb.bool_sig(head.value)
+            for i, arg in enumerate(e[1:], 1):
+                if isinstance(arg, Token) and arg.value == name and i in signature and not (kb.is_bindop(head.value) and i == 1):
+                    return True
+        return any(at_statement_place(c) for c in e)
+    body = expr[-1]                                                                                  # type: ignore[index]
+    head = expr[0]                                                                                   # type: ignore[index]
+    if isinstance(body, Token) and body.value == name and isinstance(head, Token) and len(expr) - 1 in kb.bool_sig(head.value):   # type: ignore[arg-type]
+        return True
+    return at_statement_place(body)
+
+def applied_variables(exprs: list[Expr], kb: KnowledgeBase) -> set[str]:
+    # the relation variables applied to arguments in these formulas: `R` of `R(x, x)` -- with `var R; prop R 0`
+    # (doc/kurt-doc.md, a relation as a parameter) `R` is a relation, and `reflexive((R), $A)` passes
+    # it as an operator, no statement (the same declarations as a statement variable `var p; prop p`)
+    found: set[str] = set()
+    def visit(e: Expr) -> None:
+        if isinstance(e, list) and e:
+            head = e[0]
+            if isinstance(head, Token) and isinstance(head.value, str) and kb.is_var(head.value) and len(e) > 1 \
+                    and (head.value.startswith('%') or kb.is_bool(head.value)):
+                found.add(head.value)      # (a relation; not a mapping `$f` applied, `$f a`, set.kurt)
+            for c in e:
+                visit(c)
+    for e in exprs:
+        visit(e)
+    return found
+
+def applied_variables_internal(e: Expr) -> set[str]:
+    # the internal statement-variable names (`%%07`) a stored fact applies to arguments: relations
+    # (`applied_variables` by their stored names, which `kb.is_var` doesn't know)
+    found: set[str] = set()
+    if isinstance(e, list) and e:
+        head = e[0]
+        if isinstance(head, Token) and isinstance(head.value, str) and is_internal_name(head.value) and head.value.startswith('%') and len(e) > 1:
+            found.add(head.value)
+        for c in e:
+            found |= applied_variables_internal(c)
+    return found
+
+def places_settled(op: str, kb: KnowledgeBase) -> bool:
+    # whether the places of `op` are known: it was used, or something is declared about its places
+    # (a statement place, a sort, a role) -- the first use of a new operator decides which places
+    # take statements (`A xor B`: `xor` takes two), and that is final, like the first sorted use
+    if op == COMMA_SYMBOL:
+        return True        # (the comma of a tuple takes terms; a list of names, `let p, q`, is split off before)
+    return kb.is_used(op) or bool(kb.bool_sig(op)) or bool(kb.get_builtins(op)) \
+        or any(kb.pos_sort(op, i) is not None for i in range(0, 4))
+
 def type_check_expression(expr: Expr, kb: KnowledgeBase,
                           bound_sorts: Optional[dict[str, set[str]]] = None) -> None:
-    # this uses the declared boolean-ness of some symbols via `kb.bool` and `bool_expr`
+    # this uses the declared boolean-ness of some symbols via `kb.prop` and `bool_expr`
     # and in contrast to `bool_expr` it goes done the expression tree
     match expr:
 
@@ -9899,12 +12722,9 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
             if be and not bv:
                 raise KurtException(f'TypeError: first arg of `sub` is variable, but second is boolean expression', column=expr_column(a))
             if isinstance(var_x, Token) and isinstance(var_x.value, str):
-                for sort in kb.all_sort_names():
-                    if sort == 'bool':
-                        continue
-                    var_has_sort = (bound_sorts is not None and sort in bound_sorts.get(var_x.value, set())) \
-                                   or 0 in kb.sort_sig(sort, var_x.value)
-                    if var_has_sort and not sort_expr(a, sort, kb, bound_sorts=bound_sorts):
+                var_sorts = kb.variable_sorts(var_x.value) | ((bound_sorts or {}).get(var_x.value, set()) - {'prop'})
+                for sort in sorted(var_sorts):
+                    if not sort_expr(a, sort, kb, bound_sorts=bound_sorts):
                         raise KurtException(f'TypeError: first arg of `sub` has sort `{sort}`, but its replacement does not', column=expr_column(a))
             type_check_expression(A, kb, bound_sorts)
 
@@ -9921,24 +12741,65 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                     binder_name, _ = unpack_condition(tail[0], kb)
                 except KurtException:
                     binder_name = None
+                if binder_name is not None and op != SUB_SYMBOL and statement_variable_bound(binder_name, expr, kb):
+                    # (binders range over terms, decided 2026-10-20: a statement variable is schematic --
+                    # `%A` free in a `use` or `show` says "for every statement" -- and never bound)
+                    raise KurtException(f'TypeError: `{op}` binds `{binder_name}`, a statement -- a binder ranges over terms; '
+                                        f'for every statement, write a statement variable free: `use %A ∨ ¬%A`', column=expr_column(tail[0]))
+                if binder_name is not None and kb.sorts_in_use():
+                    inferred = binder_node_sorts(expr, kb)       # (its places in the binder, todo 34)
+                    inner_bound_sorts[binder_name] = set(inferred) | set(kb.position_sorts(op, 1) - {'prop'})
+            flat = kb.is_flat(op) or kb.is_bracket_placeholder(op)     # (`{a, b, c}`: each argument an element)
+            bool_signature = kb.bool_sig(op)
+            run_state.allowed_bare_operators |= allowed_bare_operators(expr, kb)
             for idx in range(1, len(expr)):
                 ei = expr[idx]
-                for sort in kb.all_sort_names():
-                    signature = kb.sort_sig(sort, op)
-                    required = 1 in signature if kb.is_flat(op) and idx >= 1 else idx in signature
+                position = 1 if flat else idx
+                if bare_operator_as_value(ei, kb) and id(ei) not in run_state.allowed_bare_operators \
+                        and op != SUB_SYMBOL and not (kb.is_bindop(op) and idx == 1) and position not in bool_signature:
+                    # (an operator is no object, decided 2026-10-20: only an operator variable of a defined
+                    # predicate takes one, `group(R, (+), 0, (-))`; a function as a value is a mapping)
+                    raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` is an operator without its arguments '
+                                        f'-- an operator is no object; a function as a value is a mapping of set.kurt (`f ∈ A → B`, applied `f a`)',
+                                        column=expr_column(ei))
+                if position not in bool_signature and op not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_bindop(op) \
+                        and ei != LHS_token and id(ei) not in run_state.allowed_bare_operators \
+                        and not (isinstance(ei, Token) and ei.value in run_state.applied_variables) \
+                        and places_settled(op, kb) and bool_expr(ei, kb, strict=True):
+                    # (a statement is no object, decided 2026-10-20: the statements and the terms (`any` and
+                    # its sorts) are two categories; a binder's body is what the binder says -- a statement
+                    # for `∀` and `{x ∈ A | F}`, a term for `sum`)
+                    raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` is a statement where a term is required '
+                                        f'-- a statement is no object; to compare statements, use `⇔`',
+                                        column=expr_column(ei))
+                required_sorts = (['prop'] if position in bool_signature else []) + \
+                                 ([user] if (user := kb.pos_sort(op, position)) is not None else [])
+                for sort in required_sorts:
+                    required = True
                     binds_this_position = kb.is_bindop(op) and idx == 1 and binder_name is not None \
                                           and isinstance(ei, Token) and ei.value == binder_name
                     sort_environment = inner_bound_sorts if kb.is_bindop(op) and idx in (1, len(expr) - 1) else bound_sorts
-                    if required and binds_this_position:
-                        inner_bound_sorts.setdefault(binder_name, set()).add(sort)
+                    if required and (binds_this_position or (kb.is_bindop(op) and idx == 1 and sort != 'prop')):
+                        # (the sort of a binder's variable -- also with a condition, `max ($v ∈ A) ...`)
+                        inner_bound_sorts.setdefault(binder_name, set()).add(sort) if binder_name is not None else None
+                    elif required and sort == 'prop' and isinstance(ei, Token) and isinstance(ei.value, str) \
+                            and not kb.is_bool(ei.value) and any(ei.value in node.let_names for node in kb.levels()):
+                        raise KurtException(LET_STATEMENT_MESSAGE.format(ei.value), column=expr_column(ei))   # (`let q`, then `q ∨ ¬q`)
+                    elif required and sort == 'prop' and bare_operator_as_statement(ei, kb):
+                        # `¬ P` with `arity P 2`: `P` yields a statement, but only applied to its
+                        # arguments -- on its own it is neither a statement nor a term (todo 32, soundness §8.40)
+                        raise KurtException(f'TypeError: arg number {idx} of `{op}` must be a statement, but `{expr_str(ei, kb)}` is an operator '
+                                            f'without its arguments -- {operator_usage(ei, kb)}', column=expr_column(ei))
                     elif required and not sort_expr(ei, sort, kb, strict=False, bound_sorts=sort_environment) and ei != LHS_token:
                         hint = ''
-                        if sort == 'bool' and isinstance(ei, list) and ei and isinstance(ei[0], Token) and isinstance(ei[0].value, str) \
+                        if sort == 'prop' and isinstance(ei, list) and ei and isinstance(ei[0], Token) and isinstance(ei[0].value, str) \
                                 and ei[0].value.startswith('$') and not kb.is_operator(ei[0].value):
                             # `$R(x, x)` for a relation as a parameter: a `$` variable is a term
                             name = ei[0].value[1:]
-                            hint = (f' -- a relation as a parameter is a variable with a boolean result: `var {name}`, `bool {name} 0`, '
+                            hint = (f' -- a relation as a parameter is a variable with a boolean result: `var {name}`, `prop {name} 0`, '
                                     f'then `{name}(x, y)`, or with `infix {name} 20 20` also `x {name} y`')
+                        elif isinstance(ei, Token) and isinstance(ei.value, str):
+                            hint = membership_hint(ei.value, sort, kb)
                         raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` must have sort `{sort}`{hint}', column=expr_column(ei))
             # (2) additional checks for binding operators
             if kb.is_bindop(op):
@@ -9975,8 +12836,536 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                 for e in tail:
                     type_check_expression(e, kb, bound_sorts)
 
+        # an application whose operator is itself an expression (`(¬¬P) c c`): its parts too
+        case [[*_], *_]:
+            for e in expr:
+                type_check_expression(e, kb, bound_sorts)
+
         case Token(label='SYMBOL', value=value) if isinstance(value, str) and kb.is_sort_name(value):
             raise KurtException(f'TypeError: sort name `{value}` cannot be used as a term symbol')
+
+############################
+## sorts: inference (todo 34)
+############################
+# A symbol without a declared sort takes the sort of its first sorted use (`x + 1`: `real`), in
+# every file; where the use also takes smaller sorts (a `set` position, and `real ⊂ set`), the
+# `default` of the file decides, without one the position's own sort. A later use at a smaller
+# sort makes it smaller (`x ∈ A`, then `x + 1`: `set`, then `real`) -- for a symbol whose sort was
+# inferred or given by the default in this file; a use at a sort that doesn't fit (`vec`) is a
+# type error naming both lines. Variables (`$x`, a `var`, a bound variable) get theirs per line,
+# from all their uses in it. The line's inferences are pending (`run_state.pending_sigs`,
+# `run_state.line_var_sorts`) until it is checked, then `commit_line_sorts` stores them.
+
+def sort_meet(sorts: list[str], kb: KnowledgeBase) -> Optional[str]:
+    # the greatest sort that fits all of `sorts`: one of them (the smallest), else the one greatest
+    # common subsort of all declared ones (`c ⊂ a`, `c ⊂ b`: a use as `a` and as `b` is a `c`), or
+    # None -- none, or two that don't fit each other (dev/todo-order-sorted.md item 7)
+    distinct = list(dict.fromkeys(sorts))
+    for candidate in distinct:
+        if all(kb.sort_fits(candidate, other) for other in distinct):
+            return candidate
+    declared = {name for pair in kb.all_subsorts() for name in pair}
+    lower = [c for c in sorted(declared) if all(kb.sort_fits(c, other) for other in distinct)]
+    greatest = [c for c in lower if all(kb.sort_fits(d, c) for d in lower)]
+    return greatest[0] if len(greatest) == 1 else None
+
+def resolve_sort(sort: str, default: Optional[str], kb: KnowledgeBase, places: Optional[list] = None) -> tuple[str, str]:
+    # a use at `sort` that also takes smaller sorts: the default decides, if it fits -- at an element
+    # (the left of `∈`, in `{a, b}`), not at a set (the right of `∈`, `⊂`: `$A` of `$a ∈ $A` stays a set)
+    if places is not None and any(r == sort and not element for r, _, element in places):
+        return sort, 'inferred'
+    if default is not None and default != sort and kb.has_subsorts(sort) and kb.sort_fits(default, sort):
+        return default, 'default'
+    return sort, 'inferred'
+
+def has_definition(symbol: str, kb: KnowledgeBase) -> bool:
+    return any(f.def_symbol == symbol for f in kb.all_theory())
+
+def from_this_file(symbol: str, kb: KnowledgeBase, here: str) -> bool:
+    # a symbol that this file introduces: new, or declared here (not by a loaded file)
+    if not kb.is_known(symbol) and not kb.is_used(symbol):
+        return True
+    if kb.get_declared_in(symbol) == here:
+        return True
+    for node in kb.levels():
+        for keyword in ('const', 'arity', 'prop'):
+            origin = node.property_origins.get(keyword, {}).get(symbol)
+            if origin is not None:
+                return origin[0] == here
+    return False
+
+def operator_arity(op: str, used_with: int, kb: KnowledgeBase) -> int:
+    if kb.is_bracket_placeholder(op):
+        return 1
+    if kb.is_infix(op):
+        return 2
+    if kb.is_prefix(op) or kb.is_postfix(op):
+        return 1
+    if kb.is_arity_set(op):
+        return kb.get_arity(op)
+    return used_with
+
+def where(location: tuple[str, int]) -> str:
+    current = run_state.current_line[0]
+    return f'line {location[1]}' if current is not None and location[0] == current[0] \
+        else f'{os.path.basename(location[0])}:{location[1]}'
+
+def shown_symbol(symbol: str) -> str:
+    if symbol == NUMBERS_KEY:
+        return 'the numbers'
+    return f'`{symbol.split("$$$", 1)[0] if "$$$" in symbol else symbol}`'
+
+def defined_symbol(definition: Expr) -> Optional[str]:
+    # the symbol a `def` line defines, `c` of `c = R` or `f` of `f(x) = R`
+    if not (isinstance(definition, list) and len(definition) == 3):
+        return None
+    lhs = definition[1]
+    if isinstance(lhs, Token):
+        return lhs.value if isinstance(lhs.value, str) else None
+    if isinstance(lhs, list) and lhs and isinstance(lhs[0], Token) and isinstance(lhs[0].value, str):
+        return lhs[0].value
+    return None
+
+class SortUses:
+    # what one walk over a formula found (`analyse_sorts`): for each symbol the sorts its places
+    # require, with the column of the place
+    def __init__(self) -> None:
+        self.free: dict[str, list[tuple[str, Optional[int]]]] = {}       # the free variables (`$x`, a `var`)
+        self.binders: dict[int, tuple[str, list[tuple[str, Optional[int]]]]] = {}   # a binder (its id): its variable, its places
+        self.consts: dict[str, list[tuple[str, Optional[int]]]] = {}     # constants, operators, the numbers (`NUMBERS_KEY`)
+        self.statements: set[str] = set()                                 # symbols at a boolean place: no user sort
+        self.statement_binders: set[int] = set()                          # ... the binders (their id) whose variable is at one
+
+def position_sort(op: str, i: int, kb: KnowledgeBase) -> Optional[str]:
+    # the sort the `i`-th argument of `op` must have ('prop' for a statement), or None
+    position = 1 if kb.is_flat(op) or kb.is_bracket_placeholder(op) else i     # (`{a, b, c}`: each an element)
+    if position in kb.bool_sig(op):
+        return 'prop'
+    return kb.pos_sort(op, position)
+
+def analyse_sorts(e: Expr, kb: KnowledgeBase, statement: bool) -> SortUses:
+    uses = SortUses()
+    def note(symbol: str, required: Optional[str], binder: Optional[int], column: Optional[int], element: bool = False) -> None:
+        if required == 'prop':
+            uses.statements.add(symbol)
+            if binder is not None:
+                uses.statement_binders.add(binder)
+            return
+        if required == 'any':
+            required = None             # (a place of `any` takes every sort: it constrains nothing, todo 35)
+        if binder is not None:
+            places = uses.binders[binder][1]
+        else:
+            places = (uses.free if kb.is_var(symbol) else uses.consts).setdefault(symbol, [])
+        if required is not None:
+            places.append((required, column, element))
+    def walk(e: Expr, required: Optional[str], bound: dict[str, int], element: bool = False) -> None:
+        match e:
+            case Token(label='SYMBOL', value=v) if isinstance(v, str):
+                if v == LHS_token.value or v in keywords or kb.is_sort_name(v):
+                    return
+                note(v, required, bound.get(v), e.column, element)
+            case Token(label='INT' | 'FLOAT'):
+                note(NUMBERS_KEY, required, None, e.column, element)
+            case [Token(label='SYMBOL', value=op), x, a, A] if op == SUB_SYMBOL:
+                walk(x, None, bound)
+                walk(a, None, bound)
+                walk(A, required, bound)
+            case [Token(label='SYMBOL', value=op) as head, *args] if isinstance(op, str) and op != BOUND_SYMBOL:
+                if kb.is_sort_name(op):
+                    return
+                walk(head, required, bound, element)   # the sort of its result is the operator's
+                if kb.is_bindop(op) and args:
+                    try:
+                        bv, condition = unpack_condition(args[0], kb)
+                    except KurtException:
+                        for a in args:
+                            walk(a, None, bound)
+                        return
+                    uses.binders[id(e)] = (bv, [])
+                    inner = {**bound, bv: id(e)}
+                    slot = kb.pos_sort(op, 1)
+                    if slot is not None:
+                        uses.binders[id(e)][1].append((slot, head.column, False))
+                    if condition is not None:
+                        walk(condition, 'prop', inner)
+                    middle, body = binder_scope(args[1:])
+                    for i, a in enumerate(middle, 2):
+                        walk(a, position_sort(op, i, kb), bound)
+                    for a in body:
+                        walk(a, position_sort(op, len(args), kb), inner)
+                    return
+                membership = len(args) == 2 and CALCULATOR_MEMBERSHIP in kb.get_builtins(op)
+                element_sort = container_element_sort(args[1], kb) if membership else None   # (`x ∈ {1, 2}`: `x` a number)
+                elements = membership or kb.has_role(op, 'setbrackets')     # (`{a, b}`: elements)
+                for i, a in enumerate(args, 1):
+                    if i == 1 and element_sort is not None:
+                        walk(a, element_sort, bound)
+                    else:
+                        walk(a, position_sort(op, i, kb), bound, (membership and i == 1) or (elements and not membership))
+            case [*children]:
+                for c in children:
+                    walk(c, None, bound)
+    walk(e, 'prop' if statement else None, {})
+    return uses
+
+def bounded_sorts(node: Expr, sorts: frozenset[str], kb: KnowledgeBase, s: Optional['State'] = None) -> frozenset[str]:
+    # a binder over the elements of a set whose elements have a sort (`∀ x ∈ Int`, `real ∈ Int`) is
+    # one over that sort, whatever sort (no smaller one) its variable was given: `∀ x ∈ Int` over
+    # all objects and over the numbers are the same (todo 34). `s`: the values of a rule's variables
+    if not (isinstance(node, list) and len(node) >= 2):
+        return sorts
+    try:
+        bv, condition = unpack_condition(node[1], kb)
+    except KurtException:
+        return sorts
+    match condition:
+        case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=v), container] \
+                if v == bv and isinstance(op, str) and CALCULATOR_MEMBERSHIP in kb.get_builtins(op):
+            if s is not None:
+                container = apply_subst(container, s, kb)
+            element = container_element_sort(container, kb)
+            if element is not None and all(kb.sort_fits(element, x) for x in sorts):
+                return frozenset({element})
+    return sorts
+
+def container_element_sort(container: Expr, kb: KnowledgeBase) -> Optional[str]:
+    # the sort of the elements of a set written by its elements, all of one sort (`{1, 2}`, `{0, 2, ...}`);
+    # no other set has one: a fact or a declaration gives its elements no sort (todo 35)
+    if isinstance(container, list) and len(container) > 1 and isinstance(container[0], Token) \
+            and kb.has_role(container[0].value, 'setbrackets'):
+        sorts: list[str] = []
+        for element in container[1:]:
+            if is_ellipsis(element):
+                continue
+            found = top_sorts(element, kb)
+            if len(found) != 1:
+                return None
+            sorts.append(next(iter(found)))
+        # (the biggest of them, which all fit: `{1, {2}}` is a set of sets)
+        return next((c for c in dict.fromkeys(sorts) if all(kb.sort_fits(o, c) for o in sorts)), None)
+    return None
+
+def sort_of_variable(name: str, places: list[tuple[str, Optional[int]]], kb: KnowledgeBase) -> Optional[str]:
+    # the sort of a variable of a formula: the smallest of the sorts its places require (the
+    # `default` decides where that also takes smaller ones), without any the `default`, or None
+    default_entry = kb.current_default()
+    default = default_entry[0] if default_entry is not None else None
+    if not places:
+        return default
+    places = [place for place in places if place[0] != 'any']      # (a place of `any` takes every sort: no constraint)
+    if not places:
+        return default
+    meet = sort_meet([r for r, *_ in places], kb)
+    if meet is None:
+        first = places[0][0]
+        other, column = next((r, c) for r, c, _ in places if not kb.sort_fits(r, first) and not kb.sort_fits(first, r))
+        raise KurtException(f'TypeError: {shown_symbol(name)} is used as `{first}` and as `{other}`, which don\'t fit each other', column)
+    return resolve_sort(meet, default, kb, places)[0]
+
+def variable_sort_wanted(name: str, uses: SortUses, kb: KnowledgeBase) -> bool:
+    return not (name[0] == '%' or name in uses.statements or kb.is_bool(name) or is_poly_variable(name))     # (a `$$x` has no sort of its own)
+
+def binder_node_sorts(node: Expr, kb: KnowledgeBase) -> frozenset[str]:
+    # the sorts of a binder in the canonical form: over all objects is no sort, `{}` -- not `{any}`
+    # (two forms of the same range made the search and the kernel disagree, soundness §8.47)
+    return binder_node_sorts_as_read(node, kb) - ANY_SORTS
+
+def binder_node_sorts_as_read(node: Expr, kb: KnowledgeBase) -> frozenset[str]:
+    # the sorts of the variable a binder binds (todo 34): the one of its renamed variable, the one
+    # its block gave it (`let x`, see `block_result_sorts`), a declared one -- or inferred from its
+    # places in the binder (and the `default`): a function of the formula, so the same binder
+    # has the same sort whenever it is read
+    assert isinstance(node, list) and len(node) >= 2
+    bv, _ = unpack_condition(node[1], kb)
+    if is_poly_variable(bv):
+        return frozenset()              # (a polymorphic variable `$$x` is a sort variable: it has no sort of its own, todo 35)
+    if is_internal_name(bv):
+        return frozenset(kb.variable_sorts(bv))     # (renamed: the sort it was stored with, never read again)
+    if bv in run_state.generalized_sorts:
+        return run_state.generalized_sorts[bv]
+    declared = kb.pos_sort(bv, 0)
+    slot = kb.pos_sort(node[0].value, 1) if isinstance(node[0], Token) and isinstance(node[0].value, str) else None
+    if declared is not None:
+        return frozenset({declared} | ({slot} if slot is not None else set()))
+    if not kb.sorts_in_use() or (bv[0] == '%' or kb.is_bool(bv)):
+        return frozenset()
+    uses = analyse_sorts(node, kb, False)
+    entry = uses.binders.get(id(node))
+    if id(node) in uses.statement_binders or (entry is None and bv in uses.statements):
+        return frozenset()          # (its variable is a statement -- this binder's, not one it shadows)
+    if entry is None:
+        return frozenset()          # (over all objects)
+    try:
+        sort = sort_of_variable(bv, entry[1], kb)
+    except KurtException:
+        return frozenset()          # (reported when the line was read)
+    # (a binder without a sort -- no declaration, no sorted place, no `default` -- is over all
+    # objects, as a top-level `∀` is a schema over all of them: one reading, todo 35)
+    return frozenset({sort}) if sort is not None else frozenset()
+
+def formula_free_sorts(e: Expr, kb: KnowledgeBase) -> dict[str, frozenset[str]]:
+    # the sorts of the free variables of a formula (its schematic `$x`): from their places in it
+    found: dict[str, frozenset[str]] = {}
+    if not kb.sorts_in_use():
+        return found
+    uses = analyse_sorts(e, kb, False)
+    for name, places in uses.free.items():
+        if not variable_sort_wanted(name, uses, kb) or is_internal_name(name):
+            continue
+        if name in run_state.generalized_sorts:
+            found[name] = run_state.generalized_sorts[name]
+            continue
+        declared = kb.pos_sort(name, 0)
+        if declared is not None:
+            found[name] = frozenset({declared})
+            continue
+        try:
+            sort = sort_of_variable(name, places, kb)
+        except KurtException:
+            continue
+        if sort is not None:
+            found[name] = frozenset({sort})
+    return found
+
+def sort_reading(e: Expr, kb: KnowledgeBase) -> tuple:
+    # how the sorts read a formula as written: the sorts of its free variables (in the order they
+    # occur) and of its binders (in order) -- a line restates a fact only if it is read the same
+    # (`∀ c (R c)` after `let c` with `c + 0 = c` is about the numbers, written again it is not)
+    if not kb.sorts_in_use() or not has_raw_variables(e, kb):
+        return ()
+    free = formula_free_sorts(e, kb)
+    order: list[str] = []
+    binders: list[frozenset[str]] = []
+    def walk(x: Expr) -> None:
+        if isinstance(x, Token):
+            if isinstance(x.value, str) and x.value in free and x.value not in order:
+                order.append(x.value)
+            return
+        if x and isinstance(x[0], Token) and isinstance(x[0].value, str) and kb.is_bindop(x[0].value) and x[0].value != SUB_SYMBOL and len(x) > 1:
+            try:
+                binders.append(bounded_sorts(x, binder_node_sorts(x, kb), kb))
+            except KurtException:
+                pass
+        for c in x:
+            walk(c)
+    walk(e)
+    return (tuple(free[v] for v in order), tuple(binders))
+
+def has_raw_variables(e: Expr, kb: KnowledgeBase) -> bool:
+    # whether `e` has a variable that is not a renamed one (`$$07`): only then is there a sort to infer
+    if isinstance(e, Token):
+        return e.label == 'SYMBOL' and isinstance(e.value, str) and not is_internal_name(e.value) and (kb.is_var(e.value) or kb.is_bindop(e.value))
+    return any(has_raw_variables(c, kb) for c in e)
+
+def infer_line_sorts(expr_list: list[Expr], keyword: str, kb: KnowledgeBase) -> None:
+    run_state.line_var_sorts = {}
+    run_state.line_var_placed = set()
+    run_state.pending_sigs = {}
+    run_state.pending_how = {}
+    if not kb.sorts_in_use():
+        return                                    # (no user sort: nothing to infer)
+    location = run_state.current_line[0] or ('', 0)
+    here = location[0]
+    default_entry = kb.current_default()
+    default = default_entry[0] if default_entry is not None else None
+    pending = run_state.pending_sigs
+    how: dict[str, tuple[str, str, int]] = run_state.pending_how
+    defined = defined_symbol(expr_list[0]) if keyword == 'def' and expr_list else None
+
+    # (1) the first use of an operator of this file, after `default`: its positions without a sort
+    # get it -- not one with a statement there (`P $z` in `{$z ∈ $A | P $z}`), which becomes boolean
+    def operator_defaults(e: Expr) -> None:
+        if not isinstance(e, list) or not e:
+            return
+        head = e[0]
+        if isinstance(head, Token) and isinstance(head.value, str) and head.label == 'SYMBOL':
+            op, args = head.value, e[1:]
+            if not (kb.is_used(op) or kb.is_var(op) or op in pending or op == SUB_SYMBOL or op == BOUND_SYMBOL
+                    or kb.is_sort_name(op) or not from_this_file(op, kb, here)):
+                boolean = kb.bool_sig(op)
+                for position in range(1, operator_arity(op, len(args), kb) + 1):
+                    if position in boolean or kb.pos_sort(op, position) is not None:
+                        continue
+                    if (kb.is_flat(op) or kb.is_bracket_placeholder(op)) and position > 2:
+                        continue
+                    slot = kb.is_bindop(op) and position == 1      # (a binder's variable: `sum i (0, n) i`, its `i` a number)
+                    if not slot and position <= len(args) and bool_expr(args[position - 1], kb, strict=True):
+                        continue
+                    if not slot and position <= len(args) and any(not kb.sort_fits(found, default) for found in top_sorts(args[position - 1], kb)):
+                        continue      # (an argument of another sort there, `coprime(a, b)` of a pair: no default)
+                    pending.setdefault(op, {})[position] = default      # type: ignore[assignment]
+                    how.setdefault(op, ('default', here, location[1]))
+        for c in e:
+            operator_defaults(c)
+    if default is not None and default != 'any':      # (a position without a sort already takes every value: `any` is no default for it)
+        for e in expr_list:
+            operator_defaults(e)
+
+    # (2) the places of the symbols
+    statement_keywords = ('use', 'show', 'assume', 'case', 'todo', 'def', 'inline', 'parse', '')
+    all_uses = [analyse_sorts(e, kb, keyword in statement_keywords or (keyword == 'let' and isinstance(e, list))) for e in expr_list]
+
+    # (3) the variables of each formula, its binders (a conflict is an error here)
+    for uses in all_uses:
+        for name, places in uses.free.items():
+            if variable_sort_wanted(name, uses, kb) and kb.pos_sort(name, 0) is None:
+                sort = sort_of_variable(name, places, kb)
+                if sort is not None:
+                    run_state.line_var_sorts[name] = frozenset({sort})
+                    if any(place[0] != 'any' for place in places) or sort != 'any':
+                        run_state.line_var_placed.add(name)     # (a sorted place, or a default other than `any`)
+        for bv, places in uses.binders.values():
+            if variable_sort_wanted(bv, uses, kb) and kb.pos_sort(bv, 0) is None:
+                sort_of_variable(bv, places, kb)
+
+    # (4) the constants, operators and numbers: the sort they have, inferred, or made smaller
+    statements = set().union(*(u.statements for u in all_uses))
+    const_reqs: dict[str, list[tuple[str, Optional[int], bool]]] = {}
+    for uses in all_uses:
+        for c, places in uses.consts.items():
+            const_reqs.setdefault(c, []).extend(places)
+    for c, reqs in const_reqs.items():
+        if c in statements or kb.is_bool(c) or c == defined:
+            continue
+        current = kb.pos_sort(c, 0)
+        current_how = kb.get_sort_how(c)
+        if current is None:
+            if current_how is not None and current_how[0] in ('def', 'pick'):
+                continue          # (its sort is the one of its definition or of the witness: none)
+            if reqs:
+                meet = sort_meet([r for r, *_ in reqs], kb)
+                if meet is None:
+                    first = reqs[0][0]
+                    other, column = next((r, col) for r, col, _ in reqs if not kb.sort_fits(r, first) and not kb.sort_fits(first, r))
+                    raise KurtException(f'TypeError: {shown_symbol(c)} is used as `{first}` and as `{other}` in this line, which don\'t fit each other', column)
+                if c != NUMBERS_KEY and has_definition(c, kb):
+                    continue      # (a defined symbol: the type checker says where its sort is missing)
+                sort, kind = resolve_sort(meet, default, kb, reqs)
+                pending.setdefault(c, {})[0] = sort
+                how[c] = (kind, here, location[1])
+            elif default is not None and default != 'any' and c != NUMBERS_KEY and not kb.is_used(c) and not kb.is_var(c) \
+                    and from_this_file(c, kb, here) and not kb.get_builtins(c):
+                # (`default real`: a new constant is a number at its first appearance, like a declaration;
+                # without a default, or with `default any`, a constant at no sorted place gets no sort
+                # yet -- its first sorted use decides, and that is final, decided 2026-10-19) -- unless
+                # the line says otherwise: `A = {n ∈ Nat | n > 2}` makes `A` a set, not a number
+                # (one sort per use of `=`), decided 2026-10-20
+                other = equated_sorts(c, expr_list, kb) - {'any'}
+                if len(other) == 1 and not kb.sort_fits(next(iter(other)), default):
+                    pending.setdefault(c, {})[0] = next(iter(other))
+                    how[c] = ('inferred', here, location[1])
+                    continue
+                pending.setdefault(c, {})[0] = default
+                how[c] = ('default', here, location[1])
+            continue
+        misfits = [(r, column) for r, column, _ in reqs if not kb.sort_fits(current, r)]
+        if not misfits:
+            continue
+        # (the first sorted use is final, decided 2026-10-19: a later use at a smaller sort doesn't
+        # make the sort smaller -- the sort of a symbol never changes after its first use)
+        r, column = misfits[0]
+        if current_how is None:
+            continue          # (a declared sort: the type checker reports it)
+        origin = {'inferred': f'inferred at {where(current_how[1:])}', 'default': f'by default, {where(current_how[1:])}',
+                  'def': f'of its definition, {where(current_how[1:])}', 'pick': f'of the witness, {where(current_how[1:])}'}[current_how[0]]
+        hint = ''
+        if current_how[0] in ('inferred', 'default') and kb.sort_fits(r, current):
+            hint = f' -- the first sorted use decides; to make it a `{r}`, declare `{r} {c}` before that use'
+        hint = hint or membership_hint(c, r, kb)
+        raise KurtException(f'TypeError: {shown_symbol(c)} has the sort `{current}` ({origin}), but here it is used as `{r}`{hint}', column)
+
+    # (5) `def c = R`: `c` has the sort of `R` -- not one from its uses, nor the default; the
+    # arguments of a defined operator the sorts of its variables there (also for `def $x ≺ $y iff
+    # $x < $y`: two numbers)
+    if defined is not None and not kb.is_var(defined):
+        lhs, rhs = expr_list[0][1], expr_list[0][2]                                                         # type: ignore[index]
+        positions = pending.setdefault(defined, {})
+        if not bool_expr(rhs, kb, strict=True):
+            found = top_sorts(rhs, kb)
+            positions.pop(0, None)
+            if len(found) == 1:
+                positions[0] = next(iter(found))
+        if isinstance(lhs, list):
+            for i, arg in enumerate(lhs[1:], 1):
+                if i not in positions and kb.pos_sort(defined, i) is None and isinstance(arg, Token) and isinstance(arg.value, str):
+                    arg_sorts = kb.variable_sorts(arg.value)
+                    if len(arg_sorts) == 1:
+                        positions[i] = next(iter(arg_sorts))
+        if not positions:
+            del pending[defined]
+        if not bool_expr(rhs, kb, strict=True):
+            how[defined] = ('def', here, location[1])
+
+def equated_sorts(c: str, expr_list: list[Expr], kb: KnowledgeBase) -> set[str]:
+    # the sorts of the terms that the constant `c` is equal to in these formulas (`c = R`, `R = c`)
+    found: set[str] = set()
+    def visit(e: Expr) -> None:
+        if not isinstance(e, list) or not e:
+            return
+        head = e[0]
+        if len(e) == 3 and isinstance(head, Token) and isinstance(head.value, str) and kb.has_role(head.value, 'equality'):
+            for side, other in ((e[1], e[2]), (e[2], e[1])):
+                if isinstance(side, Token) and side.value == c:
+                    found.update(top_sorts(other, kb))
+        for child in e:
+            visit(child)
+    for e in expr_list:
+        visit(e)
+    return found
+
+def membership_hint(symbol: str, sort: str, kb: KnowledgeBase) -> str:
+    # a hint for a symbol used at `sort` that it doesn't have, while a fact says it is in a set
+    # (`b ∈ Nat`): a fact gives no sort (decision 11 of dev/todo-sorts.md) -- declare it (not a
+    # witness or a defined symbol: their sort is that of the existential's variable, of the definition)
+    how = kb.get_sort_how(symbol)
+    if how is not None and how[0] in ('pick', 'def'):
+        return ''
+    for f in kb.all_theory():
+        e = f.expr
+        if isinstance(e, list) and len(e) == 3 and isinstance(e[0], Token) and isinstance(e[0].value, str) \
+                and CALCULATOR_MEMBERSHIP in kb.get_builtins(e[0].value) and isinstance(e[1], Token) and e[1].value == symbol:
+            return f' -- a fact `{expr_str(e, kb)}` gives no sort; declare `{sort} {symbol}` before its first use'
+    return ''
+
+def commit_line_sorts(kb: KnowledgeBase) -> list[tuple[str, dict[int, str], tuple[str, str, int]]]:
+    # the line was checked: store its inferences (`infer_line_sorts`) on the level of each symbol
+    # -- where it is a constant (a `let` block's), or a fixed variable (an `assume`'s), else on the
+    # level of the file -- and say what was stored
+    done: list[tuple[str, dict[int, str], tuple[str, str, int]]] = []
+    location = run_state.current_line[0] or ('', 0)
+    def level_of(symbol: str) -> KnowledgeBase:
+        for node in kb.levels():
+            if symbol in node.sort_how or symbol in node.const or symbol in node.fixed_vars:
+                return node
+        return file_level(kb)
+    for symbol, positions in run_state.pending_sigs.items():
+        how = run_state.pending_how.get(symbol, ('inferred', location[0], location[1]))
+        level_of(symbol).set_inferred_sort(symbol, dict(positions), how)
+        done.append((symbol, dict(positions), how))
+    for symbol, how in run_state.pending_how.items():
+        if symbol not in run_state.pending_sigs:
+            level_of(symbol).sort_how[symbol] = how       # (`def` without a sort: none from its uses either)
+    # a variable of the line that is a constant or fixed now (`let $x`, `assume P $x`): its sort stays
+    # -- if it had a sorted place there: the default alone gives no sort yet, the first sorted use
+    # decides (and is final, decided 2026-10-19)
+    for v, sorts in run_state.line_var_sorts.items():
+        if len(sorts) == 1 and not kb.is_var(v) and (kb.is_const(v) or kb.is_fixed_var(v)) and kb.pos_sort(v, 0) is None \
+                and v in run_state.line_var_placed:
+            level_of(v).set_inferred_sort(v, {0: next(iter(sorts))}, ('inferred', location[0], location[1]))
+    run_state.pending_sigs = {}
+    run_state.pending_how = {}
+    return done
+
+def sort_how_str(how: Optional[tuple[str, str, int]]) -> str:
+    # how a symbol got its sort, for the output and the hover: `inferred from line 7`, `default`
+    if how is None:
+        return 'declared'
+    kind, filename, line = how
+    place = where((filename, line))
+    return {'inferred': f'inferred from {place}', 'default': f'default, {place}',
+            'def': f'its definition, {place}', 'pick': f'the witness, {place}'}.get(kind, kind)
+
 
 #################
 ## kurt prover ##
@@ -10001,8 +13390,12 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
 # the comment the user wrote on the line being evaluated: shown by the first output line with a
 # reason, whose reason then goes on the next line (see `log`)
 
+LEAN_PROOF_LINE = re.compile(r'\s*lean\s+"[^"\n]+"\s')   # `lean "label" TACTIC`: raw to the end of the line, no comment
+
 def comment_of(line: str) -> Optional[str]:
     # what follows the first `;` outside of a string, if anything
+    if LEAN_PROOF_LINE.match(line):
+        return None
     in_string = False
     for i, ch in enumerate(line):
         if ch == '"':
@@ -10031,12 +13424,36 @@ def printing() -> bool:
     return run_state.quiet[0] == 0
 
 @contextlib.contextmanager
+def preserved_line_sorts() -> Iterator[None]:
+    # lines checked in the middle of a line (a `load`, the rules of an enumeration) have their own
+    # inferred sorts (`infer_line_sorts`): the line's own are kept
+    saved = (run_state.line_var_sorts, run_state.pending_sigs, run_state.pending_how, run_state.generalized_sorts, run_state.line_var_placed)
+    run_state.generalized_sorts = {}
+    try:
+        yield
+    finally:
+        run_state.line_var_sorts, run_state.pending_sigs, run_state.pending_how, run_state.generalized_sorts, run_state.line_var_placed = saved
+
+@contextlib.contextmanager
 def quietly() -> Iterator[None]:
     run_state.quiet[0] += 1
     try:
         yield
     finally:
         run_state.quiet[0] -= 1
+
+@contextlib.contextmanager
+def ignoring_sorts() -> Iterator[None]:
+    # a declared sort is sparse (`sort_expr`'s docstring): an unsorted value simply fails
+    # `variable_sorts_allow`, the same way a genuine structural mismatch does, so a sort-only
+    # mismatch is otherwise indistinguishable from "no rule applies at all" (todo 38). Used only by
+    # `failure_explanation`'s diagnostic retry after a real search attempt has already failed --
+    # never by the live search itself, so this never changes what a proof accepts.
+    run_state.ignore_sorts[0] += 1
+    try:
+        yield
+    finally:
+        run_state.ignore_sorts[0] -= 1
 
 def reason_event(s: str, reason: 'str | Reason', level: Optional[int], comment: Optional[str]) -> dict:
     # `s` and its reason as an event, e.g. `B` with `5 by 3(4)`: a step with id 5, by the
@@ -10201,8 +13618,14 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
 def note_origin(new: str, origin: Optional[str]) -> str:
     if origin is not None:
         run_state.origin_names[new] = run_state.origin_names.get(origin, origin)
+        if is_poly_name(origin) or origin in run_state.poly_variables:
+            run_state.poly_variables.add(new)
+        if origin in run_state.parametric_binders:
+            run_state.parametric_binders.add(new)      # (a renamed copy of a polymorphic binder of a rule stays one)
         if origin in run_state.internal_variable_sorts:
             run_state.internal_variable_sorts[new] = run_state.internal_variable_sorts[origin]
+        if origin in run_state.goal_binders:
+            run_state.goal_binders.add(new)
     return new
 
 # new variable names just for internal use
@@ -10254,8 +13677,11 @@ def remove_outer_forall_quantifiers(expr: Expr, kb: KnowledgeBase) -> tuple[Expr
             break
         assert isinstance(expr[1].value, str)
         bound_var = expr[1].value
+        sorts = binder_node_sorts(expr, kb)
         expr = expr[2]
         free_var = new_bool_var_name(bound_var) if kb.is_bool(bound_var) else new_var_name(bound_var)
+        if sorts:
+            run_state.internal_variable_sorts[free_var] = frozenset(sorts)    # (`∀ x (x + 0 = x)`: `x` a number, todo 34)
         fresh_vars.append(free_var)
         s = State({bound_var: Token(label='SYMBOL', value=free_var)}, frozenset(), frozenset())
         expr = apply_subst(expr, s, kb)
@@ -10317,7 +13743,25 @@ def rename_all_vars(expr: Expr, kb: KnowledgeBase) -> Expr:
 
     # rename all variables (yes, some are renamed again, this can be improved later (TODO))
     expr = rename_all_vars_rec(expr, kb)[0]
+    # (a goal's: its binders are never read as over another sort, `binder_target`)
+    run_state.goal_binders |= binder_variables(expr, kb)
     return expr
+
+def binder_variables(e: Expr, kb: KnowledgeBase) -> set[str]:
+    # the variables the binders of `e` bind
+    found: set[str] = set()
+    def walk(e: Expr) -> None:
+        if isinstance(e, list) and e:
+            head = e[0]
+            if isinstance(head, Token) and isinstance(head.value, str) and kb.is_bindop(head.value) and len(e) > 1:
+                try:
+                    found.add(unpack_condition(e[1], kb)[0])
+                except KurtException:
+                    pass
+            for c in e:
+                walk(c)
+    walk(e)
+    return found
 
 def normalized_schema_str(expr: Expr, named_vars: set[str], kb: KnowledgeBase) -> str:
     """Render named free variables as stable `$`/`%` schema names.
@@ -10425,8 +13869,12 @@ def schema_expr_str(expr: Expr, kb: KnowledgeBase) -> str:
         case _:
             return screen_expr_str(expr, kb)
 
-def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None, bound_vars: set[str]|None = None) -> tuple[Expr, State]:
+def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None, bound_vars: set[str]|None = None,
+                        free_sorts: Optional[dict[str, frozenset[str]]] = None) -> tuple[Expr, State]:
     # initialize the bound_vars if not given (don't put `set()` as the default value into the signature, since it is only called once and then modified, THIS LEADS TO A VERY SUBTLE BUG)
+    if free_sorts is None:
+        # the sorts of the free variables, from their places in the formula (todo 34, `formula_free_sorts`)
+        free_sorts = formula_free_sorts(expr, kb) if s is None and bound_vars is None and has_raw_variables(expr, kb) else {}
     if bound_vars is None:
         bound_vars = set()
     if s is None:
@@ -10449,7 +13897,7 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
                 else:
                     raise KurtException(f'BUG: variable `{var}` is neither a variable nor a boolean variable, but appears in the expression `{expr_str(expr, kb)}`')
                 new_expr = Token(label='SYMBOL', value=new_var, column=expr.column, origin=expr.origin)
-                sorts = kb.variable_sorts(var)
+                sorts = free_sorts[var] if var in free_sorts and var not in bound_vars else kb.variable_sorts(var)
                 if sorts:
                     run_state.internal_variable_sorts[new_var] = frozenset(sorts)
             return new_expr, s.bind(var, new_expr)  # extend the state with the new binding
@@ -10463,28 +13911,33 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
             bind_var, opt_condition = unpack_condition(cond, kb)
 
             # operator gets processed with current scope (actually nothing to do)
-            head1, s = rename_all_vars_rec(expr[0], kb, s, bound_vars)
+            head1, s = rename_all_vars_rec(expr[0], kb, s, bound_vars, free_sorts)
 
             # extend the scope with the new bound variable
             new_bound_vars = bound_vars | {bind_var}
 
             # `cond` and `body` are processed in the context, that `bind_var in bound_vars` hold
-            head2, s = rename_all_vars_rec(cond, kb, s, new_bound_vars)
+            # (`sub $x a A` is no binder over a sort: its `$x` is the variable of the rule, whatever it is)
+            binder_sorts = (binder_node_sorts(expr, kb) | (kb.position_sorts(bind_op, 1) - {'prop'})) if bind_op != SUB_SYMBOL else None
+            head2, s = rename_all_vars_rec(cond, kb, s, new_bound_vars, free_sorts)
             renamed_bound, _ = unpack_condition(head2, kb)
-            binder_sorts = kb.position_sorts(bind_op, 1) - {'bool'}
-            if binder_sorts:
-                run_state.internal_variable_sorts[renamed_bound] = frozenset(
-                    run_state.internal_variable_sorts.get(renamed_bound, frozenset()) | binder_sorts)
+            # (only for a renamed variable: a name as written -- a constant of a block that a result
+            # binds, not renamed -- is not the run's to keep, it would be the sort of every `x`)
+            if binder_sorts and is_internal_name(renamed_bound):
+                run_state.internal_variable_sorts[renamed_bound] = frozenset(binder_sorts)    # (the binder's, todo 34)
+            elif binder_sorts is not None and renamed_bound in run_state.internal_variable_sorts and not is_internal_name(bind_var) \
+                    and is_internal_name(renamed_bound):
+                del run_state.internal_variable_sorts[renamed_bound]
 
             # the body gets the new scope including the bound variable, the middle arguments not
             # (they are outside the scope, see `binder_scope`)
             middle, body_only = binder_scope(body)
             new_body = []
             for child in middle:
-                new_child, s = rename_all_vars_rec(child, kb, s, bound_vars)
+                new_child, s = rename_all_vars_rec(child, kb, s, bound_vars, free_sorts)
                 new_body.append(new_child)
             for child in body_only:
-                new_child, s = rename_all_vars_rec(child, kb, s, new_bound_vars)
+                new_child, s = rename_all_vars_rec(child, kb, s, new_bound_vars, free_sorts)
                 new_body.append(new_child)
 
             return [head1, head2, *new_body], s
@@ -10493,7 +13946,7 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
         case [*children] if children:
             new_children = []
             for child in children:
-                new_child, s = rename_all_vars_rec(child, kb, s, bound_vars)
+                new_child, s = rename_all_vars_rec(child, kb, s, bound_vars, free_sorts)
                 new_children.append(new_child)
             return new_children, s
 
@@ -10557,33 +14010,35 @@ def generate_all_combinations(expr: Expr, token_x: Token, expr_a: Optional[Expr]
 MAX_HOLES = 6     # see `all_single_hole_decompositions`
 
 def all_single_hole_decompositions(expr: Expr, token_x: Token, kb: KnowledgeBase) -> Iterator[tuple[Expr, Expr]]:
-    # For each node in expr, yield (node_value, expr_with_that_node_replaced_by_token_x).
-    for path, node in iter_nodes(expr):
+    # For each node in expr, yield (node_value, expr_with_that_node_replaced_by_token_x) -- a node
+    # that is a statement or a term: an operator position only for an operator that yields a term
+    # (`f` of `f a`), never a boolean one (`hole_nodes`)
+    for path, node in hole_nodes(expr, kb):
         yield (node, replace_at_path(expr, path, token_x))
     # each subterm occurring more than once also as one hole at all of its occurrences, e.g. for
     # `n` in `sum x (0, n) x = n * (n + 1) / 2`
     # (not for a bound variable, which would also replace its own binder slot)
     seen: list[Expr] = []
     bound_vars = free_bound_vars(expr, kb)[1] if valid_bindop_conditions(expr, kb) else set()
-    for path, node in iter_nodes(expr):
+    for path, node in hole_nodes(expr, kb):
         if len(path) == 0 or any(node == other for other in seen):
             continue
         if isinstance(node, Token) and node.value in bound_vars:
             continue
         seen.append(node)
-        if sum(1 for _, other in iter_nodes(expr) if other == node) > 1:
-            yield (node, replace_all_occurrences(expr, node, token_x))
+        if sum(1 for _, other in hole_nodes(expr, kb) if other == node) > 1:
+            yield (node, replace_all_occurrences(expr, node, token_x, kb))
     # and as a hole at some of its occurrences (two or more, not all), e.g. `x` in
     # `x R x ⇒ ¬(x ∈ S)` from `∀ $k ($k R x ⇒ ¬($k ∈ S))` -- only for up to `MAX_HOLES` occurrences,
     # since their number grows exponentially
     seen = []
-    for path, node in iter_nodes(expr):
+    for path, node in hole_nodes(expr, kb):
         if len(path) == 0 or any(node == other for other in seen):
             continue
         if isinstance(node, Token) and node.value in bound_vars:
             continue
         seen.append(node)
-        paths = [p for p, other in iter_nodes(expr) if other == node]
+        paths = [p for p, other in hole_nodes(expr, kb) if other == node]
         if 2 < len(paths) <= MAX_HOLES:
             for k in range(2, len(paths)):
                 for chosen in itertools.combinations(paths, k):
@@ -10640,13 +14095,40 @@ def replace_at_path(expr: Expr, path: list[int], token_x: Token, node_with_hole:
     new_list[i] = replace_at_path(new_list[i], path[1:], token_x, node_with_hole)
     return new_list
 
-def replace_all_occurrences(expr: Expr, subterm: Expr, token_x: Token) -> Expr:
-    """Return a deep copy of expr where every occurrence of `subterm` is replaced by `token_x`."""
+def replace_all_occurrences(expr: Expr, subterm: Expr, token_x: Token, kb: KnowledgeBase) -> Expr:
+    """Return a deep copy of expr where every occurrence of `subterm` is replaced by `token_x` --
+    at an operator position only where `hole_nodes` allows a hole."""
     if expr == subterm:
         return token_x
+    return replace_below(expr, subterm, token_x, kb)
+
+def replace_below(expr: Expr, subterm: Expr, token_x: Token, kb: KnowledgeBase) -> Expr:
+    # `replace_all_occurrences` in the parts of `expr`; the operator itself only if it is a term
+    # operator (`f` of `f a`), else only inside it (the `P` of `(¬¬P) c`)
     if isinstance(expr, list):
-        return [replace_all_occurrences(e, subterm, token_x) for e in expr]
+        return [(replace_all_occurrences(e, subterm, token_x, kb) if term_operator(e, kb) else replace_below(e, subterm, token_x, kb))
+                if i == 0 else replace_all_occurrences(e, subterm, token_x, kb)
+                for i, e in enumerate(expr)]
     return expr
+
+def term_operator(e: Expr, kb: KnowledgeBase) -> bool:
+    # an operator that yields a term (`f` with `arity f 1`, `+`): on its own it is a term, so the
+    # hole of a `sub` may be cut at its position (`f = g` rewrites `f a` to `g a`) -- not a boolean
+    # operator (`=`, `∧`, `prop P` with `arity P 1`: on its own neither a term nor a formula), not
+    # a binder (`∀`), not `sub` or a condition's marker, not a compound head (`(¬¬P) c`)
+    return (isinstance(e, Token) and e.label == 'SYMBOL' and isinstance(e.value, str)
+            and e.value not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_bool(e.value) and not kb.is_bindop(e.value))
+
+def hole_nodes(expr: Expr, kb: KnowledgeBase) -> Iterator[tuple[list[int], Expr]]:
+    """Yield (path, subexpression) for every node where the hole of a `sub` may be cut: every node
+    but an operator position (index 0 of an application) -- except an operator that yields a term
+    (`term_operator`: `f` of `f a`, so `f = g` rewrites `f a`). The hole ranges over statements and
+    terms; the `=` of `c = c` is neither -- cut there, "iff-subst" took `%b := =` and read the
+    bare `=` as a formula (soundness §8.40). (An operator variable, `var ∘`, matches an operator
+    position through the unifier, not through a hole.)"""
+    for path, node in iter_nodes(expr):
+        if not path or path[-1] != 0 or term_operator(node, kb):
+            yield path, node
 
 def iter_nodes(expr: Expr, path_prefix: list[int]|None = None) -> Iterator[tuple[list[int], Expr]]:
     """Yield (path, subexpression) for every node (including the root)."""
@@ -10668,7 +14150,8 @@ def match_against_sub(expr: Expr, pattern: Expr, tail: list[tuple[Expr, Expr]], 
     for s_sub in sub_solutions(expr, token_x, p_a, p_A, s, kb):
         yield from unify_exprs_with_patterns(tail, s_sub, kb)
 
-def sub_condition_match(cond_e: Expr, v_e: str, args_e: list[Expr], cond_p: Expr, args_p: list[Expr], tail: list[tuple[Expr, Expr]], s: State, kb: KnowledgeBase) -> Iterator[State]:
+def sub_condition_match(cond_e: Expr, v_e: str, args_e: list[Expr], cond_p: Expr, args_p: list[Expr], tail: list[tuple[Expr, Expr]], s: State, kb: KnowledgeBase,
+                        sorts: tuple[frozenset[str], frozenset[str]] = (frozenset(), frozenset())) -> Iterator[State]:
     # match a binder of `expr` with the condition `cond_e` on its bound variable `v_e`, e.g.
     # `∀ (y > 0) (P y)`, against a rule's binder `∀ (sub $x $v %C) %P`, which stands for any
     # condition: `$v` is the bound variable, and `%C` is `cond_e` with the hole `$x` for *every*
@@ -10684,6 +14167,10 @@ def sub_condition_match(cond_e: Expr, v_e: str, args_e: list[Expr], cond_p: Expr
     C = alpha_rename_binder_body([deepcopy_expr(cond_e)], v_e, x, kb)[0]
     middle_e, body_e = binder_scope(args_e)      # the middle arguments are outside the scope
     middle_p, body_p = binder_scope(args_p)
+    target, s = binder_target(v_p, sorts[0], v_e, sorts[1], s, kb)   # (the sorts of the bound variables, todo 34)
+    if target is None:
+        return
+    v_p = target
     args_r = alpha_rename_binder_body([deepcopy_expr(a) for a in body_e], v_e, v_p, kb)
     for s_middle in unify_exprs_with_patterns(list(zip(middle_e, middle_p)), s, kb):
         s_local = s_middle.block_always(v_p)
@@ -10701,6 +14188,9 @@ def sub_solutions(expr: Expr, token_x: Token, p_a: Expr, p_A: Expr, s: State, kb
     #      which of its occurrences become the hole `$x` (`generate_all_combinations`), and
     #      match the rest against `A`
     # (`sub`s are never nested, see `check_sub_not_nested`)
+    walked = apply_subst(token_x, s, kb)
+    if isinstance(walked, Token) and walked.label == 'SYMBOL' and isinstance(walked.value, str):
+        token_x = walked              # (the rule's binder variable stands for a fresh one of a sort, `binder_target`)
     x = token_x.value
     assert isinstance(x, str)
     seen: set[str] = set()
@@ -10716,6 +14206,13 @@ def sub_solutions(expr: Expr, token_x: Token, p_a: Expr, p_A: Expr, s: State, kb
         return list(unify_exprs_with_patterns([(candidate, p_a)], s_now, kb))
     A = apply_subst(p_A, s, kb)
     if not contains_unbound_var(A, s, kb, except_var=x):
+        # `A[$x := a]` is an instance of `A`: where `expr` can't unify with `A` (another operator at
+        # the top or below it, a different constant), no `a` makes them equal -- so the subterms
+        # of `expr` aren't tried one by one (`sub_holds` computes the substitution for each; the
+        # premise `sub $x $a %A` of "equal-elim" is searched this way against every formula, with
+        # `%A` known from the goal; 2026-10-16). Not with `calc on`: the instance is computed too.
+        if not kb.calc and cannot_unify(expr, A, kb):
+            return
         for candidate in subterm_candidates(expr, kb):
             for s_a in matching_a(candidate, s):
                 yield from checked(s_a)
@@ -10756,6 +14253,9 @@ def sub_holds(expr: Expr, token_x: Token, p_a: Expr, p_A: Expr, s: State, kb: Kn
     # whether `expr == A[$x := a]` for the values of `a` and `A` in `s`, with the substitution
     # computed exactly like everywhere else (capture-avoiding, then normalized); an `a` without
     # value is fine only if `A` doesn't mention `$x`
+    walked = apply_subst(token_x, s, kb)
+    if isinstance(walked, Token) and isinstance(walked.value, str):
+        token_x = walked              # (the rule's binder variable stands for a fresh one, `binder_target`)
     x = token_x.value
     assert isinstance(x, str)
     try:
@@ -10846,7 +14346,7 @@ def restore_blocked(s_new: State, x: str, s_old: State) -> State:
     # undo the temporary blocking of `$x` (unless it was blocked before)
     if x in s_old.blocked_as_domain:
         return s_new
-    return State(s_new.subst, s_new.blocked_as_domain - {x}, s_new.blocked_as_range, s_new.eigen)
+    return State(s_new.subst, s_new.blocked_as_domain - {x}, s_new.blocked_as_range, s_new.eigen, s_new.poly_sort)
 
 # A non-boolean schema variable `$T` in the body of a binder over `$i` normally stands for a
 # term that does *not* depend on `$i` -- e.g. in `(forall $x ($x = $T)) and (P $T) implies Q`,
@@ -10915,7 +14415,12 @@ def may_capture(v: str, expr: Expr, s: State) -> bool:
     # whether the schema variable `v` may take the value `expr`, which contains a bound variable
     # (blocked as range): only a dependent variable, and only its own bound variable
     b = run_state.dependent_vars.get(v)
-    return b is not None and blocked_range_vars(expr, s) <= {b}
+    if b is None:
+        return False
+    standing = s.lookup(b)
+    if isinstance(standing, Token) and isinstance(standing.value, str):
+        b = standing.value        # (the bound variable stands for one over a smaller sort, `binder_target`)
+    return blocked_range_vars(expr, s) <= {b}
 
 def blocked_range_vars(expr: Expr, s: State) -> set[str]:
     if isinstance(expr, Token):
@@ -10993,9 +14498,40 @@ def is_bool_var_token(e:Expr, kb) -> bool:
     assert isinstance(e.value, str)
     return kb.is_var(e.value) and kb.is_bool(e.value)
 
+def takes_arguments(v: str, kb: KnowledgeBase) -> bool:
+    # an operator (prefix, infix, postfix, brackets) or a function symbol (`arity f 1`)
+    return kb.is_operator(v) or kb.get_arity(v) > 0
+
+def is_operator_variable(variable: str, kb: KnowledgeBase) -> bool:
+    # a variable declared as an operator (`var ∘` with `infix ∘`), also by its fresh internal
+    # name in a stored formula (`$$07`, whose origin is `∘`)
+    return takes_arguments(variable, kb) or takes_arguments(run_state.origin_names.get(variable, variable), kb)
+
+def bare_operator_for(variable: str, value: Expr, kb: KnowledgeBase) -> bool:
+    # whether `value` is an operator on its own (`=`, `∧`, `prop P` with `arity P 1`) and
+    # `variable` no operator variable (`var ∘`): a bare operator is no formula, so a `%`-variable
+    # doesn't take it, although `bool_expr` reads it by its result (soundness §8.40; the kernel's
+    # `k_has_kind`)
+    return (isinstance(value, Token) and value.label == 'SYMBOL' and isinstance(value.value, str)
+            and takes_arguments(value.value, kb) and not is_operator_variable(variable, kb))
+
 def variable_sorts_allow(variable: str, value: Expr, kb: KnowledgeBase) -> bool:
     """Whether ``value`` satisfies every optional sort declared for ``variable``."""
+    if run_state.ignore_sorts[0] > 0:
+        return True   # `failure_explanation`'s diagnostic retry only (`ignoring_sorts`), never the live search
     return all(sort_expr(value, sort, kb, strict=False) for sort in kb.variable_sorts(variable))
+
+def sort_violations(s: State, kb: KnowledgeBase) -> list[tuple[str, str, Expr]]:
+    # the schema variables bound in `s` (from a `ignoring_sorts` retry) whose declared sort(s) the
+    # bound value doesn't actually satisfy -- `failure_explanation`'s diagnostic only (todo 38):
+    # these are exactly why the real (sort-enforced) match found nothing to report at all
+    violations = []
+    for var in s.subst:
+        value = s.walk(Token('SYMBOL', var))
+        for sort in kb.variable_sorts(var):
+            if not sort_expr(value, sort, kb, strict=False):
+                violations.append((var, sort, value))
+    return violations
 
 # the non-recursive calls are having a single expr and a single pattern, the recursive calls then might have more
 # each "case" with a recursive call loops over all generated local substitutions
@@ -11103,7 +14639,7 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                 assert s.lookup(v) is None
                 bp = kb.is_bool(v)
                 be = bool_expr(expr, kb)
-                compatible = ((bp and be) or (not bp and not be and
+                compatible = ((bp and be and not bare_operator_for(v, expr, kb)) or (not bp and not be and not bare_operator_for(v, expr, kb) and
                               (not s.contains_blocked_as_range(expr) or may_capture(v, expr, s))
                               and not s.contains_eigen(expr))) and not is_ellipsis(expr)
                 if variable_sorts_allow(v, expr, kb) and compatible:
@@ -11119,7 +14655,7 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                 assert s.lookup(u) is None
                 be = kb.is_bool(u)
                 bp = bool_expr(pattern, kb)
-                compatible = ((bp and be) or (not bp and not be and
+                compatible = ((bp and be and not bare_operator_for(u, pattern, kb)) or (not bp and not be and not bare_operator_for(u, pattern, kb) and
                               (not s.contains_blocked_as_range(pattern) or may_capture(u, pattern, s)))) and not is_ellipsis(pattern)
                 if variable_sorts_allow(u, pattern, kb) and compatible:
                     if not s.occurs(u, pattern) and not s.is_blocked_as_domain(u):
@@ -11153,7 +14689,8 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                             v_e, opt_condition_e = unpack_condition(cond_e, kb)
                             if op_p==op_e and len(args_p)==len(args_e) and is_sub(cond_p) and opt_condition_e is not None and not is_sub(cond_e):
                                 # a rule's binder with any condition, e.g. `∀ (sub $x $v %C) %P`
-                                yield from sub_condition_match(opt_condition_e, v_e, args_e, cond_p, args_p, tail, s, kb)
+                                yield from sub_condition_match(opt_condition_e, v_e, args_e, cond_p, args_p, tail, s, kb,
+                                                               (binder_node_sorts(pattern, kb), binder_node_sorts(expr, kb)))
                             elif op_p==op_e and len(args_p)==len(args_e) and ((opt_condition_p is None) == (opt_condition_e is None)):
                                 assert isinstance(v_p, str) and isinstance(v_e, str)
                                 # the middle arguments (e.g. the range of a `sum`) are outside the scope of
@@ -11170,11 +14707,19 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                                 # and `∀ $z (Q $x $z)` (found in the soundness review of 2026-09-29)
                                 if v_p != v_e and any(v_p in free_vars_only(a, kb) for a in args_e):
                                     return
+                                # the sorts of the bound variables (todo 34): a sorted binder of the rule only
+                                # takes a binder of the same sort; an unsorted one (logic.kurt's `∀ $x %A`)
+                                # takes any, and stands for a fresh variable of the expression's sort, so
+                                # what the rule builds with it (`sub $x $a %A`, `∀ $x (%A ∧ %B)`) has that sort
+                                target, s = binder_target(v_p, bounded_sorts(pattern, binder_node_sorts(pattern, kb), kb, s), v_e,
+                                                          bounded_sorts(expr, binder_node_sorts(expr, kb), kb, s), s, kb)
+                                if target is None:
+                                    return
                                 args_e = [deepcopy_expr(args_e_i) for args_e_i in args_e]
-                                args_e = alpha_rename_binder_body(args_e, v_e, v_p, kb)
+                                args_e = alpha_rename_binder_body(args_e, v_e, target, kb)
                                 for s_middle in unify_exprs_with_patterns(list(zip(middle_e, middle_p)), s, kb):
                                     # Block the pattern binder (domain+range) during descent
-                                    s_local = s_middle.block_always(v_p)
+                                    s_local = s_middle.block_always(target)
                                     yield from unify_exprs_with_patterns(list(zip(args_e, args_p)) + tail, s_local, kb)
 
                 # list matching for flat and non-symmetric operators (do allow different lengths)
@@ -11245,6 +14790,212 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
         
 def free_vars_only(e: Expr, kb: KnowledgeBase) -> set[str]:
     return free_bound_vars(e, kb)[0]
+
+def is_poly_variable(v: str) -> bool:
+    return is_poly_name(v) or v in run_state.poly_variables
+
+def check_poly_marks(expr: Expr, kb: KnowledgeBase) -> None:
+    # a polymorphic variable `$$x` (todo 35) is a sort variable of a rule: it must be bound inside
+    # the rule, by a binder that is not one of the outer `∀`s (those stand for anything of one
+    # sort) -- a free `$$x` has no sort to vary
+    seen: set[str] = set()
+    bound: set[str] = set()
+    def walk(e: Expr) -> None:
+        if isinstance(e, Token):
+            if e.label == 'SYMBOL' and isinstance(e.value, str) and is_poly_name(e.value):
+                seen.add(e.value)
+            return
+        if e and isinstance(e[0], Token) and isinstance(e[0].value, str) and kb.is_bindop(e[0].value) and len(e) > 1:
+            try:
+                bv, _ = unpack_condition(e[1], kb)
+                bound.add(bv)
+            except KurtException:
+                pass
+        for c in e:
+            walk(c)
+    walk(expr)
+    if not seen:
+        return
+    outer: set[str] = set()
+    e = expr
+    while is_forall(e, kb) and isinstance(e, list) and len(e) == 3 and isinstance(e[1], Token) and isinstance(e[1].value, str):
+        outer.add(e[1].value)
+        e = e[2]
+    for v in sorted(seen):
+        if v in outer:
+            raise KurtException(f'EvalError: `{v}` is polymorphic, but the outer `∀` of a statement is over one sort -- bind it inside the rule, or write `${v[2:]}`')
+        if v not in bound:
+            raise KurtException(f'EvalError: `{v}` is polymorphic (a variable over the sorts), but nothing in `{expr_str(expr, kb)}` binds it -- write `${v[2:]}` for a variable of one sort')
+
+def parametric_binders(rule: Expr, kb: KnowledgeBase) -> set[str]:
+    # the bound variables of a stored formula that the author marked polymorphic (`∀ $$x`, a sort
+    # variable, todo 35) -- and that are only where they may be: where they are bound (the binder
+    # and its condition), in a `sub` (its variable, or its value) and as a side of `=` (the same
+    # identity in every sort). Such a rule says nothing about their range, so a binder of it may be
+    # matched with one over a smaller sort (`binder_target`). Anywhere else (`$$c ∈ $a`: the
+    # elements of the sort matter) it is an error, not a schema
+    bound: set[str] = set()
+    elsewhere: set[str] = set()
+    def walk(e: Expr, allowed: frozenset[str]) -> None:
+        if isinstance(e, Token):
+            if e.label == 'SYMBOL' and isinstance(e.value, str) and e.value not in allowed:
+                elsewhere.add(e.value)
+            return
+        if not e:
+            return
+        head = e[0]
+        if is_sub(e):
+            if not isinstance(e[2], Token):
+                walk(e[2], allowed)       # (a bound variable as the value of a `sub`: checked by its sort, `trigger_sub`)
+            walk(e[3], allowed)
+            return
+        if isinstance(head, Token) and head.value == '=' and len(e) == 3:
+            for side in e[1:]:
+                if not isinstance(side, Token):
+                    walk(side, allowed)   # (a variable as a side of `=`: the identity, the same in every sort)
+            return
+        if isinstance(head, Token) and isinstance(head.value, str) and kb.is_bindop(head.value) and len(e) > 1:
+            try:
+                bv, _ = unpack_condition(e[1], kb)
+            except KurtException:
+                bv = None
+            if bv is not None:
+                bound.add(bv)
+                walk(e[1], allowed | {bv})
+                for c in e[2:]:
+                    walk(c, allowed)
+                return
+        for c in e:
+            walk(c, allowed)
+    walk(rule, frozenset())
+    marked = {v for v in bound if is_poly_variable(v)}
+    misplaced = marked & elsewhere
+    if misplaced:
+        shown = ', '.join(f'`{run_state.origin_names.get(v, v)}`' for v in sorted(misplaced))
+        raise KurtException(f'EvalError: {shown} is written `$$`, polymorphic, but occurs where a sort matters (anything but its binder, a `sub` and a side of `=`): `{expr_str(rule, kb)}` -- write `$` for a variable of one sort')
+    return marked
+
+def is_poly_binder(v: str) -> bool:
+    # a bound variable of a rule that the author wrote `$$x` (polymorphic), also a renamed copy
+    return v in run_state.parametric_binders and v not in run_state.goal_binders
+
+def rename_outer_binders(expr: Expr, s: State, kb: KnowledgeBase) -> Expr:
+    # the outer `∀ $$y`s whose variable stands for a fresh one of the sort of the use
+    # (`poly_sort_of_outer_foralls`) are renamed to it, so that stripping them gives a variable of
+    # that sort (`apply_subst` leaves a binder's variable as it is)
+    if not (is_forall(expr, kb) and isinstance(expr, list) and len(expr) == 3 and isinstance(expr[1], Token) and isinstance(expr[1].value, str)):
+        return expr
+    v = expr[1].value
+    body = rename_outer_binders(expr[2], s, kb)
+    value = s.lookup(v)
+    if isinstance(value, Token) and isinstance(value.value, str) and value.value != v and is_poly_binder(v):
+        return [expr[0], Token('SYMBOL', value.value), alpha_rename_binder_body([body], v, value.value, kb)[0]]
+    return [expr[0], expr[1], body]
+
+def poly_sort_of_outer_foralls(expr: Expr, s: State, kb: KnowledgeBase) -> Optional[State]:
+    # a premise `∀ $$y ...` that is stripped (`match_all_theory`), not matched with a binder: its
+    # polymorphic binders range over the sort of the use like every other (`binder_target`) -- a
+    # fresh variable of that sort stands for it, if it has another; None if it can't
+    while is_forall(expr, kb) and isinstance(expr, list) and len(expr) == 3 and isinstance(expr[1], Token):
+        bv = expr[1].value
+        if isinstance(bv, str) and is_poly_binder(bv):
+            sort = frozenset(kb.variable_sorts(bv)) or ANY_SORTS
+            if s.poly_sort is None:
+                s = dataclasses.replace(s, poly_sort=sort)
+            elif s.poly_sort != sort:
+                if s.lookup(bv) is not None or s.is_blocked_as_domain(bv):
+                    return None
+                fresh = new_var_name(bv)
+                run_state.internal_variable_sorts[fresh] = s.poly_sort
+                s = s.bind(bv, Token('SYMBOL', fresh))
+        expr = expr[2]
+    return s
+
+def stripped_binders(rule: Expr, premise_fresh: tuple[str, ...], conclusion_fresh: tuple[str, ...], kb: KnowledgeBase) -> tuple[dict[str, str], dict[str, str]]:
+    # the bound variables of the outer `∀`s of a rule's premise and conclusion that were stripped,
+    # with their fresh names (as the kernel's `k_stripped_names` reads a certificate)
+    found: list[dict[str, str]] = [{}, {}]
+    if is_implication(rule):
+        assert isinstance(rule, list)
+        for names, part, fresh in ((found[0], rule[1], premise_fresh), (found[1], rule[2], conclusion_fresh)):
+            for name in fresh:
+                if is_forall(part, kb) and isinstance(part, list) and isinstance(part[1], Token) and isinstance(part[1].value, str):
+                    names[part[1].value] = name
+                    part = part[2]
+                else:
+                    break
+    return found[0], found[1]
+
+def one_poly_sort(fresh_vars: tuple[str, ...], s: State, kb: KnowledgeBase, conclusion_fresh: tuple[str, ...] = ()) -> bool:
+    # whether the stripped `∀ $$w` of a premise (their fresh names) range over the sort of the
+    # use: by their value, a fresh variable of a sort, else by their own sort -- and the stripped
+    # ones of the conclusion by their value, if they have one (as the kernel, `k_poly_sorts`)
+    sorts = {s.poly_sort} if s.poly_sort is not None else set()
+    for v in (*fresh_vars, *conclusion_fresh):
+        if not is_poly_binder(v):
+            continue
+        value = s.walk(Token('SYMBOL', v))
+        if v in conclusion_fresh and isinstance(value, Token) and value.value == v:
+            continue
+        if isinstance(value, Token) and isinstance(value.value, str) and is_var_token(value, kb):
+            sorts.add(frozenset(kb.variable_sorts(value.value)) or ANY_SORTS)
+    return len(sorts) <= 1
+
+def sub_sorts_hold(e: Expr, s: State, kb: KnowledgeBase) -> bool:
+    # whether the value put in by each `sub` of `e` (a rule's conclusion) fits the sort of its
+    # variable, with the values of the whole match: a binder of the premise matched after the
+    # conclusion gives the variable its sort only then (`∀ X ∈ Pow(A)` of "forall-cond-elim", the
+    # unsorted `c` of `c ∈ Pow(B)`), which the kernel checks too (`k_evaluate`)
+    if is_sub(e):
+        assert isinstance(e, list)
+        x = s.walk(e[1])
+        a = apply_subst(e[2], s, kb)
+        if isinstance(x, Token) and isinstance(x.value, str) and not kb.is_bool(x.value) \
+                and not contains_unbound_var(a, s, kb) and not variable_sorts_allow(x.value, a, kb):
+            return False
+        return sub_sorts_hold(e[3], s, kb)
+    if isinstance(e, list):
+        return all(sub_sorts_hold(c, s, kb) for c in e)
+    return True
+
+def binder_target(v_p: str, sorts_p: frozenset[str], v_e: str, sorts_e: frozenset[str], s: State, kb: KnowledgeBase) -> tuple[Optional[str], State]:
+    # matching a binder of an expression (its variable `v_e`, of `sorts_e`) with one of a pattern
+    # (`v_p`, `sorts_p`): the name the expression's body is renamed to, and the state -- None if
+    # the sorts don't fit (todo 34). The same sort: `v_p`, as without sorts. Another sort: one of
+    # the two is the binder of a stored formula whose variable occurs nowhere else
+    # (`parametric_binders`; never one of a goal, never "extensionality" `∀ $c ($c ∈ $a ⇔ $c ∈
+    # $b)`) and has the bigger sort -- its variable then stands for the other one (a binder over
+    # everything, or over the sets, used for one over the numbers), the `sub`s check what is put
+    # in (`trigger_sub`)
+    value = s.lookup(v_p)
+    if isinstance(value, Token) and isinstance(value.value, str):
+        # (the pattern's binder variable stands for a binder of the expression already: the same sort)
+        return (value.value, s) if frozenset(kb.variable_sorts(value.value)) == sorts_e else (None, s)
+    if value is not None:
+        return v_p, s
+    # one sort per use: every polymorphic binder of the rule (on either side: the goal may be the
+    # pattern) ranges over the sort of the first one matched -- else `∃! $$x` over `any` with its
+    # `∀ $$y` over `real` gives `∃!` from uniqueness among the numbers alone
+    # (proofs/soundness/one-sort-per-use.kurt)
+    for poly, sort in ((v_p, sorts_e or ANY_SORTS), (v_e, sorts_p or ANY_SORTS)):
+        if is_poly_binder(poly):
+            if s.poly_sort is not None and s.poly_sort != sort:
+                return None, s
+            s = dataclasses.replace(s, poly_sort=sort)
+    if sorts_p == sorts_e:
+        return v_p, s
+    def relativizable(v: str, own: frozenset[str], other: frozenset[str]) -> bool:
+        return (v in run_state.parametric_binders and v not in run_state.goal_binders and s.lookup(v) is None
+                and not s.is_blocked_as_domain(v) and len(other) == 1
+                and all(kb.sort_fits(next(iter(other)), o) for o in own))
+    if relativizable(v_p, sorts_p, sorts_e):
+        # (a fresh name, not `v_e`: the expression may use that name for another binder too)
+        fresh = new_var_name(v_p)
+        run_state.internal_variable_sorts[fresh] = frozenset(sorts_e)
+        return fresh, s.bind(v_p, Token('SYMBOL', fresh))
+    if relativizable(v_e, sorts_e, sorts_p):
+        return v_p, s.bind(v_e, Token('SYMBOL', v_p))
+    return None, s
 
 def alpha_rename_binder_body(body: list[Expr], old: str, new: str, kb: KnowledgeBase) -> list[Expr]:
     # rename bound occurrences of `old` to `new` *inside this binder body only*.
@@ -11356,6 +15107,12 @@ class BinderMisread(KurtException):
     def __init__(self) -> None:
         super().__init__('EvalError: the condition of a binder binds another variable once computed')
 
+class SortMisfit(BinderMisread):
+    # a `sub` whose value doesn't have the sort of its variable (`trigger_sub`, todo 34): no
+    # instance -- the search skips the match, like a misread binder
+    def __init__(self) -> None:
+        KurtException.__init__(self, 'ProofError: a value does not have the sort of its variable')
+
 def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
     expr = deepcopy_expr(expr)
     # fully apply current substitution (capture-avoiding via blocked)
@@ -11366,7 +15123,7 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
         # only, see `impl_elim`) stays blocked: a bound and a free variable can have the same name
         # (found in the soundness review of 2026-09-29). A block as domain *and* range is the one of
         # a rule's binder from matching (`block_always`), which ends here.
-        s_new = State(s_new.subst, s_new.blocked_as_domain - {x}, s_new.blocked_as_range - {x}, s_new.eigen)
+        s_new = State(s_new.subst, s_new.blocked_as_domain - {x}, s_new.blocked_as_range - {x}, s_new.eigen, s_new.poly_sort)
         if x in s_old.blocked_as_domain and x not in s_old.blocked_as_range:
             s_new = s_new.block_as_domain(x)
         return s_new
@@ -11378,6 +15135,9 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
             # sub: [sub, $x, t, A] (must be the first case)
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), t, A] if isinstance(op, str) and op == SUB_SYMBOL:
                 assert isinstance(x, str)
+                standing = s.lookup(x)
+                if isinstance(standing, Token) and isinstance(standing.value, str) and is_var_token(standing, kb):
+                    x = standing.value        # (a rule's binder variable for a fresh one of a sort, `binder_target`)
                 s_local = s
                 # normalize the pieces
                 t_s, s_local = trigger_sub_core(t, s_local)
@@ -11386,6 +15146,24 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
 
                 # only fire when the schema is concrete (no %A style bool vars)
                 if not is_bool_var_token(A_s, kb) or (isinstance(A_s, Token) and x == A_s.value):
+                    # a value for a variable of a sort must have it (todo 34): `∀ x` over the
+                    # numbers gives nothing about a set (`BinderMisread`: the match is given up)
+                    # (not a polymorphic binder of the rule, `$$y` of "existsunique-def": one sort per use gives it
+                    # the sort of the use, checked at the end of the match, `impl_elim`)
+                    if not kb.is_bool(x) and not variable_sorts_allow(x, t_s, kb) \
+                            and not (isinstance(t_s, Token) and isinstance(t_s.value, str) and is_poly_binder(t_s.value)):
+                        wanted = kb.variable_sorts(x)
+                        own = kb.variable_sorts(t_s.value) if isinstance(t_s, Token) and isinstance(t_s.value, str) else set()
+                        if not (isinstance(t_s, Token) and isinstance(t_s.value, str) and is_var_token(t_s, kb)
+                                and s_local.lookup(t_s.value) is None and not s_local.is_blocked_as_domain(t_s.value)
+                                and len(wanted) == 1 and all(kb.sort_fits(next(iter(wanted)), o) for o in own)):
+                            raise SortMisfit()
+                        # a variable without a value yet (`$a` of "exists-intro"): it stands for a
+                        # fresh one of the sort, which its value must then have
+                        fresh = new_var_name(t_s.value)
+                        run_state.internal_variable_sorts[fresh] = frozenset(wanted)
+                        s_local = s_local.bind(t_s.value, Token('SYMBOL', fresh, t_s.column))
+                        t_s = Token('SYMBOL', fresh, t_s.column)
                     # we're done with the binder x; unblock it BEFORE returning
                     s_after = unblock_as_before(s_local, x, s)
                     # perform capture-avoiding A[x:=t]
@@ -11447,7 +15225,7 @@ class Certificate:
     kind: str                           # 'rule', or 'top', 'calc', 'calc-fact', 'todo', or a block rule (see `block`)
     goal: Expr                          # the claim, as `derive_expr` sees it (outer `∀`s removed, variables renamed)
     fixed: frozenset[str]               # the free variables of the goal, which stand for anything: they get no value
-    rule: Optional[Formula] = None      # the fact or rule used ('rule'), or the fact that computes to the goal ('calc-fact')
+    rule: Optional[Formula] = None      # the fact or rule used ('rule'), the fact that computes to the goal ('calc-fact'), the bare `todo` ('todo')
     form: str = ''                      # how the rule is read: 'fact' (the goal is an instance) or 'impl' (premise ⇒ conclusion)
     expr: Optional[Expr] = None         # the rule as read: its `simplified_expr`, or one direction `L ⇒ R` of an `iff`
     premise_fresh: tuple[str, ...] = () # the fresh names for the outer `∀`s of the premise, in order
@@ -11456,6 +15234,11 @@ class Certificate:
     facts: list[Formula] = field(default_factory=list)      # the facts that match the parts of the premise
     fact_fresh: list[tuple[str, ...]] = field(default_factory=list)  # fresh names for `∀` parts of the premise, matched without their `∀`s
     block: Optional[KnowledgeBase] = None   # for closing a block ('impl-intro', 'not-intro', 'forall-intro', 'exists-elim'): its level
+
+    def __deepcopy__(self, memo: dict) -> 'Certificate':
+        # the record of a checked step, never changed afterwards: a copied fact (its `Reason`, in an
+        # `ExportBundle`) keeps pointing at the same one, with the facts of the file that proved it (`foundation`)
+        return self
 
     def step(self, filename: str, own_lines: bool = False) -> tuple[str, list[str], bool]:
         # the rule and the lines (or labels) it is applied to, e.g. `equal-elim` with `11`, `10`;
@@ -11528,6 +15311,10 @@ def formula_place(f: Formula, filename: str) -> str:
     if run_state.place_links and first and os.path.isabs(f.filename):
         place = f'[{place}]({Path(f.filename).as_uri()}#L{first.group()})'
     return place + (f' "{f.label}"' if f.label else '')
+
+def is_poly_name(v: Value) -> bool:
+    # `$$x`: a polymorphic variable, written by the user (an internal name is `$$07`, digits only)
+    return isinstance(v, str) and v.startswith('$$') and len(v) > 2 and not v[2:].isdigit()
 
 def is_internal_name(v: Value) -> bool:
     return isinstance(v, str) and (v.startswith('$$') or v.startswith('%%')) and v[2:].isdigit()
@@ -11715,7 +15502,7 @@ def certificate_to_json(cert: Certificate) -> dict:
 
 @functools.lru_cache(maxsize=None)
 def portable_file(name: str) -> str:
-    # a theory that comes with Kurt by its name alone (`<kurt>/prop.kurt`), wherever it is (in the
+    # a theory that comes with Kurt by its name alone (`<kurt>/propositional.kurt`), wherever it is (in the
     # repository, the installed package, the bundle): the certificates of the theories, shipped
     # with Kurt, name the rules they use so -- any other file by its name as it is
     if name.startswith('<embedded>/'):
@@ -11832,7 +15619,7 @@ def resolve_load(name: str, from_file: str) -> Optional[str]:
     # the file that `load name` in `from_file` loads (as `load_file` finds it), or `None`
     if not name.endswith('.kurt'):
         name += '.kurt'
-    paths = packaged_theory_paths if packaged_theory_file(name) is not None else [Path(from_file).parent.resolve()] + run_state.theory_path
+    paths = packaged_theory_paths if packaged_theory_file(name) is not None else [Path(os.path.abspath(from_file)).parent] + run_state.theory_path
     for path in paths:
         candidate = path / name
         try:
@@ -11954,13 +15741,17 @@ def indirect_lines(fname: str) -> list[str]:
         lines.append(f'  {os.path.basename(origin)}: {names}')
     return lines
 
+def is_canonical_name(v: Value) -> bool:
+    # `$$c3`, `%%c0`: the name of an internal variable in a `.kurtc` (`expr_to_json`)
+    return isinstance(v, str) and v[2:3] == 'c' and is_internal_name(v[:2] + v[3:])
+
 def align(old: Expr, new: Expr, names: dict[str, str]) -> bool:
     # whether `new` is `old` with its canonical names (`$$c3`) replaced by names, consistently --
     # extends `names` by the replacements
     if isinstance(old, Token):
         if not isinstance(new, Token):
             return False
-        if isinstance(old.value, str) and old.value[2:3] == 'c' and is_internal_name(old.value[:2] + old.value[3:]):
+        if is_canonical_name(old.value):
             if not (isinstance(new.value, str) and new.label == 'SYMBOL' and is_internal_name(new.value)):
                 return False        # a canonical name stands for an internal variable, never a constant
             return names.setdefault(old.value, new.value) == new.value
@@ -11968,6 +15759,38 @@ def align(old: Expr, new: Expr, names: dict[str, str]) -> bool:
     if not isinstance(new, list) or len(old) != len(new):
         return False
     return all(align(o, n, names) for o, n in zip(old, new))
+
+def canonical_json(j: object) -> object:
+    # a stored expression (`expr_to_json`) with its canonical names numbered by their first
+    # occurrence: two expressions stored in different certificates (the goal of one, a fact of
+    # another) are numbered differently, and compare equal in this form when they are the same
+    # up to the names
+    names: dict[str, str] = {}
+    def walk(x: object) -> object:
+        if isinstance(x, dict):
+            return {'e': [walk(c) for c in x['e']]}
+        assert isinstance(x, list) and len(x) == 2
+        label, v = x
+        if is_canonical_name(v):
+            v = names.setdefault(v, f'{v[:2]}c{len(names)}')
+        return [label, v]
+    return walk(j)
+
+def fresh_name(c: str, names: dict[str, str]) -> str:
+    # a canonical name: its name now, or a fresh one (for the fresh variables of `∀`s, and for
+    # variables that only occur in values)
+    if c not in names:
+        names[c] = new_bool_var_name() if c.startswith('%') else new_var_name()
+    return names[c]
+
+def canonical_to_fresh(e: Expr, names: dict[str, str]) -> Expr:
+    # a stored expression with the names of this run for its canonical names (`fresh_name`)
+    if isinstance(e, Token):
+        if is_canonical_name(e.value):
+            assert isinstance(e.value, str)
+            return Token('SYMBOL', fresh_name(e.value, names))
+        return e
+    return [canonical_to_fresh(c, names) for c in e]
 
 def resolve_formula(j: dict, names: dict[str, str], kb: KnowledgeBase) -> Optional[Formula]:
     # the formula of the theory that `j` (see `formula_to_json`) describes, extending `names`
@@ -11991,52 +15814,98 @@ def resolve_formula(j: dict, names: dict[str, str], kb: KnowledgeBase) -> Option
         return clone
     return None
 
-def rebuild_certificate(h: dict, names: dict[str, str], goal: Expr, fixed: frozenset[str], kb: KnowledgeBase) -> Optional[Certificate]:
-    # a stored certificate (see `certificate_to_json`) for the goal and facts as they are now
+@dataclass
+class ReplaySteps:
+    # the steps of a line replayed from their stored certificates (`replay_step`)
+    hints: list[dict]                                   # the stored certificates of the line
+    used: list[dict] = field(default_factory=list)      # those replayed as steps (not for the line itself again)
+    added: list[tuple[Formula, Certificate]] = field(default_factory=list)   # the steps, in the order they were added to the theory
+
+def rebuild_certificate(h: dict, names: dict[str, str], goal: Expr, fixed: frozenset[str], kb: KnowledgeBase,
+                        steps: Optional[ReplaySteps] = None) -> Optional[Certificate]:
+    # a stored certificate (see `certificate_to_json`) for the goal and facts as they are now --
+    # a fact that is a step of the line (`17a`) is derived first from its own certificate (`steps`)
     rule = resolve_formula(h['rule'], names, kb)
     if rule is None:
         return None
-    facts = [resolve_formula(j, names, kb) for j in h['facts']]
-    if any(f is None for f in facts):
-        return None
-    def name(c: str) -> str:
-        # a canonical name: its name now, or a fresh one (for the fresh variables of `∀`s, and
-        # for variables that only occur in values)
-        if c not in names:
-            names[c] = new_bool_var_name() if c.startswith('%') else new_var_name()
-        return names[c]
-    def rename(e: Expr) -> Expr:
-        if isinstance(e, Token):
-            if isinstance(e.value, str) and e.value[2:3] == 'c' and is_internal_name(e.value[:2] + e.value[3:]):
-                return Token('SYMBOL', name(e.value))
-            return e
-        return [rename(c) for c in e]
+    facts: list[Formula] = []
+    for j in h['facts']:
+        f = resolve_formula(j, names, kb)
+        if f is None and steps is not None and replay_step(j, kb, steps):
+            f = resolve_formula(j, names, kb)
+        if f is None:
+            return None
+        facts.append(f)
     return Certificate('rule', goal, fixed, rule, h['form'], rule.simplified_expr,
-                       tuple(name(c) for c in h['premise_fresh']), tuple(name(c) for c in h['conclusion_fresh']),
-                       {name(c): rename(expr_from_json(v)) for c, v in h['values']},
-                       [f for f in facts if f is not None], [tuple(name(c) for c in fresh) for fresh in h['fact_fresh']])
+                       tuple(fresh_name(c, names) for c in h['premise_fresh']), tuple(fresh_name(c, names) for c in h['conclusion_fresh']),
+                       {fresh_name(c, names): canonical_to_fresh(expr_from_json(v), names) for c, v in h['values']},
+                       facts, [tuple(fresh_name(c, names) for c in fresh) for fresh in h['fact_fresh']])
+
+def replay_step(j: dict, kb: KnowledgeBase, steps: ReplaySteps) -> bool:
+    # a fact of a stored certificate that is a step of the line itself -- `17a`, the instance of a
+    # rule that a rewriting step needs (`conditional_rewrite`), or the line with one place
+    # rewritten (`multi_rewrite`) -- which the search derives first and adds to the theory. It is
+    # derived here as the search would: from its own stored certificate (the one for its formula),
+    # checked by the kernel, and added with its number; its facts may be steps too. So a chain line
+    # replays as a whole, which the search then doesn't run (field.kurt with its certificates: 2.7 s
+    # before, 0.5 s now; 4.6 s without them; 2026-10-16). Without the step's certificate, or if the kernel
+    # rejects it, the line's certificate can't be rebuilt, and the search runs as without it.
+    key = run_state.current_line[0]
+    assert key is not None
+    if j['label'] or j['direction'] is not None or portable_file(j['file']) != portable_file(key[0]) \
+            or not re.fullmatch(rf'{key[1]}[a-z]+', str(j['line'])):
+        return False
+    if any(g.line == j['line'] for g in kb.all_theory()):
+        return False                        # (its number is taken, see `next_sub_line`)
+    wanted = canonical_json(j['expr'])
+    for h in steps.hints:
+        if any(h is u for u in steps.used) or canonical_json(h['goal']) != wanted:
+            continue
+        steps.used.append(h)                # (also while it is rebuilt: a step is no fact of its own)
+        before, added_before = len(kb.theory), len(steps.added)
+        names: dict[str, str] = {}
+        goal = canonical_to_fresh(expr_from_json(h['goal']), names)
+        cert = rebuild_certificate(h, names, goal, free_bound_vars(goal, kb)[0], kb, steps)
+        if cert is None or kernel_verify(cert, kb) is not None:
+            del kb.theory[before:], steps.added[added_before:]      # (steps it needed, and it isn't one)
+            continue
+        line_str = str(j['line'])
+        reason = step_reason([cert], key[0], line_str)
+        step = Formula(kb, goal, expr_str(goal, kb), line_str, key[0], '', reason, keyword='')
+        kb.theory_append(step)
+        steps.added.append((step, cert))
+        return True
+    return False
 
 def replay_certificate(goal: Expr, fixed: frozenset[str], kb: KnowledgeBase) -> tuple[Optional[Certificate], bool]:
-    # a stored certificate of the current line for `goal`, accepted by the kernel -- and whether
-    # the line has stored certificates at all
+    # a stored certificate of the current line for `goal`, accepted by the kernel (with the
+    # steps of the line it needs, `replay_step`) -- and whether the line has stored certificates
+    # at all
     key = run_state.current_line[0]
     if key is None or key[0] not in run_state.replay_hints:
         return None, False
     hints = run_state.replay_hints[key[0]].get(key[1])
     if not hints:
         return None, False
-    for i, h in enumerate(hints):
+    for h in list(hints):
+        before = len(kb.theory)
+        steps = ReplaySteps(hints)
         try:
             names: dict[str, str] = {}
             if not align(expr_from_json(h['goal']), goal, names):
                 continue
-            cert = rebuild_certificate(h, names, goal, fixed, kb)
+            cert = rebuild_certificate(h, names, goal, fixed, kb, steps)
             if cert is None or kernel_verify(cert, kb) is not None:
+                del kb.theory[before:]      # (the steps replayed for it)
                 continue
         except Exception:       # a damaged `.kurtc`: only a hint that doesn't work
+            del kb.theory[before:]
             continue
-        del hints[i]
-        run_state.replayed += 1
+        hints[:] = [g for g in hints if g is not h and not any(g is u for u in steps.used)]
+        for step, step_cert in steps.added:
+            run_state.certificates_by_line.setdefault(key, []).append((step_cert, None))
+            log(kb, step.formula_str(kb), step.reason, kb.level)      # (as the search shows a step it derived)
+        run_state.replayed += 1 + len(steps.added)
         run_state.certificates_by_line.setdefault(key, []).append((cert, None))
         return cert, True
     return None, True
@@ -12066,9 +15935,14 @@ def k_bound(cond: Expr, kb: KnowledgeBase) -> str:
         case [Token(label='SYMBOL', value=b), Token(label='SYMBOL', value=v), _] if b == BOUND_SYMBOL and isinstance(v, str):
             return v                       # stored with the condition, as written
     seen: list[str] = []
+    def free_name(v: str) -> bool:
+        # a variable, a name unknown here, or one known only by a declared sort (`real x` before the
+        # closed `let x ...`: no constant any more, no operator) -- with any condition
+        return kb.is_var(v) or not kb.is_known(v) or (not kb.is_const(v) and kb.pos_sort(v, 0) is not None
+                                                     and not k_takes_arguments(v, kb) and not kb.is_bool(v))
     def collect(e: Expr) -> None:
         match e:
-            case Token(label='SYMBOL', value=v) if isinstance(v, str) and (kb.is_var(v) or not kb.is_known(v)) and v not in seen:
+            case Token(label='SYMBOL', value=v) if isinstance(v, str) and free_name(v) and v not in seen:
                 seen.append(v)
             case [*children]:
                 for c in children:
@@ -12095,6 +15969,8 @@ def k_equal(t1: Expr, t2: Expr, kb: KnowledgeBase, bmap1: Optional[dict] = None,
         case ([Token(label='SYMBOL', value=op1), cond1, *body1], [Token(label='SYMBOL', value=op2), cond2, *body2]) \
                 if isinstance(op1, str) and op1 == op2 and kb.is_bindop(op1) and len(body1) == len(body2):
             b1, b2 = k_bound(cond1, kb), k_bound(cond2, kb)
+            if k_binder_sorts(t1, kb) != k_binder_sorts(t2, kb):
+                return False    # the bound variables range over the same sort (todo 34)
             m1, m2 = {**bmap1, b1: b2}, {**bmap2, b2: b1}
             if isinstance(cond1, Token) != isinstance(cond2, Token):
                 return False
@@ -12115,6 +15991,30 @@ def k_equal(t1: Expr, t2: Expr, kb: KnowledgeBase, bmap1: Optional[dict] = None,
         case ([*c1], [*c2]) if len(c1) == len(c2):
             return all(k_equal(a, b, kb, bmap1, bmap2) for a, b in zip(c1, c2))
     return False
+
+def k_binder_sorts(node: Expr, kb: KnowledgeBase) -> frozenset[str]:
+    # the sorts of the variable of a binder: of a renamed one as stored; of one as written, read from
+    # its binder like the line was (`binder_node_sorts`, shared like the normal form)
+    assert isinstance(node, list)
+    bv = k_bound(node[1], kb)
+    renamed = bv[:2] in ('$$', '%%') and bv[2:].isdigit()       # (a renamed variable, as stored)
+    found = (frozenset(kb.variable_sorts(bv)) if renamed else kb.binder_sorts(node)) - {'any'}   # (over all objects: `{}`, canonical)
+    # over the elements of a set whose elements have a sort (`∀ x ∈ Int`, `real ∈ Int`): over that sort
+    cond = node[1]
+    if isinstance(cond, list) and len(cond) == 3 and isinstance(cond[0], Token) and cond[0].value == BOUND_SYMBOL:
+        cond = cond[2]
+    match cond:
+        case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=v), container] \
+                if v == bv and isinstance(op, str) and CALCULATOR_MEMBERSHIP in kb.get_builtins(op):
+            element: Optional[str] = None
+            if isinstance(container, list) and len(container) > 1 and isinstance(container[0], Token) and kb.has_role(container[0].value, 'setbrackets'):
+                parts = [k_value_sorts(c, kb) for c in container[1:] if not is_ellipsis(c)]
+                if parts and all(len(p) == 1 for p in parts):
+                    flat = [next(iter(p)) for p in parts]
+                    element = next((c for c in flat if all(k_sort_fits(o, c, kb) for o in flat)), None)
+            if element is not None and all(k_sort_fits(element, x, kb) for x in found):
+                return frozenset({element})
+    return found
 
 def k_free(e: Expr, kb: KnowledgeBase, bound: frozenset[str] = frozenset()) -> set[str]:
     # the free variables of `e`
@@ -12236,6 +16136,10 @@ def k_evaluate(e: Expr, kb: KnowledgeBase) -> Expr:
             t, A = k_evaluate(t, kb), k_evaluate(A, kb)
             if is_bool_var_token(A, kb) and A != tx:
                 return [e[0], tx, t, A]
+            if not kb.is_bool(x):
+                for sort in kb.variable_sorts(x):
+                    if not k_has_sort(t, sort, kb):
+                        raise KernelReject(f'`{expr_str(t, kb)}` does not have the sort `{sort}` of `{x}`, which it replaces')
             return k_replace(A, x, t, kb)
         case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and is_sub(cond):
             # a binder with any condition, `∀ (sub $x $v C)`: `C` must not contain `$v` itself
@@ -12252,19 +16156,207 @@ def k_evaluate(e: Expr, kb: KnowledgeBase) -> Expr:
             return [k_evaluate(c, kb) for c in children]
     raise KernelReject(f'unexpected expression `{e}`')
 
-def k_instance(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: KnowledgeBase) -> Expr:
+def k_binder_variables(e: Expr, kb: KnowledgeBase) -> set[str]:
+    # the variables that a binder of `e` binds
+    match e:
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            return {k_bound(cond, kb)} | set().union(*(k_binder_variables(c, kb) for c in [cond, *body]))
+        case [*children]:
+            return set().union(*(k_binder_variables(c, kb) for c in children)) if children else set()
+    return set()
+
+def k_is_poly_variable(v: str) -> bool:
+    # a variable the author wrote `$$x` (a letter after the `$$`: an internal name is `$$07`), or one
+    # renamed from it: the name is the mark, `run_state.poly_variables` the renamed ones
+    return (v.startswith('$$') and len(v) > 2 and not v[2:].isdigit()) or v in run_state.poly_variables
+
+def k_parametric_binders(rule: Expr, kb: KnowledgeBase) -> set[str]:
+    # the kernel's reading of which bound variables of a rule may range over a smaller sort than
+    # their own (todo 34, 35): those the author wrote `$$x` (polymorphic) -- and that occur only
+    # where they are bound (the binder, its condition), as the variable of a `sub` and as a side of
+    # `=`: the rule then says nothing about their range, the `sub`s check what is put in
+    # (`k_evaluate`). Not one in a body, `∀ $$c ($$c ∈ $a ⇔ $$c ∈ $b)` of "extensionality": for the
+    # numbers alone, it would give `∅ = {∅}` (doc/kurt-soundness.md)
+    bound: set[str] = set()
+    bad: set[str] = set()
+    def walk(e: Expr, where_ok: frozenset[str]) -> None:
+        match e:
+            case Token(label='SYMBOL', value=v) if isinstance(v, str):
+                if v not in where_ok:
+                    bad.add(v)
+            case [Token(label='SYMBOL', value='='), a, b]:
+                for side in (a, b):
+                    if not isinstance(side, Token):
+                        walk(side, where_ok)      # (a variable as a side of `=`: the identity, the same in every sort)
+            case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
+                if not isinstance(a, Token):
+                    walk(a, where_ok)     # (a variable as the value: `k_evaluate` checks its sort)
+                walk(A, where_ok)
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                bv = k_bound(cond, kb)
+                bound.add(bv)
+                walk(cond, where_ok | {bv})
+                for c in body:
+                    walk(c, where_ok)
+            case [*children]:
+                for c in children:
+                    walk(c, where_ok)
+    walk(rule, frozenset())
+    return {v for v in bound if k_is_poly_variable(v)} - bad      # (marked `$$x` by the author, and only where it may be)
+
+def k_stripped_names(cert: Certificate, kb: KnowledgeBase) -> tuple[dict[str, str], dict[str, str]]:
+    # the bound variables of the outer `∀`s of a rule's premise and of its conclusion that the
+    # certificate strips, with the fresh name of each (`k_strip`)
+    found: list[dict[str, str]] = [{}, {}]
+    if cert.form == 'impl' and is_implication(cert.expr):
+        assert isinstance(cert.expr, list)
+        for names, part, fresh in ((found[0], cert.expr[1], cert.premise_fresh), (found[1], cert.expr[2], cert.conclusion_fresh)):
+            for name in fresh:
+                match part:
+                    case [Token(label='SYMBOL', value=q), Token(label='SYMBOL', value=bv), body] if kb.has_role(q, 'universal') and isinstance(bv, str):
+                        names[bv] = name
+                        part = body
+                    case _:
+                        break
+    return found[0], found[1]
+
+def k_poly_sorts(rule: Expr, values: dict[str, Expr], kb: KnowledgeBase,
+                 stripped: tuple[dict[str, str], dict[str, str]] = ({}, {})) -> set[frozenset[str]]:
+    # the sorts the polymorphic binders (`$$x`) of a rule range over in one use: a binder's value
+    # (the fresh variable of a binder over a sort) or its own (none: `any`); a stripped outer `∀`
+    # of the premise by its fresh name (its value or its own sort), one of the conclusion only by
+    # a value. One use has one sort (doc/kurt-spec.md): `∃! $$x` over `any` and its `∀ $$y` over
+    # `real` are two
+    # (not the variable of a `sub`: the hole of a substitution ranges over no sort)
+    def binders(e: Expr) -> set[str]:
+        match e:
+            case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
+                return binders(body)
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                return {k_bound(cond, kb)} | set().union(*(binders(c) for c in [cond, *body]))
+            case [*children]:
+                return set().union(*(binders(c) for c in children)) if children else set()
+        return set()
+    found: set[frozenset[str]] = set()
+    for v in binders(rule):
+        if not k_is_poly_variable(v):
+            continue
+        premise_stripped, conclusion_stripped = stripped
+        name = premise_stripped.get(v, conclusion_stripped.get(v, v))
+        value = values.get(name)
+        if isinstance(value, Token) and value.label == 'SYMBOL' and isinstance(value.value, str) and kb.is_var(value.value):
+            found.add(frozenset(kb.variable_sorts(value.value)) or frozenset({'any'}))
+        elif value is None and v not in conclusion_stripped:
+            found.add(frozenset(kb.variable_sorts(name)) or frozenset({'any'}))     # (no sort: over all objects)
+    return found
+
+def k_instance(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: KnowledgeBase,
+               relativizable: 'set[str] | frozenset[str]' = frozenset()) -> Expr:
+    # a bound variable of the rule with a variable as its value: every occurrence of it is that
+    # variable. With another sort than its own (todo 34) only one of `relativizable`
+    # (`k_parametric_binders`), and only a smaller sort: the binder over all objects (or over
+    # the sets) used for one over the numbers
+    binders = k_binder_variables(e, kb) if values else set()
+    for v, value in values.items():
+        if v in binders and isinstance(value, Token) and value.label == 'SYMBOL' and isinstance(value.value, str) \
+                and value.value != v and kb.is_var(value.value):
+            own, new = set(kb.variable_sorts(v)), set(kb.variable_sorts(value.value))
+            if own != new:
+                if v not in relativizable:
+                    raise KernelReject(f'the bound variable `{v}` of the rule occurs in a body, it can not range over another sort than its own')
+                if not new or any(not any(k_sort_fits(n, o, kb) for n in new) for o in own):
+                    raise KernelReject(f'the bound variable `{v}` of the rule has the sort {sorted(own) or "of everything"}, its value `{value.value}` {sorted(new) or "of everything"}')
+            e = k_rename(e, v, value.value)       # (every occurrence, bound or free)
+            deps = {d: (value.value if b == v else b) for d, b in deps.items()}   # (a `$T` may depend on it as before)
     return normalize_expr(k_evaluate(k_instantiate(e, values, deps, kb), kb), kb)
 
-def k_has_sort(e: Expr, sort: str, kb: KnowledgeBase) -> bool:
-    """Kernel-side check of an optional result sort, independent of the search type checker."""
+def k_sort_fits(value_sort: str, required: str, kb: KnowledgeBase) -> bool:
+    # the kernel's own reading of the subsorts: `value_sort` is `required` or below it, by the
+    # pairs the theory declared (`sort set real`), followed upwards
+    if value_sort == required or (required == 'any' and value_sort != 'prop'):
+        return True
+    pairs = kb.all_subsorts()
+    seen = {value_sort}
+    todo = [value_sort]
+    while todo:
+        s = todo.pop()
+        for sub, sup in pairs:
+            if sub == s and sup not in seen:
+                if sup == required:
+                    return True
+                seen.add(sup)
+                todo.append(sup)
+    return False
+
+def k_value_sorts(e: Expr, kb: KnowledgeBase) -> set[str]:
+    # the kernel's reading of the sorts of a value: a symbol's or variable's, the result of its operator
     match e:
         case Token(label='SYMBOL', value=value) if isinstance(value, str):
-            return sort in kb.variable_sorts(value) or 0 in kb.sort_sig(sort, value)
+            return set(kb.variable_sorts(value))
+        case Token(label='INT' | 'FLOAT'):
+            sort = kb.pos_sort(NUMBERS_KEY, 0)
+            return {sort} if sort is not None else set()
         case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
-            return k_has_sort(body, sort, kb)
+            return k_value_sorts(body, kb)
         case [Token(label='SYMBOL', value=op), *_] if isinstance(op, str):
-            return 0 in kb.sort_sig(sort, op)
+            if kb.is_var(op):
+                return set(kb.variable_sorts(op))
+            sort = kb.pos_sort(op, 0)
+            return {sort} if sort is not None else set()
+    return set()
+
+def k_has_sort(e: Expr, sort: str, kb: KnowledgeBase) -> bool:
+    """Kernel-side check of an optional result sort, independent of the search type checker:
+    the value's sort is `sort` or a subsort of it (todo 34). Every value fits `any`, and a value
+    without a sort only `any` (todo 35)."""
+    if sort == 'any':
+        return True
+    found = k_value_sorts(e, kb)
+    return any(k_sort_fits(f, sort, kb) for f in found)
+
+def k_is_statement(e: Expr, kb: KnowledgeBase, as_operator: bool = False) -> bool:
+    # whether `e` is a formula, not a term, as the kernel reads it: a boolean variable or symbol
+    # that takes no arguments (`%A`, `prop A`, `true`, `false`), an application of an operator
+    # with a boolean result, also a compound one (`(¬¬=) c c`; `<` of the calculator), or a
+    # `sub` whose body is one -- the kind a `%`-variable's value has and a `$`-variable's value
+    # has not. A bare operator (`=`, `∧`, `prop P` with `arity P 1`) is no formula: only at an
+    # operator position (`as_operator`) does it say what its application is
+    match e:
+        case Token(label='TODO'):
+            return True
+        case Token(label='SYMBOL', value=v) if isinstance(v, str):
+            if not as_operator and k_takes_arguments(v, kb):
+                return False
+            builtins = kb.get_builtins(v)
+            if builtins:
+                return all(operation in CALCULATOR_BOOLEAN_RESULTS for operation in builtins)
+            return kb.is_bool(v)
+        case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
+            return k_is_statement(body, kb, as_operator)
+        case [head, *_]:
+            return k_is_statement(head, kb, as_operator=True)
     return False
+
+def k_takes_arguments(v: str, kb: KnowledgeBase) -> bool:
+    # an operator (prefix, infix, postfix, brackets) or a function symbol (`arity f 1`)
+    return kb.is_operator(v) or kb.get_arity(v) > 0
+
+def k_is_operator_variable(v: str, kb: KnowledgeBase) -> bool:
+    # a variable declared as an operator (`var ∘` with `infix ∘`), also by its fresh internal name
+    # (`$$07`, whose origin is `∘`)
+    return k_takes_arguments(v, kb) or k_takes_arguments(run_state.origin_names.get(v, v), kb)
+
+def k_has_kind(v: str, value: Expr, kb: KnowledgeBase) -> bool:
+    # the kind check of a value (doc/kurt-spec.md §3.1): a `%`-variable takes a formula; a
+    # `$`-variable a term -- no formula, and no bare operator (`=`, `+`, `f`: an operator is no
+    # object, decided 2026-10-20); an operator variable (`var ∘`) an operator with its result
+    if k_is_operator_variable(v, kb):
+        return kb.is_bool(v) == k_is_statement(value, kb, as_operator=True)
+    if kb.is_bool(v):
+        return k_is_statement(value, kb)
+    if isinstance(value, Token) and value.label == 'SYMBOL' and isinstance(value.value, str) and k_is_operator_variable(value.value, kb):
+        return False            # (an operator is no object, so no term: only an operator variable takes one)
+    return not k_is_statement(value, kb, as_operator=True)
 
 def k_strip(e: Expr, names: tuple[str, ...], kb: KnowledgeBase, also: Optional[Expr] = None) -> tuple[Expr, Optional[Expr]]:
     # remove outer `∀`s (without condition) of `e`, one per name, renaming the bound variable to
@@ -12338,7 +16430,8 @@ class KernelEnv:
     # it (doc/kurt-soundness.md §9)
     READS = frozenset({
         # the symbols
-        'is_var', 'is_bool', 'bool_sig', 'variable_sorts', 'all_sort_names', 'sort_sig',
+        'is_var', 'is_bool', 'bool_sig', 'variable_sorts', 'all_sort_names', 'sort_sig', 'pos_sort', 'all_subsorts',
+        'generalized_sorts', 'binder_sorts', 'sorts_in_use',
         'is_bindop', 'is_const', 'is_known', 'is_used', 'is_fixed_var',
         'is_vocabulary_symbol', 'is_arity_set', 'get_arity', 'is_flat', 'is_sym', 'all_flat', 'get_builtins',
         'has_role', 'role_symbol',
@@ -12346,7 +16439,7 @@ class KernelEnv:
         'get_infix', 'get_prefix', 'get_postfix', 'get_lbracket', 'is_lbracket', 'is_rbracket', 'get_alias',
         'is_alias', 'lookup', 'levels',
         # the facts, and how the block was opened
-        'all_theory', 'theory', 'const', 'mode_str', 'mode_args', 'let_names', 'pick_source', 'pick_fact', 'level',
+        'all_theory', 'theory', 'const', 'mode_str', 'mode_args', 'let_names', 'fixed_vars', 'pick_source', 'pick_fact', 'level',
         # how expressions are printed (in a message)
         'format', 'calc',
     })
@@ -12447,12 +16540,23 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
     witness = block.mode_args[0].value if block.mode_str == 'pick' and block.mode_args and isinstance(block.mode_args[0], Token) else None
     def no_escape(e: Expr) -> Optional[str]:
         # an individual constant of the block must not occur in what the block gives -- and the
-        # witness of a `pick` never, even if it is also a "vocabulary" symbol (`bool`, `arity`)
+        # witness of a `pick` never, even if it is also a "vocabulary" symbol (`prop`, `arity`)
         leaked = {c for c in k_constants(e, parent) if c in block.const and not parent.is_var(c)
                   and (not block.is_vocabulary_symbol(c) or c == witness)}
         if leaked:
             return f'the constants {sorted(leaked)} of the block occur in `{expr_str(e, parent)}`'
         return k_reading_changes(block, parent, e, last.expr)
+    def sorts_kept(names: list[str]) -> Optional[str]:
+        # a constant of the block of a sort is a variable of that sort in the result (todo 34): `let
+        # x` with `x + 1 > x` proves nothing about a set
+        for v in names:
+            inside = block.pos_sort(v, 0)
+            if inside is None:
+                continue
+            outside = parent.generalized_sorts(v) or frozenset({'any'})     # (no sort: over all objects)
+            if any(not k_sort_fits(o, inside, parent) for o in outside):
+                return f'`{v}` has the sort `{inside}` in the block, but the result is about {"everything" if outside == {"any"} else "/".join(sorted(outside))}'
+        return None
     match cert.kind:
         case 'impl-intro' | 'not-intro':
             if block.mode_str not in ('assume', 'case') or len(block.mode_args) != 1:
@@ -12469,7 +16573,7 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                 expected = negation
             if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
-            return no_escape(cert.goal)
+            return sorts_kept(sorted(block.fixed_vars)) or no_escape(cert.goal)
         case 'forall-intro':
             if block.mode_str != 'let' or not block.mode_args:
                 return 'not a `let` block'
@@ -12489,7 +16593,7 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                 expected = [Token('SYMBOL', universal), condition, expected]
             if not k_equal(cert.goal, expected, parent):
                 return f'`{expr_str(cert.goal, parent)}` is not `{expr_str(expected, parent)}`'
-            return no_escape(cert.goal)
+            return sorts_kept(list(block.let_names) + sorted(block.fixed_vars)) or no_escape(cert.goal)
         case 'exists-elim':
             if block.mode_str != 'pick' or len(block.mode_args) != 1 or block.pick_source is None or block.pick_fact is None:
                 return 'not a `pick` block'
@@ -12508,6 +16612,13 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
                     instance = normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(condition, x, witness, parent), k_replace(body, x, witness, parent)], parent)
                 case _:
                     return 'the fact picked from is not an existential'
+            # the witness has at most the sort of the bound variable (todo 34): a witness of `∃ x`
+            # over everything is not a number
+            inside = block.pos_sort(witness.value, 0)
+            if inside is not None:
+                outside = parent.variable_sorts(x) or {'any'}     # (no sort: over all objects)
+                if any(not k_sort_fits(o, inside, parent) for o in outside):
+                    return f'the witness `{witness.value}` has the sort `{inside}`, but the bound variable of the existential {"/".join(sorted(outside)) or "none"}'
             if not k_equal(instance, normalize_expr(block.pick_fact.expr, parent), parent):
                 return f'the fact `{expr_str(block.pick_fact.expr, parent)}` about the witness is not `{expr_str(instance, parent)}`'
             if not k_equal(cert.goal, last.expr, parent):
@@ -12579,11 +16690,20 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         if bad_sorts:
             v, sort = bad_sorts[0]
             return f'the value of `{v}` does not have its declared sort `{sort}`'
+        bad_kinds = sorted(v for v, value in cert.values.items() if not k_has_kind(v, value, kb))
+        if bad_kinds:
+            v = bad_kinds[0]
+            kind = ('an operator with a boolean result' if kb.is_bool(v) else 'an operator with a non-boolean result') if k_is_operator_variable(v, kb) else ('a formula' if kb.is_bool(v) else 'a term')
+            return f'the value `{expr_str(cert.values[v], kb)}` of `{v}` is not {kind}'
         deps = k_rule_dependencies(cert.expr, cert.rule, kb)
+        relativizable = k_parametric_binders(cert.expr, kb)
+        mixed = k_poly_sorts(cert.expr, cert.values, kb, k_stripped_names(cert, kb))
+        if len(mixed) > 1:
+            return f'the polymorphic binders of the rule range over different sorts {sorted(sorted(m) for m in mixed)}: one sort per use'
         if cert.form == 'fact':
             if cert.premise_fresh or cert.conclusion_fresh or cert.facts:
                 return 'a fact has no premise'
-            instance = k_instance(cert.expr, cert.values, deps, kb)
+            instance = k_instance(cert.expr, cert.values, deps, kb, relativizable)
             return None if k_equal(instance, goal, kb) else f'the instance `{expr_str(instance, kb)}` is not the goal'
         if cert.form != 'impl' or not is_implication(cert.expr):
             return f'unknown form `{cert.form}`'
@@ -12606,16 +16726,25 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
         seen = {t.value for e in [goal] + [f.simplified_expr for f in cert.facts] for t in get_token_set(e)}
         if eigen & seen:
             return f'the fresh variables {sorted(eigen & seen)} of a `∀` premise occur in the goal or a fact'
-        if eigen & set(cert.values):
-            return f'the fresh variables {sorted(eigen & set(cert.values))} of a `∀` premise got a value'
+        valued = sorted(eigen & set(cert.values))
+        # ... except a polymorphic one (`$$x`, todo 35) that stands for the fresh variable of a binder over a sort: the
+        # rule's own binder `∀ $$x`, matched with the goal's binder over `real`, is that binder (`binder_target`) -- a
+        # variable that only the search makes, in no fact and not fixed, never a term of the goal
+        not_renamed = [v for v in valued if not (k_is_poly_variable(v) and isinstance(cert.values[v], Token) and cert.values[v].label == 'SYMBOL'
+                                                 and isinstance(cert.values[v].value, str) and cert.values[v].value.startswith('$$')
+                                                 and not kb.is_fixed_var(cert.values[v].value) and cert.values[v].value not in seen)]
+        if not_renamed:
+            return f'the fresh variables {not_renamed} of a `∀` premise got a value'
         rule_vars = {t.value for t in get_token_set(cert.expr) if isinstance(t.value, str) and kb.is_var(t.value) and not kb.is_bool(t.value)}
         for v in rule_vars:
             if v in cert.values and k_free(cert.values[v], kb) & eigen:
                 return f'the value of `{v}` depends on the fresh variables {sorted(k_free(cert.values[v], kb) & eigen)} of a `∀` premise'
-        instance = k_instance(conclusion, cert.values, deps, kb)
+        # (the conclusion's binders that are a fresh copy of a polymorphic one of the premise's `∀`, `∀ $$x %A` of "forall-iff")
+        instance = k_instance(conclusion, cert.values, deps, kb, relativizable | k_parametric_binders(conclusion, kb))
         if not k_equal(instance, goal, kb):
             return f'the instance `{expr_str(instance, kb)}` of the conclusion is not the goal'
-        facts = [k_instance(f.simplified_expr, cert.values, k_rule_dependencies(f.simplified_expr, f, kb), kb) for f in cert.facts]
+        facts = [k_instance(f.simplified_expr, cert.values, k_rule_dependencies(f.simplified_expr, f, kb), kb,
+                            k_parametric_binders(f.simplified_expr, kb)) for f in cert.facts]
         def covered(part: Expr, strips: list[tuple[str, ...]]) -> bool:
             # `part` of the premise is an instance of a fact, or a `∀` whose body is (with one of
             # the recorded fresh variables), or a conjunction of such parts
@@ -12653,7 +16782,7 @@ def kernel_verify(cert: Certificate, kb: KnowledgeBase) -> Optional[str]:
                         if len(remaining) < len(parts) and not any(r is first for r in remaining) and covered_all(remaining, strips):
                             return True
             return False
-        premise_instance = k_instance(premise, cert.values, deps, kb)
+        premise_instance = k_instance(premise, cert.values, deps, kb, relativizable)
         if not covered(premise_instance, list(cert.fact_fresh)):
             return f'the premise `{expr_str(premise_instance, kb)}` does not follow from the facts'
         return None
@@ -12677,12 +16806,26 @@ def resolved_values(s: State) -> dict[str, Expr]:
 # unify a list of expression with the theory
 def cannot_unify(e: Expr, p: Expr, kb: 'KnowledgeBase') -> bool:
     # a quick check that `e` and `p` never unify, without trying: different constants, or different
-    # operators (also in the arguments of an operator that isn't `flat`, `sym` or binding) -- a
-    # variable (also an operator variable, `var ∘`) or a `sub` may match anything, so `False` then
+    # operators (also in the arguments of an operator that isn't `flat`, `sym` or binding; a
+    # constant symbol or a number against a term with a constant operator) -- a variable (also an
+    # operator variable, `var ∘`) or a `sub` may match anything, so `False` then. For a `sym`
+    # operator that isn't `flat` (`=`, `⇔`), the arguments are matched in some order
+    # (`unify_in_any_order`), so each argument of one side needs a partner on the other that it
+    # may unify with (since 2026-10-16; before, nothing below a `sym` operator was checked). Only
+    # without `calc on` (a term may compute to a number, `computes_to`)
     if isinstance(e, Token) or isinstance(p, Token):
         if not (isinstance(e, Token) and isinstance(p, Token)):
-            t = e if isinstance(e, Token) else p
-            return not is_var_token(t, kb) and t.label in ('INT', 'FLOAT', 'STRING')
+            t, term = (e, p) if isinstance(e, Token) else (p, e)
+            if is_var_token(t, kb):
+                return False
+            if t.label in ('INT', 'FLOAT', 'STRING'):
+                return True
+            # a constant symbol: only `sub $x $a %A` or a term with an operator variable at its
+            # top could stand for it (`unify_exprs_with_patterns` matches a symbol against no
+            # other term)
+            assert isinstance(term, list)
+            return (t.label == 'SYMBOL' and len(term) > 0 and isinstance(term[0], Token) and isinstance(term[0].value, str)
+                    and term[0].value != SUB_SYMBOL and not kb.is_var(term[0].value))
         if is_var_token(e, kb) or is_var_token(p, kb):
             return False
         return (e.label, e.value) != (p.label, p.value)
@@ -12696,17 +16839,29 @@ def cannot_unify(e: Expr, p: Expr, kb: 'KnowledgeBase') -> bool:
             return False
     if op_e != op_p:
         return True
-    if len(e) != len(p) or kb.is_flat(op_e) or kb.is_sym(op_e) or kb.is_bindop(op_e):
+    if len(e) != len(p) or kb.is_flat(op_e) or kb.is_bindop(op_e):
         return False
+    if kb.is_sym(op_e):
+        return (any(all(cannot_unify(a, b, kb) for b in p[1:]) for a in e[1:])
+                or any(all(cannot_unify(a, b, kb) for a in e[1:]) for b in p[1:]))
     return any(cannot_unify(a, b, kb) for a, b in zip(e[1:], p[1:]))
 
 def index_key(e: Expr, kb: 'KnowledgeBase') -> str:
     # what `theory_candidates` indexes a formula by: `op +` for a term with the constant operator
     # `+` at its top; `literal` for a number or string (never unifies with a term with an
-    # operator, see `cannot_unify`); `any` for everything that may unify with any term with an
-    # operator: a variable, a plain symbol, a term with a variable or `sub` at its top
+    # operator, see `cannot_unify`); `sym G` for a plain constant symbol `G` (unifies only with
+    # `G` itself, a variable or a `sub` -- before 2026-10-16 in `any`, so that a premise `Ai` of
+    # `Ai ∧ K ⇒ G` was tried against the whole theory, n `case` blocks with n rules for `G` grew
+    # cubically); `any` for everything that may unify with any term: a variable, a term with a
+    # variable or `sub` at its top
     if isinstance(e, Token):
-        return 'literal' if e.label in ('INT', 'FLOAT', 'STRING') and not is_var_token(e, kb) else 'any'
+        if is_var_token(e, kb):
+            return 'any'
+        if e.label in ('INT', 'FLOAT', 'STRING'):
+            return 'literal'
+        if e.label == 'SYMBOL' and isinstance(e.value, str):
+            return f'sym {e.value}'
+        return 'any'
     if len(e) == 0 or not isinstance(e[0], Token) or not isinstance(e[0].value, str):
         return 'any'
     op = e[0].value
@@ -12760,6 +16915,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
             front = [e for e in exprs if flat_of_bool_vars(s.walk(e), kb)]
             return match_all_theory(front + [e for e in exprs if not flat_of_bool_vars(s.walk(e), kb)], s, kb)
         case [expr, *tail]:
+            budget_step()       # (one step of the search: a premise against the facts)
             # iterate over all formulas of the theory -- skipping those that can't unify with `expr`
             # anyway (only saves time: a premise like `$a ∈ K` was tried against every formula)
             blocked = frozenset()   # no blocked variables
@@ -12800,11 +16956,13 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
             # (with the values filled in first: `∀ $x (%A iff %B)` with `%A := P $x` must strip the `$x`
             # of `P $x` too)
             expr_walked = s.walk(expr)
+            s_sorted: Optional[State] = s
             if is_forall(expr_walked, kb):
-                expr_walked = apply_subst(expr_walked, s, kb)
+                s_sorted = poly_sort_of_outer_foralls(expr_walked, s, kb)
+                expr_walked = rename_outer_binders(apply_subst(expr_walked, s_sorted or s, kb), s_sorted or s, kb)
             stripped, fresh_vars = remove_outer_forall_quantifiers(expr_walked, kb) if is_forall(expr_walked, kb) else (expr_walked, ())
-            if fresh_vars:
-                s_stripped = s
+            if fresh_vars and s_sorted is not None:
+                s_stripped = s_sorted
                 for fresh_v in fresh_vars:
                     s_stripped = s_stripped.block_eigen(fresh_v)
                 success, found_formulas, s_final, strips = match_all_theory([stripped, *tail], s_stripped, kb)
@@ -12835,6 +16993,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
 def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formula, filename: str, s: State, kb: KnowledgeBase) -> tuple[Optional[Certificate], State]:
 
     #debug(f'impl_elim: trying to prove `{expr_str(expr, kb)}` using `{expr_str(proven_formula.expr, kb)}`')
+    budget_step()           # (one step of the search: the budget of the line, a cancellation)
 
     # continue with the renamed and simplified variant of `proven_formula` that is generated during the construction of it
     formula_expr: Expr = proven_formula.simplified_expr
@@ -12891,7 +17050,7 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
         # which already blocks correctly) -- found via a `var`-declared symbol whose
         # auto-inferred boolean-ness was the original, narrower symptom reported.
         blocked_as_domain = frozenset(s.blocked_as_domain | expr_free_vars)
-        s_blocked = State(s.subst, blocked_as_domain, s.blocked_as_range, s.eigen)
+        s_blocked = State(s.subst, blocked_as_domain, s.blocked_as_range, s.eigen)   # (a new use: no `poly_sort` yet)
         s_final = _first_or_none(unify_exprs_with_patterns([(expr, formula_expr)], s_blocked, kb))
         if s_final is not None:
             cert = record_certificate(Certificate('rule', expr, expr_free_vars, proven_formula, 'fact', formula_expr, values=resolved_values(s_final)), kb)
@@ -12903,7 +17062,7 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
     # to unify `conclusion` and `premise` iterate over all possible substitutions of the `conclusion`
     # however, we must not change bound variables, so we block the free variables of `expr` since they are universally quantified
     blocked_as_domain = frozenset(s.blocked_as_domain | expr_free_vars)
-    s = State(s.subst, blocked_as_domain, s.blocked_as_range, s.eigen)
+    s = State(s.subst, blocked_as_domain, s.blocked_as_range, s.eigen)   # (a new use: no `poly_sort` yet)
     s_final: Optional[State] = State.empty()
     for s_matched in unify_exprs_with_patterns([(expr, conclusion)], s, kb):
         #f'impl_elim: matched `{expr}` with conclusion `{expr_str(conclusion, kb)}` with substitution {s_matched}')
@@ -12933,10 +17092,28 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
                 # (only as an eigen variable: if the conclusion binds the same `$x` -- "forall-iff",
                 # `(∀ $x (%A ⇔ %B)) ⇒ ((∀ $x %A) ⇔ (∀ $x %B))` -- matching it blocked `$x` as a
                 # bound variable, so that not even a fact could take it as a value)
+                standing = s_local.lookup(fresh_v)
+                if standing is None and is_poly_binder(fresh_v) and s_local.poly_sort is not None \
+                        and (frozenset(kb.variable_sorts(fresh_v)) or ANY_SORTS) != s_local.poly_sort:
+                    # (a polymorphic `∀ $$w` of the premise ranges over the sort of the use, fixed by
+                    # the conclusion: a fresh variable of it, as in `binder_target`)
+                    standing = Token('SYMBOL', new_var_name(fresh_v))
+                    run_state.internal_variable_sorts[standing.value] = s_local.poly_sort
+                    s_local = s_local.bind(fresh_v, standing)
+                if isinstance(standing, Token) and isinstance(standing.value, str) and is_var_token(standing, kb):
+                    fresh_v = standing.value      # (it stands for the bound variable of a binder over a sort, `binder_target`)
                 s_local = s_local.unblock(fresh_v).block_eigen(fresh_v)
 
             # search for the premise as well, i.e., match the theory against the `premise`
             success, matched_formulas, s_final, strips = match_all_theory([premise_local], s_local, kb)
+            if success and not one_poly_sort(premise_fresh_vars, s_final, kb, conclusion_fresh_vars):
+                success = False     # (the premise fixed another sort for the use than its `∀ $$w`)
+            if success and not sub_sorts_hold(conclusion, s_final, kb):
+                success = False     # (a binder of the premise gave the hole of a `sub` its sort later)
+            if success and len(k_poly_sorts(formula_expr, resolved_values(s_final), kb,
+                                            stripped_binders(formula_expr, premise_fresh_vars, conclusion_fresh_vars, kb))) > 1:
+                success = False     # (one sort per use, read as the kernel reads it: also a `$$` binder that got its
+                                    # value by a `sub` and was compared as a whole, soundness §8.47)
             if success:
                 break           # bingo!  we found one
     else:
@@ -13124,7 +17301,7 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
             premise, conclusion, premise_fresh = strip_premise_with_synced_conclusion(
                 raw_premise, raw_conclusion, kb)
             conclusion, _ = remove_outer_forall_quantifiers(conclusion, kb)
-            if cannot_unify(conclusion, goal, kb):
+            if not kb.calc and cannot_unify(conclusion, goal, kb):
                 continue
             parts = (premise[1:] if is_op_expr(premise, AND_SYMBOL)
                      and isinstance(premise, list) else [premise])
@@ -13132,12 +17309,15 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
             jobs.append(((generic, len(parts), size(premise), order), rule,
                          premise, conclusion, premise_fresh))
 
+    sort_mismatches: list[dict] = []
     for _, rule, premise, conclusion, premise_fresh in sorted(jobs, key=lambda job: job[0]):
         if attempts >= FAILURE_MATCH_LIMIT:
             break
         blocked = frozenset(initial.blocked_as_domain | goal_free_vars)
-        start = State(initial.subst, blocked, initial.blocked_as_range, initial.eigen)
+        start = State(initial.subst, blocked, initial.blocked_as_range, initial.eigen, initial.poly_sort)
+        matched_at_all = False
         for matched in itertools.islice(unify_exprs_with_patterns([(goal, conclusion)], start, kb), 2):
+            matched_at_all = True
             attempts += 1
             try:
                 premise_local, state = trigger_sub(premise, matched, kb)
@@ -13185,6 +17365,29 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
             if attempts >= FAILURE_MATCH_LIMIT:
                 break
 
+        if not matched_at_all and len(sort_mismatches) < FAILURE_RULE_LIMIT:
+            # the conclusion never matched under ordinary (sort-enforced) unification -- check
+            # whether a declared sort is the *only* reason, so it isn't reported as if no rule at
+            # all were relevant (todo 38; `ignoring_sorts` never affects the real search)
+            with ignoring_sorts():
+                relaxed = next(unify_exprs_with_patterns([(goal, conclusion)], start, kb), None)
+            if relaxed is not None:
+                violations = sort_violations(relaxed, kb)
+                if violations:
+                    location = (f'line {rule.line}' if rule.filename == filename
+                                else f'{os.path.basename(rule.filename)}:{rule.line}')
+                    shown = [Token('SYMBOL', var) for var, _, _ in violations] + [value for _, _, value in violations]
+                    names = readable_names(shown)
+                    def show_violation(var: str, sort: str, value: Expr) -> str:
+                        var_name = rename_for_display(Token('SYMBOL', var), names)
+                        value_shown = expr_str(rename_for_display(apply_subst(value, relaxed, kb), names), kb)
+                        return f'`{expr_str(var_name, kb)}` needs sort `{sort}`, but `{value_shown}` has no declared sort'
+                    sort_mismatches.append({
+                        'rule': rule.label or location,
+                        'location': location,
+                        'violations': [show_violation(var, sort, value) for var, sort, value in violations],
+                    })
+
     unique: list[dict] = []
     seen: set[tuple[str, tuple[str, ...]]] = set()
     if any(key[0] == 0 for key, _ in candidates):
@@ -13198,18 +17401,59 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
         if len(unique) == FAILURE_RULE_LIMIT:
             break
     goal_names = readable_names([goal])
-    return {
+    result = {
         'kind': 'not-derived',
         'goal': expr_str(rename_for_display(goal, goal_names), kb),
         'summary': 'no one-step derivation was found',
         'candidates': unique,
     }
+    if sort_mismatches:
+        result['sort_mismatches'] = sort_mismatches
+    hint = restriction_hint(goal, kb)
+    if hint is not None:
+        result['restriction'] = hint
+    return result
+
+def restriction_hint(goal: Expr, kb: KnowledgeBase) -> Optional[str]:
+    # the goal `∀ n:real P n` is a fact `∀ x P x` but for the sort of its binder, a bigger one
+    # (restriction), or `∃ x P x` with a fact `∃ n:real P n` (widening): valid, but no rule takes two
+    # sorts in one step (one sort per use, doc/kurt-soundness.md §10.3) -- say how it goes
+    forall, exists = is_forall(goal, kb), is_exists(goal, kb)
+    if not (forall or exists) or not kb.sorts_in_use():
+        return None
+    goal_sorts = binder_node_sorts(goal, kb) or ANY_SORTS
+    for f in reversed(list(kb.all_theory())):
+        if not (isinstance(f.expr, list) and f.expr and isinstance(f.expr[0], Token) and f.expr[0] == goal[0]):  # type: ignore[index]
+            continue
+        with ignoring_sorts():
+            same = equal_expr(f.expr, goal, kb)
+        if not same:
+            continue
+        fact_sorts = binder_node_sorts(f.expr, kb) or ANY_SORTS
+        if fact_sorts == goal_sorts:
+            continue
+        small, big = (goal_sorts, fact_sorts) if forall else (fact_sorts, goal_sorts)
+        if not all(any(kb.sort_fits(s, b) for b in big) for s in small):
+            continue
+        shown = '/'.join(sorted(big))
+        fact = f'`{expr_str(f.expr, kb)}`' + (f' (line {f.line})' if f.line else '')
+        if forall:
+            return (f'the fact {fact} says this over the bigger sort `{shown}`: a rule takes one sort per step, so '
+                    f'restrict it -- `let` the variable, then the instance ("forall-elim"), and close the block')
+        return (f'the fact {fact} says this over the smaller sort `{"/".join(sorted(small))}`: a rule takes one sort per '
+                f'step, so widen it -- `pick` its witness, then `∃ ...` with it ("exists-intro")')
+    return None
 
 def failure_explanation_text(explanation: dict) -> str:
     candidates = explanation.get('candidates', [])
+    sort_mismatches = explanation.get('sort_mismatches', [])
     if not candidates:
-        return 'no one-step derivation was found; no rule with a matching conclusion was found'
-    lines = ['no one-step derivation was found; relevant rules with missing premises:']
+        if sort_mismatches:
+            lines = ["no one-step derivation was found; a rule's conclusion would match except for a declared sort:"]
+        else:
+            lines = ['no one-step derivation was found; no rule with a matching conclusion was found']
+    else:
+        lines = ['no one-step derivation was found; relevant rules with missing premises:']
     for candidate in candidates:
         name = candidate['rule']
         location = candidate['location']
@@ -13218,7 +17462,269 @@ def failure_explanation_text(explanation: dict) -> str:
         matched = candidate.get('matched', [])
         found = f'; matched {", ".join(matched)}' if matched else ''
         lines.append(f'- `{name}`{where}: missing {missing}{found}')
+    for item in sort_mismatches:
+        name = item['rule']
+        location = item['location']
+        where = '' if name == location else f' ({location})'
+        lines.append(f'- `{name}`{where}: {"; ".join(item["violations"])}')
+    if explanation.get('restriction'):
+        lines.append(explanation['restriction'])
+    counterexample = explanation.get('counterexample')
+    if counterexample is not None:
+        lines.append(counterexample_text(counterexample))
     return '\n'.join(lines)
+
+# A counterexample to a failed propositional claim (`propositional_counterexample`): a truth
+# table over the atoms of the claim and the facts -- at most 2^COUNTEREXAMPLE_ATOMS rows, a
+# schema (a rule with `%A`-variables) checked for every truth value of at most
+# COUNTEREXAMPLE_SCHEMA_VARS variables, and all of it within COUNTEREXAMPLE_SECONDS; beyond
+# these bounds nothing is said. The counterexample is only a diagnostic: it is looked for after
+# a line has failed, and it never changes what is accepted.
+COUNTEREXAMPLE_ATOMS = 12
+COUNTEREXAMPLE_SCHEMA_VARS = 6
+COUNTEREXAMPLE_SECONDS = 0.3
+
+class NotPropositional(Exception):
+    # the claim or a fact is outside the finite semantics the truth table knows: no counterexample
+    pass
+
+def counterexample_text(counterexample: dict) -> str:
+    assignment = counterexample.get('assignment', {})
+    parts = [f'`{atom}` {"true" if value else "false"}' for atom, value in assignment.items()]
+    if not parts:                   # (no atom at all: the claim is `false` in another form)
+        return 'a counterexample: every fact holds but the claim doesn\'t -- it does not follow from these facts'
+    listed = parts[0] if len(parts) == 1 else ', '.join(parts[:-1]) + ' and ' + parts[-1]
+    return (f'a counterexample: with {listed}, every fact holds but the claim doesn\'t'
+            ' -- it does not follow from these facts')
+
+def propositional_counterexample(goal: Expr, kb: KnowledgeBase) -> Optional[dict]:
+    """A truth-table counterexample to the failed claim `goal`, or None.
+
+    The claim and every fact of the context are read as propositional formulas: the connectives
+    `and`, `implies`, `true` (the core) and the symbols with the roles `disjunction`, `negation`,
+    `equivalence` and `falsum` (propositional.kurt) have their truth tables, and anything else that stands
+    for a statement (`A`, `P a`, `x ∈ B`: no variable, no binder, no boolean subterm) is an opaque
+    atom. A fact with only boolean variables (`%A ∧ %B ⇒ %A`) is a schema: it holds if it holds
+    for every truth value of its variables -- checked where that is possible, and taken as a
+    valid rule of logic where it isn't but it comes from a trusted theory (`iff-subst`, with
+    `sub`). A context with any other fact (a `$x`-variable, a quantifier, an untrusted schema the
+    table can't read) gets no counterexample, since such a fact may say something about the
+    atoms that a truth table can't see: it is never a statement that the claim follows.
+
+    An assignment of the atoms that makes every fact true and the claim false shows that the claim
+    doesn't follow from the facts by any number of steps, not just not in one. It is checked again
+    by `truth_value`, an evaluator separate from the search for it, before it is reported.
+    """
+    atoms: dict[tuple, Expr] = {}                          # the opaque atoms, by structure
+
+    def key(e: Expr) -> tuple:
+        if isinstance(e, Token):
+            return (e.label, e.value)
+        return tuple(key(c) for c in e)
+
+    def is_connective(h: str, n: int) -> Optional[str]:
+        if h == AND_SYMBOL and n >= 2:
+            return 'and'
+        if h == IMPL_SYMBOL and n == 2:
+            return 'implies'
+        if kb.has_role(h, 'disjunction') and n >= 2:
+            return 'or'
+        if kb.has_role(h, 'equivalence') and n == 2:
+            return 'iff'
+        if kb.has_role(h, 'negation') and n == 1:
+            return 'not'
+        return None
+
+    def check_term(e: Expr) -> None:
+        # the argument of an atom is an object, not a statement: no variable, no binder, nothing boolean
+        if isinstance(e, Token):
+            if e.label == 'SYMBOL':
+                v = e.value
+                if not isinstance(v, str) or kb.is_var(v) or kb.is_bool(v) or kb.is_bindop(v) or v in (SUB_SYMBOL, BOUND_SYMBOL):
+                    raise NotPropositional()
+            return
+        for c in e:
+            check_term(c)
+
+    def compile(e: Expr, variables: set[str]) -> tuple:
+        # a formula as a small tree the truth table evaluates: ('const', bool), ('var', name),
+        # ('atom', key), or a connective with its compiled arguments
+        if isinstance(e, Token):
+            v = e.value
+            if e.label != 'SYMBOL' or not isinstance(v, str):
+                raise NotPropositional()
+            if v == TRUE_SYMBOL:
+                return ('const', True)
+            if kb.has_role(v, 'falsum'):
+                return ('const', False)
+            if kb.is_var(v):
+                if not kb.is_bool(v):
+                    raise NotPropositional()
+                variables.add(v)
+                return ('var', v)
+            if kb.all_roles.get(v) or kb.is_bindop(v) or v in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL):
+                raise NotPropositional()
+            atoms.setdefault(key(e), e)
+            return ('atom', key(e))
+        head = e[0]
+        if not (isinstance(head, Token) and head.label == 'SYMBOL' and isinstance(head.value, str)) or len(e) < 2:
+            raise NotPropositional()
+        h = head.value
+        connective = is_connective(h, len(e) - 1)
+        if connective is not None:
+            return (connective, tuple(compile(c, variables) for c in e[1:]))
+        # an opaque atom: a statement about objects (`P a`, `x ∈ B`)
+        if kb.all_roles.get(h) or kb.is_bindop(h) or kb.is_var(h) or h in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL) \
+                or any(i != 0 for i in kb.bool_sig(h)):
+            raise NotPropositional()
+        for c in e[1:]:
+            check_term(c)
+        atoms.setdefault(key(e), e)
+        return ('atom', key(e))
+
+    def evaluate(c: tuple, row: dict[tuple, bool], values: dict[str, bool]) -> bool:
+        kind, arg = c
+        if kind == 'const':
+            return arg
+        if kind == 'var':
+            return values[arg]
+        if kind == 'atom':
+            return row[arg]
+        if kind == 'and':
+            return all(evaluate(a, row, values) for a in arg)
+        if kind == 'or':
+            return any(evaluate(a, row, values) for a in arg)
+        if kind == 'not':
+            return not evaluate(arg[0], row, values)
+        if kind == 'implies':
+            return not evaluate(arg[0], row, values) or evaluate(arg[1], row, values)
+        assert kind == 'iff'
+        return evaluate(arg[0], row, values) == evaluate(arg[1], row, values)
+
+    def for_all_values(c: tuple, variables: list[str], row: dict[tuple, bool]) -> bool:
+        return all(evaluate(c, row, dict(zip(variables, values)))
+                   for values in itertools.product((False, True), repeat=len(variables)))
+
+    def has_atoms(c: tuple) -> bool:
+        kind, arg = c
+        return kind == 'atom' or (kind not in ('const', 'var') and any(has_atoms(a) for a in arg))
+
+    try:
+        goal_vars: set[str] = set()
+        claim = compile(goal, goal_vars)
+        if goal_vars:
+            raise NotPropositional()        # (a claim with variables is a schema; no single row refutes it)
+        ground: list[tuple] = []            # the facts without variables
+        schemas: list[tuple[tuple, list[str]]] = []     # the facts with (boolean) variables and atoms
+        facts: list[Expr] = []
+        for f in kb.all_theory():
+            e = f.simplified_expr
+            if isinstance(e, Token) and e.label == 'TODO':
+                continue
+            variables: set[str] = set()
+            try:
+                compiled = compile(e, variables)
+            except NotPropositional:
+                if is_trusted_file(f.filename) and statement_schema(e, kb):
+                    continue                # a rule of logic over statements (`iff-subst`), trusted
+                raise
+            if not variables:
+                ground.append(compiled)
+                facts.append(e)
+                continue
+            if len(variables) > COUNTEREXAMPLE_SCHEMA_VARS:
+                if is_trusted_file(f.filename):
+                    continue
+                raise NotPropositional()
+            if not has_atoms(compiled):     # a pure schema, e.g. "and-elim": it holds in no row or every one
+                if not for_all_values(compiled, sorted(variables), {}):
+                    raise NotPropositional()
+                continue
+            schemas.append((compiled, sorted(variables)))
+            facts.append(e)
+        if len(atoms) > COUNTEREXAMPLE_ATOMS:
+            raise NotPropositional()
+    except NotPropositional:
+        return None
+
+    keys = list(atoms)
+    deadline = time.monotonic() + COUNTEREXAMPLE_SECONDS
+    found: Optional[dict[tuple, bool]] = None
+    for i, bits in enumerate(itertools.product((False, True), repeat=len(keys))):
+        if i & 127 == 127 and time.monotonic() > deadline:
+            return None
+        row = dict(zip(keys, bits))
+        if evaluate(claim, row, {}):
+            continue
+        if all(evaluate(c, row, {}) for c in ground) and all(for_all_values(c, vs, row) for c, vs in schemas):
+            found = row
+            break
+    if found is None:
+        return None
+    # checked again, by an evaluator that is not the one that searched
+    assignment = {key(e): value for e, value in ((atoms[k], v) for k, v in found.items())}
+    if truth_value(goal, assignment, {}, kb) is not False:
+        return None
+    for e in facts:
+        if truth_value_of_fact(e, assignment, kb) is not True:
+            return None
+    names = readable_names(list(atoms.values()))
+    shown = {expr_str(rename_for_display(atoms[k], names), kb): v for k, v in found.items()}
+    return {'assignment': dict(sorted(shown.items()))}        # (the atoms in alphabetical order)
+
+def statement_schema(e: Expr, kb: KnowledgeBase) -> bool:
+    # a schema about statements only: every variable in it is boolean (`%A`), and it binds nothing
+    # (`iff-subst`, "invimplies-def", the transitivity of a `chain` of boolean operators) -- from a
+    # trusted theory, a rule of logic that `propositional_counterexample` takes as valid
+    if isinstance(e, Token):
+        return not (e.label == 'SYMBOL' and isinstance(e.value, str) and kb.is_var(e.value) and not kb.is_bool(e.value))
+    head = e[0]
+    if isinstance(head, Token) and isinstance(head.value, str) and head.value != SUB_SYMBOL \
+            and (kb.is_bindop(head.value) or head.value == BOUND_SYMBOL):
+        return False                    # (`sub` substitutes, it quantifies over nothing)
+    return all(statement_schema(c, kb) for c in e)
+
+def truth_value(e: Expr, assignment: dict[tuple, bool], values: dict[str, bool], kb: KnowledgeBase) -> Optional[bool]:
+    # the truth value of `e` under `assignment` (an atom by its structure) and `values` (a
+    # boolean variable); None where `e` has no truth value there -- the check of a counterexample,
+    # written apart from the search for it (`propositional_counterexample`)
+    def key(x: Expr) -> tuple:
+        return (x.label, x.value) if isinstance(x, Token) else tuple(key(c) for c in x)
+    if isinstance(e, Token):
+        if e.label != 'SYMBOL' or not isinstance(e.value, str):
+            return None
+        if e.value == TRUE_SYMBOL:
+            return True
+        if kb.has_role(e.value, 'falsum'):
+            return False
+        if e.value in values:
+            return values[e.value]
+        return assignment.get(key(e))
+    head = e[0]
+    if not (isinstance(head, Token) and isinstance(head.value, str)):
+        return None
+    args = [truth_value(a, assignment, values, kb) for a in e[1:]]
+    h = head.value
+    if h == AND_SYMBOL and len(args) >= 2 and all(a is not None for a in args):
+        return all(args)
+    if kb.has_role(h, 'disjunction') and len(args) >= 2 and all(a is not None for a in args):
+        return any(args)
+    if h == IMPL_SYMBOL and len(args) == 2 and None not in args:
+        return (not args[0]) or bool(args[1])
+    if kb.has_role(h, 'equivalence') and len(args) == 2 and None not in args:
+        return args[0] == args[1]
+    if kb.has_role(h, 'negation') and len(args) == 1 and args[0] is not None:
+        return not args[0]
+    return assignment.get(key(e))
+
+def truth_value_of_fact(e: Expr, assignment: dict[tuple, bool], kb: KnowledgeBase) -> Optional[bool]:
+    # a fact with boolean variables holds if it holds for every truth value of them
+    variables = sorted(v for v in free_bound_vars(e, kb)[0] if kb.is_var(v))
+    if len(variables) > COUNTEREXAMPLE_SCHEMA_VARS:
+        return None
+    results = [truth_value(e, assignment, dict(zip(variables, values)), kb)
+               for values in itertools.product((False, True), repeat=len(variables))]
+    return None if None in results else all(results)
 
 def derive_expr(expr: Expr, filename: str, s: State, kb: KnowledgeBase) -> tuple[list[Certificate], State]:
     # with `calc on`, the line computed first (as before), then as written, without computing (so
@@ -13231,6 +17737,8 @@ def derive_expr(expr: Expr, filename: str, s: State, kb: KnowledgeBase) -> tuple
     run_state.calc_view = True
     try:
         return derive_expr_as_given(calculate_normalized(expr, kb), filename, s, kb)   # computed, as before
+    except ResourceError:
+        raise                           # (the budget of the line: no second pass)
     except KurtException:
         pass
     finally:
@@ -13249,7 +17757,7 @@ def derive_expr_as_given(expr: Expr, filename: str, s: State, kb: KnowledgeBase)
     if len(kb.theory) > 0:
         match kb.theory[-1].expr:
             case Token(label='TODO', value=''):
-                return [record_certificate(Certificate('todo', expr, frozenset()), kb)], s
+                return [record_certificate(Certificate('todo', expr, frozenset(), kb.theory[-1]), kb)], s     # (`rule`: the `todo`, for `foundation`)
 
     # rename variables
     written = expr
@@ -13339,6 +17847,8 @@ def derive_expr_as_given(expr: Expr, filename: str, s: State, kb: KnowledgeBase)
                     more_reasons, s_clauses = derive_expr(clause, filename, s_clauses, kb)  # this might raise an exception
                     reasons.extend(more_reasons)
                 return reasons, s_clauses
+            except ResourceError:
+                raise                   # (the budget of the line)
             except KurtException:
                 found = (search() or generic_search()) if has_hints else generic_search()
                 if found is None:
@@ -13383,6 +17893,12 @@ def derive_expr_as_given(expr: Expr, filename: str, s: State, kb: KnowledgeBase)
         # An explanation is only a diagnostic. It must never hide or change the proof failure.
         explanation = {'kind': 'not-derived', 'goal': goal_text,
                        'summary': 'no one-step derivation was found', 'candidates': []}
+    try:
+        counterexample = propositional_counterexample(expr, kb)     # (only after the line failed)
+    except Exception:
+        counterexample = None       # (a diagnostic too: never in the way of the error)
+    if counterexample is not None:
+        explanation['counterexample'] = counterexample
     raise KurtException(f'ProofError: can not derive `{goal_text}`\n{failure_explanation_text(explanation)}',
                         column=get_column(expr), details=explanation)
 
@@ -13590,8 +18106,10 @@ def multi_rewrite(expr: Expr, filename: str, s: State, kb: 'KnowledgeBase') -> O
             try:
                 with quietly():
                     found = derive_expr(expr, filename, s, kb)
-            except KurtException:
+            except KurtException as e:
                 del kb.theory[before:]
+                if isinstance(e, ResourceError):
+                    raise               # (the budget of the line: not another place)
                 continue
             finally:
                 run_state.multi_rewrite_depth -= 1
@@ -13644,7 +18162,7 @@ def conditional_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: st
                 reason = step_reason([cert], filename, line_str)
                 step = Formula(kb, instance, expr_str(instance, kb), line_str, filename, '', reason, keyword='')
                 kb.theory_append(step)
-                if s.lookup(b_var) is None and not s.occurs(b_var, b):
+                if s.lookup(b_var) is None and not s.occurs(b_var, b) and kb.is_bool(b_var) == bool_expr(b, kb) and not bare_operator_for(b_var, b, kb):   # (the kind, as `compatible`)
                     found, s_matched = impl_elim(expr, expr_free_vars, rule, filename, s.bind(b_var, b), kb)
                     if found is not None:
                         if printing():
@@ -13689,6 +18207,12 @@ def guided_rewrite(expr: Expr, expr_free_vars: frozenset[str], filename: str, s:
     for t in candidates[:GUIDED_CANDIDATES]:
         for rule, b in rules:
             if s.lookup(b) is not None or s.occurs(b, t):
+                continue
+            if kb.is_bool(b) != bool_expr(t, kb):
+                # `%b` of "iff-subst" stands for a statement, `$b` of "equal-elim" for a term: as
+                # the unifier binds them (`unify_exprs_with_patterns`, `compatible`) -- "iff-subst"
+                # with a term as the place searched its premise `sub %x %a %A` through the whole
+                # theory, for nothing (2026-10-16)
                 continue
             cert, s_matched = impl_elim(expr, expr_free_vars, rule, filename, s.bind(b, t), kb)
             if cert is not None:
@@ -13737,6 +18261,10 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
     outer = run_state.current_line[0]
     run_state.current_line[0] = key
     run_state.multi_rewrite_tries = 0
+    # the budget of the search for this line starts here (a line of a loaded file has its own; the
+    # `load` line's is restored after it); a cancelled check stops at the next line (`budget_step`)
+    outer_budget = (run_state.line_steps, run_state.line_start)
+    run_state.line_steps, run_state.line_start = 0, time.monotonic()
     run_state.certificates_by_line.pop(key, None)
     # the indentation and chain state before the line: a line that fails (or needs more input)
     # leaves it as it was -- unless it closed blocks before failing, then it matches those
@@ -13746,6 +18274,8 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
         lexer_state.initial_LHS, lexer_state.chained_ops = saved.initial_LHS, saved.chained_ops
         lexer_state.indent_stack, lexer_state.indent_requester = saved.indent_stack, saved.indent_requester
     try:
+        if run_state.cancel is not None and run_state.cancel():
+            raise cancelled_error()
         return scan_parse_check_eval_line(input_line, lexer_state, kb, line, filename)
     except StopIteration:
         restore()
@@ -13769,6 +18299,7 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
         raise
     finally:
         run_state.current_line[0] = outer
+        run_state.line_steps, run_state.line_start = outer_budget
 
 def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str) -> tuple[KnowledgeBase, LexerState]:
     run_state.current_lexer_state[0] = lexer_state      # (for `summary`: what could come next)
@@ -13903,11 +18434,12 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
             raise KurtException(f'ParseError: a line continuing a chain is one operator and its right-hand side, like `  < b` -- put anything more in parentheses: `  < (b = c)`')
         assert resulting_op is not None       # otherwise we wouldn't be in `chained` mode
         assert lhs is not None
-        # the claim `lhs RESULT rhs`, from the parts as written, then read like any line (`a > c` is
-        # `c < a`: `inline`, then the bound variables, `flat` and `sym`)
+        # the claim `lhs RESULT rhs`, from the parts as written, then read like any line (the bound
+        # variables, then `inline` -- `a > c` is `c < a` --, `flat` and `sym`)
         claim: Expr = [resulting_op, deepcopy_expr(lhs), source[2]]
-        claim = symmetrize_all(flatten_all(mark_bound_variables(expand_inlines(claim, kb), kb), kb), kb)
+        claim = symmetrize_all(flatten_all(expand_inlines(mark_bound_variables(claim, kb), kb), kb), kb)
         expr_list[0] = claim
+        infer_line_sorts([claim], '', kb_predecessor)    # (the sorts of the claim: `= c` after `a < b` is `a < c`, todo 34)
         run_state.chain_from = run_state.chain_start_line      # (the line's event cites the chain's start, see `unused_lines`)
     else:
         run_state.chain_from = None
@@ -14014,16 +18546,24 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         if len(run_state.new_symbols) > 0:
             names = ', '.join(f'`{n}`' for n in run_state.new_symbols)
             if run_state.strict_mode and not is_trusted_file(filename):
-                raise KurtException(f'EvalError: {names} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `bool`, ...)')
+                raise KurtException(f'EvalError: {names} not declared -- with `--strict`, every symbol must be declared before its use (`const`, `var`, `prop`, ...)')
             run_state.new_symbols.clear()
+        sorted_now = commit_line_sorts(kb) if keyword_token is None or keyword_token.value not in SHOWING_KEYWORDS else []
         if printing() and (keyword_token is None or keyword_token.value != 'load'):   # (a `load` checks other files)
             note_indirect_symbols(kb, filename)
             for symbol in run_state.implicit_constants:
                 log(kb, f'const {symbol}', Reason('', 'added constant', 'declaration'), kb.level)
+            for symbol, positions, how in sorted_now:
+                # `real x ; sort inferred`, `real + 1 2 ; sort by default`: what the line gave a sort (todo 34)
+                shown = 'numbers' if symbol == NUMBERS_KEY else symbol.split('$$$', 1)[0] if '$$$' in symbol else symbol
+                for sort in sorted(set(positions.values())):
+                    places = ' '.join(str(p) for p in sorted(p for p, s in positions.items() if s == sort))
+                    kind = {'inferred': 'sort inferred', 'default': 'sort by default', 'def': 'sort of its definition'}.get(how[0], 'sort')
+                    log(kb, f'{sort} {shown}{"" if places == "0" else " " + places}', Reason('', kind, 'declaration'), kb.level)
             for symbol, signature in run_state.implicit_bool_signatures:
                 positions = ' '.join(str(position) for position in signature)
                 shown_symbol = symbol.split('$$$', 1)[0] if '$$$' in symbol else symbol
-                log(kb, f'bool {shown_symbol} {positions}', Reason('', 'added boolean signature', 'declaration'), kb.level)
+                log(kb, f'prop {shown_symbol} {positions}', Reason('', 'added statement places', 'declaration'), kb.level)
         run_state.implicit_constants.clear()
         run_state.implicit_bool_signatures.clear()
 
@@ -14046,6 +18586,15 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
 # we're about to actually read it, and always removed again in a `finally`, whether loading it
 # succeeded, failed to parse/check, or wasn't found at this particular search path.
 
+@functools.lru_cache(maxsize=4096)
+def resolved_path(name: str) -> str:
+    # a file's path with its symlinks resolved -- only to tell whether two names are one file
+    return os.path.realpath(name)
+
+def same_file(a: str, b: str) -> bool:
+    # whether the names `a` and `b` (as `load_file` names files) are the same file, also through a symlink
+    return a == b or (not a.startswith('<') and not b.startswith('<') and resolved_path(a) == resolved_path(b))
+
 def is_already_loaded(filename: str, kb: KnowledgeBase, search_paths) -> bool:
     # whether `load_file` would skip `filename`, since it finds it loaded before finding it anywhere else
     if not filename.endswith('.kurt'):
@@ -14053,7 +18602,7 @@ def is_already_loaded(filename: str, kb: KnowledgeBase, search_paths) -> bool:
     for path in search_paths:
         candidate = path / filename
         if isinstance(candidate, Path):
-            candidate = Path(os.path.normpath(candidate)) if is_packaged_path(path) else Path(os.path.realpath(candidate))   # (as `load_file` names it)
+            candidate = Path(os.path.normpath(candidate))   # (as `load_file` names it)
         if kb.get_load_level(str(candidate)) is not None:
             return True
         if source_is_file(candidate):
@@ -14080,13 +18629,14 @@ def note_load_resolution(filename: str, search_paths, candidate) -> None:
     for resolutions in run_state._load_resolutions:
         resolutions.append(entry)
 
-def load_resolution_now(filename: str, search_paths) -> Optional[str]:
-    # the file `load filename` finds now, as `load_file` looks for it (None: none, or a shadow)
+def load_resolution_now(filename: str, search_paths, as_named: bool = False) -> Optional[str]:
+    # the file `load filename` finds now, as `load_file` looks for it (None: none, or a shadow) --
+    # by its identity (`file_identity`), or with `as_named` by the name `load_file` gives it
     packaged = packaged_theory_file(filename)
     if packaged is not None:
         for path in search_paths:
             shadow = path / filename
-            if is_packaged_path(path) or str(shadow) == str(packaged):
+            if is_packaged_path(path) or same_path(shadow, packaged):
                 break
             if shadow.is_file():
                 return None
@@ -14094,7 +18644,7 @@ def load_resolution_now(filename: str, search_paths) -> Optional[str]:
     for path in search_paths:
         candidate = path / filename
         if source_is_file(candidate):
-            return file_identity(candidate)
+            return str(Path(os.path.normpath(candidate))) if as_named and isinstance(candidate, Path) else file_identity(candidate)
     return None
 
 def same_load_resolutions(resolutions: list[tuple]) -> bool:
@@ -14106,6 +18656,8 @@ def close_at_the_end(kb: KnowledgeBase, lexer_state: 'LexerState', filename: str
     # (`qed` isn't needed), one whose goal isn't is an error at its claim
     outer = run_state.current_line[0]
     run_state.current_line[0] = None       # (no line of the file: the closings are derived lines)
+    outer_budget = (run_state.line_steps, run_state.line_start)
+    run_state.line_steps, run_state.line_start = 0, None       # (their own budget, not the `load` line's; see `budget_step`)
     lexer_state.initial_LHS, lexer_state.chained_ops = None, []
     lexer_state.indent_stack[1:] = []
     try:
@@ -14113,7 +18665,9 @@ def close_at_the_end(kb: KnowledgeBase, lexer_state: 'LexerState', filename: str
             try:
                 kb = eval_done(kb, filename, line)
             except KurtException as e:
-                error = unfinished_at_the_end(kb, filename) if kb.mode_str == 'proof' else e
+                # (a proof whose goal isn't reached: an error at its claim -- unless its search was
+                # stopped by the budget, which is no verdict)
+                error = unfinished_at_the_end(kb, filename) if kb.mode_str == 'proof' and not isinstance(e, ResourceError) else e
                 if collects_errors(error) and not kb.is_load_boundary:
                     if error.filename is None:
                         error.filename, error.line = filename, max(1, line - 1)
@@ -14126,6 +18680,7 @@ def close_at_the_end(kb: KnowledgeBase, lexer_state: 'LexerState', filename: str
                 raise
     finally:
         run_state.current_line[0] = outer
+        run_state.line_steps, run_state.line_start = outer_budget
     return kb
 
 # all errors (`--all-errors`, `RunConfig(all_errors=True)`, the editors): after an error in the main
@@ -14148,9 +18703,10 @@ def at_the_claim(e: KurtException, block: KnowledgeBase, filename: str, line: in
 
 def collects_errors(e: KurtException) -> bool:
     # does checking go on after `e`? In the main file, for the kinds of error of a line (not a
-    # `KernelError`, not an `expect`'s); the other cases stop, as without all errors
+    # `KernelError`, not an `expect`'s), and a line whose budget was used up (`ResourceError`, but
+    # not a cancelled check: it stops); the other cases stop, as without all errors
     return (run_state.all_errors and len(run_state._loading_in_progress) <= 1
-            and e.kind in KurtException.KNOWN_KINDS)
+            and (e.kind in KurtException.KNOWN_KINDS or (isinstance(e, ResourceError) and not e.cancelled)))
 
 def record_error(e: KurtException) -> None:
     run_state.errors.append(e)
@@ -14260,6 +18816,170 @@ def unused_lines(events: list[dict]) -> tuple[set[int], dict[int, str]]:
     unused = {steps[i]['line'] for i in reportable if i not in used and steps[i].get('line')}
     return {n for n in unused if n not in lines_used and n not in restates}, restates
 
+#############################################
+## foundation: what a fact rests on (todo 6) ##
+#############################################
+
+# A proved fact rests on postulates: the `use` axioms and the `def`s its steps cite, the `todo`s
+# that admit a step, the calculator (a `calc` step), and a line admitted after an error. They are
+# found by walking the certificates of its steps (`Reason.certificates`), through the blocks (a
+# block's result rests on what its last line rests on -- without the block's own assumption,
+# which closing the block discharges; a `pick` on the existential fact it picks from), and across
+# `load` (an exported fact keeps its certificates, see `Certificate.__deepcopy__`). Nothing is
+# stored for this: it is computed from the certificates, after the check (`file_foundations`;
+# `kurt --foundation FILE`, `CheckResult.foundations`). The class of a fact stays what it is: a
+# `use` is an axiom, also where it could be proved (doc/kurt-doc.md §6.3.1).
+
+ADMISSION_CLASSES = {'use': 'axiom', 'def': 'definition', 'todo': 'todo', '': 'theorem'}
+
+def admission_class(f: 'Formula') -> str:
+    return ADMISSION_CLASSES.get(f.keyword, f.keyword)
+
+def line_number(line: str) -> int:
+    # the first number of a line id: `16a`, `8-10` -> 16, 8
+    return int(re.match(r'\d*', str(line)).group() or 0)
+
+def foundation(f: 'Formula', kb: Optional[KnowledgeBase] = None) -> list[dict]:
+    # the postulates `f` rests on, each {'kind', 'file', 'line', 'label', 'text'} -- 'kind' is 'use',
+    # 'def', 'todo' (a `todo F`, or a step admitted by a bare `todo`), 'calc' (a step computed by
+    # the calculator; `kb` names the bindings) or 'admitted' (a line admitted after an error, see
+    # `admit_line`) -- by file and line
+    found: dict[tuple[str, str, str], dict] = {}
+    seen: set[int] = set()          # the formulas visited, by `Formula.id` (a clone has the same)
+    discharged: set[int] = set()    # the assumptions of the blocks closed on the way: hypotheses, not postulates
+
+    def note(kind: str, g: 'Formula', text: str) -> None:
+        found.setdefault((kind, g.filename, g.line), {'kind': kind, 'file': g.filename, 'line': g.line, 'label': g.label, 'text': text})
+
+    def visit(g: 'Formula') -> None:
+        if g.id in seen or g.id in discharged:
+            return
+        seen.add(g.id)
+        if g.keyword in ('use', 'def', 'todo'):
+            note(g.keyword, g, statement_text(g))       # (a bare `todo`: '')
+            return
+        certs = g.reason.certificates if isinstance(g.reason, Reason) else ()
+        if not certs:                   # a derived fact without a step: admitted after an error
+            note('admitted', g, str(g.reason))
+            return
+        for cert in certs:
+            visit_certificate(cert, g)
+
+    def visit_certificate(cert: 'Certificate', g: 'Formula') -> None:
+        block = cert.block
+        if block is not None:           # closing a block: its assumption (`assume A`, `let x with C`) is discharged
+            discharged.update(h.id for h in block.theory if h.keyword == 'use' and any(h.expr is a for a in block.mode_args))
+            if block.pick_fact is not None:
+                discharged.add(block.pick_fact.id)
+            if block.pick_source is not None:
+                visit(block.pick_source)    # (`pick`: the existential fact the witness comes from)
+        if cert.kind in ('calc', 'calc-fact'):
+            note('calc', g, calculator_text(cert, kb))
+        if cert.rule is not None:
+            visit(cert.rule)            # (a step admitted by a bare `todo`: that `todo`)
+        for h in cert.facts:
+            visit(h)
+
+    visit(f)
+    return sorted(found.values(), key=lambda p: (os.path.basename(p['file']), p['file'], line_number(p['line']), p['line'], p['kind']))
+
+def statement_text(f: 'Formula') -> str:
+    # the statement as written, without its label: `A implies B` of `use A implies B "ab"`
+    return re.sub(r'\s*(\blocal\s*)?"[^"]*"\s*$', '', f.input_line) if f.expr != todo_token else ''
+
+def calculator_text(cert: 'Certificate', kb: Optional[KnowledgeBase]) -> str:
+    # what a `calc` step computes with: the symbols of its goal (and of the fact that computes to
+    # it) that are bound to the calculator, e.g. `+` add, `=` equal (numbers.kurt)
+    if kb is None:
+        return 'computed by the calculator'
+    exprs = [cert.goal] + ([cert.rule.expr] if cert.rule is not None else [])
+    bound = sorted({t.value for e in exprs for t in get_token_set(e) if isinstance(t.value, str) and kb.get_builtins(t.value)})
+    if not bound:
+        return 'computed by the calculator'
+    return 'computed by the calculator (' + ', '.join(f'`{shown_builtin_symbol(s)}` {" ".join(kb.get_builtins(s))}' for s in bound) + ')'
+
+def foundation_status(rests_on: list[dict]) -> str:
+    # 'established' (relative to its axioms and definitions), or 'accepted' (a `todo`, or an admitted line, is among them)
+    return 'accepted' if any(p['kind'] in ('todo', 'admitted') for p in rests_on) else 'established'
+
+def file_foundations(fname: str, kb: Optional[KnowledgeBase] = None) -> list[dict]:
+    # the facts at the top level of `fname` (checked in this run, see `RunState.file_theories`) that
+    # are labelled or theorems, each {'label', 'line', 'file', 'text', 'class', 'status', 'rests_on'}
+    # -- the class of the fact ('axiom', 'definition', 'todo', 'theorem'), and for a theorem its
+    # foundation (`foundation`) with its status; an axiom, definition or `todo` rests on itself
+    same = lambda a, b: a == b or (not a.startswith('<') and os.path.isabs(a) and Path(a).resolve() == Path(b).resolve())
+    checked, theory = next(((f, facts) for f, facts in run_state.file_theories.items() if same(f, fname)), (fname, []))
+    entries = []
+    for f in theory:
+        # its own facts (a loaded one belongs to its file), labelled or proved -- a fact numbered
+        # by a line (`5`, or a block `8-10`), not a part `5a` of a conjunction
+        if f.filename != checked or not (f.label or f.keyword == '') or not re.fullmatch(r'\d+(-\d+)?', str(f.line)):
+            continue
+        rests_on = foundation(f, kb) if f.keyword == '' else []
+        entries.append({'label': f.label, 'line': f.line, 'file': f.filename, 'text': statement_text(f), 'class': admission_class(f),
+                        'status': foundation_status(rests_on) if f.keyword == '' else admission_class(f), 'rests_on': rests_on})
+    return entries
+
+def foundation_summary(entry: dict) -> str:
+    # one line: `established, relative to 3 axioms, 1 definition and the calculator`
+    if entry['class'] != 'theorem':
+        return {'axiom': 'an axiom (`use`): assumed, not proved', 'definition': 'a definition (`def`): conservative, rests on nothing',
+                'todo': 'admitted (`todo`): not proved'}.get(entry['class'], entry['class'])
+    counts = {kind: sum(1 for p in entry['rests_on'] if p['kind'] == kind) for kind in ('use', 'def', 'calc', 'todo', 'admitted')}
+    plural = lambda n, word, words: f'{n} {word if n == 1 else words}'
+    parts = ([plural(counts['use'], 'axiom', 'axioms')] if counts['use'] else []) + \
+            ([plural(counts['def'], 'definition', 'definitions')] if counts['def'] else []) + \
+            (['the calculator'] if counts['calc'] else [])
+    relative = ', '.join(parts[:-1]) + (' and ' if len(parts) > 1 else '') + parts[-1] if parts else ''
+    gaps = ([plural(counts['todo'], 'todo', 'todos')] if counts['todo'] else []) + \
+           ([plural(counts['admitted'], 'line admitted after an error', 'lines admitted after an error')] if counts['admitted'] else [])
+    if gaps:
+        return f'accepted relative to {" and ".join(gaps)}' + (f' (and {relative})' if relative else '')
+    return f'established, relative to {relative}' if relative else 'established, rests on nothing but the rules of Kurt'
+
+def postulate_ref(p: dict) -> str:
+    # a postulate in a list: `"and-intro" (line 12)`, `use \`A\` (line 3)`, `todo at line 7`
+    match p['kind']:
+        case 'use' | 'def':
+            return f'"{p["label"]}" (line {p["line"]})' if p['label'] else f'{p["kind"]} `{p["text"]}` (line {p["line"]})'
+        case 'todo':
+            return f'todo `{p["text"]}` (line {p["line"]})' if p['text'] else f'todo at line {p["line"]}'
+        case 'calc':
+            return f'line {p["line"]} {p["text"]}'
+    return f'line {p["line"]} ({p["text"]})'
+
+def postulate_source(f: str) -> str:
+    # the file of a postulate, as shown: its name -- or the rules Kurt itself writes, for a `chain`
+    # (`<chain transitivity for ['=', '<']>`, see `add_chain_transitivity_rules`) and for the sets
+    # written out as `{a, b}` (`ENUMERATION_SOURCE`)
+    if f.startswith('<chain transitivity for '):
+        return 'the rules of `chain ' + ' '.join(re.findall(r"'([^']*)'", f)) + '`'
+    if f.startswith(ENUMERATION_SOURCE):
+        return 'the rules of Kurt for sets written out'
+    return os.path.basename(f)
+
+def foundation_report(fname: str, entries: list[dict]) -> str:
+    # `kurt --foundation FILE`: each fact with its class and what it rests on, by file; then the
+    # reverse: each postulate with the facts that rest on it (for a change of an axiom)
+    name = lambda e: f'"{e["label"]}"' if e['label'] else f'`{e["text"]}`'
+    lines = [f'{os.path.basename(fname)}: what each fact at its top level rests on']
+    if not entries:
+        lines.append('  (no labelled fact or theorem at the top level)')
+    for e in entries:
+        lines.append(f'\n{name(e)} (line {e["line"]}, {e["class"]}): {foundation_summary(e)}')
+        for f in dict.fromkeys(p['file'] for p in e['rests_on']):
+            lines.append(f'    {postulate_source(f)}: ' + ', '.join(postulate_ref(p) for p in e['rests_on'] if p['file'] == f))
+    resting: dict[tuple, list[str]] = {}
+    for e in entries:
+        for p in e['rests_on']:
+            resting.setdefault((os.path.basename(p['file']), p['file'], line_number(p['line']), p['line'], p['kind']), []).append(name(e))
+    if resting:
+        lines.append('\neach postulate, and the facts above that rest on it:')
+        for (_, f, _, line, kind), names in sorted(resting.items()):
+            p = next(p for e in entries for p in e['rests_on'] if (p['file'], p['line'], p['kind']) == (f, line, kind))
+            lines.append(f'    {postulate_source(f)}: {postulate_ref(p)}: ' + ', '.join(dict.fromkeys(names)))
+    return '\n'.join(lines)
+
 def error_event(e: KurtException) -> dict:
     # an error as an event (`--json`, the editors)
     event = {'line': error_line_of(e), 'id': None, 'kind': 'error', 'level': 0,
@@ -14282,7 +19002,7 @@ def admit_block(kb: KnowledgeBase, filename: str) -> KnowledgeBase:
 def admitted(kb: KnowledgeBase, claim: 'Formula', filename: str) -> 'Formula':
     # a claim without (a finished) proof, admitted after its error
     return Formula(kb, claim.expr, claim.input_line, str(claim.line), filename, claim.label,
-                   Reason(str(claim.line), 'admitted after an error'), keyword='', local=claim.local)
+                   Reason(str(claim.line), 'admitted after an error', admitted=True), keyword='', local=claim.local)
 
 def admit_line(input_line: str, kb: KnowledgeBase, lexer_state: 'LexerState', line: int, filename: str) -> tuple[KnowledgeBase, 'LexerState']:
     # a formula that can't be derived (all errors): admitted, as `todo FORMULA` would -- quietly,
@@ -14326,6 +19046,22 @@ def report_progress(name: str, line: Optional[int]) -> None:
     run_state.progress({'file': name, 'line': lines if line is None else line, 'lines': lines,
                         'index': index, 'files': len(files), 'done': line is None})
 
+def sharing_formulas(formulas: Iterable[Formula]) -> dict:
+    # a memo for `copy.deepcopy` that keeps these formulas instead of copying them: a `Formula` is
+    # never changed once it is in a theory (`theory_append` sets its fields before it appends it,
+    # `impl_elim` works on clones), and the kernel knows a fact by identity (`k_known`), so a copy
+    # of a bundle or a knowledge base may share them -- copying the formulas was nearly all the
+    # time of a copy (a bundle of 200 formulas: 22 ms, 0.5 ms with them shared; 2026-10-16)
+    return {id(f): f for f in formulas}
+
+def copy_bundle(bundle: ExportBundle) -> ExportBundle:
+    # a bundle for another knowledge base: its tables and lists copied (the loader adds to them), the formulas shared
+    return copy.deepcopy(bundle, sharing_formulas(bundle.theory))
+
+def copy_kb(kb: KnowledgeBase) -> KnowledgeBase:
+    # a knowledge base to go on from (the shell, `shell_start`): its levels copied, the formulas shared
+    return copy.deepcopy(kb, sharing_formulas(f for node in kb.levels() for f in node.theory))
+
 def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, main: bool) -> ExportBundle:
     # check the file in a fresh context -- the core, and the files it loads itself, nothing of
     # its loader (whose facts it could otherwise use without loading them, and whose load order
@@ -14337,7 +19073,7 @@ def checked_exports(fname: str, f: TextIO, candidate, loader: KnowledgeBase, mai
             and (cached[0].run_id == run_state.run_id or bundle_variables_are_new(cached[0])):
         for resolutions in run_state._load_resolutions:
             resolutions.extend(cached[2])        # (the files that load this one depend on them too)
-        return copy.deepcopy(cached[0])
+        return copy_bundle(cached[0])
     resolutions: list[tuple] = []
     run_state._load_resolutions.append(resolutions)
     try:
@@ -14399,23 +19135,44 @@ def checked_exports_now(fname: str, f: TextIO, candidate, loader: KnowledgeBase,
             kb.theory_append(admitted(kb, kb.show.pop(), fname))
     if run_state.kurtc_enabled and len(kb.todos()) == 0 and isinstance(candidate, (Path, _EmbeddedTheoryFile)) and not (main and run_state.errors):
         write_kurtc(fname)       # checked completely: its certificates (not with errors, see `collects_errors`)
+    if main:
+        run_state.main_kb = (getattr(f, 'name', fname), kb)     # (its top-level facts, for `CheckResult.proves`)
+    run_state.file_theories[fname] = kb.theory     # (also its unlabelled and `local` facts, see `file_foundations`)
     bundle = compute_exports(kb)
     validate_exports(bundle, kb, root, fname)
     bundle.todos = list(kb.todos())
     if not main and key[1] is not None:
-        run_state._checked_exports[key] = (copy.deepcopy(bundle), [(dep, source_hash(dep)) for dep in bundle.libs], list(resolutions))
+        run_state._checked_exports[key] = (copy_bundle(bundle), [(dep, source_hash(dep)) for dep in bundle.libs], list(resolutions))
     return bundle
+
+def sort_cycle(pairs: 'set[tuple[str, str]] | frozenset[tuple[str, str]]') -> Optional[list[str]]:
+    # a cycle of the subsort pairs (sub, sup), as the sorts along it, or None
+    ups: dict[str, list[str]] = {}
+    for sub, sup in pairs:
+        ups.setdefault(sub, []).append(sup)
+    for start in sorted(ups):
+        todo = [(start, [start])]
+        seen: set[str] = set()
+        while todo:
+            sort, path = todo.pop()
+            for sup in ups.get(sort, []):
+                if sup == start:
+                    return path + [start]
+                if sup not in seen:
+                    seen.add(sup)
+                    todo.append((sup, path + [sup]))
+    return None
 
 def symbol_declarations(kb: 'KnowledgeBase | ExportBundle', s: str) -> tuple:
     # how `s` is read: everything a `load` must not change about a symbol that both sides know
     if isinstance(kb, ExportBundle):
         custom_sorts = tuple(sorted((sort, tuple(signatures.get(s, [])))
                                     for sort, signatures in kb.sort_sigs.items() if signatures.get(s)))
-        return (kb.infix.get(s), kb.prefix.get(s), kb.postfix.get(s), kb.arity.get(s, 0), kb.arity_shape.get(s), inline_text(kb.inline.get(s)), tuple(kb.bool.get(s, [])),
+        return (kb.infix.get(s), kb.prefix.get(s), kb.postfix.get(s), kb.arity.get(s, 0), kb.arity_shape.get(s), inline_text(kb.inline.get(s)), tuple(kb.prop.get(s, [])),
                 custom_sorts, s in kb.bindop, s in kb.flat, s in kb.sym, kb.alias.get(s),
                 tuple(kb.builtins.get(s, [])), tuple(kb.roles.get(s, [])), kb.brackets.get(s))
     custom_sorts = tuple(sorted((sort, tuple(kb.sort_sig(sort, s)))
-                                for sort in kb.all_sort_names() if sort != 'bool' and kb.sort_sig(sort, s)))
+                                for sort in kb.all_sort_names() if sort != 'prop' and kb.sort_sig(sort, s)))
     return (kb.get_infix(s), kb.get_prefix(s), kb.get_postfix(s), kb.get_arity(s), kb.get_arity_shape(s), inline_text(kb.all_inlines().get(s)), tuple(kb.bool_sig(s)),
             custom_sorts, kb.is_bindop(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s),
             tuple(kb.get_builtins(s)), tuple(kb.all_roles.get(s, [])), kb.get_lbracket(s))
@@ -14435,6 +19192,20 @@ def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname
                          if sort in node.sorts), None)
         if existing is not None and incoming is not None and existing[0] != incoming[0]:
             raise KurtException(f'EvalError: sort `{sort}` is declared in `{os.path.basename(existing[0])}` and in `{os.path.basename(incoming[0])}`')
+    # the subsorts of both sides together must stay without a cycle (`sort a b` here, `sort b a` there)
+    cycle = sort_cycle(loader.all_subsorts() | bundle.subsorts)
+    if cycle is not None:
+        raise KurtException(f'EvalError: the subsorts of `{os.path.basename(fname)}` and the ones here make a cycle: {" ⊂ ".join(cycle)}')
+    # a symbol has one sort at each position on both sides (also one the core declares, `,`, whose
+    # sort a theory inferred -- `(a, b) ∈ A` in set.kurt)
+    for sort, signatures in sorted(bundle.sort_sigs.items()):
+        for symbol, positions in sorted(signatures.items()):
+            for position in positions:
+                here = loader.pos_sort(symbol, position)
+                if here is not None and here != sort:
+                    shown = 'the number literals' if symbol == NUMBERS_KEY else f'`{symbol}`'
+                    raise KurtException(f'EvalError: {shown} {"has" if symbol == NUMBERS_KEY else "has"} the sort `{sort}` in `{os.path.basename(fname)}`'
+                                        f'{"" if position == 0 else f" at position {position}"}, but `{here}` here')
     symbol_sort_clash = sorted(symbol for symbol in bundle.symbols if loader.is_sort_name(symbol))
     if symbol_sort_clash:
         raise KurtException(f'EvalError: {", ".join(f"`{symbol}`" for symbol in symbol_sort_clash)} is a sort here but a term symbol in `{fname}`')
@@ -14464,15 +19235,15 @@ def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname
         name = retargeted[0]
         raise KurtException(f'EvalError: `{name}` is a symbol of its own here, but an alias of `{bundle.alias[name]}` in `{os.path.basename(fname)}` -- '
                             f'rename it in one of them')
-    # a statement here (`bool Nat`), a term in the file (`const Nat`) -- or the other way round
-    # (found 2026-10-15: `bool Nat`, then `load natural` was accepted)
+    # a statement here (`prop Nat`), a term in the file (`const Nat`) -- or the other way round
+    # (found 2026-10-15: `prop Nat`, then `load natural` was accepted)
     for sym in sorted(bundle.symbols):
         if sym[0] in '$%' or sym in core_kb.declared_symbols():
             continue
-        if loader.bool_sig(sym) and sym in bundle.const and not bundle.bool.get(sym):
-            raise KurtException(f'EvalError: `{sym}` is a statement here (`bool {sym}`), but a term in `{os.path.basename(fname)}` -- rename it in one of them')
-        if loader.is_const(sym) and not loader.bool_sig(sym) and bundle.bool.get(sym):     # (a `bool` symbol is in `const` too)
-            raise KurtException(f'EvalError: `{sym}` is a term here, but a statement (`bool {sym}`) in `{os.path.basename(fname)}` -- rename it in one of them')
+        if loader.bool_sig(sym) and sym in bundle.const and not bundle.prop.get(sym):
+            raise KurtException(f'EvalError: `{sym}` is a statement here (`prop {sym}`), but a term in `{os.path.basename(fname)}` -- rename it in one of them')
+        if loader.is_const(sym) and not loader.bool_sig(sym) and bundle.prop.get(sym):     # (a `prop` symbol is in `const` too)
+            raise KurtException(f'EvalError: `{sym}` is a term here, but a statement (`prop {sym}`) in `{os.path.basename(fname)}` -- rename it in one of them')
     loader_formulas = [f for node in loader.levels() for f in node.theory]
     loader_defs = {f.def_symbol: key(f) for f in loader_formulas if f.def_symbol is not None}
     bundle_defs = {f.def_symbol: key(f) for f in bundle.theory if f.def_symbol is not None}
@@ -14496,6 +19267,10 @@ def require_assertions() -> None:
         raise RuntimeError('Kurt refuses to check under `python -O`/`-OO` -- this would silently disable internal soundness checks written as `assert`')
 
 def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = None, main:bool=False, silent:bool=False) -> KnowledgeBase:
+    with preserved_line_sorts():
+        return load_file_sorts_kept(filename, kb, search_paths, main, silent)
+
+def load_file_sorts_kept(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = None, main:bool=False, silent:bool=False) -> KnowledgeBase:
     require_assertions()
     # files are always loaded into a new level that is dropped once everything is ok to avoid partial loads
     if search_paths is None:
@@ -14510,7 +19285,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
     if packaged is not None:
         for path in search_paths:
             shadow = path / filename
-            if is_packaged_path(path) or str(shadow) == str(packaged):
+            if is_packaged_path(path) or same_path(shadow, packaged):
                 break
             if shadow.is_file():
                 raise KurtException(f'EvalError: `{shadow}` has the same name as the theory `{filename}` that comes with Kurt, and would shadow it -- please rename your file')
@@ -14519,9 +19294,11 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
     for path in search_paths:
         candidate = path / filename
         if isinstance(candidate, Path):
-            # `lib/../lib/op.kurt` is `lib/op.kurt`, and `lib2/op.kurt` through a symlink `lib2 -> lib` too:
-            # one file, loaded once (not for a packaged theory: `is_trusted_file` compares its path)
-            candidate = Path(os.path.normpath(candidate)) if is_packaged_path(path) else Path(os.path.realpath(candidate))
+            # `lib/../lib/op.kurt` is `lib/op.kurt`; and `lib2/op.kurt` through a symlink `lib2 -> lib` is
+            # the same file, loaded once (`same_file`) -- but it keeps the name it was found by: resolving
+            # symlinks in the name renamed every file on macOS, whose temporary directory `/var` is a
+            # symlink to `/private/var` (CI, 2026-10-15 to -17)
+            candidate = Path(os.path.normpath(candidate))
         fname = str(candidate)
         # check if the file was loaded already
         load_level = kb.get_load_level(fname)
@@ -14533,7 +19310,7 @@ def load_file(filename: str, kb: KnowledgeBase, search_paths: Optional[list] = N
             return kb
 
         # is this exact file already being loaded further down the call stack? that's a cycle
-        if fname in run_state._loading_in_progress:
+        if fname in run_state._loading_in_progress or any(same_file(fname, other) for other in run_state._loading_in_progress):
             raise KurtException(f'EvalError: circular `load`: `{fname}` is already being loaded (load cycle)') from None
 
         # try to open the file at this candidate path -- only *this* step's failure means
@@ -14606,6 +19383,16 @@ class RunConfig:
     # its lines and when it is done: the line of `file` (of `lines`) being checked, the `index`-th of
     # the `files` checked so far (a loaded file that is cached isn't checked); for a progress bar
     progress: Optional[Callable[[dict], None]] = None
+    # the budget of the search for one line (`kurt --budget SECONDS`; the editors and the grader set
+    # one, the command line none): seconds, and/or steps (an attempt to derive a goal from one fact,
+    # `impl_elim`, or to find a premise, `match_all_theory`; 1000 to 4000 a second). A line whose budget is used up fails with a `ResourceError`
+    # (not a `ProofError`: it is neither proved nor refuted, see `budget_step`); with `all_errors`,
+    # the check goes on after it. A budget that isn't hit changes nothing.
+    time_limit: Optional[float] = None
+    step_limit: Optional[int] = None
+    # called at each step and each line: True stops the check with a `ResourceError` at that line
+    # (`CheckResult.cancelled`; e.g. `threading.Event().is_set`, or "the document changed")
+    cancel: Optional[Callable[[], bool]] = None
 
 @dataclasses.dataclass
 class CheckResult:
@@ -14619,23 +19406,95 @@ class CheckResult:
     failure: Optional[dict] = None        # structured proof-failure explanation, when available
     certificates: dict[int, str] = dataclasses.field(default_factory=dict)   # line -> its certificates in long form (`certificates=True`)
     errors: list[dict] = dataclasses.field(default_factory=list)   # all errors (with `all_errors`, else the one): kind, line, column, message, failure
+    exhausted: bool = False               # a line's budget was used up (`RunConfig.time_limit`/`step_limit`): a `ResourceError` among `errors`
+    cancelled: bool = False               # the check was cancelled (`RunConfig.cancel`): it stopped at `error_line`
+    loaded: list[str] = dataclasses.field(default_factory=list)    # the files the check loaded, also through other files (their paths; a grader's allow-list)
+    # the file's final level, its name as its formulas carry it, and the session that checked it, for `proves` (not in the JSON)
+    _kb: 'Optional[KnowledgeBase]' = dataclasses.field(default=None, repr=False, compare=False)
+    _name: str = dataclasses.field(default='', repr=False, compare=False)
+    _session: 'Optional[Session]' = dataclasses.field(default=None, repr=False, compare=False)
+    foundations: list[dict] = dataclasses.field(default_factory=list)   # the file's top-level facts, each with its class and what it rests on (`foundation=True`; `file_foundations`)
+
+    def foundation(self, label: str) -> Optional[dict]:
+        # the entry of `foundations` for the fact with this label (`result.foundation("gauss")['rests_on']`), or by its line (`"12"`)
+        return next((e for e in self.foundations if e['label'] == label or str(e['line']) == str(label)), None)
 
     def to_json(self) -> str:
         # for graders and editors (`kurt --json FILE`)
-        return json.dumps(dataclasses.asdict(self) | {'complete': self.complete}, ensure_ascii=False, indent=1)
+        public = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if not f.name.startswith('_')}
+        return json.dumps(public | {'complete': self.complete}, ensure_ascii=False, indent=1)
 
     @property
     def complete(self) -> bool:           # checked, and no `todo` left
         return self.ok and not self.todos
 
+    def proves(self, statement: str, label: Optional[str] = None) -> bool:
+        # does the file prove `statement` at its top level? Proved: derived in this file by steps
+        # that rest on no admission -- not a `use` or `def`, not a `todo` or a proof with one
+        # (anywhere in it, or in a fact it uses), not a claim admitted after an error, not a fact
+        # of a loaded file, not a claim that is withdrawn or only proved inside a block. With
+        # `label` (or a label written in `statement`), under that label. See `proof_of`
+        return self.proof_of(statement, label) == 'proved'
+
+    def proof_of(self, statement: str, label: Optional[str] = None) -> Optional[str]:
+        # how the file states `statement` (as Kurt reads it, with or without `show` and a label) at
+        # its top level: 'proved' (see `proves`), 'admitted' (a `todo`, or a proof that rests on
+        # one or on an error), 'assumed' (`use`, `def`), 'loaded' (a fact of a file it loads), or
+        # None (not stated there). The statement is read in the file's final context -- `A ⇒ B`
+        # and `A implies B` are the same statement, `A ∧ B` and `B ∧ A` too -- so a statement the
+        # file can't read (its notation isn't declared) is None. The best of several matches wins
+        if self._kb is None or self._session is None:        # (the check didn't run to the end)
+            return None
+        kb = self._kb
+        with self._session._active():
+            try:
+                keyword, exprs, written, _ = parse_tokenstream(PeekableGenerator(scan_string(statement.strip(), kb)), kb)
+            except KurtException:
+                return None
+            if keyword is not None and keyword.value != 'show':
+                raise ValueError(f'not a statement: `{statement}` (a `{keyword.value}` line)')
+            if len(exprs) != 1:
+                raise ValueError(f'not one statement: `{statement}`')
+            wanted = label if label is not None else (written or None)
+            ranks = {'proved': 0, 'admitted': 1, 'assumed': 2, 'loaded': 3}
+            found = [status for f in kb.theory if (wanted is None or f.label == wanted) and equal_expr(exprs[0], f.expr, kb)
+                     and (status := self._status(f)) is not None]
+        return min(found, key=ranks.__getitem__) if found else None
+
+    def _status(self, f: 'Formula') -> Optional[str]:
+        if f.filename != self._name:
+            return 'loaded'
+        if f.keyword in ('use', 'def'):
+            return 'assumed'
+        if f.admitted:
+            return 'admitted'
+        if f.keyword == '' and isinstance(f.reason, Reason) and f.reason.kind == 'step':
+            return 'proved'
+        return None
+
+def is_pristine_theory(name: str, text: str) -> bool:
+    # an editor's text that *is* a theory of the running Kurt: its path is the packaged file's, and
+    # its text that file's, unchanged (saved) -- trusted as the file is. A changed text is not: the
+    # roles and `builtin`s of a theory can't come from an edit (found 2026-10-20: every theory of Kurt
+    # opened in an editor was checked as a stranger's file, its roles refused)
+    packaged = packaged_theory_file(os.path.basename(name))
+    if packaged is None or not same_path(packaged, name):
+        return False
+    try:
+        return packaged.read_text(encoding='utf-8') == text
+    except (OSError, UnicodeDecodeError):
+        return False
+
 def _fresh_run_state(config: RunConfig) -> RunState:
     paths = [Path(p) for p in config.paths]
     untrusted = [Path(p) for p in config.untrusted_paths]
     overlays = {source_name(name): text for name, text in config.overlays}
+    untrusted_names = {name for name, text in overlays.items() if not is_pristine_theory(name, text)}
     return RunState(theory_path=[*untrusted, *([Path.cwd()] if config.search_cwd else []), *paths, *packaged_theory_paths], strict_mode=config.strict,
-                    trusted_paths=list(paths), untrusted_names=set(overlays), source_overlays=overlays,
+                    trusted_paths=list(paths), untrusted_names=untrusted_names, source_overlays=overlays,
                     kurtc_enabled=config.kurtc, comment_indent=config.comment_indent,
-                    line_numbers=config.line_numbers, all_errors=config.all_errors, progress=config.progress)
+                    line_numbers=config.line_numbers, all_errors=config.all_errors, progress=config.progress,
+                    time_limit=config.time_limit, step_limit=config.step_limit, cancel=config.cancel)
 
 # a session's run state is `run_state` while it is active: one session at a time (several threads
 # take turns -- the checks are Python work, which wouldn't run in parallel anyway)
@@ -14660,7 +19519,7 @@ class Session:
                 run_state = before
 
     def _check(self, run: Callable[[KnowledgeBase], KnowledgeBase], name: str = '', certificates: bool = False,
-               links: bool = False) -> CheckResult:
+               links: bool = False, foundation: bool = False) -> CheckResult:
         out = io.StringIO()
         kb = copy.deepcopy(initial_kb)
         events: list[dict] = []
@@ -14669,6 +19528,7 @@ class Session:
             run_state.shell_start[0] = None
             run_state.errors = []
             run_state.progress_files = []
+            run_state.main_kb = None
             printed_before, run_state.print_errors = run_state.print_errors, 'stdout'   # (all errors: in the output, at their places)
             stopped: Optional[KurtException] = None
             try:
@@ -14684,16 +19544,20 @@ class Session:
                 if stopped is None:
                     log_summary(kb, len(errors))
                     shown = self._certificates(name, kb, links) if certificates else {}
+                    rests = file_foundations(name, kb) if foundation else []
             finally:
                 run_state.event_sink = None
                 run_state.errors = []
                 run_state.print_errors = printed_before
+                main_name, main_kb = run_state.main_kb or ('', None)     # (for `proves`: the file's own facts, in its context)
+                run_state.main_kb = None
+        own = {'loaded': main_kb.loaded_files() if main_kb is not None else [], '_kb': main_kb, '_name': main_name, '_session': self}
         if not errors:
-            return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events, certificates=shown)
+            return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events, certificates=shown, foundations=rests, **own)
         if stopped is not None:
             state = getattr(stopped, 'state', None)       # (the todos before the error count too)
             todos = list(state[0].todos()) if state is not None else list(getattr(stopped, 'todos_so_far', kb.todos()))
-            shown = {}
+            shown, rests = {}, []
         else:
             todos = list(kb.todos())
         first = errors[0]
@@ -14701,7 +19565,9 @@ class Session:
                    'file': e.filename if getattr(e, 'via_load', None) is not None else None}      # (in a loaded file)
                   for e in errors]
         return CheckResult(False, out.getvalue(), first.msg.strip(), first.kind, todos, error_line_of(first), events,
-                           first.details, certificates=shown, errors=listed)
+                           first.details, certificates=shown, errors=listed,
+                           exhausted=any(isinstance(e, ResourceError) and not e.cancelled for e in errors),
+                           cancelled=any(isinstance(e, ResourceError) and e.cancelled for e in errors), foundations=rests, **own)
 
     def _certificates(self, name: str, kb: KnowledgeBase, links: bool) -> dict[int, str]:
         # the certificates of the lines of the checked file, in long form (as `cert` shows them)
@@ -14717,14 +19583,17 @@ class Session:
             run_state.place_links = False
         return shown
 
-    def check_file(self, path: str, certificates: bool = False, links: bool = False) -> CheckResult:
+    def check_file(self, path: str, certificates: bool = False, links: bool = False, foundation: bool = False) -> CheckResult:
         # `certificates`: also the certificates of its lines, as `cert` shows them (with `links`, the
-        # places they name as Markdown links, for an editor)
-        return self._check(lambda kb: load_file(str(path), kb, main=True), str(path), certificates, links)
+        # places they name as Markdown links, for an editor); `foundation`: also what each of its
+        # top-level facts rests on (`CheckResult.foundations`)
+        return self._check(lambda kb: load_file(str(path), kb, main=True), str(path), certificates, links, foundation)
 
-    def check_text(self, text: str, name: str = 'proof.kurt', certificates: bool = False, links: bool = False) -> CheckResult:
+    def check_text(self, text: str, name: str = 'proof.kurt', certificates: bool = False, links: bool = False,
+                   foundation: bool = False) -> CheckResult:
         # `name` appears in the messages; `load` finds files in the working directory and `paths`
-        # a text is never trusted, whatever its name (`<embedded>/...`, a file in a `-p` directory)
+        # a text is never trusted, whatever its name (`<embedded>/...`, a file in a `-p` directory) --
+        # but a theory of the running Kurt, unchanged (`is_pristine_theory`): an editor showing it
         if name in ('<stdin>', '<shell>'):
             raise ValueError(f'`{name}` is the name of the shell\'s input, not of a text -- choose another name')
         def run(kb: KnowledgeBase) -> KnowledgeBase:
@@ -14733,18 +19602,21 @@ class Session:
             stream = io.StringIO(text)
             stream.name = name
             run_state._loading_in_progress.add(name)        # (the main file: the files it loads are below it)
-            run_state.untrusted_names.add(name)
+            pristine = is_pristine_theory(name, text)         # (a theory of Kurt, unchanged: trusted as its file)
+            if not pristine:
+                run_state.untrusted_names.add(name)
             try:
                 bundle = checked_exports(name, stream, None, kb, main=True)
             finally:
                 run_state._loading_in_progress.discard(name)
-                run_state.untrusted_names.discard(name)
+                if not pristine:
+                    run_state.untrusted_names.discard(name)
             validate_against_loader(bundle, kb, name)
             apply_exports(kb, bundle)
             for todo in bundle.todos:
                 kb.todo_add(todo)
             return kb
-        return self._check(run, name, certificates, links)
+        return self._check(run, name, certificates, links, foundation)
 
 def hello() -> str:
     # the first line Kurt prints
@@ -14808,7 +19680,7 @@ def new_session(config: Optional[RunConfig] = None) -> Session:
     return Session(config)
 
 def check_text(text: str, *, name: str = 'proof.kurt', session: Optional[Session] = None, certificates: bool = False) -> CheckResult:
-    # check a proof given as text, e.g. `kurt.check_text('load prop\nbool A\nuse A\nA\n').ok`
+    # check a proof given as text, e.g. `kurt.check_text('load propositional\nbool A\nuse A\nA\n').ok`
     return (session or Session()).check_text(text, name, certificates)
 
 def check_file(path: str, *, session: Optional[Session] = None, certificates: bool = False) -> CheckResult:
@@ -14879,6 +19751,8 @@ def lsp_same_as_file(path: str, text: str) -> bool:
         return False
 
 class LanguageServer:
+    DEFAULT_BUDGET = 30.0        # seconds of search per line: a line that takes longer is reported, not waited for
+
     def __init__(self, reader, writer) -> None:
         self.reader, self.writer = reader, writer
         self.texts: dict[str, str] = {}               # uri -> the text in the editor
@@ -14888,6 +19762,7 @@ class LanguageServer:
         self.extra_paths: tuple[str, ...] = ()
         self.strict = False
         self.all_errors = True             # all errors of a file, not only the first (option `allErrors`)
+        self.budget: Optional[float] = self.DEFAULT_BUDGET   # seconds of search per line (option `budget`; 0: none)
         self.check_on_change = False
         self.check_delay = 0.3
         self.progress: Optional[Callable[[dict], None]] = None   # see `RunConfig.progress` (the playground)
@@ -14932,7 +19807,8 @@ class LanguageServer:
             if isinstance(message, dict):
                 return message
 
-    def session_for(self, uri: str) -> Session:
+    def session_for(self, uri: str, cancel: Optional[Callable[[], bool]] = None) -> Session:
+        # (`cancel`: the check stops when it says so -- when the document changed, see `check`)
         folder = os.path.dirname(lsp_uri_path(uri)) or '.'
         with self.state_lock:
             # (only a text that differs from its file: an open file is never trusted as a theory,
@@ -14941,7 +19817,7 @@ class LanguageServer:
                              if open_uri.startswith('file:') and open_uri != uri and not lsp_same_as_file(lsp_uri_path(open_uri), text))
         session = Session(RunConfig(paths=self.extra_paths, untrusted_paths=(folder,),
                                     overlays=overlays, strict=self.strict, all_errors=self.all_errors,
-                                    progress=self.progress))
+                                    progress=self.progress, time_limit=self.budget or None, cancel=cancel))
         session._state._checked_exports = self.checked     # (used under `work_lock` only)
         return session
 
@@ -14964,13 +19840,17 @@ class LanguageServer:
             version = self.versions.get(uri)
             if expected_version is not None and version != expected_version:
                 return
-            session = self.session_for(uri)
+            # a check of a text that is edited meanwhile stops at its next step (its result would be
+            # discarded below; before, the check of the new text waited for it) -- read without the
+            # lock, at every step of the search
+            stale = lambda: self.texts.get(uri) is not text or self.versions.get(uri) != version
+            session = self.session_for(uri, cancel=stale)
         # Keep the source directory: sibling loads must precede the server's launch directory.
         # check_text treats this name as untrusted even if it happens to name a trusted file.
         with self.work_lock:
             result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt', certificates=True, links=True)
         with self.state_lock:
-            if uri not in self.texts or self.texts[uri] != text or self.versions.get(uri) != version:
+            if result.cancelled or uri not in self.texts or self.texts[uri] != text or self.versions.get(uri) != version:
                 return                          # a newer edit superseded this check
             self.results[uri] = result
             # (only of a file without errors: after an error, the lines that would use a line are missing)
@@ -15069,7 +19949,7 @@ class LanguageServer:
         certificate = result.certificates.get(n + 1, '') if result else ''
         details = '  \n'.join(re.sub(r'^; (\w[\w ]*:)\s+', r'**\1** ', line) for line in certificate.splitlines() if line.strip())
         if not details and all(str(e.get('text', '')).startswith('load ') for e in events):
-            # `load prop, numbers`: the files, as links (todo 51, 2026-10-15)
+            # `load propositional, numbers`: the files, as links (todo 51, 2026-10-15)
             links = []
             for e in events:
                 name = str(e['text'])[5:].strip()
@@ -15095,7 +19975,7 @@ class LanguageServer:
             name += '.kurt'
         folder = os.path.dirname(lsp_uri_path(uri)) or '.'
         paths = [Path(folder), Path.cwd(), *(Path(p) for p in self.extra_paths), *packaged_theory_paths]
-        found = load_resolution_now(name, paths)
+        found = load_resolution_now(name, paths, as_named=True)
         return found if found and not found.startswith('<') and os.path.isfile(found) else None
 
     # what a line without a certificate is, for the hover -- by its keyword
@@ -15140,14 +20020,19 @@ class LanguageServer:
         def number(i: int) -> str:
             return first[i].strip('"') if len(first) > i else '?'
         more = ' (and the others of the list)' if len(names) > 1 else ''
-        if not rest and keyword in LIST_PROPERTY_KEYWORDS + ('const', 'var', 'sort', 'bool', 'chain', 'alias'):
+        if not rest and keyword in LIST_PROPERTY_KEYWORDS + ('const', 'var', 'sort', 'prop', 'chain', 'alias'):
             return f'**{keyword}:** lists every symbol declared so with `{keyword}`, with its level and where it was declared'
         texts: dict[str, Callable[[], str]] = {
             'var': lambda: f'**variable{"s" if len(names) > 1 else ""}:** {listed} stand{"" if len(names) > 1 else "s"} for anything -- in a `use`, a `def` or a proved fact, a rule '
                    f'holds for every value of them (as `$x` does, without a declaration)',
             'const': lambda: f'**constants:** {listed}, each a fixed object, new here; nothing is known about '
                      f'{"them" if len(names) > 1 else "it"} but what the file says',
-            'sort': lambda: f'**sorts:** {listed}; each then declares signatures as `bool` does, e.g. `{names[0] if names else "S"} f 0`',
+            'sort': lambda: (f'**sorts:** {listed}; each then declares signatures as `prop` does, e.g. `{names[0].split()[0] if names else "S"} f 0`'
+                     + ('; a chain of names declares subsorts, read like `chain`: `sort set real int` is `int ⊂ real ⊂ set` -- '
+                        'a value of a subsort fits where the bigger sort is required' if any(len(n.split()) > 1 for n in names) else '')),
+            'default': lambda: (f'**default sort** `{number(0)}`: from here on, a symbol of this file without a declared or inferred sort '
+                        f'gets it (a `$` variable, a new constant, a position of a new operator, a bound variable); not across `load`'
+                        if rest else '**default:** names the default sort in force here'),
             'alias': lambda: f'**alias:** `{number(0)}` is another name for `{number(1)}`, with all its properties',
             'flat': lambda: f'**flat:** a run of {listed} is one term, `a {number(0)} b {number(0)} c` -- grouping doesn\'t matter (associative)',
             'sym': lambda: f'**symmetric:** the order of the arguments of {listed} doesn\'t matter when Kurt matches (commutative)',
@@ -15161,6 +20046,8 @@ class LanguageServer:
                         f'meaning given by rules; the two symbols are constants',
             'tex': lambda: f'**LaTeX:** `kurt --latex`/`--markdown` write `{number(0)}` as `{rest[len(number(0)):].strip()}` -- only '
                    f'output, nothing Kurt checks changes',
+            'lean': lambda: f'**Lean:** `kurt --lean` (with Mathlib) writes `{number(0)}` as `{rest[len(number(0)):].strip()}` -- only '
+                    f'output, nothing Kurt checks changes',
             'calc': lambda: ('**calculator on:** steps about numbers are justified by computing (`2 + 3 = 5`), until `calc off` or '
                     'the end of the block' if number(0) == 'on' else '**calculator off:** steps are justified by rules again'
                     if number(0) == 'off' else '**calculator:** shows whether it is on or off here'),
@@ -15176,10 +20063,10 @@ class LanguageServer:
                       f'it (`{number(0)} {" ".join("abcdefgh"[:int(number(1))]) if number(1).isdigit() and int(number(1)) <= 8 else "a b"}`)'
                       + more if number(1).isdigit() and len(first) == 2 and '(' not in rest else
                       f'**arity:** `{rest}` -- the shape of the arguments as they are written: `_` an argument, `(_, _)` a pair; Kurt checks each use'),
-            'bool': lambda: (f'**boolean:** {listed} {"are statements" if len(names) > 1 else "is a statement"}: '
+            'prop': lambda: (f'**statement:** {listed} {"are statements" if len(names) > 1 else "is a statement"}: '
                      f'{"their values are" if len(names) > 1 else "its value is"} true or false'
                      if all(len(n.split()) == 1 for n in names) else
-                     f'**boolean signature** of `{number(0)}`: ' + ', '.join('its value is boolean' if p == '0' else f'argument {p} must be boolean'
+                     f'**statement places** of `{number(0)}`: ' + ', '.join('its value is a statement' if p == '0' else f'argument {p} is a statement'
                                                                       for p in first[1:])),
         }
         if keyword in texts:
@@ -15231,6 +20118,7 @@ class LanguageServer:
             self.extra_paths = tuple(os.path.abspath(os.path.expanduser(path)) for path in options.get('theoryPaths', []))
             self.strict = bool(options.get('strict', False))
             self.all_errors = bool(options.get('allErrors', True))
+            self.budget = max(0.0, float(options.get('budget', self.DEFAULT_BUDGET) or 0))   # (0, null: none)
             self.check_on_change = bool(options.get('checkOnChange', options.get('checkOnType', False)))
             self.check_delay = max(0.05, float(options.get('checkOnChangeDelay', 0.3)))
             capabilities = params.get('capabilities') or {}
@@ -15681,6 +20569,13 @@ def write_history(history: list[str], path: str = HISTORY_FILE) -> None:
     except OSError:
         pass                                     # (no history then, but no traceback at exit)
 
+def write_history_if_changed(history: list[str], read: list[str], path: str = HISTORY_FILE) -> None:
+    # at the exit: the history only if the shell added to it -- `kurt FILE`, piped input and `--json`
+    # leave the file as it is (it was rewritten on every run: truncated, a libedit file converted,
+    # and a shell open meanwhile lost its lines; todo 33)
+    if history != read:
+        write_history(history, path)
+
 shell_terminal: list[Optional['Terminal']] = []    # the shell's terminal, once opened (`read_eval_loop`)
 shell_history: list[str] = []                     # the lines of the shell, also of earlier sessions (`main`)
 
@@ -15965,7 +20860,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
                     if is_file:
                         if len(run_state._loading_in_progress) <= 1 and run_state.shell_start[0] is None:
                             # (a `Shell` continues in the blocks still open: before they close)
-                            run_state.shell_start[0] = (copy.deepcopy(kb), copy.deepcopy(lexer_state), line, 'end')
+                            run_state.shell_start[0] = (copy_kb(kb), copy.deepcopy(lexer_state), line, 'end')
                         kb = close_at_the_end(kb, lexer_state, input_stream.name, line, start_level)
                     break
                 new_line = new_line.rstrip()
@@ -16015,7 +20910,7 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
                     print(state_summary(b.kb, lexer_state))
                 if is_file and main_file and run_state.shell_start[0] is None:
                     # (copies: checking goes on after it)
-                    run_state.shell_start[0] = (copy.deepcopy(b.kb), copy.deepcopy(lexer_state), line + 1, 'breakpoint')
+                    run_state.shell_start[0] = (copy_kb(b.kb), copy.deepcopy(lexer_state), line + 1, 'breakpoint')
                 kb = b.kb
             except StopIteration:  # while parsing: need more input, i.e., `kb` has not changed yet, `lexer_state` has not changed either
                 input_line += '\n'  # the line break (a space, except in a matrix, see `rows_by_line`)
@@ -16106,7 +21001,9 @@ def read_eval_loop(input_stream: TextIO, kb: KnowledgeBase,
                         if first != 'qed' and one_line:
                             replay = new_line
                             continue
-                    elif e.kind == 'ProofError' and first not in keywords:
+                    elif e.kind in ('ProofError', 'ResourceError') and first not in keywords:
+                        # (not derived, or its budget used up: admitted, so that the lines after it
+                        # don't fail because of it)
                         kb, lexer_state = admit_line(statement, kb, lexer_state, line, input_stream.name)
                     elif first in keywords_opening_blocks or first == 'show':
                         skip_deeper_than = count_leading_spaces(new_line)   # (its block can't be read)
@@ -16139,9 +21036,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-r', '--comment-indent', type=int, default=run_state.comment_indent, help=f'specify the indentation for comments (default: {run_state.comment_indent})')
     parser.add_argument('-s', '--strict',       action='store_true', help=f'for grading: reject `use` and `todo` outside the theories that come with Kurt or are found via `-p`; a `chain` there needs its rules proved before it')
     parser.add_argument('-p', '--path',                              help=f'specify the path where `load` looks for theories after checking {run_state.theory_path}')
-    parser.add_argument('-v', '-V', '--version', action='version', version=f'kurt {version}', help=f'show the version of Kurt and exit')
+    parser.add_argument('-v', '-V', '--version', action=VersionAction, nargs=0,
+                        help='show the version of Kurt, the path and the SHA-256 of the kurt.py that runs, and exit')
     parser.add_argument('-d', '--debug',        action='store_true', help=f'show debugging information')
     parser.add_argument('-a', '--all-errors',   action='store_true', help=f'go on checking after an error, and show all errors (by default only the first one; the editors show all)')
+    parser.add_argument('--budget', metavar='SECONDS', type=float, help=f'the budget of the search for one line: a line that takes longer fails with a `ResourceError` (neither proved nor refuted); by default none (the editors: 30 s)')
     parser.add_argument('--no-line-numbers',    action='store_true', help=f'print the output without the numbers of the source lines in front (the reasons then start with them, `; 5 by 3(4)`)')
     parser.add_argument('--no-kurtc',           action='store_true', help=f'neither write nor use `.kurtc` files (the certificates of a checked file, see doc/kurt-doc.md)')
     parser.add_argument('--json',               action='store_true', help=f'check the file and print the result as JSON: each line as an event (its id, kind, rule, the lines it uses), the error, the todos -- for graders and editors')
@@ -16150,6 +21049,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--markdown', '-markdown', action='store_true', help=f'the same as Markdown, FILE.md (the formulas in `$...$`)')
     parser.add_argument('--lean', '-lean',       action='store_true', help=f'check the file and write it as Lean 4, FILE.lean: the steps from their certificates, the rules as axioms (a prototype; what isn\'t translated is a `sorry`)')
     parser.add_argument('--unused',             action='store_true', help=f'check the file, then name the lines of its proofs that nothing cites (the editors grey them out)')
+    parser.add_argument('--foundation',         action='store_true', help=f'check the file, then show for each fact at its top level what it rests on: the axioms, definitions, `todo`s and calculator steps behind its proof, by file -- and for each of these, the facts resting on it')
     parser.add_argument('-o', '--output', metavar='FILE', help=f'with --latex, --markdown or --lean: write to FILE instead of next to the file; `-o -` to standard output (for a pipe, e.g. `kurt --lean p.kurt -o - | lean --stdin`)')
     parser.add_argument('--deps',               action='store_true', help=f'show the files that `filename` loads, with the state of their certificates (then checks it quietly, for the symbols used without loading their theory)')
     return parser.parse_args()
@@ -16416,26 +21316,52 @@ def document_and_result(path: str, fmt: str, config: Optional[RunConfig] = None)
 # step adds is recorded; the Lean file is written from them, without any search of its own:
 #
 # - Kurt's objects are one type `Obj`, its booleans are `Prop`; a symbol becomes an `axiom` with
-#   the type its arity and `bool` declaration give it. `implies`, `and`, `or`, `not`, `iff`, `true`,
-#   `false`, `=`, `≠`, `forall`, `exists` are Lean's own.
+#   the type its arity and `prop` declaration give it. `implies`, `and`, `or`, `not`, `iff`, `true`,
+#   `false`, `=`, `≠`, `forall`, `exists` are Lean's own. A `flat`/`sym` operator comes with its
+#   associativity/commutativity as an axiom (what the declaration asserts), and `a · b · c` is
+#   nested. A symbol that is applied and also an object (`f a`, `f ∈ (A → B)`) is an `Obj`, applied
+#   with `k_apply` (`find_mixed`).
+# - With objects.kurt's `lean Obj ZFSet` (set.kurt, every theory of numbers), `Obj` is Mathlib's
+#   `ZFSet` and a sort with a `lean` type (`lean real ℝ`) that type, embedded into the sets by the
+#   injective `k_emb` (a definition, `LeanWriter.zfset_preamble`): the types follow Kurt's sorts
+#   (`LeanTranslator.term` returns each term's type, `coerce` embeds a number where a set is
+#   required), and a theorem Lean proves is generic in its unsorted variables (`statement`).
+# - `∀ x ∈ A P` is `∀ x, x ∈ A → P`, `∃ x ∈ A P` is `∃ x, x ∈ A ∧ P` ("forall-cond-def",
+#   "exists-cond-def"); any other binder is a higher-order constant applied to `fun x => ...`
+#   (`existsunique`, `sum`, the set-builder), one per shape (`binder_symbol`).
 # - The rules of the loaded theories, and the `use` axioms of the file, are Lean `axiom`s (so Lean
-#   checks the proof relative to the same theories -- not the theories themselves).
+#   checks the proof relative to the same theories -- not the theories themselves). A `def` of a
+#   symbol applied to variables is a `noncomputable def`, its equation a theorem by `rfl`.
 # - A step is `apply RULE (x := value) ...` with the certificate's values, then its premise from the
 #   cited facts with `solve_by_elim` (conjunctions and instances of `∀` facts only); Kurt's normal
-#   forms (`and`/`or` flat and symmetric, `=` symmetric) are allowed for by a fallback with
-#   `and_comm`, `and_assoc`, ... .
+#   forms (`and`/`or` flat and symmetric, `=` symmetric, the `flat`/`sym` operators) are allowed for
+#   by a fallback with `and_comm`, `and_assoc`, ..., and `grind` as the last resort; a conjunct of
+#   one fact ("and-elim") is first its projection by position, `h.2.2.1` (`projection`). A `case` step
+#   (`case-elim`) is `rcases` on the disjunction.
 # - A closed block is a `have ... := by intro ...; ...; exact ...` (`assume`, `case`: `intro h`;
-#   `let`: `intro x`; `pick`: `obtain ⟨c, h⟩`), a `show`/`proof` a `theorem`.
+#   `let`: `intro x`, with a condition also `intro h`; `pick`: `obtain ⟨c, h⟩`), a `show`/`proof` a
+#   `theorem`.
 #
-# What isn't translated yet (conditioned quantifiers, `calc`, numbers, `def`, ...) becomes `sorry`
-# with a comment; `--strict-lean` makes the script fail on that instead. See the end of the output
-# for what was left out.
+# What isn't translated yet (numbers, `calc`, a step whose rule has no Lean statement) becomes a
+# `sorry` with a comment -- never a wrong statement; `strict` (`export_lean`) makes it an error
+# instead. See the end of the output for what was left out.
 
 LEAN_NATIVE_INFIX = {'implies': '→', 'and': '∧', 'or': '∨', 'iff': '↔', '=': '=', '≠': '≠'}
 LEAN_NATIVE_CONST = {'true': 'True', 'false': 'False'}
 LEAN_BINDERS = {'forall': '∀', 'exists': '∃'}
+LEAN_CARRIER = 'Obj'       # `lean Obj ZFSet`: the Lean type of Kurt's objects (with Mathlib), see `LeanTranslator`
+LEAN_ZFSET = 'ZFSet'       # `lean Obj ZFSet` (objects.kurt): the objects are Mathlib's ZF sets, the numbers embedded (`k_emb`)
+LEAN_SORT_PREFIX = 'sort '   # `lean real ℝ`: the Lean type of the sort `real`, stored as `sort real` (a sort is no symbol)
+LEAN_GENERIC = 'α'         # the type of the unsorted variables of a generic theorem (`LeanTranslator.statement`)
+LEAN_OPAQUE = 'opaque'     # `lean - opaque $1`: no Lean meaning (a constant of its own, an `axiom`)
+LEAN_MEMBER = 'member'     # `lean Nat member $1 ∈ Set.range (fun n : ℕ => (n : Obj))`: what membership in the constant means
+LEAN_PROOF_TOKEN = 'LEANPROOF'   # `lean "label" TACTIC`: the label (the tactic is the next token, a STRING)
 
 class LeanUnsupported(Exception):
+    pass
+
+class LeanGeneric(Exception):
+    # a variable of the generic type `α` where a type is fixed: the statement is read with the sorts
     pass
 
 
@@ -16505,22 +21431,277 @@ def lean_ident(name: str) -> str:
         return f'x_{lean_ident(name[1:])}'
     if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name):
         return f'k_{name}' if name in LEAN_KEYWORDS else name
-    return 'k_' + ''.join(c if c.isalnum() else f'u{ord(c):x}' for c in name)
+    # (`λ`, `Π`, `Σ` are tokens of Lean, not letters of an identifier)
+    return 'k_' + ''.join(c if c.isalnum() and c not in 'λΠΣ' else f'u{ord(c):x}' for c in name)
 
 LEAN_KEYWORDS = {'fun', 'theorem', 'axiom', 'def', 'have', 'show', 'by', 'at', 'in', 'let', 'from',
                  'with', 'match', 'do', 'if', 'then', 'else', 'Type', 'Prop', 'Sort', 'exact', 'intro',
                  'calc', 'open', 'end', 'namespace', 'section', 'variable', 'example', 'where', 'deriving',
-                 'instance', 'structure', 'class', 'mut', 'return', 'for', 'unless', 'try', 'catch'}
+                 'instance', 'structure', 'class', 'mut', 'return', 'for', 'unless', 'try', 'catch',
+                 'Obj', 'universe',            # (the export's own names: the type of the objects)
+                 'GL', 'SL'}                   # (tokens of Mathlib's notations, `GL n R`)
 
 class LeanTranslator:
     def __init__(self, kb: KnowledgeBase) -> None:
         self.kb = kb                                # for the symbols' declarations
         self.symbols: dict[str, tuple[str, str]] = {}   # Kurt symbol -> its Lean name and type
         self.prop_args: dict[str, set[int]] = {}        # ... and its arguments that are `Prop`
+        self.signatures: dict[str, tuple[list[str], str]] = {}   # Lean name -> the types of its arguments and of its result
+        self.laws: dict[str, str] = {}              # Lean name -> declaration: what `flat`/`sym` assert (associativity, commutativity)
+        self.binders: dict[str, tuple[str, str]] = {}   # a binder's shape -> its Lean name and type (a higher-order constant)
+        self.defined: set[str] = set()              # the Lean names of `def`s (a `def`, not an `axiom`)
+        self.mixed: set[str] = set()                # symbols used as a function and as an object (`f a`, `f ∈ A → B`): `Obj`, applied with `k_apply`
         self.missing: list[str] = []                # what wasn't translated
+        self.members: dict[str, str] = {}           # a set constant -> the declarations that say what membership in it means (`lean Nat member ...`)
+        self.infos: dict[int, tuple] = {}           # id of a formula -> its free variables, schema, the types of its variables, generic or not (`statement`)
+        self.generic = False                        # while a statement is read with its unsorted variables of one type `α` (`statement`)
+        # with Mathlib: the theories' `lean` declarations (`lean + $1 + $2`), and the type of the
+        # objects (`lean Obj ZFSet`, objects.kurt; `lean Obj ℝ` of a file of its own; None: an
+        # opaque `Obj`, no Mathlib, numbers not translated)
+        self.maps: dict[str, dict[int, str]] = kb.all_lean()
+        carrier = self.maps.get(LEAN_CARRIER, {}).get(0)
+        self.carrier: Optional[str] = carrier.strip() if carrier is not None else None
+        # the objects are Mathlib's ZF sets, and a sort with a `lean` type of its own (`lean real ℝ`,
+        # numbers.kurt) is that type, embedded into the sets (`k_emb`): two types, `ℝ` for the numbers
+        # (their rules and tactics are those of Mathlib's reals) and `Obj` for every object
+        self.zfset = self.carrier == LEAN_ZFSET
+        number_sort = kb.pos_sort(NUMBERS_KEY, 0) if self.zfset else None
+        number_type = self.sort_type({number_sort}) if number_sort is not None else 'Obj'
+        # the type of a numeral: the numbers' (zfset), the objects' (`lean Obj ℝ`), or none (a constant each)
+        self.num: Optional[str] = (number_type if number_type != 'Obj' else None) if self.zfset else ('Obj' if self.carrier is not None else None)
+        self.model_definitions()
+
+    def sort_type(self, sorts) -> str:
+        # the Lean type of a value of these sorts: a sort's own (`lean real ℝ`), or one of a sort
+        # above it -- otherwise an object, `Obj` (also without any sort)
+        if not self.zfset:
+            return 'Obj'
+        for s in sorted(s for s in sorts if s is not None):
+            for t in [s] + sorted(self.kb.supersorts(s)):
+                lean = self.maps.get(LEAN_SORT_PREFIX + t, {}).get(0)
+                if lean is not None:
+                    return lean.strip()
+        return 'Obj'
+
+    def is_number_type(self, t: Optional[str]) -> bool:
+        return t is not None and t not in ('Obj', 'Prop', LEAN_GENERIC) and '→' not in t
+
+    def coerce(self, text: str, have: Optional[str], want: Optional[str]) -> str:
+        # a value where a value of type `want` is required: a number where an object is, `k_emb`
+        # (every number is a set) -- anything else is not translated (Kurt's sorts don't allow a
+        # set where a number is required); a variable of the generic type `α` meets a fixed type:
+        # the statement is read without `α` (`statement`)
+        if not self.zfset or want in (None, '_') or have in (None, '_') or have == want:
+            return text
+        if LEAN_GENERIC in (have, want):
+            raise LeanGeneric()
+        if want == 'Obj' and self.is_number_type(have):
+            return f'(k_emb {text})'
+        if 'Prop' in (have, want) or '→' in have or '→' in want:
+            return text                          # (Lean's own check decides, as before)
+        raise LeanUnsupported(f'a value of type `{have}` where `{want}` is required')
+
+    def mapped(self, name: str, nargs: int) -> Optional[str]:
+        # the Lean template of a constant symbol applied to `nargs` arguments, if a theory declares
+        # one (and not `opaque`) -- also without a type of the objects: propositional.kurt's `invimplies`,
+        # logic.kurt's `∃!` are Lean's own logic (numbers need `lean Obj`, see `numeral`)
+        if name == LEAN_CARRIER or name.startswith(LEAN_SORT_PREFIX):
+            return None
+        template = self.maps.get(name, {}).get(nargs)
+        if template is None or template.split()[0] in (LEAN_OPAQUE, LEAN_MEMBER):
+            return None
+        return template
+
+    def spliced(self, middle: list) -> list:
+        # the arguments of a binder between the variable and the body, a range `(a, b)` as its parts
+        out = []
+        for m in middle:
+            match m:
+                case [Token(label='SYMBOL', value='($$$)'), [Token(label='SYMBOL', value=comma), *parts]] if comma == COMMA_SYMBOL:
+                    out += parts
+                case _:
+                    out.append(m)
+        return out
+
+    def binder_template(self, op: str, conditioned: bool, middle: list) -> Optional[str]:
+        # the `lean` of a binder for this shape: as many places as the condition (a function), the
+        # arguments between (a range `(a, b)`: two) and the body (a function)
+        return self.mapped(op, int(conditioned) + len(self.spliced(middle)) + 1)
+
+    def all_mapped(self, e, kb: KnowledgeBase) -> bool:
+        # every symbol of `e` is Lean's own or has a template (with Mathlib): `e` is a statement
+        # about Mathlib's numbers, nothing opaque in it
+        match e:
+            case Token(label='INT' | 'FLOAT'):
+                return self.num is not None
+            case Token(label='SYMBOL', value=v) if isinstance(v, str):
+                return v in LEAN_NATIVE_CONST or v.startswith(('$', '%')) or kb.is_var(v) or self.mapped(v, 0) is not None
+            case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and (op in LEAN_NATIVE_INFIX or op in LEAN_BINDERS or op == 'not'):
+                return all(self.all_mapped(a, kb) for a in args)
+            case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and not kb.is_bindop(op):
+                return self.mapped(op, len(args)) is not None and all(self.all_mapped(a, kb) for a in args)
+        return False
+
+    def member_axiom(self, name: str, lean: str, kb: KnowledgeBase) -> None:
+        # `lean Nat member $1 ∈ Set.range (fun n : ℕ => (n : ℝ))`: `Nat` is a set of numbers, and
+        # `x ∈ Nat` means what the template says. With the sets of Mathlib (`lean Obj ZFSet`) it is a
+        # definition, the set of the embedded numbers with the property (`k_numset`), and what
+        # membership means a theorem; without them (`lean Obj ℝ`) one axiom about the new constant,
+        # its definition (it says nothing else: `Nat` and `∈` are constants of their own). From it
+        # the theories' rules about `Nat` are theorems (natural.kurt's "nat-zero", "induction", ...)
+        template = self.maps.get(name, {}).get(1) if self.carrier is not None else None
+        if template is None or template.split()[0] != LEAN_MEMBER or name in self.members:
+            return
+        op = kb.builtin_symbol(CALCULATOR_MEMBERSHIP)
+        if op is None:
+            return
+        self.members[name] = ''                  # (`symbol` of `∈` below doesn't come back here)
+        body = re.sub(r'\$1', 'x', template.split(None, 1)[1])
+        if self.zfset and self.num is not None:
+            member = self.mapped(op, 2)
+            if member is None:
+                self.members.pop(name)
+                return
+            self.defined.add(lean)
+            mem = '(' + member.replace('$1', '(k_emb x)').replace('$2', lean) + ')'
+            self.members[name] = (f'noncomputable def {lean} : Obj := k_numset (fun (x : {self.num}) => {body})   -- `lean {name} member ...`: the numbers with the property\n'
+                                  f'theorem k_mem_{lean} : ∀ (x : {self.num}), {mem} ↔ ({body}) := fun x => k_mem_numset _ x   -- what `x ∈ {name}` means')
+            return
+        member = self.symbol(op, kb, 2)
+        self.members[name] = (f'axiom k_mem_{lean} : ∀ (x : Obj), {member} x {lean} ↔ ({body})'
+                              f'   -- `lean {name} member ...`: what `x ∈ {name}` means')
+
+    def model_definitions(self) -> None:
+        # every `lean SYMBOL def TEMPLATE` of the theories loaded, as a Lean definition, also where no
+        # term uses it: their axioms' proofs unfold all of them (field.kurt's)
+        for name, entries in self.maps.items():
+            for arity, template in entries.items():
+                if template.startswith('def '):
+                    self.model_definition(name, template, arity)
+
+    def model_definition(self, name: str, template: str, arity: int) -> str:
+        ident = f'{lean_ident(name)}_d{arity}'
+        if ident not in self.members:
+            params = ' '.join(f'a{i}' for i in range(1, arity + 1))
+            body = re.sub(r'\$(\d+)', lambda m: f'a{m.group(1)}', template[4:].strip())
+            binders = f' ({params} : Obj)' if arity else ''
+            self.members[ident] = f'@[irreducible] noncomputable def {ident}{binders} : Obj := {body}   -- `lean {name} def ...`'
+        return ident
+
+    def apply_template(self, name: str, template: str, args: list[str], kb: KnowledgeBase) -> str:
+        # `$1 + $2` with the arguments (each an identifier or in parentheses), in parentheses -- or,
+        # for `lean + def TEMPLATE` (a model of a theory's own operation, field.kurt), the name of a
+        # Lean definition by the template: the terms stay small, the laws are proved by unfolding it
+        if template.startswith('def '):
+            ident = self.model_definition(name, template, len(args))
+            if len(args) == 2 and (kb.is_flat(name) or kb.is_sym(name)):
+                self.mapped_laws(name, template, kb)
+            return f'({ident} {" ".join(args)})' if args else ident
+        if len(args) == 2 and (kb.is_flat(name) or kb.is_sym(name)):
+            self.mapped_laws(name, template, kb)
+        return '(' + re.sub(r'\$(\d+)', lambda m: args[int(m.group(1)) - 1], template) + ')'
+
+    def position_type(self, name: str, position: int, kb: KnowledgeBase) -> Optional[str]:
+        # the Lean type a position of a symbol requires (0: its result): `Prop` by `prop`, a sort's
+        # type -- None where nothing is declared
+        if position in kb.bool_sig(name):
+            return 'Prop'
+        sort = kb.pos_sort(name, position)
+        return self.sort_type({sort}) if sort is not None else None
+
+    def mapped_laws(self, name: str, template: str, kb: KnowledgeBase) -> None:
+        # what `flat`/`sym` assert about a mapped operator (`+` of ℝ), as theorems of Mathlib -- with
+        # the names the fallbacks use for an operator of Kurt's own (see `symbol`)
+        lean = lean_ident(name)
+        op = lambda a, b: '(' + template.replace('$1', a).replace('$2', b) + ')'
+        proof = 'first | ring | ac_rfl | grind'
+        if template.startswith('def '):
+            # (a definition of the theory's model: unfold it, the decoded values are reals)
+            ident = f'{lean}_d2'
+            op = lambda a, b: f'({ident} {a} {b})'
+            proof = f'simp only [{ident}, k_dec_emb]; congr 1; ring'
+        t = self.position_type(name, 1, kb) or 'Obj'
+        if kb.is_flat(name):
+            self.laws.setdefault(f'{lean}_assoc', f'theorem {lean}_assoc : ∀ (a b c : {t}), {op(op("a", "b"), "c")} = {op("a", op("b", "c"))} := by\n'
+                                                  f'  intro a b c; {proof}   -- `flat {name}`')
+        if kb.is_sym(name):
+            self.laws.setdefault(f'{lean}_comm', f'theorem {lean}_comm : ∀ (a b : {t}), {op("a", "b")} = {op("b", "a")} := by\n'
+                                                 f'  intro a b; {proof}   -- `sym {name}`')
+        if kb.is_flat(name) and kb.is_sym(name):
+            self.laws.setdefault(f'{lean}_left_comm', f'theorem {lean}_left_comm : ∀ (a b c : {t}), {op("a", op("b", "c"))} = {op("b", op("a", "c"))} := by\n'
+                                                      f'  intro a b c; {proof}')
+
+    def numeral(self, e: Token) -> str:
+        # a number of Kurt: a numeral of the type of the numbers (`OfNat`, `OfScientific`), with
+        # Mathlib -- without one (field.kurt, vectorspace.kurt, peano's own `Nat`, a `17` with only
+        # equality.kurt), a constant of its own: Kurt gives a numeral no meaning there but what the
+        # file's axioms say of it (`0`, `1` of a field: its zero and one, "plus-zero", "one-times";
+        # peano's `1 = s 0` an axiom), and no calculation (`calc` needs a theory's `builtin`s) -- one
+        # constant per number (Kurt reads `1.0` as `1`, `1.50` as the fraction `3/2`)
+        if self.num is None:
+            value = Fraction(e.value)
+            mapped = self.maps.get(str(value), {}).get(0)
+            if mapped is not None:
+                return f'({mapped.strip()})'      # (`lean 0 k_emb (0 : ℝ)`: a theory's model of its numerals, field.kurt)
+            text = str(value.numerator).replace('-', 'm') + ('' if value.denominator == 1 else f'_div_{value.denominator}')
+            self.symbols.setdefault(f'<numeral {value}>', (f'k_num_{text}', 'Obj'))
+            return f'k_num_{text}'
+        return f'({e.value} : {self.num})'
 
     def is_bool(self, name: str) -> bool:
         return self.kb.is_bool(name) or name.startswith('%')
+
+    def find_mixed(self, exprs: list, links: list[tuple[str, Expr]], kb: KnowledgeBase) -> None:
+        # Kurt has one sort: `f` can be applied, `f a`, and be an object, `f ∈ (A → B)` (a mapping as
+        # a set of pairs, set.kurt). Lean's `f : Obj → Obj` can't be an `Obj`: such a symbol is an
+        # `Obj`, and `f a` is `k_apply f a`. A variable with such a value (or a value used so) is one too.
+        applied: set[str] = set()
+        bare: set[str] = set()
+        def walk(e, head: bool = False) -> None:
+            match e:
+                case Token(label='SYMBOL', value=v) if isinstance(v, str):
+                    (applied if head else bare).add(v)
+                case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL:
+                    walk(a)
+                    walk(A)
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                    if is_bound_condition(cond):
+                        walk(cond[2])
+                    elif isinstance(cond, list):
+                        walk(cond)
+                    for b in body:
+                        walk(b)
+                case [h, *args] if args:
+                    walk(h, head=True)
+                    for a in args:
+                        walk(a)
+        for e in exprs:
+            walk(e)
+        self.mixed = applied & bare
+        changed = True
+        while changed:                           # a variable and its value have the same type
+            changed = False
+            for v, value in links:
+                if isinstance(value, Token) and isinstance(value.value, str) and value.label == 'SYMBOL':
+                    s = value.value
+                    for one, other in ((v, s), (s, v)):
+                        if one in self.mixed and other not in self.mixed and other in applied:
+                            self.mixed.add(other)
+                            changed = True
+
+    def apply_symbol(self) -> str:
+        # (with the sets of Mathlib a definition, the `b` with `(a, b) ∈ f`, see `LeanWriter.write`)
+        if not self.zfset:
+            self.symbols.setdefault('<apply>', ('k_apply', 'Obj → Obj → Obj'))
+        return 'k_apply'
+
+    def ac(self) -> str:
+        # the simp set for Kurt's normal forms: Lean's own for `and`/`or`/`=`, and what the
+        # theories declare `flat`/`sym` (see `symbol`) -- with numbers among the sets, that two
+        # embedded numbers are equal only if the numbers are, and what a property read on the
+        # numbers says of an embedded number (`k_emb_inj`, `k_lift_emb`)
+        extra = ['k_emb_inj'] + (['k_lift_emb'] if self.num is not None else []) if self.zfset else []
+        return ', '.join([LEAN_AC] + extra + list(self.laws))
 
     def declared_arity(self, name: str, kb: KnowledgeBase) -> int:
         if kb.is_infix(name):
@@ -16529,82 +21710,371 @@ class LeanTranslator:
             return 1
         return kb.get_arity(name)
 
-    def symbol(self, name: str, kb: KnowledgeBase, nargs: int | None = None, args: list | None = None) -> str:
-        # a non-native constant: declare it once, with the type its arity and `bool` give it -- one
-        # per number of arguments, if it has several (`-` is infix and prefix: `a - b`, `- a`)
+    def symbol(self, name: str, kb: KnowledgeBase, nargs: int | None = None, args: list | None = None,
+               arg_types: list | None = None) -> str:
+        # a non-native constant: declare it once, with the type its arity, `prop` and sorts give it
+        # -- one per number of arguments, if it has several (`-` is infix and prefix: `a - b`, `- a`)
         arity = self.declared_arity(name, kb)
         if nargs is not None and nargs != arity and ((kb.is_infix(name) and kb.is_prefix(name)) or arity == 0):
             arity = nargs                    # `- a` besides `a - b`; or applied without a declared arity (`Pow A`)
+        if nargs is not None and nargs != arity:
+            raise LeanUnsupported(f'`{name}` with {nargs} arguments')
         key = name if arity == self.declared_arity(name, kb) else f'{name}/{arity}'
         lean = lean_ident(name) if key == name else f'{lean_ident(name)}_{arity}'
-        # the type of an argument: `Prop` if `bool` says so, or if it gets a boolean (Kurt's light
-        # type check allows `□ X` with `bool b` only for the result)
+        # the type of an argument: `Prop` if `prop` says so, or if it gets a boolean (Kurt's light
+        # type check allows `□ X` with `prop b` only for the result); a sort's type (`ℝ` for a
+        # number), an object otherwise
         sig = kb.bool_sig(name)
         props = self.prop_args.setdefault(key, set(i for i in range(1, arity + 1) if i in sig))
         for i, a in enumerate(args or [], start=1):
             if bool_expr(a, kb):
                 props.add(i)
-        types = ['Prop' if i in props else 'Obj' for i in range(1, arity + 1)]
-        self.symbols[key] = (lean, ' → '.join(types + ['Prop' if 0 in sig else 'Obj']))
+        types = ['Prop' if i in props else (self.position_type(name, i, kb) or 'Obj') for i in range(1, arity + 1)]
+        result = 'Prop' if 0 in sig else (self.value_type(name, kb) if arity == 0 else (self.position_type(name, 0, kb) or 'Obj'))
+        if lean in self.defined:
+            return lean                      # (a `def` of the file: its own signature)
+        self.symbols[key] = (lean, ' → '.join(types + [result]))
+        self.signatures[lean] = (types, result)
+        if arity == 0 and result == 'Obj':
+            self.member_axiom(name, lean, kb)
+        if arity == 2 and len(set(types)) == 1 and (kb.is_flat(name) or kb.is_sym(name)):
+            # `flat` and `sym` are part of the theory: `a · b · c` is one term for Kurt, and `a + b`
+            # is `b + a` -- in Lean, associativity and commutativity, used like `and_assoc`, `and_comm`
+            t, eq = types[0], '↔' if result == 'Prop' else '='
+            if kb.is_flat(name):
+                self.laws[f'{lean}_assoc'] = f'axiom {lean}_assoc : ∀ (a b c : {t}), {lean} ({lean} a b) c {eq} {lean} a ({lean} b c)   -- `flat {name}`'
+            if kb.is_sym(name):
+                self.laws[f'{lean}_comm'] = f'axiom {lean}_comm : ∀ (a b : {t}), {lean} a b {eq} {lean} b a   -- `sym {name}`'
+            if kb.is_flat(name) and kb.is_sym(name):
+                self.laws[f'{lean}_left_comm'] = (f'theorem {lean}_left_comm : ∀ (a b c : {t}), {lean} a ({lean} b c) {eq} {lean} b ({lean} a c) := by\n'
+                                                  f'  intro a b c; rw [← {lean}_assoc, {lean}_comm a b, {lean}_assoc]')
         return lean
 
-    def var_type(self, name: str) -> str:
-        result = 'Prop' if self.is_bool(name) else 'Obj'
-        n = getattr(self, 'function_arity', {}).get(name, 0)
+    def curried(self, name: str, kb: KnowledgeBase) -> Optional[int]:
+        # a constant over a tuple, `arity coprime (_, _)` (one argument, a pair): in Lean a function
+        # of the components, `coprime a b` -- a tuple of Kurt has no Lean type (`(a, b)` would be an
+        # opaque pairing without projections, over which a `def` couldn't say anything), so the
+        # number of the components, and a use with a tuple that isn't written out is not translated
+        shape = kb.get_arity_shape(name)
+        if shape is None or len(shape) != 1 or not isinstance(shape[0], tuple) or any(c is not None for c in shape[0]):
+            return None
+        return len(shape[0])
+
+    def curried_symbol(self, name: str, kb: KnowledgeBase, items: list, item_types: list[Optional[str]]) -> str:
+        if any(bool_expr(a, kb) for a in items):
+            raise LeanUnsupported(f'`{name}` of a tuple with a statement in it')
+        lean = lean_ident(name)
+        if lean not in self.signatures:
+            result = 'Prop' if 0 in kb.bool_sig(name) else 'Obj'
+            types = [t if self.is_number_type(t) else 'Obj' for t in item_types]
+            self.symbols[name] = (lean, ' → '.join(types + [result]))
+            self.signatures[lean] = (types, result)
+        return lean
+
+    def binder(self, cond, kb: KnowledgeBase) -> tuple[str, Expr | None]:
+        # the variable a binder binds, and its condition (None without one): `∀ x ...`, `∀ x > 0 ...`
+        # (stored as `[bound:, x, x > 0]`), or `sub $x $v %C` in a rule, which binds `$v`
+        match cond:
+            case Token(label='SYMBOL', value=v) if isinstance(v, str):
+                return v, None
+            case [Token(label='SYMBOL', value=b), Token(label='SYMBOL', value=v), c] if b == BOUND_SYMBOL and isinstance(v, str):
+                return v, c
+        try:
+            return k_bound(cond, kb), cond
+        except KernelReject as e:
+            raise LeanUnsupported(f'the condition `{expr_str(cond, kb)}` ({e})')
+
+    def binder_symbol(self, op: str, kb: KnowledgeBase, conditioned: bool, middle: list[str], body: str, var: str = 'Obj') -> str:
+        # a binder other than `∀`/`∃`, as a higher-order constant: `sum i (a, b) T` is
+        # `sum a b (fun i => T)`; with a condition, `{x ∈ A | P}` is `setb_cond (fun x => x ∈ A) (fun x => P)`
+        # -- a shape of its own for each way it is used (its condition, its arguments' types)
+        result = 'Prop' if 0 in kb.bool_sig(op) else (self.position_type(op, 0, kb) or 'Obj')
+        types = ([f'{var} → Prop'] if conditioned else []) + middle + [f'{var} → {body}']
+        key = f'{op} {" ".join(types)}'
+        if key not in self.binders:
+            base = lean_ident(op) + ('_cond' if conditioned else '')
+            taken = {lean for lean, _ in self.binders.values()}
+            lean = base if base not in taken else f'{base}_{len(taken)}'
+            self.binders[key] = (lean, ' → '.join(f'({t})' if '→' in t else t for t in types) + f' → {result}')
+        return self.binders[key][0]
+
+    # the types of the variables ------------------------------------------------------------------
+
+    def value_type(self, name: str, kb: KnowledgeBase, free: dict | None = None) -> str:
+        # the Lean type of a variable or constant by its sorts (`Prop` for a statement); with
+        # `generic`, an unsorted variable is of the type `α`
+        if self.is_bool(name):
+            return 'Prop'
+        sorts = set(free[name]) if free is not None and name in free else kb.variable_sorts(name)
+        t = self.sort_type(sorts)
+        if self.generic and t == 'Obj' and not (set(sorts) - {'any'}) and (name.startswith('$') or kb.is_var(name)):
+            return LEAN_GENERIC         # (no sort, or `any`: over all objects, of any type in a generic theorem)
+        return t
+
+    def binder_var_type(self, node, x: str, kb: KnowledgeBase) -> str:
+        # the Lean type of the variable a binder (or a `sub`) binds: by the binder's sorts --
+        # `∀ x ∈ Nat` over the numbers (`real ∈ Nat`, `bounded_sorts`)
+        if self.is_bool(x):
+            return 'Prop'
+        if not self.zfset:
+            return 'Obj'
+        try:
+            sorts = set(binder_node_sorts(node, kb))
+            if node[0].value != SUB_SYMBOL:
+                sorts = set(bounded_sorts(node, frozenset(sorts), kb))
+        except (KurtException, AssertionError, IndexError, AttributeError):
+            sorts = set()
+        if not sorts:
+            sorts = kb.variable_sorts(x)
+        t = self.sort_type(sorts)
+        if self.generic and t == 'Obj' and not (sorts - {'any'}):
+            return LEAN_GENERIC
+        return t
+
+    def formula_types(self, e, kb: KnowledgeBase, order: list[str]) -> dict[str, str]:
+        # the types of the variables of a formula: its free ones by their sorts, the bound ones by
+        # their binders' (a function of the formula, as for Kurt, see `formula_free_sorts`)
+        types: dict[str, str] = {}
+        if not self.zfset:
+            return types
+        try:
+            free = formula_free_sorts(e, kb)
+        except KurtException:
+            free = {}
+        for v in order:
+            types[v] = self.value_type(v, kb, free)
+        def walk(t) -> None:
+            match t:
+                case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
+                    types.setdefault(x, self.binder_var_type(t, x, kb))
+                    walk(a)
+                    walk(A)
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                    with contextlib.suppress(LeanUnsupported):
+                        x, _ = self.binder(cond, kb)
+                        types.setdefault(x, self.binder_var_type(t, x, kb))
+                    for c in t[1:]:
+                        walk(c)
+                case [*children]:
+                    for c in children:
+                        walk(c)
+        walk(e)
+        return types
+
+    def sort_in(self, name: str, e, kb: KnowledgeBase) -> Optional[str]:
+        # the Lean type Kurt's sorts give the variable `name` by its places in `e` (as a free
+        # variable of it), or None -- for the bound variable of a rule in a value of the step
+        fresh = '$k_lean_probe'
+        renamed = replace_token_value(e, name, Token('SYMBOL', fresh))
+        try:
+            sorts = formula_free_sorts(renamed, kb).get(fresh, frozenset())
+        except KurtException:
+            return None
+        return self.sort_type(sorts) if sorts else None
+
+    def var_type(self, name: str, kb: KnowledgeBase | None = None, types: dict | None = None) -> str:
+        if types is not None and name in types:
+            result = types[name]
+        elif self.is_bool(name):
+            result = 'Prop'
+        else:
+            result = self.value_type(name, kb or self.kb)
+        n = 0 if name in self.mixed else getattr(self, 'function_arity', {}).get(name, 0)
         return ' → '.join(['Obj'] * n + [result])
 
-    def expr(self, e, kb: KnowledgeBase, schema: dict[str, list[str]] | None = None, bound: tuple[str, ...] = ()) -> str:
-        # `schema`: the schema variables that are functions of bound variables, with their parameters
+    # Kurt expressions as Lean terms, with their types ----------------------------------------------
+
+    def expr(self, e, kb: KnowledgeBase, schema: dict[str, list[str]] | None = None, bound: tuple[str, ...] = (),
+             types: dict[str, str] | None = None) -> str:
+        return self.term(e, kb, schema, bound, types)[0]
+
+    def typed(self, e, kb: KnowledgeBase, schema, bound, types, want: Optional[str]) -> str:
+        text, have = self.term(e, kb, schema, bound, types)
+        return self.coerce(text, have, want)
+
+    def term(self, e, kb: KnowledgeBase, schema: dict[str, list[str]] | None = None, bound: tuple[str, ...] = (),
+             types: dict[str, str] | None = None) -> tuple[str, Optional[str]]:
+        # `schema`: the schema variables that are functions of bound variables, with their
+        # parameters; `types`: the Lean types of the formula's variables (`formula_types`)
         schema = schema or {}
+        types = types if types is not None else {}
+        sub_term = lambda x, extra=(): self.term(x, kb, schema, bound + tuple(extra), types)
         match e:
             case Token(label='SYMBOL', value=v) if isinstance(v, str):
                 if v in LEAN_NATIVE_CONST:
-                    return LEAN_NATIVE_CONST[v]
+                    return LEAN_NATIVE_CONST[v], 'Prop'
                 if v == '_':
-                    return '_'
+                    return '_', None
                 if v in schema:
                     params = schema[v]
-                    return f"({lean_ident(v)} {' '.join(lean_ident(p) for p in params)})" if params else lean_ident(v)
+                    text = f"({lean_ident(v)} {' '.join(lean_ident(p) for p in params)})" if params else lean_ident(v)
+                    return text, ('Prop' if self.is_bool(v) else types.get(v) or self.value_type(v, kb))
                 if v.startswith(('$', '%')) or kb.is_var(v) or v in bound:
-                    return lean_ident(v)
-                return self.symbol(v, kb)
+                    return lean_ident(v), self.var_type(v, kb, types)
+                if v in self.mixed:
+                    if kb.is_bool(v):
+                        raise LeanUnsupported(f'`{v}` as a statement and as an object')
+                    self.symbols[v] = (lean_ident(v), 'Obj')
+                    return lean_ident(v), 'Obj'
+                if (template := self.mapped(v, 0)) is not None:
+                    return self.apply_template(v, template, [], kb), ('Prop' if kb.is_bool(v) else self.value_type(v, kb))
+                if any(self.mapped(v, n) for n in self.maps.get(v, {}) if n):
+                    raise LeanUnsupported(f'`{v}` without its arguments (its Lean meaning takes them)')
+                if self.curried(v, kb) is not None:
+                    raise LeanUnsupported(f'`{v}` without its tuple')
+                lean = self.symbol(v, kb)
+                return lean, self.signatures.get(lean, ([], 'Obj'))[1]
             case Token(label='INT' | 'FLOAT'):
-                raise LeanUnsupported('numbers')
+                return self.numeral(e), (self.num or 'Obj')
             case Token():
                 raise LeanUnsupported(f'the token `{e.value}`')
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL:
-                return f'((fun ({lean_ident(x)} : {self.var_type(x)}) => {self.expr(A, kb, schema, bound + (x,))}) {self.expr(a, kb, schema, bound)})'
+                t = types.get(x) or self.var_type(x, kb)
+                value = self.typed(a, kb, schema, bound, types, t)
+                body, body_type = sub_term(A, (x,))
+                return f'((fun ({lean_ident(x)} : {t}) => {body}) {value})', body_type
             case [Token(label='SYMBOL', value=op), cond, body] if op in LEAN_BINDERS:
-                if not (isinstance(cond, Token) and isinstance(cond.value, str)):
-                    raise LeanUnsupported('quantifiers with a condition')
-                x = cond.value
-                return f'({LEAN_BINDERS[op]} ({lean_ident(x)} : {self.var_type(x)}), {self.expr(body, kb, schema, bound + (x,))})'
+                # with a condition: `∀ x ∈ A P` is `∀ x, x ∈ A → P`, `∃ x ∈ A P` is `∃ x, x ∈ A ∧ P`
+                # (what logic.kurt's "forall-cond-def"/"exists-cond-def" say)
+                x, condition = self.binder(cond, kb)
+                t = types.get(x) or self.binder_var_type(e, x, kb)
+                inner = sub_term(body, (x,))[0]
+                if condition is not None:
+                    c = sub_term(condition, (x,))[0]
+                    inner = f'{c} → {inner}' if op == 'forall' else f'{c} ∧ {inner}'
+                return f'({LEAN_BINDERS[op]} ({lean_ident(x)} : {t}), {inner})', 'Prop'
             case [Token(label='SYMBOL', value='not'), a]:
-                return f'(¬ {self.expr(a, kb, schema, bound)})'
+                return f'(¬ {sub_term(a)[0]})', 'Prop'
             case [Token(label='SYMBOL', value=op), *args] if op in LEAN_NATIVE_INFIX and len(args) >= 2:
                 if len(args) > 2 and op not in ('and', 'or'):
                     raise LeanUnsupported(f'`{op}` with {len(args)} arguments')
-                return '(' + f' {LEAN_NATIVE_INFIX[op]} '.join(self.expr(a, kb, schema, bound) for a in args) + ')'
-            case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and kb.is_bindop(op):
-                raise LeanUnsupported(f'the binder `{op}`')
+                parts = [sub_term(a) for a in args]
+                if op in ('=', '≠'):
+                    # `=` of Kurt takes any two values: a number and a set are compared as sets
+                    (ta, ha), (tb, hb) = parts
+                    if ha != hb and self.zfset:
+                        if 'Obj' in (ha, hb) and (self.is_number_type(ha) or self.is_number_type(hb)):
+                            ta, tb = self.coerce(ta, ha, 'Obj'), self.coerce(tb, hb, 'Obj')
+                        elif LEAN_GENERIC in (ha, hb) and None not in (ha, hb):
+                            raise LeanGeneric()
+                    parts = [(ta, ha), (tb, hb)]
+                return '(' + f' {LEAN_NATIVE_INFIX[op]} '.join(p[0] for p in parts) + ')', 'Prop'
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                # any other binder: a higher-order constant applied to `fun x => ...` (the middle
+                # arguments are outside the scope of the variable, see `binder_scope`)
+                x, condition = self.binder(cond, kb)
+                t = types.get(x) or self.binder_var_type(e, x, kb)
+                if self.zfset and 'setbuilder' in kb.all_roles.get(op, []):
+                    return self.set_builder(e, x, t, condition, body, kb, schema, bound, types)
+                lam = lambda b: f'(fun ({lean_ident(x)} : {t}) => {sub_term(b, (x,))[0]})'
+                result = 'Prop' if 0 in kb.bool_sig(op) else (self.position_type(op, 0, kb) or 'Obj')
+                if (template := self.binder_template(op, condition is not None, body[:-1])) is not None:
+                    # a theory's `lean` for the binder (`lean lim (limUnder (nhdsWithin $1 {$1}ᶜ) $2)`):
+                    # the condition and the body as functions, the arguments between, the parts of a
+                    # range `(a, b)` each a place of its own (`sum i (a, b) T`: $1 a, $2 b, $3 the body)
+                    places = ([lam(condition)] if condition is not None else []) + \
+                             [sub_term(m)[0] for m in self.spliced(body[:-1])] + [lam(body[-1])]
+                    return self.apply_template(op, template, places, kb), result
+                middle_parts = [sub_term(m) for m in body[:-1]]
+                middle = [p[0] for p in middle_parts]
+                middle_types = ['Prop' if bool_expr(m, kb) else (p[1] if self.is_number_type(p[1]) else 'Obj') for m, p in zip(body[:-1], middle_parts)]
+                body_type = 'Prop' if bool_expr(body[-1], kb) or (len(body) + 1) in kb.bool_sig(op) else (sub_term(body[-1], (x,))[1] or 'Obj')
+                if body_type not in ('Prop', 'Obj') and not self.is_number_type(body_type):
+                    body_type = 'Obj'
+                name = self.binder_symbol(op, kb, condition is not None, middle_types, body_type, t)
+                parts = [name] + ([lam(condition)] if condition is not None else []) + middle + [lam(body[-1])]
+                return '(' + ' '.join(parts) + ')', result
+            case [Token(label='SYMBOL', value=v), *args] if args and isinstance(v, str) and v in self.mixed and v not in schema:
+                if kb.is_bool(v) or bool_expr(e, kb):
+                    raise LeanUnsupported(f'`{v}` as a statement and as an object')
+                term = self.term(e[0], kb, schema, bound, types)[0]
+                for a in args:
+                    term = f'({self.apply_symbol()} {term} {self.typed(a, kb, schema, bound, types, "Obj")})'
+                return term, 'Obj'
             case [Token(label='SYMBOL', value=v), *args] if args and isinstance(v, str) and not (v.startswith(('$', '%')) or kb.is_var(v) or v in bound or v in schema):
-                return '(' + ' '.join([self.symbol(v, kb, len(args), args)] + [self.expr(a, kb, schema, bound) for a in args]) + ')'
+                if (n := self.curried(v, kb)) is not None:
+                    # `coprime(a, b)`: `coprime a b` (see `curried`)
+                    match args:
+                        case [[Token(label='SYMBOL', value='($$$)'), [Token(label='SYMBOL', value=comma), *items]]] if comma == COMMA_SYMBOL and len(items) == n:
+                            parts = [sub_term(a) for a in items]
+                            lean = self.curried_symbol(v, kb, items, [p[1] for p in parts])
+                            wanted, result = self.signatures[lean]
+                            return '(' + ' '.join([lean] + [self.coerce(p[0], p[1], w) for p, w in zip(parts, wanted)]) + ')', result
+                    raise LeanUnsupported(f'`{v}` of a tuple that is not written out')
+                if len(args) > 2 and kb.is_flat(v) and self.declared_arity(v, kb) == 2:
+                    # a flat operator with several arguments, `a · b · c`: nested, like Lean's `∧`
+                    # (its associativity is an axiom, see `symbol`)
+                    return self.term([e[0], args[0], [e[0], *args[1:]]], kb, schema, bound, types)
+                if self.zfset and v == '($$$)' and len(args) == 1 and self.mapped(v, 1) is None:
+                    return sub_term(args[0])          # a tuple `(a, b)`: its list (see the comma's `lean`)
+                if self.zfset and kb.has_role(v, 'setbrackets'):
+                    return self.set_by_elements(v, args, kb, schema, bound, types)
+                result = 'Prop' if 0 in kb.bool_sig(v) else (self.position_type(v, 0, kb) or 'Obj')
+                if (template := self.mapped(v, len(args))) is not None:
+                    # (a place without a sort takes any object: a number embedded, `(1, 2)`)
+                    places = [self.typed(a, kb, schema, bound, types, self.position_type(v, i, kb) or 'Obj') for i, a in enumerate(args, start=1)]
+                    return self.apply_template(v, template, places, kb), result
+                lean = self.symbol(v, kb, len(args), args)
+                wanted, result = self.signatures.get(lean, ([None] * len(args), result))
+                places = [self.typed(a, kb, schema, bound, types, w) for a, w in zip(args, wanted)]
+                return '(' + ' '.join([lean] + places) + ')', result
             case [head, *args] if args:
-                return '(' + ' '.join([self.expr(head, kb, schema, bound)] + [self.expr(a, kb, schema, bound) for a in args]) + ')'
+                # a variable applied (`$f $a`, `var f`): a function of objects (a number embedded)
+                head_text, head_type = self.term(head, kb, schema, bound, types)
+                pieces = head_type.split(' → ') if head_type is not None else []
+                wanted = pieces[:len(args)] if len(pieces) > len(args) else [None] * len(args)
+                result = ' → '.join(pieces[len(args):]) if len(pieces) > len(args) else None
+                return '(' + ' '.join([head_text] + [self.typed(a, kb, schema, bound, types, w) for a, w in zip(args, wanted)]) + ')', result
         raise LeanUnsupported(f'the expression `{expr_str(e, kb)}`')
+
+    def set_by_elements(self, v: str, args: list, kb: KnowledgeBase, schema, bound, types) -> tuple[str, str]:
+        # a set by its elements in the sets of Mathlib: `{a, b, c}` is Lean's own (`insert`,
+        # `singleton` of `ZFSet`), each element a set (a number embedded); with `...`, the shape's
+        # `lean` (natural.kurt: `lean {_,...,_} ...` for `{a, ..., c}`), its places the elements
+        if any(is_ellipsis(a) for a in args):
+            shape = '{' + ','.join('...' if is_ellipsis(a) else '_' for a in args) + '}'
+            template = self.maps.get(shape, {}).get(sum(1 for a in args if not is_ellipsis(a)))
+            if template is None:
+                raise LeanUnsupported(f'the set `{shape}` (no `lean {shape} ...`)')
+            places = [self.term(a, kb, schema, bound, types)[0] for a in args if not is_ellipsis(a)]
+            return self.apply_template(shape, template, places, kb), 'Obj'
+        elements = [self.typed(a, kb, schema, bound, types, 'Obj') for a in args]
+        return '({' + ', '.join(elements) + '} : Obj)', 'Obj'
+
+    def set_builder(self, e, x: str, t: str, condition, body: list, kb: KnowledgeBase, schema, bound, types) -> tuple[str, str]:
+        # `{z ∈ A | P}` in the sets of Mathlib: `ZFSet.sep (fun z => P) A` -- separation. A part
+        # chosen among the numbers (`{n ∈ Nat | n > 2}`, its `n` a number) is one of the sets with
+        # the property read on the numbers (`k_lift`: `z` is an embedded number `r` with `P r`), so
+        # that a rule about `{$z ∈ $A | %F}` over all sets ("separation") is about it too
+        member = kb.builtin_symbol(CALCULATOR_MEMBERSHIP)
+        match condition:
+            case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=y), container] if op == member and y == x and len(body) == 1:
+                pass
+            case _:
+                raise LeanUnsupported(f'the set-builder `{expr_str(e, kb)}` without a condition `x ∈ A`')
+        if t == LEAN_GENERIC:
+            raise LeanGeneric()
+        whole = self.typed(container, kb, schema, bound, types, 'Obj')
+        inner = self.term(body[0], kb, schema, bound + (x,), types)[0]
+        if t == 'Obj':
+            return f'(ZFSet.sep (fun ({lean_ident(x)} : Obj) => {inner}) {whole})', 'Obj'
+        if t != self.num:
+            raise LeanUnsupported(f'a set-builder over `{t}`')
+        return f'(ZFSet.sep (fun ({lean_ident(x)} : Obj) => k_lift (fun ({lean_ident(x)} : {t}) => {inner}) {lean_ident(x)}) {whole})', 'Obj'
 
     # the schema variables of a formula, as Lean binders --------------------------------------------
 
     def schema_of(self, e, kb: KnowledgeBase) -> tuple[list[str], dict[str, list[str]]]:
-        # the free variables of `e` in the order of their first occurrence, and those that occur
-        # in the scope of bound variables (a `%A` under `∀ x`, or the body of `sub x a`): their
-        # parameters, the bound variables at every occurrence
+        # the free variables of `e` in the order of their first occurrence, and those that may
+        # depend on bound variables: their parameters -- for a `%A`, the bound variables in whose
+        # scope it stands at every occurrence (a value may contain those, see `k_instantiate`),
+        # for a `$T`, the one bound variable the kernel lets it depend on (`k_dependencies`)
         order: list[str] = []
         scopes: dict[str, list[tuple[str, ...]]] = {}
         self.function_arity: dict[str, int] = getattr(self, 'function_arity', {})
         def walk(t, bound: tuple[str, ...]) -> None:
             match t:
-                case [Token(label='SYMBOL', value=v), *args] if args and isinstance(v, str) and kb.is_var(v) and v not in bound:
+                case [Token(label='SYMBOL', value=v), *args] if args and isinstance(v, str) and kb.is_var(v) and v not in bound and v not in self.mixed:
                     self.function_arity[v] = len(args)      # e.g. `$a ∘ $b` with the variable `∘`
                     walk(t[0], bound)
                     for a in args:
@@ -16618,46 +22088,138 @@ class LeanTranslator:
                 case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL:
                     walk(a, bound)
                     walk(A, bound + (x,))
-                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
-                    x = cond.value if isinstance(cond, Token) else None
-                    if x is None:
-                        raise LeanUnsupported('quantifiers with a condition')
-                    for b in body:
-                        walk(b, bound + (x,))
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                    x, condition = self.binder(cond, kb)
+                    if condition is not None:
+                        walk(condition, bound + (x,))
+                    for b in body[:-1]:
+                        walk(b, bound)
+                    walk(body[-1], bound + (x,))
                 case [*children]:
                     for c in children:
                         walk(c, bound)
         walk(e, ())
         schema: dict[str, list[str]] = {}
+        try:
+            deps = k_dependencies(e, kb)
+        except (KernelReject, KurtException):
+            deps = {}
         for v in order:
-            inner = [s for s in scopes[v] if s]
-            if inner and self.is_bool(v):
-                params = list(dict.fromkeys(x for s in scopes[v] for x in s))
-                if any(set(s) != set(params) for s in scopes[v]):
-                    raise LeanUnsupported(f'`{v}` at places with different bound variables')
-                schema[v] = params
+            if v in self.function_arity:
+                continue                     # an operator variable: a function already
+            if self.is_bool(v):
+                common = [x for x in scopes[v][0] if all(x in s for s in scopes[v])]
+                if common:
+                    schema[v] = list(dict.fromkeys(common))
+            elif v in deps:
+                schema[v] = [deps[v]]
         return order, schema
 
-    def statement(self, e, kb: KnowledgeBase) -> tuple[str, list[str], dict[str, list[str]]]:
-        # `∀ (free variables), e`, and the free variables and the parametrized ones
+    def statement(self, e, kb: KnowledgeBase, generic: bool = False) -> tuple[str, list[str], dict[str, list[str]]]:
+        # `∀ (free variables), e`, and the free variables and the parametrized ones. `generic` (a
+        # theorem Lean proves, propositional.kurt's, logic.kurt's, equality.kurt's): its unsorted variables
+        # of one type `α` of any universe, so that the rule holds for numbers and for sets alike
+        # (`∀ x A(x)` over the reals, an instance of "forall-elim") -- unless a variable is used as
+        # an object or a number, then the statement is read with its sorts
+        if generic and self.zfset:
+            self.generic = True
+            try:
+                stmt, order, schema, types = self.statement_with_types(e, kb)
+                if any(LEAN_GENERIC in t for t in types.values()):
+                    self.infos[id(e)] = (order, schema, types, True)
+                    return '∀ {α : Type u}, ' + stmt, order, schema
+            except LeanGeneric:
+                pass
+            finally:
+                self.generic = False
+        stmt, order, schema, types = self.statement_with_types(e, kb)
+        self.infos[id(e)] = (order, schema, types, False)
+        return stmt, order, schema
+
+    def statement_with_types(self, e, kb: KnowledgeBase) -> tuple[str, list[str], dict[str, list[str]], dict[str, str]]:
         order, schema = self.schema_of(e, kb)
+        types = self.formula_types(e, kb, order)
         binders = []
         for v in order:
-            t = self.var_type(v)
+            t = self.var_type(v, kb, types)
             if v in schema and schema[v]:
-                t = ' → '.join(['Prop' if self.is_bool(p) else 'Obj' for p in schema[v]] + [t])
+                t = ' → '.join([types.get(p) or ('Prop' if self.is_bool(p) else self.var_type(p, kb)) for p in schema[v]] + [t])
             binders.append(f'({lean_ident(v)} : {t})')
-        body = self.expr(e, kb, schema)
-        return (f"∀ {' '.join(binders)}, {body}" if binders else body), order, schema
+        body = self.term(e, kb, schema, (), types)[0]
+        return (f"∀ {' '.join(binders)}, {body}" if binders else body), order, schema, types
 
-    def value(self, v: str, value, schema: dict[str, list[str]], kb: KnowledgeBase, scope: set[str] = frozenset()) -> str:
+    def info(self, e, kb: KnowledgeBase) -> tuple[list[str], dict[str, list[str]], dict[str, str], bool]:
+        # what `statement` found for the formula (computed again where it wasn't translated here)
+        if id(e) not in self.infos:
+            order, schema = self.schema_of(e, kb)
+            self.infos[id(e)] = (order, schema, self.formula_types(e, kb, order), False)
+        return self.infos[id(e)]
+
+    def instance_type(self, e, values: dict, kb: KnowledgeBase, scope: set[str]) -> Optional[str]:
+        # the type `α` of a generic theorem's instance: of the values of its generic variables, or
+        # how Kurt's sorts read a bound variable in a value (`∀ x ∈ Nat (...)`: the numbers) --
+        # an object if one of them is (a number among them embedded); None: not generic
+        order, schema, types, generic = self.info(e, kb)
+        if not generic:
+            return None
+        found: list[str] = []
+        for v in order:
+            if v not in values:
+                continue
+            if types.get(v) == LEAN_GENERIC:
+                with contextlib.suppress(LeanUnsupported, LeanGeneric):
+                    found.append(self.term(self.holes(values[v], kb, set(schema.get(v, [])) | set(scope)), kb)[1] or 'Obj')
+            for p in schema.get(v, []):
+                if types.get(p) == LEAN_GENERIC and (t := self.sort_in(p, values[v], kb)) is not None:
+                    found.append(t)
+        if not found:
+            return None                          # (nothing to say: Lean finds it)
+        if 'Obj' in found or any(not self.is_number_type(t) for t in found):
+            return 'Obj'
+        return found[0]
+
+    def arguments(self, e, values: dict, kb: KnowledgeBase, scope: set[str] = frozenset(), extra: tuple = ()) -> list[str]:
+        # the named arguments of an instance of the formula `e` (a rule, a fact): the certificate's
+        # values for its variables, `α` of a generic one, and (`extra`) the variables introduced in
+        # the proof for themselves
+        order, schema, types, generic = self.info(e, kb)
+        alpha = self.instance_type(e, values, kb, scope) if generic else None
+        args = [f'(α := {alpha})'] if alpha is not None else []
+        resolved = {k: ((alpha or '_') if t == LEAN_GENERIC else t) for k, t in types.items()}   # (`_`: Lean finds it)
+        for v in order:
+            if v in values:
+                args.append(f'({lean_ident(v)} := {self.value(v, values[v], schema, kb, scope, resolved, values)})')
+            elif v in extra and v not in schema:
+                args.append(f'({lean_ident(v)} := {lean_ident(v)})')
+        return args
+
+    def value(self, v: str, value, schema: dict[str, list[str]], kb: KnowledgeBase, scope: set[str] = frozenset(),
+              types: dict[str, str] | None = None, values: dict | None = None) -> str:
         # a variable of the value that has no value of its own and isn't introduced (`scope`)
-        # stands for anything: `_`, for Lean to fill in
+        # stands for anything: `_`, for Lean to fill in -- the bound variable of the rule in whose
+        # scope the value stands is the one the certificate gives for it (`$x := $$3863`, and the
+        # value of `%A` says `$$3863`): the parameter of the function
+        types = types or {}
         params = schema.get(v, [])
+        for p in params:
+            given = (values or {}).get(p)
+            if isinstance(given, Token) and given.label == 'SYMBOL' and isinstance(given.value, str) and given.value != p and kb.is_var(given.value):
+                value = replace_token_value(value, given.value, Token('SYMBOL', p))
         value = self.holes(value, kb, set(params) | set(scope))
+        want = types.get(v) or self.var_type(v, kb)
         if params:
-            return f"(fun {' '.join(f'({lean_ident(p)} : {self.var_type(p)})' for p in params)} => {self.expr(value, kb, bound=tuple(params))})"
-        return self.expr(value, kb)
+            ptypes = {p: types.get(p) or self.var_type(p, kb) for p in params}
+            # a rule's bound variable over all objects whose value is read on the numbers (a
+            # binder of a smaller sort, `binder_target`: "separation" for `{n ∈ Nat | n > 2}`): the
+            # property of the embedded numbers, `k_lift`
+            lifted = [p for p in params if self.zfset and self.num is not None and ptypes[p] == 'Obj' and self.is_bool(v)
+                      and self.sort_in(p, value, kb) == self.num]
+            inner_types = {**ptypes, **{p: self.num for p in lifted}}
+            body = self.term(value, kb, bound=tuple(params), types=inner_types)[0]
+            for p in reversed(lifted):
+                body = f'(k_lift (fun ({lean_ident(p)} : {self.num}) => {body}) {lean_ident(p)})'
+            return f"(fun {' '.join(f'({lean_ident(p)} : {ptypes[p]})' for p in params)} => {body})"
+        return self.typed(value, kb, None, (), None, want)
 
     def holes(self, e, kb: KnowledgeBase, known: set[str], bound: frozenset[str] = frozenset()):
         match e:
@@ -16665,10 +22227,14 @@ class LeanTranslator:
                 return Token('SYMBOL', '_')
             case Token():
                 return e
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and isinstance(cond, Token):
-                return [e[0], cond, *(self.holes(b, kb, known, bound | {cond.value}) for b in body)]
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL:
                 return [e[0], e[1], self.holes(a, kb, known, bound), self.holes(A, kb, known, bound | {x})]
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                x, condition = self.binder(cond, kb)
+                inner = bound | {x}
+                if condition is not None:
+                    cond = [cond[0], cond[1], self.holes(condition, kb, known, inner)] if is_bound_condition(cond) else self.holes(cond, kb, known, inner)
+                return [e[0], cond, *(self.holes(b, kb, known, bound) for b in body[:-1]), self.holes(body[-1], kb, known, inner)]
             case [*children]:
                 return [self.holes(c, kb, known, bound) for c in children]
         return e
@@ -16683,13 +22249,14 @@ class LeanWriter:
         self.r = recorder
         self.t = LeanTranslator(kb)
         self.source = source
-        self.axioms: dict[int, str] = {}        # Formula.id -> its Lean declaration (rules, `use`)
         self.names: dict[int, str] = {}         # Formula.id -> its Lean name
-        self.decls: list[str] = []              # the axioms, in the order they are first needed
-        self.lines: list[str] = []              # the theorems
+        self.decls: list[str] = []              # the axioms and `def`s, in the order they are first needed
         self.sorries = 0
         self.globals: set[str] = set()          # the names of axioms and top-level theorems (not `have`s)
+        self.untranslated: set[str] = set()     # the names of formulas that have no Lean statement (a step using one is a `sorry`)
         self.scope: set[str] = set()            # the Kurt variables introduced at this point of the proof
+        self.level_of: dict[int, int] = {}      # Formula.id -> the level it was added to (the recorded ones)
+        self.calc_axioms: set[str] = set()      # what the calculator knows about `Nat`, `Int`, `Rat` (see `calculated_membership`)
 
     def name(self, f) -> str:
         return self.names.setdefault(f.id, f'f{f.id}')
@@ -16697,36 +22264,85 @@ class LeanWriter:
     def require(self, f, kb) -> str:
         # a formula used by a step: an axiom unless the file proves it (then it has a name already)
         if f.id in self.names:
+            if self.names[f.id] in self.untranslated:
+                raise LeanUnsupported(f'the fact `{expr_str(f.simplified_expr, kb)}` is not translated')
             return self.names[f.id]
+        if f.id in self.level_of and self.level_of[f.id] != self.top:
+            # a fact of a block that has no name yet: not an axiom (it holds only in its block)
+            raise LeanUnsupported(f'the fact `{expr_str(f.simplified_expr, kb)}` of a block')
         name = self.name(f)
         try:
-            stmt, _, _ = self.t.statement(f.simplified_expr if f.direction_of is None else f.direction_of, kb)
             where = f'{os.path.basename(f.filename)}:{f.line}' + (f' "{f.label}"' if f.label else '')
-            self.decls.append(f'axiom {name} : {stmt}   -- {where}')
+            kind = 'todo' if f.keyword == 'todo' else 'axiom'
+            proof = f.lean_proof
+            if proof is None and kind == 'axiom' and f.filename.startswith(CHAIN_SOURCE) and self.t.all_mapped(f.simplified_expr, kb):
+                # what a `chain` of Mathlib's relations generates (`chain = <= <`: "chain-trans-1-2",
+                # `a ≤ b ∧ b < c ⇒ a < c`) is a theorem of Mathlib, as are `flat` and `sym` of `+`;
+                # one of Lean's own (`chain =`, `chain iff implies`) a theorem of Lean's logic
+                proof = ('intros; casesm* _ ∧ _; first | linarith | (subst_vars; rfl) | (subst_vars; assumption) | grind'
+                         if self.t.num is not None else 'grind')      # (`grind`: a chain of `⇔`, with numbers loaded)
+            if proof is None and kind == 'axiom' and f.filename.startswith(ENUMERATION_SOURCE) and self.t.zfset:
+                # the rules of a set by its elements (`$x ∈ {a, b, c} ≡ $x = a ∨ $x = b ∨ $x = c`,
+                # "element-2-of-3"): theorems about Lean's own `{a, b, c}` of the sets of Mathlib
+                proof = 'intros; simp only [ZFSet.mem_insert_iff, ZFSet.mem_singleton, k_emb_inj, or_assoc, true_or, or_true]'
+            # a theorem Lean proves is generic (its unsorted variables of any type, see `statement`)
+            stmt, _, _ = self.t.statement(f.simplified_expr if f.direction_of is None else f.direction_of, kb,
+                                          generic=proof is not None and kind == 'axiom')
+            if proof is not None and kind == 'axiom':
+                # `lean "label" TACTIC` in the theory: a theorem (of Mathlib, or of Lean's logic --
+                # propositional.kurt, logic.kurt, equality.kurt; their tactics are Lean's own), which Lean checks
+                self.decls.append(f'-- {where}: proved in Lean' + (f' (`lean "{f.label}" ...`)' if f.lean_proof else ''))
+                self.decls.append(f'theorem {name} : {stmt} := by\n' + '\n'.join(f'  {line}' for line in proof.split('\n')))
+            else:
+                self.decls.append(f'axiom {name} : {stmt}   -- {kind} {where}')
             self.globals.add(name)
         except LeanUnsupported as e:
-            self.decls.append(f'axiom {name} : True   -- not translated ({e}): {expr_str(f.simplified_expr, kb)}')
-            self.globals.add(name)
+            self.decls.append(f'-- axiom {name} not translated ({e}): {expr_str(f.simplified_expr, kb)}')
+            self.untranslated.add(name)
             self.t.missing.append(f'the formula `{expr_str(f.simplified_expr, kb)}` ({e})')
+            raise LeanUnsupported(f'the fact `{expr_str(f.simplified_expr, kb)}` is not translated')
         return name
+
+    def exactly(self, term: str) -> str:
+        # `exact term`, allowing for Kurt's normal forms (`and`/`or` flat and symmetric, `=` and
+        # the `sym` operators symmetric, the `flat` ones associative) -- and `grind` as the last resort
+        ac = self.t.ac()
+        return (f'first | exact {term} | (have r := {term}; simp only [{ac}] at r ⊢; exact r)'
+                f' | (have r := {term}; (try simp only [{ac}] at r ⊢); first | done | grind)')
+
+    def instance(self, f, name: str, values: dict, kb) -> str:
+        # a fact with the certificate's values for its variables (and those introduced in the
+        # proof for themselves)
+        e = f.simplified_expr if f.direction_of is None or name not in self.globals else f.direction_of
+        args = self.t.arguments(e, values, kb, self.scope, extra=tuple(self.scope))
+        return f'{name} {" ".join(args)}' if args else name
 
     def step(self, cert, kb, indent: str) -> list[str]:
         # tactic lines proving the goal of a certificate
+        ac = self.t.ac()
         if cert.kind == 'top':
             return [f'{indent}trivial']
+        if cert.kind == 'case-elim':
+            # a flat disjunction and one implication per alternative (`nary_case_elim`): the cases
+            # of the disjunction, each closed by its implication
+            names = [self.require(f, kb) for f in cert.facts]
+            haves = [f'have d := {self.instance(cert.facts[0], names[0], {}, kb)}']
+            haves += [f'have i{k} := {self.instance(f, n, {}, kb)}' for k, (f, n) in enumerate(zip(cert.facts[1:], names[1:]), start=1)]
+            cases = [f'rcases d with {" | ".join("h" for _ in names[1:])}']
+            cases += [f'({self.exactly(f"(i{k} h)")})' for k in range(1, len(names))]
+            return [f'{indent}({"; ".join(haves + cases)})']
+        if cert.kind in ('calc', 'calc-fact') and self.t.carrier is not None:
+            return [f'{indent}{self.calculation(cert, kb)}']
         if cert.kind != 'rule':
-            raise LeanUnsupported(f'a step `{cert.kind}`')
+            raise LeanUnsupported(f'a step `{cert.kind}`' + (' (numbers: no theory with `lean Obj`)' if cert.kind.startswith('calc') else ''))
         rule = cert.rule
         name = self.require(rule, kb)
         e = rule.simplified_expr
+        stated = e
         if rule.direction_of is not None:
-            iff = rule.direction_of
-            order, schema = self.t.schema_of(iff, kb)
-            mp = e[1] is iff[1]
-        else:
-            order, schema = self.t.schema_of(e, kb)
-        args = ' '.join(f'({lean_ident(v)} := {self.t.value(v, cert.values[v], schema, kb, self.scope)})'
-                        for v in order if v in cert.values)
+            stated = rule.direction_of
+            mp = e[1] is stated[1]
+        args = ' '.join(self.t.arguments(stated, cert.values, kb, self.scope))
         term = f'({name} {args})' if args else name
         if rule.direction_of is not None:
             term = f'({term}).{"mp" if mp else "mpr"}'
@@ -16735,18 +22351,102 @@ class LeanWriter:
         elim = f'solve_by_elim [And.intro{", " + facts if facts else ""}]'
         # the last resort: Lean's `grind`, with just the rule and the facts of the certificate (it
         # uses the local ones by itself) -- for Kurt's normal forms inside a fact, like `or` reordered
-        filled = []
-        for f, n in zip(cert.facts, names):
-            f_order, f_schema = self.t.schema_of(f.simplified_expr, kb)
-            f_args = ' '.join(f'({lean_ident(v)} := {self.t.value(v, cert.values[v], f_schema, kb, self.scope)})' for v in f_order if v in cert.values)
-            filled.append(f'have := {n} {f_args}' if f_args else f'have := {n}')
-        grind = '(' + '; '.join([f'have r := {term}'] + filled + ['grind']) + ')'
+        filled = [f'have h{k} := {self.instance(f, n, cert.values, kb)}' for k, (f, n) in enumerate(zip(cert.facts, names), start=1)]
+        hs = [f'h{k}' for k in range(1, len(filled) + 1)]
+        targets = ' '.join(['r'] + hs)
+        grind = '(' + '; '.join([f'have r := {term}'] + filled + [f'(try simp only [{ac}] at {targets} ⊢)', 'first | done | grind']) + ')'
         if cert.form == 'fact':
-            return [f'{indent}first | exact {term} | (have r := {term}; simp only [{LEAN_AC}] at r ⊢; exact r) | {grind}']
-        return [f'{indent}first',
+            return [f'{indent}first | exact {term} | (have r := {term}; simp only [{ac}] at r ⊢; exact r) | {grind}']
+        normalized = '; '.join([f'have r := {term}'] + filled + [f'simp only [{ac}] at {targets} ⊢',
+                                                                  f'first | done | (apply r <;> solve_by_elim [And.intro{"".join(", " + h for h in hs)}])'])
+        # (a rule with many premises, "vectorspace-intro": each conjunct of its premise on its own --
+        # one `simp` over the whole conjunction can take Lean longer than its heartbeats allow)
+        by_parts = (f"(apply {term}; (repeat' apply And.intro); all_goals first | assumption"
+                    + (f' | solve_by_elim [{facts}]' if facts else '')
+                    + f' | (simp only [{ac}] at ⊢; first | assumption | done))')
+        # a conjunct of the one fact ("and-elim"): first picked by its position in Lean's
+        # right-nested `∧` (`h.2.2.1`) -- Kurt's flat `and` has its own order, and the `simp` with
+        # `and_comm`, ... below can run out of heartbeats on a large conjunction ("vectorspace-intro")
+        projection = self.projection(cert, names, kb)
+        return [f'{indent}first'] + ([f'{indent}  | exact {projection}'] if projection is not None else []) + [
                 f'{indent}  | (apply {term} <;> {elim})',
-                f'{indent}  | (have r := {term}; simp only [{LEAN_AC}] at r ⊢; apply r <;> {elim})',
+                f'{indent}  | {by_parts}',
+                f'{indent}  | ({normalized})',
                 f'{indent}  | {grind}']
+
+    def projection(self, cert, names: list[str], kb) -> Optional[str]:
+        # the goal as the k-th conjunct of the step's one fact, a flat `and` of n conjuncts, which
+        # Lean reads right-nested (`A ∧ (B ∧ C)`): `h.2.1` for k = 1 of 3, `h.2.2` for the last
+        if len(cert.facts) != 1:
+            return None
+        f = cert.facts[0]
+        e = f.simplified_expr
+        if f.direction_of is not None or not (isinstance(e, list) and isinstance(e[0], Token) and e[0].value == 'and'):
+            return None
+        conjuncts = e[1:]
+        k = next((i for i, c in enumerate(conjuncts) if equal_expr_alpha(c, cert.goal, kb, {}, {})), None)
+        if k is None:
+            return None
+        path = '.2' * k + ('.1' if k < len(conjuncts) - 1 else '')
+        return f'({self.instance(f, names[0], cert.values, kb)}){path}'
+
+    def calculation(self, cert, kb) -> str:
+        # a step of the calculator (`calc on`): the goal computes to true ('calc'), or a fact
+        # computes to the goal ('calc-fact') -- for Mathlib's `norm_num`, `simp`, `ring_nf`,
+        # `linarith`, `decide`; what none of them closes stays a `sorry` (Lean says so), it isn't hidden
+        closers = ['(norm_num; done)', '(simp; done)', '(ring_nf; done)', 'linarith', '(norm_num [Nat.factorial]; done)', 'decide']
+        if cert.kind == 'calc' and (member := self.calculated_membership(cert.goal, kb)) is not None:
+            closers.insert(0, member)
+        if cert.kind == 'calc':
+            return 'first | ' + ' | '.join(closers + ['sorry   -- a calculation the tactics above do not close'])
+        assert cert.rule is not None
+        fact = self.instance(cert.rule, self.require(cert.rule, kb), cert.values, kb)
+        after = 'first | exact r | linarith | (simp_all; done) | (ring_nf at r ⊢; first | exact r | linarith)'
+        return (f'first | exact {fact} | (have r := {fact}; first | (norm_num at r ⊢ <;> {after}) | (simp at r ⊢ <;> {after})'
+                f' | (norm_num [Nat.factorial] at r ⊢ <;> {after})) | sorry   -- a calculation the tactics above do not close')
+
+    def calculated_membership(self, goal, kb) -> Optional[str]:
+        # `6 ∈ Nat` by the calculator (`builtin Nat naturals`): what it knows about such a set is an
+        # axiom, `∀ x, (∃ n : ℕ, ↑n = x) → x ∈ Nat` -- the trust Kurt gives its calculator, written
+        # out -- and the step gives the number, `⟨6, by norm_num⟩`. Only where the number type fits
+        # into the type of the objects (no `ℤ` in `ℕ`)
+        types = {'naturals': 'ℕ', 'integers': 'ℤ', 'rationals': 'ℚ'}
+        ranks = ['ℕ', 'ℤ', 'ℚ', 'ℝ']
+        match goal:
+            case [Token(label='SYMBOL', value=op), a, Token(label='SYMBOL', value=S)] if isinstance(op, str) and isinstance(S, str) and 'element' in kb.get_builtins(op):
+                pass
+            case _:
+                return None
+        kind = next((b for b in kb.get_builtins(S) if b in types), None)
+        number = self.t.num if self.t.zfset else self.t.carrier     # (the numbers' type: in the sets, or the objects')
+        if kind is None or number not in ranks or ranks.index(types[kind]) > ranks.index(number):
+            return None
+        value = expr_str(calculate(a, kb), kb).replace(' ', '')
+        if not re.fullmatch(r'-?\d+', value):
+            return None
+        try:
+            lean_set = self.t.expr(goal[2], kb)
+            if self.t.zfset:
+                template = self.t.mapped(op, 2)
+                if template is None:
+                    return None
+                member = '(' + template.replace('$1', '(k_emb x)').replace('$2', lean_set) + ')'
+            else:
+                member = f'{self.t.symbol(op, kb, 2, [a, goal[2]])} x {lean_set}'
+        except LeanUnsupported:
+            return None
+        name = f'k_calc_{lean_set}'
+        if name not in self.calc_axioms:
+            self.calc_axioms.add(name)
+            stmt = f'∀ (x : {number}), (∃ (n : {types[kind]}), (n : {number}) = x) → {member}'
+            if self.t.members.get(S):
+                # `lean Nat member $1 ∈ Set.range (fun n : ℕ => (n : Obj))`: what the calculator
+                # knows is a theorem then (if the theory's set is what the calculator computes)
+                self.decls.append(f'theorem {name} : {stmt} := by   -- the calculator: `builtin {S} {kind}`\n'
+                                  f'  intro x h; rw [k_mem_{lean_set}]; first | exact h | simpa using h')
+            else:
+                self.decls.append(f'axiom {name} : {stmt}   -- the calculator: `builtin {S} {kind}`')
+        return f'(apply {name}; exact ⟨({value} : {types[kind]}), by norm_num⟩)'
 
     def proof_of(self, f, kb_id: int, indent: str) -> list[str]:
         # tactic lines proving the formula `f` added to level `kb_id`, from what happened before
@@ -16762,6 +22462,15 @@ class LeanWriter:
             saved = set(self.scope)
             self.scope |= set(names)
             try:
+                e = f.simplified_expr
+                conjuncts = len(e) - 1 if isinstance(e, list) and isinstance(e[0], Token) and e[0].value == 'and' else 1
+                if len(certs) > 1 and conjuncts != len(certs):
+                    # not one certificate per conjunct: a link of a chain, `5 = 2 + 3 ≤ 7`, whose
+                    # certificates are those of the calculator for the computed links (`5 ≤ 7`) --
+                    # the calculation of this goal itself, or nothing
+                    if not (self.t.carrier is not None and all(c.kind == 'calc' for c in certs)):
+                        raise LeanUnsupported('certificates that are not one per conjunct')
+                    certs = certs[:1]
                 if len(certs) == 1:
                     return intro + self.step(certs[0], kb, indent)
                 lines = intro + [f"{indent}refine ⟨{', '.join('?_' for _ in certs)}⟩"]
@@ -16770,13 +22479,19 @@ class LeanWriter:
                 return lines
             finally:
                 self.scope = saved
+        if kind == 'conj':
+            # a conjunction of the lines before it (`conjuncts_before`): each conjunct by its line
+            kb = self.r.levels[kb_id]
+            names = [self.require(g, kb) for g in payload]
+            return [f"{indent}refine ⟨{', '.join('?_' for _ in names)}⟩"] + \
+                   [f'{indent}· {self.exactly(n)}' for n in names]
         if kind == 'block':
             cert, block_id = payload
             return self.block(cert, block_id, f, indent)
         if kind == 'proof':
             block_id, last = payload
             body = self.body(block_id, indent)
-            return body + [f'{indent}exact {self.name(last)}']
+            return body + [f'{indent}{self.exactly(self.require(last, self.r.levels[block_id]))}']
         raise LeanUnsupported(kind)
 
     def block(self, cert, block_id: int, f, indent: str) -> list[str]:
@@ -16802,13 +22517,18 @@ class LeanWriter:
                 else:
                     lines += self.restate(assumption, block, indent)
             case 'forall-intro':
-                consts = [a.value for a in block.mode_args if isinstance(a, Token)]
-                if len(consts) != len(block.mode_args):
-                    raise LeanUnsupported('`let` with a condition')
-                # (a boolean variable stays free in the result, without `∀`: introduced above already)
-                new = [lean_ident(c) for c in consts if lean_ident(c) not in intros]
-                if new:
-                    lines.append(f"{indent}intro {' '.join(new)}")
+                # `let x, y`: `intro x y`; a condition (`let x ∈ A`: `∀ x, x ∈ A → ...`) is an
+                # assumption, one of the block's facts, in the order of the `let`
+                conditions = list(hyps)          # (`eval_let` adds each condition as a `use`, labelled `let`)
+                for condition, v in zip(block.mode_args, block.let_names):
+                    if is_bool_var_token(condition, block.parent):
+                        continue             # (a boolean variable stays free in the result, without `∀`: introduced above already)
+                    if lean_ident(v) not in intros:
+                        lines.append(f'{indent}intro {lean_ident(v)}')
+                    if isinstance(condition, list):
+                        if not conditions:
+                            raise LeanUnsupported('the condition of a `let` without its fact')
+                        lines += self.restate(conditions.pop(0), block, indent)
             case 'exists-elim':
                 witness = block.mode_args[0].value
                 source = self.require(block.pick_source, block)
@@ -16817,7 +22537,7 @@ class LeanWriter:
             case _:
                 raise LeanUnsupported(f'the block rule `{cert.kind}`')
         lines += self.body(block_id, indent)
-        lines.append(f'{indent}exact {self.name(cert.rule)}')
+        lines.append(f'{indent}{self.exactly(self.require(cert.rule, block))}')
         return lines
 
     def restate(self, f, kb, indent: str, introduced: str | None = None) -> list[str]:
@@ -16826,9 +22546,9 @@ class LeanWriter:
         h = introduced or f'h_{self.name(f)}'
         lines = [] if introduced else [f'{indent}intro {h}']
         stmt, order, _ = self.t.statement(f.simplified_expr, kb)
-        if order:
-            return lines + [f'{indent}have {self.name(f)} : {stmt} := by intros; first | exact {h} | apply {h}']
-        return lines + [f'{indent}have {self.name(f)} : {stmt} := {h}']
+        # (with free variables, `∀ x y, ...`: `intro x y`, then `h` for these -- `apply` finds the order)
+        intro = f"intro {' '.join(lean_ident(v) for v in order)}; first | exact {h} | (apply {h} <;> assumption) | solve_by_elim [{h}] | " if order else 'first | '
+        return lines + [f'{indent}have {self.name(f)} : {stmt} := by {intro}{self.exactly(h)[len("first | "):]}']
 
     def body(self, kb_id: int, indent: str) -> list[str]:
         # `have`s for the formulas of a block that steps or closed blocks gave
@@ -16837,10 +22557,83 @@ class LeanWriter:
         for g in self.formulas.get(kb_id, []):
             if g.id not in self.justification:
                 continue                         # an assumption, a `pick` fact: from `intro`/`obtain`
-            stmt, _, _ = self.t.statement(g.simplified_expr, kb)
-            lines.append(f'{indent}have {self.name(g)} : {stmt} := by')
-            lines += self.proof_of(g, kb_id, indent + '  ')
+            name = self.name(g)
+            try:
+                stmt, _, _ = self.t.statement(g.simplified_expr, kb)
+            except LeanUnsupported as e:
+                # no statement: the fact has no `have`, and a step that uses it is a `sorry`
+                self.untranslated.add(name)
+                self.t.missing.append(f'line {g.line} `{g.input_line}` ({e})')
+                lines.append(f'{indent}-- line {g.line}: {g.input_line} -- not translated: {e}')
+                continue
+            try:
+                proof = self.proof_of(g, kb_id, indent + '  ')
+            except LeanUnsupported as e:
+                self.sorries += 1
+                self.t.missing.append(f'line {g.line} `{g.input_line}` ({e})')
+                proof = [f'{indent}  sorry   -- not translated: {e}']
+            lines.append(f'{indent}have {name} : {stmt} := by')
+            lines += proof
         return lines
+
+    def definition(self, f, kb) -> None:
+        # a `def`: a Lean `def` of the new symbol, and its defining equation as a theorem by `rfl`
+        # (so Lean sees that the definition is conservative) -- the symbol applied to variables on
+        # one side, the other side a term in them (`eval_def` checks that); a direction of it that
+        # a step used (`L ⇒ R` of the `iff`) is the `def` itself
+        e = f.simplified_expr if f.direction_of is None else f.direction_of
+        if not (isinstance(e, list) and len(e) == 3 and isinstance(e[0], Token) and e[0].value in ('=', 'iff')):
+            raise LeanUnsupported('a `def` not with `=` or `iff`')
+        is_prop = e[0].value == 'iff'
+        head = lambda side: side.value if isinstance(side, Token) else (side[0].value if isinstance(side[0], Token) else None)
+        sides = [s for s in e[1:] if head(s) == f.def_symbol]
+        if len(sides) != 1:
+            raise LeanUnsupported('a `def` without the defined symbol on one side')
+        lhs = sides[0]
+        rhs = e[2] if lhs is e[1] else e[1]
+        params = [] if isinstance(lhs, Token) else lhs[1:]
+        if self.t.curried(f.def_symbol, kb) is not None and len(params) == 1:
+            # a `def` over a tuple, `def coprime($a, $b) ⇔ ...`: a Lean function of the components
+            # (`LeanTranslator.curried`), `noncomputable def coprime (x_a x_b : Obj) : Prop`
+            params = comma_items(params[0][1]) if isinstance(params[0], list) and len(params[0]) == 2 \
+                and isinstance(params[0][0], Token) and params[0][0].value == '($$$)' else params
+        if not all(isinstance(p, Token) and isinstance(p.value, str) and kb.is_var(p.value) for p in params):
+            raise LeanUnsupported('a `def` of a symbol applied to more than variables')
+        param_names = [p.value for p in params]
+        lean = lean_ident(f.def_symbol)
+        # the types of the parameters by their sorts (`def even $m`: a number), of the result the
+        # right side's (`def $a ∩ $b = {...}`: a set)
+        order, _ = self.t.schema_of(e, kb)
+        types = self.t.formula_types(e, kb, order)
+        param_types = [self.t.var_type(p, kb, types) for p in param_names]
+        binders = ' '.join(f'({lean_ident(p)} : {t})' for p, t in zip(param_names, param_types))
+        value, result = self.t.term(rhs, kb, bound=tuple(param_names), types=types)
+        result = 'Prop' if is_prop else (result if result is not None and (result == 'Obj' or self.t.is_number_type(result)) else 'Obj')
+        self.t.defined.add(lean)
+        self.t.signatures[lean] = (param_types, result)
+        try:
+            stmt, _, _ = self.t.statement(e, kb)
+        except (LeanUnsupported, LeanGeneric):
+            self.t.defined.discard(lean)
+            self.t.signatures.pop(lean, None)
+            raise
+        where = f'{os.path.basename(f.filename)}:{f.line}' + (f' "{f.label}"' if f.label else '')
+        name = self.name(f)                      # (only now: a name means a declaration, see `require`)
+        self.decls.append(f'noncomputable def {lean} {binders}{" " if binders else ""}: {result} := {value}   -- def {where}')
+        self.decls.append(f'theorem {name} : {stmt} := by intros; first | rfl | exact Iff.rfl | simp only [{lean}]')
+        self.globals.add(name)
+
+    def conjuncts_before(self, f, kid: int, kb) -> Optional[list]:
+        # the formulas of the lines `35a`, `35b`, ... of this level that are the conjuncts of `f` (line
+        # 35), in the order of its conjuncts -- or None
+        parts = []
+        lines = [g for g in self.formulas.get(kid, []) if g is not f and re.fullmatch(re.escape(str(f.line)) + '[a-z]+', str(g.line))]
+        for conjunct in f.simplified_expr[1:]:
+            g = next((g for g in lines if g not in parts and equal_expr(g.simplified_expr, conjunct, kb, keep_order=False)), None)
+            if g is None:
+                return None
+            parts.append(g)
+        return parts
 
     def analyse(self) -> None:
         # which certificates and blocks justify which formula, per level
@@ -16861,6 +22654,7 @@ class LeanWriter:
                 continue
             f = x
             self.formulas.setdefault(kid, []).append(f)
+            self.level_of[f.id] = kid
             if kb.mode_str == 'proof' and self.r.parent.get(kid) is not None:
                 closed[self.r.parent[kid]] = (kid, f)        # the last line of a `proof` so far
             waiting = pending.get(kid, [])
@@ -16873,6 +22667,11 @@ class LeanWriter:
             elif waiting and all(w[0] == 'cert' for w in waiting) and f.keyword == '':
                 self.justification[f.id] = ('certs', [w[1] for w in waiting])   # a conjunction, one certificate per conjunct
                 waiting.clear()
+            elif not waiting and f.keyword == '' and isinstance(f.simplified_expr, list) and isinstance(f.simplified_expr[0], Token) \
+                    and f.simplified_expr[0].value == 'and' and (parts := self.conjuncts_before(f, kid, kb)) is not None:
+                # a conjunction after its conjuncts, each a line of its own (`35a`, `35b`: `0 ∈ V ∧ ∀ $u
+                # ∈ $M (...)` right after the `let u ∈ $M` that gives the second part) -- and-intro
+                self.justification[f.id] = ('conj', parts)
             elif f.keyword == '' and kid in closed and self.r.levels[closed[kid][0]].mode_str == 'proof' \
                     and equal_expr(closed[kid][1].expr, f.expr, kb, keep_order=False):
                 self.justification[f.id] = ('proof', closed.pop(kid))   # what a `qed` gives
@@ -16880,48 +22679,159 @@ class LeanWriter:
 
     def write(self) -> str:
         self.analyse()
-        top = id(next((kb for kind, x, kb in self.r.events if kb.is_load_boundary), None))   # (None: no event at the top level)
+        self.top = id(next((kb for kind, x, kb in self.r.events if kb.is_load_boundary), None))   # (None: no event at the top level)
+        # the symbols used as a function and as an object, over everything to be translated
+        exprs, links = [], []
+        for kind, x, kb in self.r.events:
+            if kind == 'formula':
+                exprs.append(x.simplified_expr)
+            else:
+                exprs += [x.goal] + [f.simplified_expr for f in [x.rule] + x.facts if f is not None] + list(x.values.values())
+                links += list(x.values.items())
+                if x.block is not None and x.block.pick_source is not None:
+                    exprs.append(x.block.pick_source.simplified_expr)
+        self.t.find_mixed(exprs, links, self.t.kb)
+        # the `def`s of the loaded files that a step uses (natural.kurt's "even-def"): Lean `def`s,
+        # as the file's own -- first, in the order they were made (one may use another), so that
+        # every declaration after them may use the symbol
+        # -- and the `def`s of the symbols in what a step cites of a loaded file (natural.kurt's
+        # "even-square" is a theorem in Lean only if `even` is its `def`), and of the symbols in those
+        loaded_defs = {}
+        def_of = {}
+        for node in self.t.kb.levels():
+            for g in node.theory:
+                if g.def_symbol is not None and g.filename != self.r.path:
+                    def_of.setdefault(g.def_symbol, g)
+        def symbols_in(e) -> set[str]:
+            if isinstance(e, Token):
+                return {e.value} if e.label == 'SYMBOL' and isinstance(e.value, str) else set()
+            return set().union(*(symbols_in(c) for c in e)) if e else set()
+        wanted: list[str] = []
+        for kind, x, kb in self.r.events:
+            if kind == 'cert':
+                for f in [x.rule] + list(x.facts):
+                    if f is not None and f.def_symbol is not None and f.filename != self.r.path and f.id not in self.names:
+                        loaded_defs.setdefault(f.id, (f, kb))
+                    if f is not None and f.filename != self.r.path:
+                        wanted += sorted(symbols_in(f.simplified_expr))
+            elif kind == 'formula' and getattr(x, 'lean_proof', None) is not None:
+                wanted += sorted(symbols_in(x.simplified_expr))      # (its proof in Lean may unfold them: integer.kurt's "int-sub-real")
+        seen: set[str] = set()
+        while wanted:
+            s = wanted.pop()
+            if s in seen or s not in def_of:
+                continue
+            seen.add(s)
+            g = def_of[s]
+            if g.id not in self.names and all(h.def_symbol != s for h, _ in loaded_defs.values()):
+                loaded_defs.setdefault(g.id, (g, self.t.kb))
+            wanted += sorted(symbols_in(g.simplified_expr))
+        for _, (f, kb) in sorted(loaded_defs.items()):
+            with contextlib.suppress(LeanUnsupported):
+                self.definition(f, kb)
         out = []
         for kind, x, kb in self.r.events:
-            if kind != 'formula' or id(kb) != top:
+            if kind != 'formula' or id(kb) != self.top:
                 continue
             f = x
             if f.id not in self.justification:
-                if f.keyword in ('use', ''):
-                    self.require(f, kb)          # an axiom of the file
+                if f.keyword == 'def' and f.def_symbol is not None:
+                    try:
+                        self.definition(f, kb)
+                    except LeanUnsupported as e:
+                        self.t.missing.append(f'line {f.line} `{f.input_line}` as a `def` ({e})')
+                        with contextlib.suppress(LeanUnsupported):
+                            self.require(f, kb)  # an axiom then
+                elif f.keyword in ('use', '', 'todo'):
+                    with contextlib.suppress(LeanUnsupported):
+                        self.require(f, kb)          # an axiom of the file
                 continue
             name = self.name(f)
             try:
                 stmt, _, _ = self.t.statement(f.simplified_expr, kb)
+            except LeanUnsupported as e:
+                self.sorries += 1
+                self.untranslated.add(name)
+                self.t.missing.append(f'line {f.line} `{f.input_line}` ({e})')
+                out += [f'-- line {f.line}: {f.input_line} -- not translated: {e}', f'theorem {name} : True := by sorry', '']
+                continue
+            try:
                 proof = self.proof_of(f, id(kb), '  ')
-                self.globals.add(name)
-                out += [f'-- line {f.line}: {f.input_line}', f'theorem {name} : {stmt} := by'] + proof + ['']
             except LeanUnsupported as e:
                 self.sorries += 1
                 self.t.missing.append(f'line {f.line} `{f.input_line}` ({e})')
-                stmt_text = None
-                try:
-                    stmt_text, _, _ = self.t.statement(f.simplified_expr, kb)
-                except LeanUnsupported:
-                    pass
-                out += [f'-- line {f.line}: {f.input_line} -- not translated: {e}',
-                        f'theorem {name} : {stmt_text or "True"} := by sorry', '']
-        header = [f'-- {self.source}, translated from Kurt by `kurt --lean` (a prototype); check with `lean`',
-                  'set_option linter.unusedSimpArgs false   -- the fallback for Kurt\'s normal forms lists all of them',
-                  'namespace Kurt   -- Kurt\'s symbols, apart from Lean\'s own names (`Nat`, `Pow`, ...)', '',
-                  'axiom Obj : Type', '']
-        symbols = [f'axiom {lean} : {t}' for lean, t in self.t.symbols.values()]
+                proof = [f'  sorry   -- not translated: {e}']
+            self.globals.add(name)
+            out += [f'-- line {f.line}: {f.input_line}', f'theorem {name} : {stmt} := by'] + proof + ['']
+        if self.t.carrier is None:
+            header = [f'-- {self.source}, translated from Kurt by `kurt --lean` (a prototype); check with `lean`']
+            objects = ['axiom Obj : Type']
+        else:
+            # a theory says how its symbols read in Mathlib (`lean`): the objects are its type
+            header = ['import Mathlib',
+                      f'-- {self.source}, translated from Kurt by `kurt --lean` (a prototype) with Mathlib;',
+                      '-- check with `python3 scripts/lean_check.py FILE` (the lake project scripts/lean, see doc/kurt-doc.md)',
+                      'set_option linter.unreachableTactic false   -- (Mathlib\'s linters: the fallbacks are tried in turn)',
+                      'set_option linter.unusedTactic false',
+                      'set_option linter.unnecessarySeqFocus false']
+            objects = [f'abbrev Obj : Type := {self.t.carrier}   -- `lean {LEAN_CARRIER} {self.t.carrier}`: Kurt\'s objects']
+            if self.t.zfset:
+                objects = self.zfset_preamble()
+        header += ['set_option linter.unusedSimpArgs false   -- the fallback for Kurt\'s normal forms lists all of them',
+                   'set_option maxHeartbeats 2000000   -- (steps with large conjunctions of defined predicates need more than the default)',
+                   'namespace Kurt   -- Kurt\'s symbols, apart from Lean\'s own names (`Nat`, `Pow`, ...)', ''] + objects + ['']
+        symbols = [f'axiom {lean} : {t}' for lean, t in self.t.symbols.values() if lean not in self.t.defined]
+        symbols += [f'axiom {lean} : {t}   -- a binder' for lean, t in self.t.binders.values()]
+        symbols += [m for m in self.t.members.values() if m]
+        symbols += [''] + list(self.t.laws.values()) if self.t.laws else []
         footer = []
         if self.t.missing:
             footer = ['', '/- not translated:'] + [f'   - {m}' for m in self.t.missing] + ['-/']
         return '\n'.join(header + symbols + [''] + self.decls + [''] + out + ['end Kurt'] + footer) + '\n'
 
+    def zfset_preamble(self) -> list[str]:
+        # `lean Obj ZFSet` (objects.kurt): Kurt's objects are Mathlib's ZF sets (`ZFSet`, a model of
+        # ZFC), and the numbers (`lean real ℝ`, numbers.kurt) are embedded into them -- every number
+        # is a set, as `real ⊂ set` says. The embedding is a definition (an ordinal for each real, by
+        # a well-ordering, and its von Neumann level), injective by Mathlib's theorems, so nothing is
+        # assumed: a number at the place of a set is `k_emb x`, two embedded numbers are equal only
+        # if the numbers are (`k_emb_inj`), a set of numbers is the set of the embedded ones with a
+        # property (`k_numset`, `lean Nat member ...`), and a property of numbers is one of the sets
+        # that are embedded numbers with it (`k_lift`, for a part chosen among the numbers)
+        lines = ['universe u   -- (a generic theorem: its unsorted variables of any type, `α`)',
+                 'abbrev Obj : Type 1 := ZFSet.{0}   -- `lean Obj ZFSet`: Kurt\'s objects are the sets of ZFC (Mathlib\'s model)',
+                 '-- every number is a set: the numbers embedded into the sets, injectively (a definition, no axiom)',
+                 'noncomputable def k_emb {T : Type} (x : T) : Obj := ZFSet.vonNeumann (Ordinal.typein WellOrderingRel x)',
+                 'theorem k_emb_injective {T : Type} : Function.Injective (k_emb : T → Obj) :=',
+                 '  ZFSet.vonNeumann_injective.comp (Ordinal.typein_injective _)',
+                 '@[simp] theorem k_emb_inj {T : Type} (a b : T) : k_emb a = k_emb b ↔ a = b := k_emb_injective.eq_iff',
+                 '-- the value an embedded object stands for (`k_emb`\'s inverse; for another object some value)',
+                 'noncomputable def k_dec {T : Type} [Nonempty T] (x : Obj) : T := Classical.epsilon (fun r : T => k_emb r = x)',
+                 '@[simp] theorem k_dec_emb {T : Type} [Nonempty T] (r : T) : (k_dec (k_emb r) : T) = r :=',
+                 '  k_emb_injective (Classical.epsilon_spec (p := fun s : T => k_emb s = k_emb r) ⟨r, rfl⟩)',
+                 '-- a function of the sets, as set.kurt says: a set of pairs, applied to `a` the `b` with `(a, b) ∈ f`',
+                 'noncomputable def k_apply (f a : Obj) : Obj := Classical.epsilon (fun b => ZFSet.pair a b ∈ f)']
+        n = self.t.num
+        if n is not None:
+            lines += [f'-- the numbers among the sets (`lean real {n}`)',
+                      f'def k_IsNum (x : Obj) : Prop := x ∈ Set.range (k_emb : {n} → Obj)',
+                      f'noncomputable def k_numset (p : {n} → Prop) : Obj := ZFSet.range (fun x : {{x : {n} // p x}} => k_emb x.1)',
+                      f'theorem k_mem_numset (p : {n} → Prop) (x : {n}) : k_emb x ∈ k_numset p ↔ p x := by',
+                      '  simp [k_numset, ZFSet.mem_range]',
+                      f'theorem k_numset_elem (p : {n} → Prop) (z : Obj) : z ∈ k_numset p → ∃ x, z = k_emb x ∧ p x := by',
+                      '  simp only [k_numset, ZFSet.mem_range]; rintro ⟨⟨x, hx⟩, rfl⟩; exact ⟨x, rfl, hx⟩',
+                      f'def k_lift (P : {n} → Prop) (z : Obj) : Prop := ∃ r : {n}, z = k_emb r ∧ P r',
+                      f'@[simp] theorem k_lift_emb (P : {n} → Prop) (r : {n}) : k_lift P (k_emb r) ↔ P r := by simp [k_lift]']
+        return lines
 
 
 def export_lean(path: str, strict: bool = False) -> tuple[str, list[str]]:
     # `kurt --lean FILE`: the checked proof as a Lean 4 file (a prototype, see `LeanWriter`) -- the
     # text, and what wasn't translated (each a `sorry` in the text; `strict`: an error instead)
-    path = os.path.abspath(path if path.endswith('.kurt') else path + '.kurt')
+    # resolved (not just `abspath`), to match `run_state.current_line`'s path and so recognize the
+    # certificates and formulas as this file's own (`LeanRecorder.ours`) even under a symlinked
+    # directory (e.g. macOS's /tmp -> /private/tmp) -- as `certificates_text` already does.
+    path = str(Path(path if path.endswith('.kurt') else path + '.kurt').resolve())
     recorder = LeanRecorder(path)
     kb = recorder.run()
     writer = LeanWriter(recorder, kb, os.path.basename(path))
@@ -16929,6 +22839,16 @@ def export_lean(path: str, strict: bool = False) -> tuple[str, list[str]]:
     if strict and writer.t.missing:
         raise KurtException(f'LeanError: {len(writer.t.missing)} thing(s) not translated to Lean: ' + '; '.join(writer.t.missing[:3]))
     return text, list(writer.t.missing)
+
+class VersionAction(argparse.Action):
+    # `kurt --version`: the version on the first line (what scripts compare, `kurt 0.10.0`), then
+    # which `kurt.py` runs -- its path and its fingerprint (an editor may run another Kurt than the
+    # one of a checkout: the bundled one, an older install; found 2026-10-20)
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(f'kurt {version}')
+        print(os.path.abspath(__file__) if '__file__' in globals() else 'unknown')
+        print(f'{file_fingerprint()} (SHA-256 of kurt.py)')
+        parser.exit()
 
 def main() -> None:
 
@@ -16959,7 +22879,8 @@ def main() -> None:
     # shell) with the same options
     config = RunConfig(strict=args.strict, paths=(args.path,) if args.path else (),
                        kurtc=not args.no_kurtc, comment_indent=args.comment_indent,
-                       line_numbers=not args.no_line_numbers, all_errors=args.all_errors)
+                       line_numbers=not args.no_line_numbers, all_errors=args.all_errors,
+                       time_limit=args.budget if args.budget else None)
     if args.lsp:
         # a language server for editors: its own sessions, one per check (not inside this one,
         # whose lock would hold back the checks of its other threads)
@@ -17027,7 +22948,10 @@ def run_command_line(args: argparse.Namespace, session: 'Session', kb: Knowledge
                 except OSError as e:
                     sys.exit(f'could not write `{target}`: {e.strerror or e}')
                 say(f'wrote {target}{note}')
-                if fmt == 'lean':
+                if fmt == 'lean' and text.startswith('import Mathlib'):
+                    # (with Mathlib: Lean in a lake project that has it, e.g. scripts/lean of Kurt's repository)
+                    say(f'lake env lean {shlex.quote(os.path.abspath(target))}   # in a lake project with Mathlib')
+                elif fmt == 'lean':
                     say(f'lean {shlex.quote(target)}')     # (Lean isn't called: the command to check it, last)
         except KurtException as e:
             sys.exit(f'{fname}: {e.msg}')
@@ -17055,20 +22979,35 @@ def run_command_line(args: argparse.Namespace, session: 'Session', kb: Knowledge
                   if unused else 'Not used: none (every line of the proofs is cited)')
         sys.exit(0 if result.ok else 1)
 
+    # what each fact at the top level rests on, after the check (`file_foundations`)
+    if args.foundation:
+        if args.filename is None:
+            sys.exit('--foundation needs a file')
+        result = session.check_file(args.filename, foundation=True)
+        if not result.ok and not result.foundations:      # (with `--all-errors` the check goes on: the failing lines are admitted, and show)
+            sys.exit(result.error or 'the check failed')
+        if not result.ok:
+            print(f'{len(result.errors)} error(s), their lines admitted (--all-errors); the first: {result.error}', file=sys.stderr)
+        print(foundation_report(args.filename, result.foundations))
+        sys.exit(0 if result.ok else 1)
+
     # the result as JSON (with the options of the command line, in a session of its own)
     if args.json:
         if args.filename is None:
             sys.exit('--json needs a file')
-        result = session.check_file(args.filename)
+        result = session.check_file(args.filename, foundation=True)
         print(result.to_json())
         sys.exit(0 if result.ok else 1)
 
     # say hello
     log(kb, hello())
 
-    # the history of the shell, also of earlier sessions
+    # the history of the shell, also of earlier sessions -- written back at the exit only if the
+    # shell actually added to it (a run that never opens an interactive terminal, e.g. `kurt FILE`
+    # or piped input, never touches `shell_history`, so it must not rewrite `~/.kurt_history` either)
     shell_history[:] = read_history()
-    atexit.register(lambda: write_history(shell_history))
+    history_read = list(shell_history)
+    atexit.register(lambda: write_history_if_changed(shell_history, history_read))
 
     had_error = False
     breakpoint_shell[0] = (sys.stdin.isatty() or args.interactive) and not args.json
