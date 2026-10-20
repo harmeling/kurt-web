@@ -333,7 +333,7 @@ function markLine(line) {
 // the hover of the language server is Markdown: a code block (the line and its reason), then
 // `**name:** text` lines, with `code` and links to lines (`[line 3](file:///play/proof.kurt#L3)`),
 // to a loaded file (`[island.kurt:12](file:///play/theory/island.kurt#L12)`, in /play: the proof's
-// folder) and to the theories that come with Kurt (`prop.kurt:75`, `**theory:** \`prop\``: no
+// folder) and to the theories that come with Kurt (`propositional.kurt:75`, `**theory:** \`propositional\``: no
 // path, they are inside kurt.py) -- a link to another file opens it (`#file=...&line=...`)
 function fileLink(path, line, text) {
   return `<a href="#file=${path}${line ? `&line=${line}` : ''}">${text}</a>`;

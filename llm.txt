@@ -4,7 +4,7 @@ The Kurt programming language is an artificial language to write proofs in a for
 
 ~/git/kurt-lang (main ✗) kurt
 This is Kurt, Version 0.1 (made by Stefan Harmeling, 2025)
-!!![1] bool A, B
+!!![1] prop A, B
 !!![2] use A implies B
 use A implies B                                             ; 2 axiom
 !!![3] use A
@@ -16,7 +16,7 @@ Bye!
 Alternatively, create a file modus-ponens.kurt:
 
 ; simple modus ponens proof
-bool A, B
+prop A, B
 use A implies B
 use A
 B

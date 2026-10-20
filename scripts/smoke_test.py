@@ -24,7 +24,7 @@ for asset in ("kurt-worker.js", "service-worker.js", "site.webmanifest", "icon.s
     assert (root / asset).is_file(), asset
 with tempfile.TemporaryDirectory() as tmp:
     proof = Path(tmp) / "proof.kurt"
-    proof.write_text("load prop\nuse A implies B\nuse A\nB\n", encoding="utf-8")
+    proof.write_text("load propositional\nuse A implies B\nuse A\nB\n", encoding="utf-8")
     result = subprocess.run([sys.executable, str(root / "kurt.py"), "--no-kurtc", str(proof)], text=True, capture_output=True)
     if result.returncode:
         raise SystemExit(result.stdout + result.stderr)

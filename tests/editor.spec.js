@@ -14,14 +14,14 @@ async function typeProof(page, text) {
 }
 
 test('checks while typing and shows the reasons at the ends of the lines', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B\nuse A implies B\nuse A\nB\n');
+  await typeProof(page, 'load propositional\nprop A, B\nuse A implies B\nuse A\nB\n');
   await expect(page.locator('#status')).toHaveText('Proof checked');
   await expect(page.locator('#editorHighlight .hint', { hasText: '; by 3(4)' })).toBeVisible();
   await expect(page.locator('#problemsSummary')).toContainText('No problems');
 });
 
 test('marks an error in its line and the gutter, and lists it', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B, C\nuse A\nC\n');
+  await typeProof(page, 'load propositional\nprop A, B, C\nuse A\nC\n');
   await expect(page.locator('#status')).toHaveText(/1 error/);
   await expect(page.locator('#editorHighlight .diag-err')).toHaveText('C');
   await expect(page.locator('#lineNumbers .err-num')).toHaveText('4');
@@ -35,14 +35,14 @@ test('marks an error in its line and the gutter, and lists it', async ({ page })
 });
 
 test('reports all errors, and a todo after an error (Kurt 0.8.1)', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B, C\nuse A\nC\nB\ntodo A and C\n');
+  await typeProof(page, 'load propositional\nprop A, B, C\nuse A\nC\nB\ntodo A and C\n');
   await expect(page.locator('#status')).toHaveText('2 errors, 1 todo');
   await expect(page.locator('#lineNumbers .err-num')).toHaveText(['4', '5']);
   await expect(page.locator('#lineNumbers .todo-num')).toHaveText('6');
 });
 
 test('shows the details of a line on hover, and marks the lines its step uses', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B\nuse A implies B\nuse A\nB\n');
+  await typeProof(page, 'load propositional\nprop A, B\nuse A implies B\nuse A\nB\n');
   const box = await page.locator('#editor').boundingBox();
   const lineHeight = await page.locator('#editor').evaluate(e => parseFloat(getComputedStyle(e).lineHeight));
   await page.mouse.move(box.x + 20, box.y + 12 + 4.5 * lineHeight);
@@ -56,7 +56,7 @@ test('shows the details of a line on hover, and marks the lines its step uses', 
 
 test('says what Kurt says about the line of the cursor, also on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await typeProof(page, 'load prop\nbool A, B\nuse A implies B\nuse A\nB\n');
+  await typeProof(page, 'load propositional\nprop A, B\nuse A implies B\nuse A\nB\n');
   await page.locator('#editor').evaluate(e => { e.focus(); const at = e.value.indexOf('\nB') + 1; e.setSelectionRange(at, at); });
   await expect(page.locator('#lineInfo')).toContainText('5: B   ; by 3(4)');
   await page.locator('#lineInfo').click();
@@ -67,13 +67,13 @@ test('says what Kurt says about the line of the cursor, also on a phone', async 
 });
 
 test('keeps the indentation on Enter, and the reasons can be switched off', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A\nassume A');
+  await typeProof(page, 'load propositional\nprop A\nassume A');
   await page.locator('#editor').press('End');
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('    A');
   await page.keyboard.press('Enter');
-  await expect(page.locator('#editor')).toHaveValue('load prop\nbool A\nassume A\n    A\n    ');
+  await expect(page.locator('#editor')).toHaveValue('load propositional\nprop A\nassume A\n    A\n    ');
   await page.locator('#viewBtn').click();
   await page.locator('#reasonsToggle').uncheck();
   await expect(page.locator('#editorHighlight .hint')).toHaveCount(0);
@@ -151,7 +151,7 @@ test('links a file of the playground by its name, an edited one with its folder,
 // ---- the shell and the certificate: a run of the whole proof (from the classic playground, 2026-10-12) ----
 
 test('continues in the shell where the check stopped', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B\nuse A\nuse A implies B\nshow A and B\nproof\n    B\n    A and C\nqed\n');
+  await typeProof(page, 'load propositional\nprop A, B\nuse A\nuse A implies B\nshow A and B\nproof\n    B\n    A and C\nqed\n');
   await page.locator('#shellBtn').click();
   await expect(page.locator('#shellPrompt')).toHaveText(';[8]', { timeout: 60000 });   // the failing line
   await expect(page.locator('#shellHint')).toContainText('at the failing line');
@@ -180,14 +180,14 @@ test('continues at a breakpoint, and completes with Tab in the shell', async ({ 
 });
 
 test('downloads the certificate of a checked proof from the File menu, and none of a rejected one', async ({ page }) => {
-  await typeProof(page, 'bool A\nuse A\nA\n');
+  await typeProof(page, 'prop A\nuse A\nA\n');
   await page.locator('#fileBtn').click();
   for (const id of ['#loadBtn', '#saveBtn', '#shareBtn', '#certificateBtn']) await expect(page.locator(id)).toBeVisible();
   const download = page.waitForEvent('download');
   await page.locator('#certificateBtn').click();
   expect((await download).suggestedFilename()).toMatch(/\.kurtc$/);           // named after the file
   await expect(page.locator('#fileMenu')).toBeHidden();
-  await typeProof(page, 'bool A, B\nuse A\nB\n');
+  await typeProof(page, 'prop A, B\nuse A\nB\n');
   await page.locator('#fileBtn').click();
   await page.locator('#certificateBtn').click();
   await expect(page.locator('#status')).toHaveText(/No certificate/, { timeout: 60000 });
@@ -304,7 +304,7 @@ test('has the proofs of the course mafi1 in a menu of their own', async ({ page 
 
 test('resizes the editor and the shell with the bar between them, and puts the shell beside the editor', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
-  await typeProof(page, 'bool A\nuse A\nA\n');
+  await typeProof(page, 'prop A\nuse A\nA\n');
   await page.locator('#shellBtn').click();
   await expect(page.locator('#shellPrompt')).toBeVisible({ timeout: 60000 });
   const box = async sel => page.locator(sel).boundingBox();
@@ -328,7 +328,7 @@ test('resizes the editor and the shell with the bar between them, and puts the s
 // ---- the details of every line, links to other files, the edits of each file kept (2026-10-15) ----
 
 test('shows the details of a declaration and of a parse, links a rule of a theory, and Back returns', async ({ page }) => {
-  await typeProof(page, 'load prop\nbool A, B\nparse (A and B)\nuse A\nuse B\nA and B\n');
+  await typeProof(page, 'load propositional\nprop A, B\nparse (A and B)\nuse A\nuse B\nA and B\n');
   await expect(page.locator('#status')).toHaveText('Proof checked');
   const box = await page.locator('#editor').boundingBox();
   const lineHeight = await page.locator('#editor').evaluate(e => parseFloat(getComputedStyle(e).lineHeight));
@@ -339,15 +339,15 @@ test('shows the details of a declaration and of a parse, links a rule of a theor
   };
   if (!/^Kurt 0\.8\./.test(await page.locator('#version').textContent())) {      // (Kurt 0.9 or newer says what a line without a reason does)
     await hover(2);
-    await expect(page.locator('#tooltip')).toContainText('statements');        // `bool A, B`: as in VS Code
+    await expect(page.locator('#tooltip')).toContainText('statements');        // `prop A, B`: as in VS Code
     await hover(3);
     await expect(page.locator('#tooltip')).toContainText('sexpr');             // what `parse` printed
   }
   await hover(6);
-  const rule = page.locator('#tooltip a[href^="#file=theories/prop.kurt&line="]');
-  await expect(rule).toHaveText(/prop\.kurt:\d+/);
+  const rule = page.locator('#tooltip a[href^="#file=theories/propositional.kurt&line="]');
+  await expect(rule).toHaveText(/propositional\.kurt:\d+/);
   await rule.click();
-  await expect(page).toHaveURL(/#file=theories\/prop\.kurt&line=\d+$/);
+  await expect(page).toHaveURL(/#file=theories\/propositional\.kurt&line=\d+$/);
   await expect(page.locator('#editor')).toHaveValue(/and-intro/, { timeout: 60000 });
   await page.goBack();
   await expect(page.locator('#editor')).toHaveValue(/parse \(A and B\)/, { timeout: 60000 });
@@ -386,7 +386,7 @@ test('keeps the edits of each file, names the file in the address bar, and disca
 test('a file that a proof loads is used as edited here, like an unsaved file in an editor', async ({ page }) => {
   await page.goto('/#file=exercises/01-knights-and-knaves/theory/island.kurt');
   await expect(page.locator('#editor')).toHaveValue(/knight/, { timeout: 60000 });
-  await typeProof(page, (await page.locator('#editor').inputValue()) + '\nbool Zzz\nZzz\n');
+  await typeProof(page, (await page.locator('#editor').inputValue()) + '\nprop Zzz\nZzz\n');
   await expect(page.locator('#status')).toHaveText(/1 error/);
   await page.goto('/#file=exercises/01-knights-and-knaves/1-truth-and-lies.kurt');
   await expect(page.locator('#status')).toHaveText(/1 error/, { timeout: 60000 });          // (the scene, as edited)

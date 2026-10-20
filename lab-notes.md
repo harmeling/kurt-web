@@ -253,3 +253,15 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - 2026-10-16: Kurt 0.9.0. The sync's browser tests failed once in CI: the hover test moved from
   line 2 to line 3 while the tooltip of line 2 covered line 3 (the mouse was over the tooltip, the
   editor saw no move). The test moves away between lines now. The sync again by its button.
+
+## 2026-10-20 -- prepared for Kurt 0.10 (branch `kurt-0.10`, not on `main`)
+
+- Kurt 0.10 renames `bool` to `prop` and the theory `prop.kurt` to `propositional.kurt`. The
+  hand-written parts (index.html, llm.txt, editor.js, scripts/generate_language.py,
+  scripts/smoke_test.py, tests/editor.spec.js) use the new names; on the branch `kurt-0.10`, since a
+  push to `main` deploys, and the released Kurt (0.9.0) doesn't know them yet.
+- Tried with `./update.sh ../kurt-lang-dev` (smoke test passed) and the browser tests on parrot
+  (`srun -p interactive -w parrot`): 27 passed after one test's `prop.kurt` link was fixed. The
+  generated files of that try are not committed: from the release, the sync makes them.
+- At the release: merge `kurt-0.10` into `main` first, then "Sync with Kurt" (update.sh vX.Y.Z,
+  the browser tests, the deploy).
