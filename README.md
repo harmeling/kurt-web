@@ -55,6 +55,15 @@ serve -p 8000
 
 The playground follows the releases of Kurt by itself: every day, and on the "Run workflow" button of [Sync with Kurt](https://github.com/harmeling/kurt-web/actions/workflows/sync.yml), the workflow `sync.yml` looks for a newer release; if there is one, it runs `./update.sh vX.Y.Z` (Kurt from the public repository at that tag), the browser tests, commits to `main`, and deploys. By hand, `./update.sh v0.8.1` (a release) or `./update.sh ../kurt-lang-dev` (a checkout, e.g. to try what isn't released yet) regenerates `kurt.py`, synchronizes theories and tutorials, regenerates the manifest, and runs smoke tests; it doesn't commit or push.
 
+## A proof without a release
+
+`scripts/add-proof.sh ../kurt-lang-dev/proofs/mafi1/FILE.kurt` puts a proof file of the Kurt checkout
+into the playground at once: it copies it to the same place here (`proofs/mafi1/`), checks it with
+the playground's Kurt (`kurt.py`, the released one), updates `manifest.json` and the cache name, runs
+the smoke test, commits and pushes `main` (the deploy follows, after the browser tests). `--dry-run`
+stops before the commit. The next sync with a release replaces `proofs/mafi1/` by the release's: so
+commit the file in the Kurt checkout too (the script warns if it isn't).
+
 ## Notes
 
 - Everything executes in the browser via WebAssembly. No server-side execution is performed.

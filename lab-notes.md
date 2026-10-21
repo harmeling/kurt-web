@@ -268,3 +268,6 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - 2026-10-20: Kurt v0.10.0 -- `kurt-0.10` merged into `main`, then `./update.sh v0.10.0` (by hand,
   what sync.yml does: so that no push ran the new tests against the old Kurt); smoke test passed,
   browser tests on parrot 27 passed; pushed, pages.yml deploys.
+- 2026-10-21: `scripts/add-proof.sh` -- a proof file of the Kurt checkout into the playground
+  without a release (copied to the same place, checked with the playground's Kurt, manifest and
+  cache name, smoke test, commit, push). Tried with --dry-run: a good file taken, a bad one refused.
