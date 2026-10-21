@@ -271,3 +271,7 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - 2026-10-21: `scripts/add-proof.sh` -- a proof file of the Kurt checkout into the playground
   without a release (copied to the same place, checked with the playground's Kurt, manifest and
   cache name, smoke test, commit, push). Tried with --dry-run: a good file taken, a bad one refused.
+- 2026-10-21: `scripts/add-proof.sh` renamed `scripts/add_proof.sh`; its counterpart
+  `scripts/rm_proof.sh` (a proof file out of the playground; refused if another proof loads it;
+  warns if the Kurt checkout still has it). Tried with --dry-run: a loaded file (matrices.kurt) and
+  an unknown one refused, 01-two-equal-sets.kurt taken out and back.

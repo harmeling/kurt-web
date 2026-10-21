@@ -57,12 +57,17 @@ The playground follows the releases of Kurt by itself: every day, and on the "Ru
 
 ## A proof without a release
 
-`scripts/add-proof.sh ../kurt-lang-dev/proofs/mafi1/FILE.kurt` puts a proof file of the Kurt checkout
+`scripts/add_proof.sh ../kurt-lang-dev/proofs/mafi1/FILE.kurt` puts a proof file of the Kurt checkout
 into the playground at once: it copies it to the same place here (`proofs/mafi1/`), checks it with
 the playground's Kurt (`kurt.py`, the released one), updates `manifest.json` and the cache name, runs
 the smoke test, commits and pushes `main` (the deploy follows, after the browser tests). `--dry-run`
 stops before the commit. The next sync with a release replaces `proofs/mafi1/` by the release's: so
 commit the file in the Kurt checkout too (the script warns if it isn't).
+
+`scripts/rm_proof.sh proofs/mafi1/FILE.kurt` is the counterpart: it takes a proof file out of the
+playground (refused if another proof loads it), updates the manifest and the cache name, runs the
+smoke test, commits and pushes; `--dry-run` too. Remove the file in the Kurt checkout as well, or
+the next release brings it back (the script warns).
 
 ## Notes
 

@@ -6,8 +6,8 @@ set -euo pipefail
 # one -- what runs in the browser), update manifest.json and the cache name, run the smoke test,
 # commit, and push `main` (which deploys, after the browser tests).
 #
-#     scripts/add-proof.sh ../kurt-lang-dev/proofs/mafi1/30-new-topic.kurt [more files ...]
-#     scripts/add-proof.sh --dry-run ../kurt-lang-dev/proofs/mafi1/30-new-topic.kurt   # no commit, no push
+#     scripts/add_proof.sh ../kurt-lang-dev/proofs/mafi1/30-new-topic.kurt [more files ...]
+#     scripts/add_proof.sh --dry-run ../kurt-lang-dev/proofs/mafi1/30-new-topic.kurt   # no commit, no push
 #
 # The files keep their place: `proofs/mafi1/X.kurt` of the checkout becomes `proofs/mafi1/X.kurt`
 # here (a folder of `proofs/` is a menu of the playground). The next sync with a release
@@ -21,7 +21,7 @@ if [ "${1:-}" = "--dry-run" ]; then
     shift
 fi
 if [ $# -eq 0 ]; then
-    echo "usage: scripts/add-proof.sh [--dry-run] PATH/proofs/FOLDER/FILE.kurt ..." >&2
+    echo "usage: scripts/add_proof.sh [--dry-run] PATH/proofs/FOLDER/FILE.kurt ..." >&2
     exit 2
 fi
 
@@ -85,6 +85,6 @@ if [ -n "$dry_run" ]; then
 fi
 git add -- "${added[@]}" manifest.json service-worker.js
 git commit -q -m "$(printf '%s\n\n%s' "Proofs from the Kurt checkout, without a release: ${added[*]}" \
-    "Checked with the playground's Kurt; scripts/add-proof.sh.")"
+    "Checked with the playground's Kurt; scripts/add_proof.sh.")"
 git push -q origin main
 echo "pushed: $(git log --oneline -1) -- the playground deploys after the browser tests (GitHub Actions: Deploy)"
