@@ -244,6 +244,7 @@ test('opens and closes the help, which explains the shell and the certificate', 
   await expect(help).toBeVisible();
   await expect(help).toContainText('The shell');
   await expect(help).toContainText('certificate');
+  await expect(page.locator('#referenceLink')).toHaveAttribute('href', 'reference/');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
   await page.locator('#helpBtn').click();
@@ -402,4 +403,16 @@ test('the editor takes the window down to the footer, also in a narrow window', 
   const panel = await page.locator('.editor-panel').boundingBox(), footer = await page.locator('.app-footer').boundingBox();
   expect(footer.y + footer.height).toBeLessThanOrEqual(901);
   expect(panel.y + panel.height).toBeGreaterThan(footer.y - 40);
+});
+
+test('the reference next to the playground: its pages, the links between them, Kurt highlighted', async ({ page, request }) => {
+  const start = await request.get('/reference/');
+  test.skip(start.status() === 404, 'no reference/ (a Kurt without scripts/build_reference_site.py)');
+  await page.goto('/reference/building-the-grammar/');
+  await expect(page.locator('h1')).toContainText('Building the grammar');
+  await expect(page.locator('#sec-4-6')).toBeVisible();
+  await expect(page.locator('.highlight .kd', { hasText: 'chain' }).first()).toBeVisible();   // a Kurt block
+  await page.locator('article a[href="../terms-symbols-and-their-roles/#sec-3-1"]').first().click();
+  await expect(page).toHaveURL(/terms-symbols-and-their-roles\/#sec-3-1$/);
+  await expect(page.locator('#sec-3-1')).toBeVisible();
 });
