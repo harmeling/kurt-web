@@ -403,3 +403,43 @@ test('the editor takes the window down to the footer, also in a narrow window', 
   expect(footer.y + footer.height).toBeLessThanOrEqual(901);
   expect(panel.y + panel.height).toBeGreaterThan(footer.y - 40);
 });
+
+// a proof whose last line takes more than 8 s of search (Kurt's tests/test_budgets.py, `false_case(8, decoy=True)`)
+function slowProof(n = 8) {
+  const alts = Array.from({ length: n }, (_, i) => `A${i}`), noise = Array.from({ length: n }, (_, j) => [`B${j}`, `C${j}`, `H${j}`]);
+  const lines = ['load propositional', `prop ${[...alts, 'G', ...noise.flat()].join(', ')}`, `use ${alts.join(' or ')}`];
+  for (const [b, c, h] of noise) lines.push(`use ${b} or ${c}`, `use ${b} implies ${h}`, `use ${c} implies ${h}`);
+  for (const a of alts.slice(0, -1)) lines.push(`use ${a} implies G`);
+  lines.push('prop D', `use (${alts[0]} or (D and %X)) implies G`, 'G');
+  return lines.join('\n') + '\n';
+}
+
+test('Cancel stops a long check at its next step and keeps the worker (cross-origin isolated)', async ({ page }) => {
+  // server.py sends the headers of cross-origin isolation (on GitHub Pages: the service worker), so the page
+  // has a SharedArrayBuffer: Cancel sets a flag that Kurt reads at its next step, the worker stays
+  expect(await page.evaluate(() => self.crossOriginIsolated)).toBe(true);
+  await page.evaluate(() => { window.firstWorker = worker; });
+  await page.locator('#editor').fill(slowProof());
+  await expect(page.locator('#cancelBtn')).toBeVisible({ timeout: 30000 });
+  const started = Date.now();
+  await page.locator('#cancelBtn').click();
+  await expect(page.locator('#status')).toHaveText(/^Cancelled/, { timeout: 10000 });
+  expect(Date.now() - started).toBeLessThan(2500);                       // (stopped by the flag, not killed after 3 s)
+  expect(await page.evaluate(() => worker === window.firstWorker)).toBe(true);
+  await expect(page.locator('#cancelBtn')).toBeHidden();
+  // the same worker checks the next proof
+  await typeProof(page, 'load propositional\nprop A, B\nuse A implies B\nuse A\nB\n');
+  await expect(page.locator('#status')).toHaveText('Proof checked');
+  expect(await page.evaluate(() => worker === window.firstWorker)).toBe(true);
+});
+
+test('Cancel kills the worker where there is no SharedArrayBuffer', async ({ page }) => {
+  // (a page that isn't cross-origin isolated: GitHub Pages at the first visit, before the service worker)
+  await page.evaluate(() => { window.firstWorker = worker; cancelFlag = null; });
+  await page.locator('#editor').fill(slowProof());
+  await expect(page.locator('#cancelBtn')).toBeVisible({ timeout: 30000 });
+  await page.locator('#cancelBtn').click();
+  await expect(page.locator('#status')).toHaveText(/Loading Kurt runtime|^Cancelled/);
+  expect(await page.evaluate(() => worker === window.firstWorker)).toBe(false);
+  await expect(page.locator('#version')).toHaveText(/^Kurt \d/, { timeout: 60000 });
+});

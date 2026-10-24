@@ -1,5 +1,12 @@
 const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/';
 let pyodide;
+// the Cancel button (editor.js): a flag in a SharedArrayBuffer, which the page sets while this worker is busy
+// with a check (it can't read a message meanwhile). Kurt asks it at every step of the search and every
+// line (`LanguageServer.cancel`, `RunConfig.cancel`) and stops there, so the worker -- Pyodide and the
+// theories it has checked -- stays. Without a SharedArrayBuffer (a page that isn't cross-origin
+// isolated) there is no flag, and the page kills the worker instead.
+let cancelFlag = null;
+self.kurtCancelled = () => cancelFlag !== null && Atomics.load(cancelFlag, 0) !== 0;
 
 async function initialize() {
   importScripts(`${PYODIDE_URL}pyodide.js`);
@@ -45,11 +52,22 @@ def _progress(event):
         _post_message(_to_js({'type': 'progress', 'version': lsp.versions.get(LSP_URI), **event,
                               'file': os.path.basename(event['file'])}, dict_converter=_Object.fromEntries))
 lsp.progress = _progress
+# the Cancel button: the flag (kurtCancelled, above), asked by Kurt at every step and line
+from js import kurtCancelled as _kurt_cancelled
+def _cancelled():
+    return bool(_kurt_cancelled())
+if hasattr(lsp, 'cancel'):
+    lsp.cancel = _cancelled
+else:           # (Kurt 0.10.0 and before: the same, through the sessions of the server)
+    _session_for = lsp.session_for
+    lsp.session_for = lambda uri, cancel=None: _session_for(uri, cancel=lambda: _cancelled() or (cancel is not None and cancel()))
 def lsp_check(text, version):
     _progress_last[0] = time.monotonic()
     lsp.texts[LSP_URI], lsp.versions[LSP_URI] = text, version
     lsp_out.messages.clear()
     lsp.check(LSP_URI)
+    if _cancelled():        # (the check stopped, nothing was published)
+        return json.dumps({'version': version, 'cancelled': True})
     diagnostics = [d for m in lsp_out.messages if m.get('method') == 'textDocument/publishDiagnostics' for d in m['params']['diagnostics']]
     document = {'uri': LSP_URI}
     end = {'line': text.count('\\n') + 1, 'character': 0}
@@ -138,14 +156,16 @@ function editorComplete({ prefix, line, word, files, requestId }) {
   pyodide.globals.set('editor_line', line);
   pyodide.globals.set('editor_word', word);
   const result = pyodide.runPython(`
-editor_shell = kurt.Shell()
+# (the Cancel button stops it too: the worker is busy with it, maybe with a long search, before a check)
+editor_shell = kurt.Shell(kurt.RunConfig(cancel=_cancelled))
 editor_shell.start_text(editor_prefix, '/play/proof.kurt')
-json.dumps(editor_shell.completions(editor_line, editor_word))
+json.dumps([] if _cancelled() else editor_shell.completions(editor_line, editor_word))
 `);
   postMessage({ type: 'editor-completions', items: JSON.parse(result), requestId });
 }
 
 self.onmessage = async ({ data }) => {
+  if (data.type === 'cancel-flag') { cancelFlag = data.flag; return; }      // (sent before Pyodide is loaded)
   if (!pyodide) return;
   try {
     if (data.type === 'run') await runProof(data);
