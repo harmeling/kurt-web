@@ -294,6 +294,36 @@ test('lands on the first lesson, not on the file that was open before', async ({
   await expect(page.locator('#editor')).toHaveValue(/01-apply-an-implication-modus-ponens/);
 });
 
+test('a label in a hover can not break out of a link', async ({ page }) => {
+  const attributes = await page.evaluate(() => {
+    const box = document.createElement('div');
+    box.innerHTML = markdownToHtml('**rule:** `A` ([line 2](file:///play/proof.kurt#L2) "[x](file:///play/a"onmouseover="alert(1))")');
+    return [...box.querySelectorAll('*')].flatMap(element => element.getAttributeNames());
+  });
+  expect(attributes.filter(name => name.startsWith('on'))).toEqual([]);
+});
+
+test('a link names a folder of the manifest only, not a property of an object', async ({ page }) => {
+  const folders = await page.evaluate(async () => {
+    await getManifest();
+    return { constructor: await manifestFiles('constructor'), proto: await manifestFiles('__proto__'), known: await manifestFiles('tutorial/') };
+  });
+  expect(folders.constructor).toEqual([]);
+  expect(folders.proto).toEqual([]);
+  expect(folders.known.length).toBeGreaterThan(5);
+});
+
+test('has a content security policy, and nothing the page loads breaks it', async ({ page }) => {
+  const violations = [];
+  page.on('console', message => { if (/Content Security Policy|Refused to/i.test(message.text())) violations.push(message.text()); });
+  await page.reload();
+  await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
+  await page.locator('#themeBtn').click();
+  await page.locator('#fileBtn').click();
+  expect(await page.locator('meta[http-equiv="Content-Security-Policy"]').count()).toBe(1);
+  expect(violations).toEqual([]);
+});
+
 test('has the proofs of the course mafi1 in a menu of their own', async ({ page }) => {
   await page.locator('.menu-wrapper button', { hasText: 'mafi1' }).click();
   const menu = page.locator('.menu-wrapper', { hasText: 'mafi1' }).locator('.dropdown-menu');

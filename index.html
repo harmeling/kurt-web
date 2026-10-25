@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- what the page may load: its own files, nothing from elsewhere (Pyodide, in the worker, comes from the
+       jsdelivr CDN, which a page's policy doesn't govern); the one inline script is allowed by its hash -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-3pXjPWd4jSBH1Z4R6QAUDDB5zf1CbvT5d9hOOGaCsEw='; style-src 'self'; img-src 'self' data:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="theme-color" content="#121521">
   <script>
     // the light or the dark theme (the button in the header), before the page is drawn

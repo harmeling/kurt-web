@@ -335,8 +335,11 @@ function markLine(line) {
 // to a loaded file (`[island.kurt:12](file:///play/theory/island.kurt#L12)`, in /play: the proof's
 // folder) and to the theories that come with Kurt (`propositional.kurt:75`, `**theory:** \`propositional\``: no
 // path, they are inside kurt.py) -- a link to another file opens it (`#file=...&line=...`)
+// the path comes out of the text of a hover (a label of the proof can be in it): percent-encoded, so that
+// no character of it can end the attribute (`escapeHtml` leaves `"` alone: `highlightLine` reads the strings)
 function fileLink(path, line, text) {
-  return `<a href="#file=${path}${line ? `&line=${line}` : ''}">${text}</a>`;
+  const safe = path.replace(/[^\w\-./]/g, c => encodeURIComponent(c).replace(/'/g, '%27'));
+  return `<a href="#file=${safe}${line ? `&line=${line}` : ''}">${text}</a>`;
 }
 function markdownToHtml(markdown) {
   const theories = (manifestCache && manifestCache.theories) || [], theory = name => theories.includes(name);
@@ -625,7 +628,9 @@ async function manifestFiles(folder) {
   const manifest = await getManifest();
   if (folder === 'theories/') return manifest.theories || [];
   const topic = folder.match(/^exercises\/([^/]+)\/$/)?.[1], scene = folder.match(/^exercises\/([^/]+)\/theory\/$/)?.[1];
-  return (topic ? manifest.exercises?.[topic] : scene ? manifest.scenes?.[scene] : manifest.folders?.[folder]) || [];
+  // (own keys only: a link's `&folder=constructor` is no folder)
+  const own = (table, key) => table && Object.hasOwn(table, key) && Array.isArray(table[key]) ? table[key] : [];
+  return topic ? own(manifest.exercises, topic) : scene ? own(manifest.scenes, scene) : own(manifest.folders, folder);
 }
 function fileHash(path, line) { return `#file=${path}${line ? `&line=${line}` : ''}`; }
 // `how`: 'push' (a menu, a link in the details: the document left behind becomes a history entry,
