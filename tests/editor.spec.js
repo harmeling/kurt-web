@@ -286,6 +286,14 @@ test('shows the first lesson of the tutorial on a first visit, checked', async (
   await expect(page.locator('#status')).toHaveText('Proof checked', { timeout: 60000 });
 });
 
+test('lands on the first lesson, not on the file that was open before', async ({ page }) => {
+  await page.goto('/#file=tutorial/02-prove-an-implication.kurt');
+  await expect(page.locator('#editor')).toHaveValue(/02-prove-an-implication/);
+  await page.goto('/');
+  await page.reload();
+  await expect(page.locator('#editor')).toHaveValue(/01-apply-an-implication-modus-ponens/);
+});
+
 test('has the proofs of the course mafi1 in a menu of their own', async ({ page }) => {
   await page.locator('.menu-wrapper button', { hasText: 'mafi1' }).click();
   const menu = page.locator('.menu-wrapper', { hasText: 'mafi1' }).locator('.dropdown-menu');

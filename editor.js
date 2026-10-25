@@ -684,8 +684,11 @@ async function loadInitialDraft() {
     const draft = JSON.parse(localStorage.getItem(DRAFT_KEY));
     if (draft?.code) {
       // a file of the playground: opened again (its edited version is kept by its path); else the text
-      if (draft.folder && draft.original != null && draft.filename && await showPlaygroundFile(draft.folder, draft.filename, 0, 'replace')) return;
-      setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return;
+      // (a file of the playground is not reopened: the page lands on the first lesson, whatever was open before;
+      // the edits to a file are kept by its path (`drafts`) and are back when the file is opened)
+      if (!(draft.folder && draft.original != null && draft.filename)) {
+        setEditor(draft.code, draft.filename, draft.folder || null); currentOriginal = draft.original ?? null; return;
+      }
     }
   } catch {}
   setEditor(DEFAULT_PROOF);
