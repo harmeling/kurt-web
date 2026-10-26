@@ -34,6 +34,24 @@ if [ -d "$lang_dir/exercises" ]; then
         cp "$topic"theory/*.kurt "$web_dir/exercises/$name/theory/"
     done
 fi
+# the reference (doc/kurt-doc.md as a website, MkDocs with the Material theme) in reference/, by that
+# Kurt's own script; a Kurt without it (0.10 and older) keeps reference/ as it is. PYTHON: a Python with
+# mkdocs-material (e.g. a venv's); SKIP_REFERENCE=1: not built.
+python=${PYTHON:-python3}
+if [ ! -f "$lang_dir/scripts/build_reference_site.py" ]; then
+    echo "The reference: skipped, $source has no scripts/build_reference_site.py"
+elif [ -n "${SKIP_REFERENCE:-}" ]; then
+    echo "The reference: skipped (SKIP_REFERENCE)"
+elif ! "$python" -c 'import mkdocs, material' 2>/dev/null; then
+    echo "The reference needs mkdocs-material: pip install mkdocs-material (or PYTHON=..., or SKIP_REFERENCE=1)" >&2
+    exit 1
+else
+    reference_tmp=$(mktemp -d)
+    "$python" "$lang_dir/scripts/build_reference_site.py" --out "$reference_tmp/reference" --strict
+    rm -rf "$web_dir/reference"
+    mv "$reference_tmp/reference" "$web_dir/reference"
+    rm -rf "$reference_tmp"
+fi
 python3 "$web_dir/scripts/generate_language.py" "$lang_dir"
 python3 "$web_dir/scripts/generate_manifest.py"
 python3 "$web_dir/scripts/cache_name.py"       # a new cache name whenever something it caches changed

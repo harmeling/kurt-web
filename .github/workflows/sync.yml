@@ -47,6 +47,16 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if [ "v$have" = "$tag" ]; then echo "same=true" >> "$GITHUB_OUTPUT"; fi
 
+      - name: Python with MkDocs (update.sh builds the reference with it)
+        if: steps.which.outputs.same != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mkdocs-material
+        if: steps.which.outputs.same != 'true'
+        run: python3 -m pip install -r requirements-reference.txt
+
       - name: Bring the playground up to the release
         id: update
         if: steps.which.outputs.same != 'true'

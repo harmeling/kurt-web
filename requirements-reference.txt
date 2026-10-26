@@ -1,0 +1,3 @@
+# the reference site (update.sh: reference/ by Kurt's scripts/build_reference_site.py); pinned, MkDocs 2 drops the plugins
+mkdocs==1.6.1
+mkdocs-material==9.7.7

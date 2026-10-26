@@ -275,3 +275,24 @@ Operational log for agent-session setup and activity on the `agent` branch.
   `scripts/rm_proof.sh` (a proof file out of the playground; refused if another proof loads it;
   warns if the Kurt checkout still has it). Tried with --dry-run: a loaded file (matrices.kurt) and
   an unknown one refused, 01-two-equal-sets.kurt taken out and back.
+
+## 2026-10-23 -- the reference next to the playground (branch `reference-site`, not on `main`)
+
+- Kurt's todo 74: `doc/kurt-doc.md` as a website (MkDocs, Material) in `reference/`, built by
+  `update.sh` with the synced Kurt's `scripts/build_reference_site.py` (kurt-lang-dev, branch
+  `todo74`, not in a release yet). A Kurt without the script (v0.10.0) skips it with a message;
+  mkdocs-material missing is an error (`SKIP_REFERENCE=1`, `PYTHON=...`). sync.yml sets up Python
+  3.12 and installs `requirements-reference.txt` (mkdocs 1.6.1, mkdocs-material 9.7.7; MkDocs 2
+  drops the plugins); pages.yml deploys the committed `reference/` as it is (no mkdocs needed).
+  The help links "Reference" (`#referenceLink`, twice); the service worker passes `reference/` to
+  the network (the site is ~1 MB: source maps and lunr's other languages are left out), not into
+  the offline cache. A browser test opens a page, a Kurt block, a cross-section link (skipped
+  without `reference/`).
+- Tried: `PYTHON=<venv> ./update.sh <kurt-lang-dev worktree>` (reference built, smoke test
+  passed), then `./update.sh v0.10.0` ("The reference: skipped", the generated files as on
+  `main`, `reference/` from the try left in place); browser tests on parrot (SLURM 116020,
+  `--mem=16G`: the partition's default asks for the whole node's memory and waits): 28 passed,
+  the new reference test included. The generated `reference/` of that try is not committed.
+- To go live: merge `reference-site` into `main` at (or after) the first Kurt release with
+  `scripts/build_reference_site.py`, before that release's sync (or run "Sync with Kurt" after the
+  merge): <https://harmeling.github.io/kurt-web/reference/>.
