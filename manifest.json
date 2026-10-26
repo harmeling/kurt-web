@@ -187,10 +187,12 @@
   },
   "theories": [
     "analysis.kurt",
+    "complex.kurt",
     "continuity.kurt",
     "derivative.kurt",
     "equality.kurt",
     "field.kurt",
+    "finite.kurt",
     "group.kurt",
     "integer.kurt",
     "integral.kurt",
@@ -204,6 +206,7 @@
     "objects.kurt",
     "propositional.kurt",
     "rational.kurt",
+    "real.kurt",
     "sequences.kurt",
     "set.kurt",
     "vectorspace.kurt"

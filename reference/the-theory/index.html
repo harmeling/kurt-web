@@ -1,0 +1,1289 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/the-theory/">
+      
+      
+        <link rel="prev" href="../statements-terms-and-sorts/">
+      
+      
+        <link rel="next" href="../goal-directed-proof/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>6. The theory: making and using claims - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-6" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              6. The theory: making and using claims
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Bare claims
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 How to define things: def and use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 todo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.3 todo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sec-6-3-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3.1 Definitions, axioms, admitted statements, and derived theorems
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 theory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 cert
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Bare claims
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 How to define things: def and use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 todo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6.3 todo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sec-6-3-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3.1 Definitions, axioms, admitted statements, and derived theorems
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 theory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-6-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 cert
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-6">6. The theory: making and using claims<a class="headerlink" href="#sec-6" title="Permanent link">&para;</a></h1>
+<p>The <strong>theory</strong> is the accumulated list of <code>Formula</code>s (axioms, definitions,
+and proven facts) currently in scope. Kurt is a single-pass checker: each
+top-level statement is scanned, parsed, type-checked, and evaluated in
+order, and generally either succeeds (and is appended to the theory) or
+raises an exception (and, in a file, stops checking).</p>
+<h2 id="sec-6-1">6.1 Bare claims<a class="headerlink" href="#sec-6-1" title="Permanent link">&para;</a></h2>
+<p>A line that's just an expression (no leading keyword) is a <strong>claim</strong>: Kurt
+tries to derive it from the current theory and, if it succeeds, adds it to
+the theory. If it's a conjunction, each conjunct may be derived separately
+and then combined via "and-intro" (this, "impl-elim"/modus-ponens
+against every formula currently in scope, and "top-intro" for the literal
+symbol <code>true</code> are the primitive rules hard-coded in Python; the engine also
+uses an <code>iff</code> fact as an implication in both directions, computes "by calc",
+closes <code>case</code> blocks "by case-elim", and generates the "chain-trans-I-J" rules
+of a <code>chain</code> -- see <a href="../building-the-theory/#sec-8-1">§8.1</a>). Derivation is a <em>single</em> hop: given <code>A</code>, <code>A implies B</code>, and <code>B
+implies C</code> all separately in the theory, deriving <code>C</code> in one step is <em>not</em>
+automatic — you must first derive <code>B</code> as its own line.</p>
+<p>When a claim fails, Kurt says that no one-step derivation was found and shows at most three
+relevant rules whose conclusions match the goal, together with their missing premises. These are
+bounded search diagnostics, not proof certificates and not a claim that the formula is false.
+The structured form is available as <code>CheckResult.failure</code>, in the failing JSON event, and in the
+LSP diagnostic's <code>data.failure</code> field.</p>
+<p>Where the claim and every fact of the context are propositional, Kurt also looks for a
+<strong>counterexample</strong> by truth table: an assignment of the atoms that makes every fact true and the
+claim false. If there is one, the explanation ends with a line like</p>
+<div class="highlight"><pre><span></span><code>a counterexample<span class="o">:</span> <span class="k">with</span> <span class="o">`</span>A<span class="o">`</span> <span class="kc">false</span><span class="p">,</span> <span class="o">`</span>B<span class="o">`</span> <span class="kc">false</span> and <span class="o">`</span>C<span class="o">`</span> <span class="kc">true</span><span class="p">,</span> every fact holds but the claim doesn<span class="o">'</span>t <span class="o">--</span> it does not follow from these facts
+</code></pre></div>
+<p>(here for the claim <code>B</code> from <code>A ⇒ B</code> and <code>A ∨ C</code>), and <code>failure.counterexample.assignment</code> has
+the assignment, <code>{"A": false, "B": false, "C": true}</code>. Unlike the missing premises, this is a
+statement about the claim itself: no proof of any length derives it from these facts. The
+connectives with a truth table are <code>∧</code>, <code>∨</code>, <code>¬</code>, <code>⇒</code>, <code>⇔</code>, <code>true</code> and <code>false</code>; any other
+statement (<code>A</code>, <code>P a</code>, <code>x ∈ B</code>) is an atom whose truth is free, so a fact with a quantifier or an
+object variable (<code>$x</code>) -- every rule of logic.kurt, equality.kurt and the theories on them has
+one -- or with a statement under an operator the table doesn't know (<code>A ⇐ B</code>) means the facts
+can't be evaluated, and nothing is said, whatever the atoms: in practice, counterexamples come
+in propositional contexts (the core, propositional.kurt, <code>prop A, B</code>). The rules of propositional.kurt, which are
+schemas over statements (<code>%A ∧ %B ⇒ %A</code>), hold in every row. The table has at most 12 atoms and is given a fraction of a second; beyond
+that, nothing is said either. When no counterexample is reported, nothing follows from that: the
+claim may well hold, in more steps than one. The assignment is checked again, with an evaluator
+separate from the one that searched for it, before it is reported; the check runs only after a
+line has failed, so it never changes what Kurt accepts.</p>
+<p><strong>Running time.</strong> Since a claim is one step, its search is bounded: Kurt tries the facts, then the
+rules whose conclusion can match the claim (found by an index on the top-level operator of the
+conclusion), and for each rule the facts for its premises. What makes a line slow is
+therefore not the length of a proof but how many rules could have concluded the claim, times the
+size of the theory their premises are searched in: a theory with many rules for the same
+conclusion (or rules whose conclusion is a mere schema, like "equal-elim") makes every line
+that reaches them slower. The lessons and most proofs of this repository check in a second or
+two, the larger theories (natural.kurt, field.kurt) in several seconds; <a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/bench.py"><code>scripts/bench.py</code></a>
+measures a set of representative files (before and after a change to the search;
+dev/dev-notes.md, "speed", has the history). A <code>.kurtc</code> file (<a href="../running-kurt/">§1</a>) makes a file that is checked
+again much faster, since each step first tries its stored certificate.</p>
+<p>One exception, for rewriting: a rewriting step (a chain <code>X = A</code> / <code>= B</code>, or a
+claim that changes one place of a recent fact) may use a rule with
+conditions, e.g. <code>$a ∈ K ⇒ 1 · $a = $a</code>, if the conditions are facts. Kurt
+then derives the instance (<code>1 · b = b</code>, with the fact <code>b ∈ K</code>) as a step of
+its own, shown as line <code>17a</code> before line 17, and rewrites with it. Both steps
+have their certificates, which the kernel checks.</p>
+<p>The first line of a chain, <code>L = R</code>, is rewritten like the later ones, as if
+<code>L = L</code> (equal-intro) were the line before it: <code>a ∘ e = a ∘ (inv(a) ∘ a)</code>
+follows by "left-inverse" inside the term. And a line that changes up to four
+places at once, <code>x + y = 0 + 0</code> from <code>x = 0</code> and <code>y = 0</code>, is checked place by
+place: Kurt adds the lines in between as steps of their own (<code>17a</code>, <code>17b</code>,
+...), each one rewrite with its certificate. Both are tried only when nothing
+else gives the line.</p>
+<p>A rewrite may also change a <em>part</em> of the arguments of a <code>flat</code> operator, where
+flattening removed the node: in <code>x·x + x + (- x) + (- 1)</code>, the rule <code>$c + (- $c) =
+0</code> rewrites <code>x + (- x)</code> (for a <code>sym</code> operator any part, otherwise only arguments
+next to each other: <code>b · l · a</code> to <code>b · a · l</code>). The place is found by comparing
+the line with the one before; the kernel flattens after substituting, as always.</p>
+<p>A claim that's structurally identical to the last thing already in the
+theory is logged as a restatement of it (<code>by 2</code>), without being added again.
+Each checked line is logged with the short form of its certificate (<a href="#sec-6-5">§6.5</a>):
+the rule, applied to the facts it was used with -- <code>by 13(14)</code> is the
+(unlabelled) implication of line 13 applied to the fact of line 14,
+<code>by equal-elim(11, 10)</code> the rule "equal-elim" applied to lines 11 and 10,
+<code>by 3</code> an instance of the fact of line 3, <code>by and-intro(12a, 12b)</code> a
+conjunction checked conjunct by conjunct. The result of a block that closes
+is numbered by the lines of the block, from the line that opened it to its
+last one, <code>; 15-23 by impl-intro</code> (the <code>assume</code> at line 15, the block to line
+23; with <code>false</code> at its end also <code>; 15-23 by not-intro</code>), and a step that uses
+it names them: <code>by case-elim(14, 15-23, 24-30)</code>. A cited line that is only
+admitted (<code>todo</code>, <a href="#sec-6-3">§6.3</a>) says so: <code>by and-intro(5, 6 (todo))</code>. In front of a line of the file,
+Kurt prints its number, and the reason goes without it; a derived line has no number in front,
+its number is in the reason (<code>; 12a by and-elim(12)</code>, <code>; 15-23 by impl-intro</code>) -- <code>kurt
+--no-line-numbers</code> prints every number in the reason instead (<code>; 4 by 2(3)</code>). If the line has a
+comment of its own, the comment stays on the line, and the reason goes on the next line:</p>
+<div class="highlight"><pre><span></span><code>   <span class="m">4</span>  B                                         <span class="c1">; modus ponens</span>
+                                                <span class="c1">; by 2(3)</span>
+</code></pre></div>
+<p>Labelling (<a href="#sec-6-2">§6.2</a>) isn't specific to <code>use</code>/<code>def</code> — it's the same mechanism
+for <em>every</em> statement, keyworded or not, since they're all parsed through
+the same <code>check_expr_label</code>. A bare claim can be labelled, and marked
+<code>local</code>, exactly like an axiom can:</p>
+<div class="highlight"><pre><span></span><code><span class="k">use</span> P implies Q
+<span class="k">use</span> P
+Q  <span class="s">"derived-q"</span>        <span class="c1">; a label on a bare, derived claim works too</span>
+</code></pre></div>
+<p>and this is what actually decides whether <code>Q</code> is exported when this file
+is <code>load</code>ed elsewhere (<a href="../building-the-theory/#sec-8-2">§8.2</a>) — not whether it came from <code>use</code> or was
+derived as a bare claim.</p>
+<h2 id="sec-6-2">6.2 How to define things: <code>def</code> and <code>use</code><a class="headerlink" href="#sec-6-2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">use</span> EXPR              <span class="c1">; use EXPR "label"</span>
+<span class="k">use</span> EXPR <span class="k">local</span> <span class="s">"label"</span>
+<span class="k">def</span> SYMBOL <span class="o">=</span> EXPR
+<span class="k">def</span> SYMBOL iff EXPR
+</code></pre></div>
+<p>There are two ways to write what mathematicians call a definition, depending on what kind of
+definition it is:</p>
+<ul>
+<li>Use <code>def</code> for a <strong>conservative definitional extension</strong>: one fresh name is introduced as an
+  abbreviation for a term or property already expressible in the language.</li>
+<li>Use <code>use</code> for any broader defining principle, including a recursive, conditional, implicit, or
+  characterizing definition. Such a statement is an <strong>axiom</strong> to Kurt, even when its label ends in
+  <code>-def</code>.</li>
+</ul>
+<p>For example, these only add names for expressions the language already has:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> four <span class="o">=</span> <span class="m">2</span> <span class="o">+</span> <span class="m">2</span>
+<span class="k">def</span> square<span class="p">(</span><span class="nv">$x</span><span class="p">)</span> <span class="o">=</span> <span class="nv">$x</span> <span class="o">*</span> <span class="nv">$x</span>
+<span class="k">def</span> even<span class="p">(</span><span class="nv">$n</span><span class="p">)</span> iff exists <span class="nv">$k</span> <span class="p">(</span><span class="nv">$k</span> in Nat and <span class="nv">$n</span> <span class="o">=</span> <span class="m">2</span> <span class="o">*</span> <span class="nv">$k</span><span class="p">)</span>
+</code></pre></div>
+<p>Every accepted <code>def</code> is intended to be eliminable: expand the new symbol by its definition and the
+theory says nothing new in its old vocabulary. Thus <code>def</code> expands the language without increasing
+the mathematical strength of the theory. Kurt checks the syntactic conditions described below;
+the soundness of that check is part of Kurt's trusted definition boundary.</p>
+<p>A recursive definition is not such a simple abbreviation. Kurt currently has no termination,
+constructor, or coverage checker with which to justify one as conservative, so write its equations
+as explicit defining axioms:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span> fact
+<span class="k">use</span> fact<span class="p">(</span><span class="m">0</span><span class="p">)</span> <span class="o">=</span> <span class="m">1</span>                                      <span class="s">"factorial-zero"</span>
+<span class="k">use</span> <span class="nv">$n</span> in Nat implies fact<span class="p">(</span><span class="nv">$n</span> <span class="o">+</span> <span class="m">1</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="nv">$n</span> <span class="o">+</span> <span class="m">1</span><span class="p">)</span> <span class="o">*</span> fact<span class="p">(</span><span class="nv">$n</span><span class="p">)</span>  <span class="s">"factorial-step"</span>
+</code></pre></div>
+<p>The same applies when characterizing an existing object or notation, or when the defining equation
+has conditions. <code>use</code> is the honest spelling: Kurt accepts the formula without proving existence,
+uniqueness, termination, consistency, or conservativity. Such defining axioms can add genuine
+mathematical strength and can make a theory inconsistent if they are wrong. Their necessary domain
+conditions therefore belong in the formula.</p>
+<p><code>use</code> adds <code>EXPR</code> to the theory as an <strong>axiom</strong> — accepted without proof.
+It is only allowed at the top level of a file, or inside a <code>sandbox</code> or
+<code>expect</code> (whose content is discarded anyway) — not inside a <code>proof</code>,
+<code>assume</code>, <code>case</code>, <code>let</code> or <code>pick</code>, where the result would look proven
+although it relies on the axiom (e.g. <code>assume A</code> with <code>use B</code> inside would
+give <code>A implies B</code> "by impl-intro"). State axioms before the proof, or use
+<code>todo</code> (<a href="#sec-6-3">§6.3</a>) for a step you want to leave open. The same holds for <code>def</code>,
+<code>inline</code>, <code>chain</code>, and every grammar declaration (<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>,
+<code>arity</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code>, <code>alias</code>, <code>sort</code>): not inside a <code>proof</code>, <code>assume</code>, <code>case</code>, <code>let</code>
+or <code>pick</code> (<code>EvalError: \</code>def` is not allowed inside `assume`<code>), but in a</code>sandbox<code>or</code>expect<code>-- declare them before the proof. For the grammar declarations this isn't only about
+looking proven: a notation used by a formula that survives the block gets locked in for good
+wherever that formula is visible, so it was never actually scoped to the block in the first place
+([§11.2](known-gaps.md#sec-11-2)). An optional trailing string labels it. The label
+is shown on the</code>use<code>output line and on later references and error messages instead of a bare
+line number. When the axiom contains declared named variables, normal output also shows the
+stored schematic form in a</code>; schema:` comment. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span> x<span class="p">,</span> y<span class="p">,</span> <span class="o">∘</span>
+<span class="kd">infix</span> <span class="o">∘</span> <span class="m">70</span> <span class="m">70</span>
+<span class="k">use</span> x <span class="o">∘</span> y <span class="o">=</span> y <span class="o">∘</span> x <span class="s">"comm"</span>
+<span class="c1">; schema: $x $op $y = $y $op $x</span>
+</code></pre></div>
+<p>Statement variables use <code>%</code> names, term and function variables use <code>$</code> names, and a symbolic
+operator variable gets a readable name such as <code>$op</code>. These generated names are stable display
+names; they are not declarations and are not written into saved Kurt source. <code>format source</code>
+continues to show the input line exactly, without the generated annotation. Formula listings
+(<code>use</code> with no arguments, <code>theory</code>, and <code>list theory FILE</code>) repeat the annotation. The label also
+controls whether
+<code>EXPR</code> is <em>exported</em> when this file is <code>load</code>ed elsewhere — see <a href="../building-the-theory/#sec-8-2">§8.2</a> —
+unless it's marked <code>local</code>, in which case the label is still used for
+display but the fact stays private to this file. <code>show</code>/<code>proof</code>/<code>qed</code> (<a href="../goal-directed-proof/">§7</a>)
+and <code>def</code> follow the exact same rule: <code>def</code>'s label controls whether the
+symbol it introduces is (indirectly) exportable, and a proved theorem's
+<code>show</code> label carries forward to the final proved formula.</p>
+<p>Since a bare <code>%</code>/<code>$</code> schema variable in a <code>use</code>/<code>def</code> axiom means "for any
+value of this symbol", it's easy to accidentally write an axiom that's far
+stronger than intended — e.g. <code>use %A</code> literally asserts "every proposition
+is true", and <code>use %A implies P</code> (with <code>%A</code> not reappearing anywhere in <code>P</code>)
+makes <code>P</code> derivable completely unconditionally, since <code>%A</code> freely unifies
+with anything. Kurt prints a <code>Warning:</code> to stderr (not an error — such an
+axiom is occasionally written on purpose) when a <code>use</code>/<code>def</code> matches one of
+these obvious shapes; see <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md"><code>doc/kurt-soundness.md</code></a> §6 for the full
+explanation and its limits (it only catches a few syntactic patterns, not
+every equivalent phrasing).</p>
+<p>Operationally, <code>def</code> is <code>use</code> specialised to introducing exactly one <strong>brand-new</strong>
+constant via an equation (<code>=</code>) or equivalence (<code>iff</code>) — the only two
+top-level operators <code>def</code> accepts. Exactly one new symbol must appear on
+the <strong>left-hand side</strong> (e.g. <code>def x = 18</code>, or <code>def $a ∩ $b = { $c ∈ $a | $c ∈
+$b }</code> — infix notation puts the new operator between its arguments).
+The left-hand side must be the new symbol itself or that symbol applied to
+distinct variables, possibly curried. Defining a new symbol as an argument
+of an existing operator is not supported: write <code>def injective($f) iff ...</code>,
+not <code>def $f is injective iff ...</code>.</p>
+<p>The new symbol must not occur on its own right-hand side, even through an
+alias. It must not already have semantic declarations such as <code>calc</code>,
+<code>flat</code>, <code>sym</code>, <code>chain</code>, or <code>bindop</code>. Comma-separated definitions are checked
+left to right: <code>def p iff true, q iff p</code> is allowed, but defining the same
+symbol twice, or defining a symbol already used by an earlier entry, is
+not. A rejected batch adds no definitions or declarations.</p>
+<p>On the right-hand side, a symbol that wasn't
+declared is introduced as on any line (<a href="../terms-symbols-and-their-roles/#sec-3-4">§3.4</a>: a constant, reported as
+<code>const g ; added constant</code>; an error with <code>--strict</code>): <code>def r = g b</code> with a new <code>g</code>
+only names the term <code>g b</code>, whatever <code>g</code> is, so the definition stays
+conservative. A declared operator isn't new even before its first use, e.g.
+the comma of <code>def q = ⟨b, b⟩</code>. The right-hand side has no variables besides
+those of the left-hand side. A definition is safe (it can't make the theory contradictory)
+only if <code>=</code> and <code>iff</code> have their usual meaning, so <code>def</code> requires them to
+come from the theories that come with Kurt: <code>load equality</code> (for <code>=</code>) or
+<code>load propositional</code> (for <code>iff</code>) first — an <code>iff</code> or <code>=</code> declared some other way is
+rejected. Once those checks pass, the defining equation is stored as a fact and can be used for
+rewriting and inference like a <code>use</code> axiom. Its provenance remains <code>def</code>, because the reason it is
+safe to admit is different: the checked extension is conservative rather than an additional
+mathematical assumption. Both <code>use</code> and <code>def</code>, called with no
+arguments, print everything <code>use</code>d/<code>def</code>ined so far.</p>
+<p><strong><code>inline</code>: a definition applied while reading.</strong> A <code>def</code> is a fact, and
+using it is a step: from <code>x &gt; 0</code> to <code>0 &lt; x</code> takes a line, and inside a formula
+a rewrite. When two notations should simply be the same, <code>inline</code> defines the
+new symbol by what it is read as:</p>
+<div class="highlight"><pre><span></span><code><span class="k">inline</span> <span class="nv">$a</span> <span class="o">&gt;</span> <span class="nv">$b</span>   iff  <span class="nv">$b</span> <span class="o">&lt;</span> <span class="nv">$a</span>          <span class="c1">; numbers.kurt (also `&gt;=`)</span>
+<span class="k">inline</span> <span class="nv">$a</span> <span class="o">≠</span> <span class="nv">$b</span>   iff  not <span class="p">(</span><span class="nv">$a</span> <span class="o">=</span> <span class="nv">$b</span><span class="p">)</span>    <span class="c1">; equality.kurt</span>
+<span class="k">inline</span> <span class="nv">$A</span> <span class="o">⊃</span> <span class="nv">$B</span>   iff  <span class="nv">$B</span> <span class="o">⊂</span> <span class="nv">$A</span>          <span class="c1">; set.kurt (also `∉`)</span>
+<span class="k">inline</span> sq <span class="nv">$x</span>     <span class="o">=</span>    <span class="nv">$x</span> <span class="o">*</span> <span class="nv">$x</span>          <span class="c1">; a term</span>
+</code></pre></div>
+<p>Each use of the symbol is read as the right side, with the arguments for the
+variables, so it is in no stored term: <code>x &gt; 0</code> <em>is</em> <code>0 &lt; x</code>, a rule written
+with <code>&lt;</code> applies to a line written with <code>&gt;</code>, and nothing is to be switched.
+Kurt prints the stored term (<code>0 &lt; x</code>). The checks are those of <code>def</code>: the left
+side is a new symbol (used nowhere yet; its syntax, <code>infix &gt;</code>, may be declared
+before), alone or applied to distinct variables; the right side has only these
+variables, not the symbol itself, and no binder (an argument could be captured
+by it -- use <code>def</code> there). <code>=</code> for a term, <code>iff</code> for a formula. A parameter may
+also be a tuple of variables, <code>inline child($x, $y) iff parent($y, $x)</code> (an
+argument must then be a tuple of that length). <code>inline</code> without arguments lists
+the inline definitions; they are exported with <code>load</code>.</p>
+<p><strong>Why not every <code>def</code> is an <code>inline</code>.</strong> <code>inline</code> is for notation: the same
+thing written differently -- a converse relation (<code>&gt;</code>, <code>⊃</code>, <code>child</code>), a negation
+(<code>≠</code>, <code>∉</code>), a short abbreviation of a term. A <code>def</code> gives a concept a name that
+one reasons with: <code>subspace(U)</code>, <code>even n</code>, <code>group(G, ·)</code>, <code>orthogonal(x, y)</code>.
+Inlined, such a name would disappear from every line and from Kurt's output
+(which prints the stored term), the formulas would grow, the search would get
+slower (more places where rules fit), and the step "by definition", which a
+reader of a proof wants to see, would be gone. Most definitions also contain a
+binder (<code>even n ⇔ ∃ k ...</code>), which <code>inline</code> refuses. So: <code>def</code> for what has a
+name of its own in mathematics and theorems about it, <code>inline</code> for another way
+to write the same thing (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/46-inline.kurt">keywords/46-inline.kurt</a>).</p>
+<h2 id="sec-6-3">6.3 <code>todo</code><a class="headerlink" href="#sec-6-3" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kp">todo</span>          <span class="c1">; admit the next step (a claim, or the goal at `qed`)</span>
+<span class="kp">todo</span> EXPR      <span class="c1">; admit EXPR specifically, and add it to the theory</span>
+</code></pre></div>
+<p>A joker: lets a proof continue (and the file still finish, with <code>Proof
+almost checked: N todos.</code> instead of <code>Proof checked</code>, listing every
+<code>todo</code>'s file and line) even though a step hasn't actually been justified.
+Meant for iteratively developing a proof, or handing out a skeleton with
+gaps left as exercises. A later step that uses an admitted line cites it as
+<code>6 (todo)</code> -- also with <code>--all-errors</code>, where a line that fails is admitted
+so that the check can go on.</p>
+<h3 id="sec-6-3-1">6.3.1 Definitions, axioms, admitted statements, and derived theorems<a class="headerlink" href="#sec-6-3-1" title="Permanent link">&para;</a></h3>
+<p>The way a formula enters the theory determines its status. Its label does not:</p>
+<table>
+<thead>
+<tr>
+<th>Source form</th>
+<th>Status</th>
+<th>What Kurt checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>def name = term</code> or <code>def predicate(...) iff formula</code></td>
+<td>conservative definitional extension</td>
+<td>The syntactic conservativity conditions in <a href="#sec-6-2">§6.2</a>. This extends the vocabulary without adding an assumption in the old vocabulary.</td>
+</tr>
+<tr>
+<td><code>use EXPR "label"</code></td>
+<td>axiom</td>
+<td><code>EXPR</code> is well formed and a statement. Its mathematical truth and consistency are assumed. This includes recursive or other defining axioms.</td>
+</tr>
+<tr>
+<td><code>todo EXPR</code> or a step admitted by <code>todo</code></td>
+<td>admitted/incomplete</td>
+<td>Enough syntax and bookkeeping to continue checking. The file remains visibly unfinished.</td>
+</tr>
+<tr>
+<td><code>show EXPR "label"</code> followed by <code>proof</code> ... <code>qed</code></td>
+<td>derived theorem</td>
+<td>Every proof step and the final goal. <code>show</code> merely announces the planned claim; the theorem enters the theory when <code>qed</code> succeeds.</td>
+</tr>
+<tr>
+<td><code>EXPR "label"</code> as an ordinary line</td>
+<td>derived theorem</td>
+<td>Kurt derives the line from facts already available, and its certificate is checked by the kernel.</td>
+</tr>
+</tbody>
+</table>
+<p>For example, all four labels below are only names; they do not override the admission form:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> square<span class="p">(</span><span class="nv">$x</span><span class="p">)</span> <span class="o">=</span> <span class="nv">$x</span> <span class="o">*</span> <span class="nv">$x</span>              <span class="s">"square-def"</span>       <span class="c1">; definition</span>
+<span class="k">use</span> fact<span class="p">(</span><span class="m">0</span><span class="p">)</span> <span class="o">=</span> <span class="m">1</span>                        <span class="s">"factorial-def"</span>    <span class="c1">; axiom</span>
+<span class="kp">todo</span> P                                 <span class="s">"future-theorem"</span>   <span class="c1">; admitted/incomplete</span>
+P implies P                            <span class="s">"identity"</span>         <span class="c1">; derived theorem, if the line checks</span>
+</code></pre></div>
+<p>In particular, <code>use ... "something-def"</code> remains an axiom, and a proved theorem does not become
+an axiom because its label says <code>axiom</code>. A label controls how a fact is referenced and, together
+with the absence of <code>local</code>, whether it is exported by <code>load</code> (<a href="../building-the-theory/#sec-8-2">§8.2</a>). It does not change the fact's
+provenance. This distinction is important when auditing a theory: a checked proof establishes its
+conclusion relative to the <code>use</code> axioms, defining axioms, calculator semantics, and any <code>todo</code>s on
+which it depends.</p>
+<h2 id="sec-6-4">6.4 <code>theory</code><a class="headerlink" href="#sec-6-4" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">theory</span>              <span class="c1">; print every formula, at every open level</span>
+<span class="k">theory</span> OP            <span class="c1">; print only formulas whose top-level operator is OP</span>
+</code></pre></div>
+<p>Read-only introspection; changes nothing.</p>
+<h2 id="sec-6-5">6.5 <code>cert</code><a class="headerlink" href="#sec-6-5" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">cert</span> <span class="m">17</span>             <span class="c1">; the certificates of line 17 of this file (or of the shell)</span>
+<span class="k">cert</span> <span class="m">17</span><span class="p">,</span> <span class="m">18</span>
+<span class="k">cert</span> <span class="m">12</span><span class="o">-</span><span class="m">15</span>          <span class="c1">; the result of the block of lines 12 to 15 (`; 12-15 by impl-intro`)</span>
+<span class="k">cert</span>                <span class="c1">; those of the last line with a step</span>
+</code></pre></div>
+<p>The comment after a checked line, e.g. <code>by forall-cond-elim(8, 9)</code>, is a short form of the
+line's <em>certificate</em>: what the kernel checks again, on its own, for each step (see
+<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md"><code>doc/kurt-soundness.md</code></a> §9). <code>cert</code> shows it in long form: the rule and how it is read (as a
+fact, or as premise ⇒ conclusion), the values of its variables, the fresh variables for <code>∀</code>s,
+the facts that match the premise -- or, for closing a block, the block and its last line. The
+kernel checks every step; should it ever reject one that the search found (a bug in Kurt), that
+is a <code>KernelError</code>, which stops the file and can't be caught by <code>expect</code>. Variables are shown with the names they were written with (<code>$a</code>, <code>%A</code>, <code>x</code>), numbered where
+several of them have the same name (<code>$x1</code>, <code>$x2</code>). A line that failed has no certificate; a line
+that closes blocks by dedenting also has the certificates of the closings.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../statements-terms-and-sorts/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 5. Statements, terms and sorts">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                5. Statements, terms and sorts
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../goal-directed-proof/" class="md-footer__link md-footer__link--next" aria-label="Next: 7. Goal-directed proof: show / proof / qed">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                7. Goal-directed proof: show / proof / qed
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

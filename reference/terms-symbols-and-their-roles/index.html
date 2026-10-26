@@ -1,0 +1,1135 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/terms-symbols-and-their-roles/">
+      
+      
+        <link rel="prev" href="../lexical-structure/">
+      
+      
+        <link rel="next" href="../building-the-grammar/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>3. Terms, symbols, and their roles - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-3" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              3. Terms, symbols, and their roles
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Function application is just an infix operator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Constants vs. variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 What "new" means
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Who declares what: the rules in one place
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Function application is just an infix operator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Constants vs. variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 What "new" means
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-3-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Who declares what: the rules in one place
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-3">3. Terms, symbols, and their roles<a class="headerlink" href="#sec-3" title="Permanent link">&para;</a></h1>
+<p>Every parsed term (<code>Expr</code> internally) is either a single symbol/number/
+string (a leaf) or an operator applied to one or more sub-terms. There is no
+separate "statement" syntax — a term <em>is</em> a formula once it's been checked
+to be a statement (<a href="../statements-terms-and-sorts/">§5</a>).</p>
+<h2 id="sec-3-1">3.1 Function application is just an infix operator<a class="headerlink" href="#sec-3-1" title="Permanent link">&para;</a></h2>
+<p>Space is a built-in infix operator (declared in the hard-coded
+<code>minimal.kurt</code>, see <a href="../building-the-theory/#sec-8-1">§8.1</a>), so <code>f x</code> means "<code>f</code> applied to <code>x</code>". A symbol
+without an <code>arity</code> is curried: <code>f x y</code> is <code>f x</code>, applied to <code>y</code>, and <code>(f x) y</code>
+is the same term -- both are stored as one call, <code>(f x y)</code> (so <code>f x</code> is no
+subterm of it that a rule could rewrite). With a declared <code>arity</code> (<a href="../building-the-grammar/#sec-4-3">§4.3</a>), <code>f</code>
+takes exactly that many arguments, and further ones apply to the result: with
+<code>arity f 2</code>, <code>f x y z</code> is <code>(f x y) z</code>, and <code>(f x) y</code> is an error, <code>f x</code> lacks an
+argument -- a forgotten argument or a misplaced bracket is caught. <code>f(x, y)</code> is
+something else: <code>f</code> applied to one argument, the pair <code>(x, y)</code> (<a href="../building-the-grammar/#sec-4-3">§4.3</a>). Where a
+function is applied in steps as a term of its own, as in the lambda calculus, a
+theory writes application as an operator (lambda.kurt). This is also why you can write <code>not A</code> even though <code>not</code> is
+declared as a <code>prefix</code> operator elsewhere — a bare <code>symbol symbol</code>
+juxtaposition is space-application regardless.</p>
+<p>Function application binds more tightly than every other operator, as in
+mathematics: <code>f x + y</code> and <code>f(x) + y</code> are <code>(f x) + y</code>, and <code>s n in Nat</code> is
+<code>(s n) in Nat</code>. Parentheses only group, so <code>f(x)</code> is just <code>f x</code> -- with one
+difference: a bracket written directly after a symbol, without a space, makes
+one term that binds more tightly still. So <code>inv det(A)</code> is <code>inv (det A)</code> (while
+<code>inv det (A)</code> is <code>inv det A</code>, <code>inv</code> with the two arguments <code>det</code> and <code>A</code>), and in the
+condition of a binder,
+<code>∀ $x ∈ Perp(M) Q($x)</code> reads <code>Perp(M)</code> as one term.</p>
+<h2 id="sec-3-2">3.2 Constants vs. variables<a class="headerlink" href="#sec-3-2" title="Permanent link">&para;</a></h2>
+<p>Every symbol in a formula is exactly one of (before its first use, a symbol with only a shape
+or type declaration, <code>infix</code>, <code>arity</code>, <code>prop</code>, is neither yet, <a href="#sec-3-4">§3.4</a>):</p>
+<ul>
+<li>a <strong>constant</strong> — one fixed, specific object, declared with <code>const x</code>, or
+  implicitly whenever it's introduced by <code>let</code>/<code>pick</code>/<code>def</code>/<code>brackets</code>, or
+  the first time a symbol that isn't a variable (no sigil, no <code>var</code>) is used in a formula (e.g.
+  after <code>use P c</code>, both <code>P</code> and <code>c</code> are constants; <code>prop</code> only records
+  the statement places of a symbol, see <a href="../statements-terms-and-sorts/">§5</a>, not whether it is a constant). Such a
+  first use is shown as an ordinary declaration in the output (<code>const P ;
+  added constant</code>), including when the symbol already had a syntax or
+  type declaration such as <code>infix P ...</code> or <code>prop P</code>. A wholly undeclared
+  symbol is often a typo; with <code>--strict</code> (<a href="../running-kurt/">§1</a>), it is an error instead. Or</li>
+<li>a <strong>variable</strong> — may stand for arbitrary objects, declared with <code>var x</code>.</li>
+</ul>
+<p>Once a symbol's role is fixed <em>on a given level</em> (see <a href="../blocks-and-natural-deduction/">§9</a> on blocks/levels),
+it cannot be changed in either direction on that level: declaring <code>const x</code>
+then <code>var x</code> fails, and so does the reverse. A symbol that is a constant
+inside a block can still be an ordinary (as-yet-undecided) symbol outside
+it, once the block closes and its constants go out of scope.</p>
+<p><strong>How Kurt handles variables</strong> (the design, kept as it is on 2026-10-15):</p>
+<ul>
+<li>A variable stands for anything: a <code>use</code>, <code>def</code> or <code>todo</code> with a variable
+  in it is a <em>schema</em>, which the search instantiates by matching -- <code>use $a
+  = $a</code> gives <code>c = c</code> for every term <code>c</code>. A variable is written with a sigil,
+  <code>$x</code> for a term and <code>%A</code> for a formula -- or as a plain name declared with
+  <code>var x</code>, which is the same thing in nicer clothes: the theories write <code>var
+  n, m</code> and then <code>use n + 0 = n</code>, as a textbook would. Kurt shows the schema
+  it reads (<code>; schema: ∃ z (R z $x)</code>), and warns when a <code>use</code> only relates
+  declared variables (<code>use a &lt;= b</code> with <code>var a, b</code> says every number is
+  below every number).</li>
+<li>A constant stands for one object. <code>const c</code> declares it; <code>let x</code>, <code>pick c</code>
+  and <code>def</code> introduce one; so does the first use of an undeclared name.</li>
+<li>Inside a block, a variable can be held fixed: <code>let $x</code> (or <code>let x</code> for a
+  declared <code>var x</code>) makes it an arbitrary but fixed object for the block,
+  and closing the block gives the <code>∀</code> (<a href="../blocks-and-natural-deduction/#sec-9-2">§9.2</a>); an assumption's variables are
+  fixed inside it the same way (<code>assume P $x</code>: one <code>$x</code> throughout the block).</li>
+<li><code>load</code> exports no variable: a loaded file's <code>var n</code> stays its own, and its
+  schemas arrive with internal variables (<code>$$07</code>), so the loader's <code>n</code> is
+  free for anything. A declared <code>var</code> of the loader can't be a constant of a
+  loaded file, or the other way round (<a href="../goal-directed-proof/">§7</a> of <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a>).</li>
+<li>Variables are never a value of each other's binders: a <code>$T</code> under a binder
+  over <code>$i</code> stands for a term that doesn't depend on <code>$i</code>, unless the rule
+  only ever uses it under that binder or with a substitution for <code>$i</code>
+  (<code>sum $i ($a, $b) $T</code>; <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §8.10).</li>
+</ul>
+<p>The alternative -- variables only with a sigil, no <code>var</code> -- was weighed and
+rejected: it would make the theories and lecture notes uglier for a tidiness
+that the warning and the <code>; schema:</code> output already give.</p>
+<p><strong>The sigils, in one place.</strong> A variable written with a sigil is a variable by its name alone,
+everywhere, without a declaration:</p>
+<table>
+<thead>
+<tr>
+<th>sigil</th>
+<th>the variable</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$x</code></td>
+<td>a term variable: stands for any term (an object)</td>
+<td><code>use $a = $a</code></td>
+</tr>
+<tr>
+<td><code>%A</code></td>
+<td>a statement variable: stands for any statement</td>
+<td><code>use %A and %B implies %A</code></td>
+</tr>
+<tr>
+<td><code>$$x</code></td>
+<td>a polymorphic term variable: the bound variable of a rule for a binder over any sort (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>)</td>
+<td>logic.kurt's <code>∀ $$x %A ⇒ sub $$x $a %A</code></td>
+</tr>
+</tbody>
+</table>
+<p>There are two kinds, <code>$</code> and <code>%</code>, because a statement is no object (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>; decision 17 of
+dev/todo-sorts.md): a term and a statement are never a value of the same variable, so the sigil
+says which a variable stands for. <code>$$</code> is a <code>$</code> that isn't tied to one sort. There is no other
+sigil: <code>@x</code> is a scanning error. A plain name declared with <code>var</code> is a variable too (a term
+variable, or a statement variable with <code>prop</code>, <a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>).</p>
+<p>Symbols starting with <code>$</code> or <code>%</code> are <strong>always</strong> variables: <code>const $x</code> is an
+error ("symbol <code>$x</code> starts with <code>$</code>, so it is always a variable and can not
+be declared a constant"); <code>var $x</code> is accepted and changes nothing, and a
+<code>$x</code> never becomes a constant by its first use. They exist specifically to write <em>axiom schemas</em> in <code>use</code> lines,
+where <code>$x</code> stands for an arbitrary term (e.g. <code>use $a = $a</code>)
+and <code>%A</code> stands for an arbitrary statement (e.g. <code>use %A and %B
+implies %A</code>); mixing them up is a type error (<code>$A implies $A</code>), and no
+step gives a <code>$</code>-variable a formula or a <code>%</code>-variable a term as its value
+(the search refuses it, the kernel checks it again). <code>let</code> fixes a term
+only (<code>let %A</code> is a type error since 2026-10-20): a statement variable needs
+no <code>let</code>, in a proof it stays the same statement, and an <code>assume</code> holds it
+fixed in its block (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>). You'll see <code>$</code>-variables and <code>%</code>-variables throughout every
+<code>.kurt</code> theory file under <a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a>.</p>
+<h2 id="sec-3-3">3.3 What "new" means<a class="headerlink" href="#sec-3-3" title="Permanent link">&para;</a></h2>
+<p>Because there's no separate declaration step for most symbols, <code>const</code>/
+<code>var</code>/<code>prop</code> mostly exist to be explicit, to catch typos (redeclaring the
+same symbol raises an error), and to control what "new" means for keywords
+that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code>pick</code>, <code>brackets</code>).</p>
+<h2 id="sec-3-4">3.4 Who declares what: the rules in one place<a class="headerlink" href="#sec-3-4" title="Permanent link">&para;</a></h2>
+<p>Most symbols are declared by using them. What each kind of line does to a symbol:</p>
+<table>
+<thead>
+<tr>
+<th>line</th>
+<th>the symbol is then</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$x</code>, <code>%A</code>, <code>$$x</code> anywhere</td>
+<td>a variable, by its name alone: <code>$x</code> for a term, <code>%A</code> for a formula, <code>$$x</code> for a term of any sort (needs no declaration, never a constant)</td>
+</tr>
+<tr>
+<td><code>var x</code></td>
+<td>a variable (also an operator: <code>infix ∘ 50 50</code> and then <code>var ∘</code>)</td>
+</tr>
+<tr>
+<td><code>const x</code></td>
+<td>a constant</td>
+</tr>
+<tr>
+<td><code>brackets ⟨ ⟩</code></td>
+<td>both brackets constants</td>
+</tr>
+<tr>
+<td><code>def g = ...</code></td>
+<td><code>g</code> a new constant (a new symbol on the right side is introduced as on any line)</td>
+</tr>
+<tr>
+<td><code>let x</code>, <code>pick x</code></td>
+<td>a constant inside the block (one arbitrary object); after the block, <code>x</code> is free again</td>
+</tr>
+<tr>
+<td><code>assume P $x</code></td>
+<td><code>$x</code> fixed inside the block (not a variable there)</td>
+</tr>
+<tr>
+<td><code>arity</code>, <code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>prop</code>, and a declared sort such as <code>nat</code></td>
+<td>declared, but neither constant nor variable: these give shape or type information only</td>
+</tr>
+<tr>
+<td><code>sort nat</code></td>
+<td><code>nat</code> a reserved sort name and declaration keyword, never a term symbol</td>
+</tr>
+<tr>
+<td><code>bindop</code>, <code>flat</code>, <code>sym</code></td>
+<td>a constant: each gives the named operator fixed semantic behavior</td>
+</tr>
+<tr>
+<td><code>chain OP...</code></td>
+<td>every named relation a constant with a statement as its result (<code>prop OP 0</code>), because <code>chain</code> adds fixed transitivity rules</td>
+</tr>
+<tr>
+<td><code>builtin x operation</code></td>
+<td><code>x</code> a constant with the fixed calculator meaning (a bracket binding applies to the bracket expression); with a role of the engine (<code>builtin iff equivalence</code>), <code>x</code> keeps what it is</td>
+</tr>
+<tr>
+<td><code>alias new old</code></td>
+<td><code>new</code> another spelling of <code>old</code>, including <code>old</code>'s constant/variable role and properties</td>
+</tr>
+<tr>
+<td>the first use in a formula of a symbol that isn't a variable</td>
+<td>a constant, reported as <code>const SYMBOL ; added constant</code></td>
+</tr>
+</tbody>
+</table>
+<p>Further rules:</p>
+<ul>
+<li><strong>The prop signature comes from the first use</strong> (<a href="../statements-terms-and-sorts/">§5</a>), unless declared with <code>prop</code>: a symbol
+  at a statement place is a statement (<code>use P a</code> makes <code>P</code> one, <code>a</code> not), an operator whose
+  arguments are statements gets these places. Each inferred signature is reported as a valid
+  declaration, for example <code>prop P 0 ; added statement places</code>.</li>
+<li><strong>Declare before the first use.</strong> After it, <code>const</code>, <code>var</code>, <code>prop</code>, a user sort, <code>arity</code>, <code>infix</code>,
+  <code>prefix</code>, <code>postfix</code> for that symbol are errors ("already used in a formula"): the formula was
+  read with what was known then.</li>
+<li><strong>Syntax and meaning are separate.</strong> Fixity, arity, <code>prop</code>, and optional sorts say how a symbol is parsed and
+  typed; they deliberately do not decide whether it is a constant or a variable. <code>bindop</code>,
+  <code>flat</code>, <code>sym</code>, <code>chain</code> and calculator bindings do decide: their behavior belongs to one fixed
+  operator, so Kurt makes it a constant and prints the implied declaration. A variable operator
+  may still have fixity, arity and a prop signature, as <code>group.kurt</code>'s schematic <code>∘</code> does.</li>
+<li><strong>The variable of a binder.</strong> Without a condition, <code>∀ x (...)</code> binds <code>x</code> (a new name or a
+  variable; it doesn't become a constant). With a condition, it binds the first symbol of the
+  condition, as written, that is new or a variable and not bound by an enclosing binder:
+  <code>x</code> in <code>∀ x &gt; 0 (...)</code>, <code>x</code> in <code>∀ c &lt; x (...)</code> with a constant <code>c</code>, <code>$x</code> in <code>∀ (P $x) (...)</code>
+  with a predicate <code>P</code>, <code>x</code> in <code>∀ (0 &lt; e) (∀ (e &lt; x) ...)</code>. Kurt decides it when it reads the
+  line and stores it with the condition (<a href="../building-the-grammar/#sec-4-4">§4.4</a>), so the binder binds the same variable for the
+  rest of the file -- also when a block closes and its constants are free again. A condition
+  without such a symbol is an error ("has no variable to bind").</li>
+<li><strong><code>load</code></strong> brings the symbols that the exported facts need and the ones the file declares at
+  its top level without <code>local</code> (<a href="../building-the-theory/#sec-8-2">§8.2</a>), with their declarations.</li>
+<li><strong><code>--strict</code></strong> (<a href="../running-kurt/">§1</a>) keeps all these rules but one: the first use of a symbol that wasn't
+  declared at all (neither by a line of the table nor by an earlier use) is an error, not a new
+  constant. A declaration like <code>prop Q</code> or <code>infix ∘ 50 50</code> counts. (It also refuses <code>use</code>,
+  <code>todo</code> and <code>chain</code> outside the trusted theories.)</li>
+</ul>
+<p><a href="https://github.com/harmeling/kurt-lang/blob/main/tutorial/20-constants-variables-and-declarations.kurt"><code>tutorial/20-constants-variables-and-declarations.kurt</code></a> shows these rules, one at a time.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../lexical-structure/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 2. Lexical structure">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                2. Lexical structure
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../building-the-grammar/" class="md-footer__link md-footer__link--next" aria-label="Next: 4. Building the grammar">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                4. Building the grammar
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

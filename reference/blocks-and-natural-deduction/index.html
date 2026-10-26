@@ -1,0 +1,1168 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/blocks-and-natural-deduction/">
+      
+      
+        <link rel="prev" href="../building-the-theory/">
+      
+      
+        <link rel="next" href="../session-toggles-and-output/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>9. Blocks and natural deduction - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-9" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              9. Blocks and natural deduction
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 assume and case
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 let
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 pick
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 sandbox
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.5 break
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.6 expect
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 assume and case
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 let
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 pick
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 sandbox
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.5 break
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-9-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.6 expect
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-9">9. Blocks and natural deduction<a class="headerlink" href="#sec-9" title="Permanent link">&para;</a></h1>
+<p>Every open <code>proof</code>/<code>assume</code>/<code>case</code>/<code>let</code>/<code>pick</code>/<code>sandbox</code>/<code>expect</code> pushes a
+new <strong>level</strong> onto the knowledge base. <code>summary</code> prints where the proof is:
+the open blocks with what opened them (<code>; open: case A</code>), the claims of open
+<code>show</code>s still to prove, the latest facts, and what could come next -- the same
+view that <code>breakpoint</code> and <code>kurt -i</code> show after stopping (<a href="../session-toggles-and-output/">§10</a>), and that the
+playground and the editors use. <code>list</code> has a different job: it inspects declarations and facts
+retained from loaded theories. A
+block's own <code>const</code>/<code>var</code> declarations and any axioms <code>use</code>d inside it
+disappear again once the block closes; only the formula the block's
+closing produces survives, on the <em>parent</em> level.</p>
+<p><strong>Indentation drives block closing, identically whether you're reading a
+file or typing/pasting into the interactive shell.</strong> Dedenting — writing
+(or, in the shell, typing) a line less indented than the block's content —
+closes as many levels as the drop in indentation implies, applying
+whatever each level's closing rule is (<code>impl-intro</code>, <code>forall-intro</code>, ...,
+below). There is no separate "shell mode" for this: the interactive shell
+reads real leading whitespace exactly like a file does, so pasting file
+content into <code>kurt -i</code> behaves the same as running it as a file. To help
+with typing, the shell (at a terminal) starts each line with the indentation
+of the current block, one level (four spaces) deeper after a line that opens a
+block; a backspace over the indentation dedents by one level. The shell edits
+its lines itself, the same on macOS, Linux and Windows (no <code>readline</code>): ←/→,
+Home/End, Delete, Ctrl-A/E/K/U/W, the history with ↑/↓ (kept in
+<code>~/.kurt_history</code>), Ctrl-R to search it, Tab (below), Ctrl-C drops the line,
+Ctrl-D on an empty line ends the shell; a long line wraps, and pasted lines
+are read one after the other. Not at a terminal (a pipe), it reads plain
+lines. Two
+keywords remain as <em>optional</em> alternatives to dedenting, and work
+identically in files and the shell: <code>qed</code> (<a href="../goal-directed-proof/">§7</a> — still needs a real dedent,
+but also checks you're closing a <code>proof</code>) and <code>break</code> (<a href="#sec-9-5">§9.5</a> — needs no
+dedent at all, and is the only way to close a <code>sandbox</code> other than
+dedenting past it).</p>
+<p><strong>Running a file itself already starts one level deep, inside an implicit
+<code>sandbox</code></strong> (the same mechanism <code>load</code> uses, see <a href="../building-the-theory/#sec-8-2">§8.2</a>); <code>summary</code> doesn't
+list that one.</p>
+<h2 id="sec-9-1">9.1 <code>assume</code> and <code>case</code><a class="headerlink" href="#sec-9-1" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">assume</span> EXPR
+    <span class="o">...</span>
+<span class="p">(</span>closes by dedenting<span class="p">,</span> or <span class="o">`</span><span class="k">qed</span><span class="o">`/`</span><span class="k">break</span><span class="o">`</span><span class="p">)</span>
+</code></pre></div>
+<p>Opens a block that adds <code>EXPR</code> as a local axiom; for a conjunction <code>A ∧ B</code>,
+its parts are facts too, shown as derived lines <code>6a A</code>, <code>6b B</code> ("and-elim";
+also for <code>case</code> and <code>pick ... with A ∧ B</code>). Closing it derives
+"impl-intro": whatever you proved last inside the block becomes <code>EXPR
+implies &lt;that&gt;</code>, on the parent level. If the last thing derived inside the
+block was literally <code>false</code>, closing <em>additionally</em> derives <code>not EXPR</code> via
+"not-intro" (both formulas are added). Inside the block, the free variables
+of <code>EXPR</code> are <em>fixed</em>: in <code>assume P $x</code>, <code>$x</code> is one arbitrary object, the
+same in every line of the block -- so <code>P $x</code> follows, but not <code>P $y</code>. Closing
+the block generalizes again: <code>P $x implies ...</code> holds for every <code>$x</code>. <code>case</code> closes like
+<code>assume</code>: a sequence of <code>case</code>s produces one <code>EXPR implies &lt;goal&gt;</code> for every branch. On the final
+explicit goal, Kurt looks for a flat <code>or</code> fact and exactly one such implication for every
+alternative. This shortcut is available only when the theory contains the general binary
+<code>or-elim</code> schema; it does not assign a built-in meaning to an operator merely named <code>or</code>. A
+dedicated <code>case-elim</code> certificate records that rule and the finite list, and the independent
+kernel checks both. This works for any number of alternatives without generating a schematic
+n-premise rule or searching a Cartesian product of facts. The disjunction itself must already be
+derivable/<code>use</code>d, and every branch must have the same goal. Forgetting a branch, the disjunction
+fact, or the final explicit claim is the most common way a <code>case</code> proof silently doesn't finish — it fails with an
+ordinary "can not derive" on that final line, not a <code>case</code>-specific error.</p>
+<p>The running time of <code>case</code> (measured with <a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/bench_case.py"><code>scripts/bench_case.py</code></a>, 2026-10-09, see
+dev/lab-notes.md): the final <code>case-elim</code> step itself is cheap and grows about
+quadratically with the number n of alternatives -- about 50 ms for n = 128 -- and it is always
+<code>case-elim</code>, never a combination the general search finds. The blocks are ordinary lines,
+though: if every block derives the goal with one of n rules that all have the goal as their
+conclusion, each block's search tries all of them, and the whole proof grows about cubically
+(about 0.2 s for n = 16, 5 s for n = 64, 40 s for n = 128 on a slow machine). For proofs with a
+handful of cases this doesn't matter. For very many cases, implications that name their case
+(<code>A3 implies G</code>, stated or proven) are fast: then <code>case-elim</code> uses them directly, without
+blocks (0.4 s for n = 128).</p>
+<h2 id="sec-9-2">9.2 <code>let</code><a class="headerlink" href="#sec-9-2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">let</span> SYMBOL             <span class="c1">; or a comma-separated list: let x, y, z</span>
+<span class="k">let</span> CONDITION           <span class="c1">; e.g. let x&gt;0</span>
+<span class="k">let</span> SYMBOL <span class="k">with</span> CONDITION   <span class="c1">; the same, naming the constant, e.g. let x with P(x)</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Introduces one or more brand-new constants (each must not already be a
+declared constant). A condition (<code>let x&gt;0</code>) also <code>use</code>s the condition as a
+local axiom, in one step. Closing the block derives "forall-intro": the
+last thing proven inside becomes universally quantified over each new
+constant, in reverse declaration order, skipping any that turn out to be
+statement variables. <code>let x with C</code> is <code>let C</code>, with the constant named: it
+is rejected if <code>C</code> is about another symbol.</p>
+<p><code>let</code> and <code>pick</code> take their conditions the same way, but they are opposite
+rules: <code>let</code> <em>assumes</em> the condition for an arbitrary <code>x</code> and gives "for all
+x" (∀-introduction); <code>pick</code> needs a known <code>∃</code> and gives a witness
+(∃-elimination). A <code>pick</code> without a matching <code>∃</code> says so, and suggests <code>let</code>.</p>
+<h2 id="sec-9-3">9.3 <code>pick</code><a class="headerlink" href="#sec-9-3" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">pick</span> SYMBOL <span class="k">with</span> FACT
+<span class="k">pick</span> FACT              <span class="c1">; the same, with the SYMBOL that FACT is about, e.g. pick c &gt; 0</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Requires some already-known formula <code>exists $x P</code> in the theory such that
+substituting the new <code>SYMBOL</code> for <code>$x</code> in <code>P</code> gives exactly <code>FACT</code> -- or one
+that follows in one step, which Kurt then shows as a derived line <code>13a</code> before
+the <code>pick</code> (e.g. from <code>P(c)</code> and a rule <code>P($x) ⇒ ∃ y (Q y)</code>, <code>pick b with Q(b)</code>
+derives <code>∃ b (Q b)</code> first). If found, it opens a block with <code>SYMBOL</code> as a new constant and <code>FACT</code> as a local
+axiom. Closing the block derives "exists-elim": the last formula proven
+inside must not mention <code>SYMBOL</code> (checked, and also not mention any other
+constant introduced on the block's own level) — with that check passed, it
+becomes the block's result on the parent level, without any reference to
+the witness.</p>
+<p>From an existential with a condition, <code>exists $x &gt; 0 P($x)</code> (<a href="../building-the-grammar/#sec-4-4">§4.4</a>), <code>FACT</code> is the condition and
+the body for the witness: <code>pick c with c &gt; 0 ∧ P c</code> -- as logic.kurt's "exists-cond-def" says,
+<code>∃ (sub $x $v %C) %P</code> is <code>∃ $w ((sub $x $w %C) ∧ (sub $v $w %P))</code>, so no detour through that
+rule is needed.</p>
+<p><code>SYMBOL</code> must be a bare new-or-existing name, unlike <code>let</code>'s otherwise
+similar <code>let SYMBOL</code> / <code>let SYMBOL&gt;0</code> (<a href="#sec-9-2">§9.2</a>) — a <code>pick</code>ed witness can never
+carry an extra condition of its own the way a <code>let</code>-bound one can: <code>let</code>'s
+condition becomes an assumption that gets quantified away when the block
+closes, but a <code>pick</code>ed witness is existential, so an unearned extra
+condition on it would just be an unproven fact about a specific value, not
+a sound derivation. <code>pick x&gt;0 with FACT</code> is therefore rejected outright
+(<code>EvalError</code>) rather than silently accepted or silently ignored; the
+witness's only property comes from <code>FACT</code> itself. Without <code>with</code>, as in
+<code>pick c &gt; 0</code>, the whole line is the <code>FACT</code> (as <code>let c &gt; 0</code> is the condition),
+and the witness is the one new symbol it is about.</p>
+<h2 id="sec-9-4">9.4 <code>sandbox</code><a class="headerlink" href="#sec-9-4" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">sandbox</span>
+    <span class="o">...</span>
+<span class="p">(</span>closes by dedenting<span class="p">,</span> discarding <span class="kd">everything</span> inside <span class="o">--</span> or by <span class="o">`</span><span class="k">break</span><span class="o">`</span><span class="p">,</span> immediately<span class="p">)</span>
+</code></pre></div>
+<p>A scratch block: everything inside is discarded by default, never merged
+into the surrounding theory, whether it closes by dedenting (<a href="#">§9</a>'s
+introduction) or by <code>break</code> (<a href="#sec-9-5">§9.5</a>) right away. The end of the file closes
+a <code>sandbox</code> still open there like a dedent, discarding its content
+(<code>sandbox ; 5 closed, its content is discarded</code>).</p>
+<h2 id="sec-9-5">9.5 <code>break</code><a class="headerlink" href="#sec-9-5" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">break</span>     <span class="c1">; discard the current block immediately, without proving anything</span>
+</code></pre></div>
+<p><code>break</code> closes the current block right away, discarding it — no
+<code>impl-intro</code>, <code>forall-intro</code>, etc., nothing is added anywhere — without
+needing to dedent past it first. Works identically in a file or the
+interactive shell, and on any open block: it gives up the innermost open
+thing. Breaking out of a <code>proof</code> gives up only that attempt: the <code>show</code> it
+was trying to prove stays open, and a new <code>proof</code> can follow. Right after a
+<code>show</code>, or after the <code>break</code> of its <code>proof</code>, no block is open for the claim,
+so <code>break</code> withdraws the claim itself — <code>break</code>, <code>break</code> gives up a proof
+completely. A withdrawn claim is still to do: the file ends with "Proof
+almost checked" and the claim among its <code>todo</code>s (it is not complete, for
+<code>--json</code> and the grader). A claim that is neither proved nor withdrawn is an
+error at the end of the file ("has no proof"). (Before 0.9, the first <code>break</code>
+withdrew the claim too.)</p>
+<p><code>break</code> can't close the file's own implicit top-level scope (<a href="../building-the-theory/#sec-8-2">§8.2</a>, <a href="#">§9</a>'s
+introduction) — there is no real, user-written block there to close, so it
+raises a clean error rather than doing anything to it.</p>
+<h2 id="sec-9-6">9.6 <code>expect</code><a class="headerlink" href="#sec-9-6" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">expect</span> <span class="s">"KIND"</span>
+    <span class="o">...</span>
+<span class="k">expect</span> <span class="s">"KIND"</span> <span class="s">"TEXT"</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Opens a block whose content is <em>expected to raise</em> an error of the given
+<code>KIND</code> (and, with <code>TEXT</code>, whose message contains <code>TEXT</code>). The kinds, each
+for one stage of reading and checking a line:</p>
+<table>
+<thead>
+<tr>
+<th>kind</th>
+<th>when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ScanError</code></td>
+<td>a symbol can't be scanned (an unknown character, a number with too many digits)</td>
+</tr>
+<tr>
+<td><code>ParseError</code></td>
+<td>the line can't be read: brackets, indentation, a chain's continuation, an incomplete expression</td>
+</tr>
+<tr>
+<td><code>EvalError</code></td>
+<td>the line is readable, but the statement isn't allowed: wrong arguments of a keyword, conflicting declarations, <code>load</code> problems, a claim that isn't a statement</td>
+</tr>
+<tr>
+<td><code>TypeError</code></td>
+<td>sorts, the arguments of <code>sub</code>, the variable or condition of a binder</td>
+</tr>
+<tr>
+<td><code>ProofError</code></td>
+<td>a claim can't be derived, a block can't close as it should</td>
+</tr>
+</tbody>
+</table>
+<p>(Every <code>KurtException</code> carries its <code>.kind</code>, see <code>KurtException.KNOWN_KINDS</code>
+in <code>kurt.py</code>.) If something inside the block
+raises exactly that kind, the whole block (including anything it did) is
+discarded and checking simply continues with the next statement, the same
+way <code>break</code> discards a <code>sandbox</code>. If the block closes normally with nothing
+having raised, <em>that itself</em> is now the failure
+(<code>ExpectationError: this `expect "KIND"` block finished without raising a `KIND`</code>); if something
+raises but of the <em>wrong</em> kind, that's also a failure, reported with both
+kinds shown.</p>
+<p>This exists so a proof file (or a lesson, see <a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/16-expect.kurt"><code>keywords/16-expect.kurt</code></a>) can
+demonstrate a mistake and have Kurt itself confirm it still fails the
+expected way, rather than relying on a comment nobody re-checks, or on a
+separate test harness matching exact (and therefore fragile — see
+<code>dev/todo-claude.md</code>, in git history) error text.</p>
+<p>The expected error may come from anywhere inside the block: from a
+statement directly inside it, from inside a nested block (<code>assume</code>,
+<code>proof</code>, another <code>expect</code>, ...), or while such a nested block closes (a
+failing <code>qed</code>, or the dedent that closes a <code>let</code>/<code>pick</code>/<code>proof</code>). In the
+last case the line that triggered the dedent is already outside the
+<code>expect</code> block, so it is still evaluated afterwards. Any lines of the
+block after the one that raised the error are skipped. Since the content
+of an <code>expect</code> block is always discarded, <code>use</code> is allowed inside it (see
+<a href="../the-theory/#sec-6-2">§6.2</a>). A second string is a text that the error message must contain:
+<code>expect "ProofError" "can not derive"</code> (a string can't contain <code>"</code>). A
+<code>break</code> inside <code>expect</code> closes the <code>expect</code> block itself; an error that only
+a whole file can make (a proof still unfinished at its end, a <code>show</code>
+without a proof, <code>break</code> at its top level, ...) is checked by <code>expect</code> around a <code>load</code> of such a file (see
+<a href="https://github.com/harmeling/kurt-lang/blob/main/tests/how-to-write-test-proofs.md"><code>tests/how-to-write-test-proofs.md</code></a>).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../building-the-theory/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 8. Building the theory: hard-coded core vs. loaded theories">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                8. Building the theory: hard-coded core vs. loaded theories
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../session-toggles-and-output/" class="md-footer__link md-footer__link--next" aria-label="Next: 10. Session toggles and output">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                10. Session toggles and output
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

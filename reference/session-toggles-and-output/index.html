@@ -1,0 +1,972 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/session-toggles-and-output/">
+      
+      
+        <link rel="prev" href="../blocks-and-natural-deduction/">
+      
+      
+        <link rel="next" href="../known-gaps/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>10. Session toggles and output - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-10" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              10. Session toggles and output
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-10">10. Session toggles and output<a class="headerlink" href="#sec-10" title="Permanent link">&para;</a></h1>
+<div class="highlight"><pre><span></span><code><span class="k">format</span> sexpr <span class="o">|</span> normal <span class="o">|</span> source     <span class="c1">; stored tree, readable normal form, or source spelling</span>
+<span class="k">hint</span> on <span class="o">|</span> off                  <span class="c1">; in the shell: before each prompt, what could come next</span>
+<span class="kd">calc</span> on <span class="o">|</span> off       <span class="c1">; a step may follow by computing with numbers (the symbols bound with `builtin`)</span>
+</code></pre></div>
+<p>Each, called with no argument, reports its current setting instead of
+changing it (<code>format</code> also names the other options).</p>
+<p><code>format normal</code> is the default readable form and reflects Kurt's stored normal form;
+<code>format sexpr</code> exposes the exact expression tree. <code>format source</code> replays the input spelling
+saved on a stored formula (aliases, parentheses and operand order included); an expression that
+was generated internally and has no independent source spelling uses normal formatting. Editors
+should use structured API/LSP data when they need positions rather than parsing any display.</p>
+<p><strong>What <code>calc</code> computes</strong> is said by the theories: they bind their symbols to
+Kurt's built-in calculator, whose operations are <code>add</code>, <code>subtract</code>, <code>negate</code>,
+<code>multiply</code>, <code>divide</code>, <code>power</code> and the comparisons <code>eq</code>, <code>ne</code>, <code>lt</code>, <code>le</code>, <code>gt</code>,
+<code>ge</code>. numbers.kurt does</p>
+<div class="highlight"><pre><span></span><code><span class="kd">builtin</span> <span class="o">+</span> add<span class="p">,</span> <span class="o">-</span> subtract<span class="p">,</span> <span class="o">-</span> negate<span class="p">,</span> <span class="o">*</span> multiply<span class="p">,</span> <span class="o">/</span> divide<span class="p">,</span> <span class="o">^</span> power
+<span class="kd">builtin</span> <span class="o">=</span> eq<span class="p">,</span> <span class="o">&lt;</span> lt<span class="p">,</span> <span class="o">&lt;=</span> le
+</code></pre></div>
+<p>(<code>&gt;</code>, <code>&gt;=</code> and <code>≠</code> are read as <code>&lt;</code>, <code>&lt;=</code> and <code>¬(… = …)</code>, <code>inline</code> <a href="../the-theory/#sec-6-2">§6.2</a>; the
+negation of a computed comparison holds by calc, <code>¬(2 = 3)</code>)</p>
+<p>and a symbol that isn't bound is never computed. Sets of numbers, too: the
+calculator knows <code>naturals</code>, <code>integers</code> and <code>rationals</code>, natural.kurt does
+<code>builtin Nat naturals</code> (integer.kurt and rational.kurt likewise for <code>Int</code> and
+<code>Rat</code>), and set.kurt <code>builtin in element</code>; then <code>calc on</code> proves <code>3 ∈ Nat</code> and
+<code>-3 ∈ Int</code>, but not <code>-3 ∈ Nat</code>. complex.kurt binds <code>i</code> to <code>imaginary</code>: an expression of numbers, <code>i</code> and the operations is
+computed exactly with rational real and imaginary parts, <code>calc on</code> proves <code>(1 + 2 * i) * (3 - i) = 5 + 5 * i</code>, <code>i * i = -1</code>, <code>(1 + i) ^ 2 = 2 * i</code> (a power with a natural-number exponent up to 64) and <code>i ≠ 0</code>.</p>
+<p><strong><code>builtin</code></strong> gives a symbol a meaning that Kurt itself implements: a
+calculator operation, as above, or a <strong>role of the engine</strong>. The engine
+gives no symbol a meaning by its name alone -- only the roles that the
+theories assign:</p>
+<table>
+<thead>
+<tr>
+<th>role</th>
+<th>in</th>
+<th>what the engine does with it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>equivalence</code></td>
+<td>propositional.kurt: <code>builtin iff equivalence</code></td>
+<td>a fact <code>A iff B</code> is used as <code>A implies B</code> and as <code>B implies A</code>; <code>def</code> may define with it</td>
+</tr>
+<tr>
+<td><code>disjunction</code></td>
+<td>propositional.kurt: <code>builtin or disjunction</code></td>
+<td><code>case</code> blocks for the alternatives of a fact <code>A or B or ...</code> close by "case-elim" (with propositional's "or-elim")</td>
+</tr>
+<tr>
+<td><code>negation</code>, <code>falsum</code></td>
+<td>propositional.kurt: <code>builtin not negation, false falsum</code></td>
+<td>an <code>assume A</code> block whose last line is <code>false</code> also gives <code>not A</code> ("not-intro")</td>
+</tr>
+<tr>
+<td><code>equality</code></td>
+<td>equality.kurt: <code>builtin = equality</code></td>
+<td><code>def</code> may define with it</td>
+</tr>
+<tr>
+<td><code>universal</code>, <code>existential</code></td>
+<td>logic.kurt: <code>builtin forall universal, exists existential</code></td>
+<td>the outer <code>∀</code>s of a fact are stripped (its variables stand for anything), <code>let</code> closes with the universal ("forall-intro"), <code>pick</code> opens from the existential ("exists-elim"); they need a binder with two arguments</td>
+</tr>
+<tr>
+<td><code>setbrackets</code>, <code>setbuilder</code>, <code>emptyset</code></td>
+<td>set.kurt: <code>builtin { } setbrackets, \| setbuilder</code>, <code>builtin emptyset emptyset</code> (<code>∅</code>)</td>
+<td>sets by their elements and by a property: see below</td>
+</tr>
+</tbody>
+</table>
+<p>A role needs the matching <code>prop</code> signature (<code>prop iff 0 1 2</code>), a role has
+one symbol, and only a trusted theory -- one that comes with Kurt, or one
+from a <code>-p</code> directory -- can assign a role, since it changes what the engine
+derives (a calculator operation, like an axiom, also in other files, but not
+with <code>--strict</code>). So a file's own <code>iff</code> or <code>or</code>, without propositional.kurt, is just a
+relation.</p>
+<p><strong>Sets</strong> (set.kurt, since 0.9): with the roles of sets, braces make three
+kinds of terms -- <code>{a, b, c}</code> by its elements (<code>({} a b c)</code>), <code>{x ∈ A | P}</code>
+by a property (the set-builder, the <code>|</code> term itself; <code>|</code> outside braces is an
+error), and <code>{}</code>, which is <code>∅</code>. So a rule about <code>{$y}</code>, like set.kurt's
+"singleton" (<code>$x ∈ {$y} ≡ $x = $y</code>), never reads a set-builder or a list as
+its one element (before, it proved <code>false</code>, <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/soundness/sets-by-their-elements.kurt"><code>proofs/soundness/sets-by-their-elements.kurt</code></a>),
+and <code>{(a, b)}</code> is the set with one element, the pair. For each set by its
+elements in a line, Kurt adds the rules for it to the file (from the source
+<code>&lt;set enumeration&gt;</code>, checked by the kernel like any rule): each element is one,
+<code>c ∈ {a, b, c, d}</code> in one step ("element-3-of-4"), and membership is the
+disjunction, <code>$x ∈ {a, b, c} ≡ $x = a ∨ $x = b ∨ $x = c</code> ("enumeration"),
+which <code>case</code> splits -- for a set of constants of the file this rule is of the
+set itself, otherwise of its length ("enumeration-n"). The order of the elements
+counts for the terms, <code>{a, b} = {b, a}</code> follows from "extensionality". About
+15 elements take a second or two; a disjunction of twenty or more is slow to
+find (dev/todo.md, speed).</p>
+<p>With natural.kurt, <code>...</code> lists numbers: <code>{a, ..., c}</code> in steps of one
+("range"), <code>{a, b, ..., c}</code> and <code>{a, b, ...}</code> in steps of <code>b - a</code>, for <code>a &lt; b</code>
+("progression", "progression-intro", "progression-infinite", ...) -- each
+membership is an <code>∃ k ∈ Nat</code> (<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/natural-numbers/progressions.kurt">proofs/natural-numbers/progressions.kurt</a>). One
+or two elements fix the step; more, as in <code>{2, 3, 5, 7, 11, ...}</code>, would only
+suggest a pattern, which Kurt can't know, so it refuses them: write a
+set-builder, <code>{p ∈ Nat | prime p}</code>.</p>
+<p><strong>The set-builder is one construct with three parts:</strong> the variable <code>x</code>, the set <code>A</code> it ranges
+over, and the statement <code>F</code> -- "the set of the <code>x</code> in <code>A</code> with <code>F</code>". Kurt writes it with two pieces
+of syntax, the braces and the binder <code>|</code> (it has no operators of three pieces), and reads it as one
+term: the braces are dropped (<code>set_terms</code>), and the <code>|</code> node remains with two arguments, the binding
+condition <code>x ∈ A</code> (the variable and its set together, as in <code>∀ x ∈ A F</code>) and the body <code>F</code>. So the
+variable is bound like by any binder (<a href="../building-the-grammar/#sec-4-4">§4.4</a>), the body is a statement (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>), and <code>x</code> ranges over
+the elements of <code>A</code>. Without a set, <code>{x | F}</code> is refused: unrestricted comprehension would allow
+Russell's paradox (set.kurt's "separation" only carves a part out of a given set).</p>
+<p><strong>Vectors and matrices</strong> (matrix.kurt, <code>load matrix</code>): a bracket pair bound
+to <code>matrixbrackets</code> (<code>builtin [ ] matrixbrackets</code>, both brackets of a pair declared with
+<code>brackets [ ]</code>; a bracket pair takes no other role) makes literals of numbers -- <code>[1, 2, 3]</code> a row,
+<code>[[1, 2, 3], [4, 5, 6]]</code> a 2x3 matrix row by row, <code>[[1], [3], [5]]</code> a column (a row
+<code>[1, 2, 3]</code> and the one-row matrix <code>[[1, 2, 3]]</code> are the same value)
+-- and the operations <code>add</code>, <code>subtract</code>, <code>negate</code>, <code>multiply</code> (a number times
+a matrix, or a matrix times a matrix), <code>transpose</code>, <code>determinant</code> and the
+comparisons <code>eq</code>, <code>ne</code> compute them exactly (<code>/</code> divides numbers only). Shapes
+that don't fit give no value. Written over several lines, each line inside the brackets is a row,
+as on paper:</p>
+<div class="highlight"><pre><span></span><code>A <span class="o">=</span> <span class="p">[</span><span class="m">1</span><span class="p">,</span> <span class="m">2</span><span class="p">,</span> <span class="m">3</span>
+     <span class="m">4</span><span class="p">,</span> <span class="m">5</span><span class="p">,</span> <span class="m">6</span><span class="p">]</span>          <span class="c1">; is [[1, 2, 3], [4, 5, 6]]</span>
+</code></pre></div>
+<p>In normal screen output, a matrix with two or more rows is printed on aligned lines, while row
+vectors stay compact:</p>
+<div class="highlight"><pre><span></span><code><span class="p">[[</span>  <span class="m">1</span><span class="p">,</span> <span class="m">20</span><span class="p">],</span>
+ <span class="p">[</span><span class="m">300</span><span class="p">,</span>  <span class="m">4</span><span class="p">]]</span>
+</code></pre></div>
+<p>This is display only. Saved <code>.kurt</code> source keeps the accepted input lines, and <code>format sexpr</code>
+keeps its one-line structural representation. <code>format source</code> shows the spelling originally
+entered for a stored formula.</p>
+<p>(a line break inside a bracket pair bound to <code>matrixbrackets</code> -- <code>builtin [ ] matrixbrackets</code> --
+without another one in it ends a row; elsewhere it is a space, also inside a
+<code>[ ]</code> that isn't bound: the theory makes the brackets special, not Kurt). matrix.kurt has its own <code>+</code>, <code>-</code>, <code>·</code>, so it isn't loaded together
+with numbers.kurt (<a href="../building-the-theory/#sec-8-2">§8.2</a>); it computes with literals and has no laws for
+matrices written with variables (for those: <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/mafi1/matrices.kurt">proofs/mafi1/matrices.kurt</a>, over
+a field). As everywhere with <code>calc on</code>, a name defined as a matrix
+(<code>def A = ...</code>) isn't computed in the same line: replace it first, one step
+per line.</p>
+<p>A binding is like an axiom
+(<code>1 + 1 = 2</code>, <code>2 + 1 = 3</code>, ...), so <code>--strict</code> rejects it outside the trusted
+theories, and the symbols of a trusted theory can't be bound anew. Numbers
+bound to calculator operations are constants: the binding supplies fixed semantics and reports
+<code>const SYMBOL ; added constant</code> if that role was not already known. A variable or binding
+operator cannot also be calculator-bound. Numbers are exact: integers, decimals (<code>0.1</code> is
+exactly one tenth, so <code>0.1 + 0.2 =
+0.3</code> holds), and fractions, which stay fractions (<code>1 / 3 + 1 / 3</code> is <code>2 / 3</code>).
+What has no exact value isn't computed: <code>1 / 0</code>, <code>0 ^ -1</code>, <code>2 ^ 0.5</code>, and
+<code>0 ^ 0</code> (which numbers.kurt leaves open). Neither is a result with more than
+1000 digits, and a longer number literal is a <code>ScanError</code>.
+<code>0 + x</code> and <code>1 * x</code> are <code>x</code>, <code>0 * x</code> is <code>0</code>. In numbers.kurt, <code>^</code> is
+right-associative and binds more tightly than the prefix <code>-</code>: <code>- 2 ^ 2</code> is
+<code>- 4</code>, and <code>2 ^ 3 ^ 2</code> is <code>2 ^ 9</code>. A decimal with an integer value is that
+integer: <code>1.0</code> is <code>1</code>.</p>
+<p>With <code>calc on</code>, a line may follow by computing -- it is not changed: it is
+stored as written. It follows if its computed form follows (e.g. <code>1 + 1 = 2</code>
+is computed to <code>2 = 2</code>, by calc), searched with the computed forms of the
+facts written with <code>calc on</code> -- or, if not, as written (so <code>(1 + n) * (1 + n)
+= 1 * (1 + n) + n * (1 + n)</code> is an instance of "distrib-add", and from
+<code>7 = 1 + 6</code> follows <code>∃ k (7 = 1 + k)</code>). No symbolic simplification. A comparison of
+numbers (e.g. <code>3 &lt;= 4</code>, <code>2 + 2 &lt; 5</code>) is proven directly "by calc", and a claim
+follows "by calc" from a fact that computes to the same thing (e.g. <code>x = -25</code>
+from <code>x = (-5) * 5</code>). (Before 0.9 each line was computed when it was read.) Results of
+substitutions (<code>sub</code>, as in <code>induction</code> or <code>equal-elim</code>) are computed too:
+substituting <code>k + 1</code> into <code>$x + 1</code> gives <code>k + 2</code>, not <code>k + 1 + 1</code>. While
+matching a rule, a part of it is computed as soon as its variables have
+values: with <code>$n := 3</code>, the <code>($n - 1)!</code> of "factorial-step" matches <code>2!</code>, and
+after <code>def f($x) = $x * $x</code>, <code>f(3) = 9</code> follows in one step. But <code>calc</code> doesn't
+<em>solve</em>: the <code>$b / $c</code> of "gt-div-pos" doesn't match <code>0</code> while <code>$b</code> is still
+unknown -- state such steps as their own lines, or use a rule that fits
+(like "div-pos"). Nor does it combine a rewrite with a calculation: <code>x = 6</code>
+doesn't follow in one step from <code>x = 2 * y</code> and <code>y = 3</code> -- write <code>x = 2 * 3</code>
+in between, then <code>x = 6</code> follows by calc. <strong>Not implemented on purpose:</strong> solving for an
+unknown while matching, or several steps at once, doesn't fit the idea that
+each line is one step a reader can check (<a href="../the-theory/#sec-6-1">§6.1</a>); the line in between is the
+step. <code>calc on</code> holds for its block and the blocks in it, and ends with it
+(and with its file): after the <code>qed</code> of a proof that switched it on, it is off
+again (before 0.9 it stayed on). With <code>hint on</code>, the shell prints before each
+prompt what could come next (<code>; hint: next, e.g. proof</code>): <code>proof</code> after a
+<code>show</code>, in a proof its goal and then <code>qed</code>, in a chain its relation, in a
+<code>case</code> block the other alternatives -- Tab on an empty line writes it.</p>
+<p><strong><code>breakpoint</code></strong>, a line in a proof file: at a terminal (or with <code>kurt -i
+FILE</code>), checking stops there and the shell continues with that state -- the
+open blocks, the facts, what is still to prove; try steps there, then write
+the one that works into the file (Ctrl-D ends the shell). Without a terminal
+(the playground, Kurt from Python), it shows that state and checking goes on.
+In a file that another one loads, it is skipped. After an error, <code>kurt -i
+FILE</code> likewise continues in the shell at the failing line, with the state
+there (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/42-breakpoint.kurt"><code>keywords/42-breakpoint.kurt</code></a>).</p>
+<p><strong>Tab in the shell</strong> (at a terminal) completes: on an empty line the next step (as <code>hint</code>); after <code>=</code> with <code>calc
+on</code> the value (<code>17*42=</code> and Tab gives <code>17*42=714</code>); a LaTeX shortcut its
+symbol (<code>\forall</code> and Tab gives <code>∀</code>); after <code>load</code> a theory or a <code>.kurt</code> file
+here; otherwise keywords, symbols and labels (<code>"and-</code> gives <code>"and-elim"</code>).
+With several possibilities, Tab writes what they have in common, and a second
+Tab lists them. It only writes text; every line is checked as usual.</p>
+<p><code>help</code> prints Kurt's own one-line description of every keyword, <code>help use</code> the one of <code>use</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../blocks-and-natural-deduction/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 9. Blocks and natural deduction">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                9. Blocks and natural deduction
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../known-gaps/" class="md-footer__link md-footer__link--next" aria-label="Next: 11. Known gaps (so you don&#39;t mistake them for bugs in your proof)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                11. Known gaps (so you don't mistake them for bugs in your proof)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1341 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/building-the-theory/">
+      
+      
+        <link rel="prev" href="../goal-directed-proof/">
+      
+      
+        <link rel="next" href="../blocks-and-natural-deduction/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>8. Building the theory: hard-coded core vs. loaded theories - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-8" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              8. Building the theory: hard-coded core vs. loaded theories
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-8-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 What's hard-coded (needs no load)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-8-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 load and the theory library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8.2 load and the theory library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-gets-exported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets exported
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save-keep-a-shell-session-as-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save: keep a shell session as a file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-8-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 What's hard-coded (needs no load)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-8-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 load and the theory library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8.2 load and the theory library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-gets-exported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets exported
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save-keep-a-shell-session-as-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save: keep a shell session as a file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-8">8. Building the theory: hard-coded core vs. loaded theories<a class="headerlink" href="#sec-8" title="Permanent link">&para;</a></h1>
+<h2 id="sec-8-1">8.1 What's hard-coded (needs no <code>load</code>)<a class="headerlink" href="#sec-8-1" title="Permanent link">&para;</a></h2>
+<p>A pristine session starts with <code>minimal.kurt</code>'s worth of syntax (space,
+comma -- <code>a, b, c</code> is one list, and <code>(a, b, c)</code> in round brackets a triple (<a href="../building-the-grammar/#sec-4-3">§4.3</a>) --, <code>(</code> <code>)</code>, <code>implies</code>, <code>and</code>, the constant <code>true</code>, the substitution
+operator <code>sub</code> — <code>sub $x $a %A</code> is "<code>%A</code> with <code>$a</code> substituted for <code>$x</code>",
+only allowed in <code>use</code>/<code>def</code> to write axiom schemas like "forall-elim" or
+"equal-elim", and not nested (a rule about two variables is applied twice,
+one variable at a time); where the search finds <code>$a</code> and <code>%A</code> for a given
+formula, the hole <code>$x</code> is a subexpression -- a statement or a term --, and an
+operator only if it yields a term: see "Where the hole of <code>sub</code> may be" below) already declared -- the quantifiers <code>forall</code>/<code>exists</code>
+come with <code>load logic</code> (see below) --
+plus these rules implemented directly in Python (not as <code>use</code> axioms you
+could remove):</p>
+<ul>
+<li><strong>"top-intro"</strong> — the bare symbol <code>true</code> is always provable.</li>
+<li><strong>"impl-elim"</strong> (modus ponens) — given <code>A</code> and <code>A implies B</code> anywhere in
+  the theory, <code>B</code> is derivable.</li>
+<li><strong>"and-intro"</strong> — given <code>A</code> and <code>B</code> separately provable, <code>A and B</code> is
+  derivable (and, symmetrically, a claimed conjunction is split into its
+  conjuncts and each is derived separately).</li>
+<li><strong>"not-intro"</strong>, automatically, as a side effect of closing an <code>assume</code>
+  block (see <a href="../blocks-and-natural-deduction/#sec-9-1">§9.1</a>) whose last derived line is literally <code>false</code> — this one
+  isn't reachable as a standalone rule outside of that block-closing
+  moment.</li>
+<li><strong>an <code>iff</code> as an implication</strong> — a fact <code>A iff B</code> (e.g. from <code>def P iff
+  ...</code>) is used directly as <code>A implies B</code> and as <code>B implies A</code>, without a
+  rule -- for the symbol with the role <code>equivalence</code> (propositional.kurt's <code>iff</code>, see
+  <code>builtin</code>, <a href="../session-toggles-and-output/">§10</a>).</li>
+<li><strong>"case-elim"</strong> — closing the <code>case</code> blocks of a disjunction (<a href="../blocks-and-natural-deduction/#sec-9-1">§9.1</a>) gives
+  the goal; it is justified by propositional.kurt's "or-elim", for any number of
+  alternatives.</li>
+<li><strong>"chain-trans-I-J"</strong> — the transitivity rules a <code>chain</code> declaration
+  generates (<a href="../building-the-grammar/#sec-4-6">§4.6</a>).</li>
+<li><strong>"by calc"</strong> — with <code>calc on</code>, a claim that computes to <code>true</code>, or to a
+  fact, follows by the built-in calculator (<a href="../session-toggles-and-output/">§10</a>).</li>
+<li><strong>forall-elim, effectively for free</strong> (with <code>load logic</code>) — every formula
+  ever added to the theory has any <em>outer</em> universal quantifier stripped and
+  its bound variable replaced by a fresh, freely-unifiable internal variable
+  (as if it had been written as a <code>$</code>-schema to begin with) — so <code>use forall
+  x (A x)</code> already lets <code>A a</code> derive for a specific <code>a</code>, with no explicit
+  <code>forall-elim</code> step needed. The same for "forall-intro" (closing a <code>let</code>
+  block) and "exists-elim" (closing a <code>pick</code> block). <code>logic.kurt</code>'s <code>forall-elim</code> axiom
+  still exists for the same reason a hard-coded rule sometimes also has a
+  <code>use</code> equivalent lying around: explicit intermediate steps, and cases
+  this automatic stripping doesn't reach (a <code>forall</code> that isn't the
+  outermost operator of a stored formula). Only a <code>forall</code> <em>without</em> a
+  condition is stripped: <code>∀ $x &gt; 0 P($x)</code> stays as it is, and is used via
+  logic.kurt's rules for conditions (<a href="../building-the-grammar/#sec-4-4">§4.4</a>).</li>
+</ul>
+<p><strong>Where the hole of <code>sub</code> may be.</strong> A rule like "equal-elim", <code>($a = $b) ∧ (sub $x $a %A) ⇒
+(sub $x $b %A)</code>, rewrites a formula by cutting a hole <code>$x</code> into it. The hole is a part of the
+formula that is a term or a statement -- and an operator counts only when it is a term on its own.
+A function symbol is: <code>f</code> with <code>arity f 1</code> is an object, which an equation can name. So <code>f = g</code>
+rewrites <code>f a</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">load</span> equality
+<span class="kd">const</span> f<span class="p">,</span> g<span class="p">,</span> a
+<span class="kd">arity</span> f <span class="m">1</span><span class="p">,</span> g <span class="m">1</span>
+<span class="kd">prop</span> R
+<span class="kd">arity</span> R <span class="m">1</span>
+<span class="k">use</span> f <span class="o">=</span> g
+<span class="k">use</span> R <span class="p">(</span>f a<span class="p">)</span>
+R <span class="p">(</span>g a<span class="p">)</span>                     <span class="c1">; by equal-elim(6, 7) -- the hole is the operator `f`</span>
+</code></pre></div>
+<p>An operator with a statement as its result is not: <code>=</code>, <code>∧</code>, or a predicate <code>P</code> with <code>prop P</code> and <code>arity P 1</code> is, on its
+own, neither a term nor a statement -- it becomes a statement only applied to its arguments. So
+the hole is never the <code>=</code> of <code>c = c</code> (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §8.40: cut there, "iff-subst" had
+turned <code>R ((¬¬(=)) c c)</code> into <code>R (c = c)</code>), and a bare such operator where a statement is
+required is a type error -- also an equivalence of two predicates:</p>
+<div class="highlight"><pre><span></span><code><span class="k">load</span> propositional
+<span class="kd">prop</span> P<span class="p">,</span> Q
+<span class="kd">arity</span> P <span class="m">1</span><span class="p">,</span> Q <span class="m">1</span>
+<span class="k">use</span> P <span class="o">⇔</span> Q                   <span class="c1">; TypeError: arg number 1 of `iff` must be a statement, but `P` is</span>
+                            <span class="c1">; an operator without its arguments -- apply it to its 1 argument, e.g. `P a`</span>
+</code></pre></div>
+<p>State it for the arguments instead: <code>use ∀ x (P x ⇔ Q x)</code> (with <code>load logic</code>), and <code>P a</code> gives <code>Q a</code>.
+A binder (<code>∀</code>, <code>∃</code>) is no hole either. An operator variable (<code>var ∘</code> with <code>infix ∘</code>) is a
+different thing: it matches an operator by itself, through the unifier (<code>∘ := +</code>), not as a hole.</p>
+<p>The quantifiers are declared in <code>logic.kurt</code>, which gives them their roles
+(<code>builtin forall universal, exists existential</code>, <a href="../session-toggles-and-output/">§10</a>): the engine strips,
+closes <code>let</code> with, and opens <code>pick</code> from, only the binders with these roles.
+So the core has no quantifiers: a file for propositional or modal logic
+doesn't need them, a deep embedding may use the words for something else,
+and without <code>load logic</code>, <code>let</code> (over terms) and <code>pick</code> say that they need it.</p>
+<p>Notably, <strong>"and-elim"</strong> (splitting a proven <code>A and B</code> back into <code>A</code>) is
+<em>not</em> hard-coded — you either state the specific instance yourself as a
+<code>use</code> axiom, or <code>load propositional</code> for a general one. A general "restatement"
+schema (<code>%A implies %A</code>) and a general "impl-intro" schema (<code>(%A implies
+%B) implies (%A implies %B)</code>) are <em>also</em> not hard-coded, despite once
+being drafted as if they were: a bare <code>A implies A</code> with nothing else
+known does not derive from nothing. Prove a specific instance instead
+(<code>show</code>/<code>proof</code>/<code>assume</code>/<code>qed</code>), or note that plain "restating" an
+already-proven fact is covered anyway by "impl-elim"'s own premise-less-
+implication case.</p>
+<p><code>minimal.kurt</code> is the core itself: Kurt reads its declarations when it starts,
+before anything else, and freezes them (only the parse rule of <code>local</code> and the
+internal marker of bound variables are made in <code>kurt.py</code>). It is never <code>load</code>ed --
+<code>load minimal</code> is an error ("is the core, which every file starts with"). It deliberately declares no aliases:
+<code>propositional.kurt</code> supplies <code>⊤</code>, <code>⇒</code>, <code>∧</code>, <code>∨</code>, and <code>¬</code>, and <code>logic.kurt</code> supplies <code>∀</code> and <code>∃</code>.</p>
+<h2 id="sec-8-2">8.2 <code>load</code> and the theory library<a class="headerlink" href="#sec-8-2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">load</span> NAME               <span class="c1">; load "path/to/name.kurt"</span>
+<span class="k">load</span> NAME1<span class="p">,</span> NAME2<span class="p">,</span> <span class="o">...</span>
+</code></pre></div>
+<p><code>load</code> searches, in order: the loading file's own directory (or the
+current directory, from the CLI/shell), then any <code>-p</code>/<code>--path</code> directory
+given on the command line, then Kurt's own packaged theories
+(<a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a>). The <code>.kurt</code> extension is added automatically if
+missing. The packaged theories can't be shadowed: <code>load propositional</code> always loads
+Kurt's own <code>propositional.kurt</code>, and a file <code>propositional.kurt</code> found earlier on the search
+path is an error (rename it) — <code>def</code>, and the checks built on the packaged
+theories, rely on their exact content. (A name with a directory, <code>load
+./propositional</code> or <code>load lib/propositional</code>, is your own file, as written — not trusted, so
+under <code>--strict</code> it may not <code>use</code> anything.)</p>
+<p>The symbols declared by a <em>trusted</em> theory file — one that comes with Kurt,
+or one found via <code>-p DIR</code> — are <strong>frozen</strong>: no other file can declare them
+<code>flat</code> or <code>sym</code>, or put them into a <code>chain</code> in a way that
+derives something new about them. E.g. <code>chain ≠</code> (which would make <code>≠</code>
+transitive) is rejected, while <code>chain = lt</code> for a file's own relation <code>lt</code>
+is fine: a frozen operator may be combined with the file's own operators
+if the frozen ones come first (the chain's conclusions use the later
+operator) and are already chained that way in their theory. A file that has <em>already finished</em> loading is not loaded again
+(tracked via <code>get_load_level</code>, per level, inherited from parent levels) —
+so <code>load propositional</code> twice in a row, or from two different files that both
+depend on it, is a harmless no-op (logged as <code>already loaded, skipped</code>)
+rather than a duplicate-axiom error. A
+file that is still <em>in the middle</em> of loading (a genuine cycle: <code>a.kurt</code>
+has <code>load "b.kurt"</code>, and <code>b.kurt</code> has <code>load "a.kurt"</code>) is tracked
+separately and raises a clean <code>EvalError: circular \</code>load`: ...<code>instead
+of recursing forever. The end of a loaded file closes the blocks still open
+in it, as a dedent does ([§7](goal-directed-proof.md), [§9](blocks-and-natural-deduction.md)): an</code>assume<code>/</code>let<code>/</code>pick<code>/</code>case<code>gives its
+result, a</code>sandbox<code>is discarded -- nothing half-open leaks into your file. A</code>proof<code>whose goal isn't reached by then, or a</code>show<code>without a proof, fails
+the whole</code>load`.</p>
+<p><strong>Each file is checked on its own.</strong> A loaded file is checked in a fresh
+context, one level deep, inside an implicit <code>sandbox</code> of its own (which <code>break</code>
+can't close and <code>summary</code> doesn't list; the main file is checked the same way):
+the hard-coded core (<a href="#sec-8-1">§8.1</a>) and the files it loads itself -- nothing
+of the file that loads it, not its facts, declarations, or <code>calc on</code>. So a
+library can't use a fact without loading the file it comes from, and the
+order of two <code>load</code>s doesn't change what either of them proves. What the file
+exports (below) is then added to the loading file. A symbol that both know
+must mean the same there: its declarations may not contradict each other
+(one side may have more, e.g. numbers.kurt binds <code>=</code> of equality.kurt to the
+calculator), and if it is defined by a <code>def</code>, it must be the same <code>def</code> on
+both sides -- a <code>def</code> is only conservative for a new symbol, so
+<code>const f</code> / <code>use f = 1</code> here and <code>def f = 2</code> in the loaded file is an error.
+A fact that two loaded files both pass on (from a file both of them load)
+is added once.</p>
+<p><strong>A symbol is declared by one file only.</strong> The declarations of a symbol --
+<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>arity</code>, <code>brackets</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code> --
+come from the one file that declares it; Kurt remembers which (it travels
+with the exports). If two different files declare the same symbol, they
+can't be loaded together, in either order, directly or through other files:</p>
+<div class="highlight"><pre><span></span><code>EvalError: `+` is declared in `numbers.kurt` and in `field.kurt` -- a symbol
+is declared by one file only, so these two can't be loaded together
+</code></pre></div>
+<p>The reason: a theory's laws hold for everything written with its operators.
+numbers.kurt says <code>$a * $b = $b * $a</code> for every <code>$a</code>, <code>$b</code>; a theory of
+matrices that declares its own <code>·</code> or <code>+</code> must not get those laws. So:</p>
+<ul>
+<li>numbers (ℕ, ℤ, ℚ, ℝ): <code>load numbers</code> (or <code>natural</code>, <code>integer</code>, <code>rational</code>,
+  <code>analysis</code>, which load it);</li>
+<li>linear algebra: a structure that declares its own operators, like
+  <code>field.kurt</code>, <code>vectorspace.kurt</code> (and <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/mafi1/matrices.kurt"><code>proofs/mafi1/matrices.kurt</code></a>) -- not
+  together with numbers.kurt;</li>
+<li><code>group.kurt</code> takes its operation as an argument (<code>group(G, (∘), e, inv)</code>),
+  so it goes with either.</li>
+</ul>
+<p><strong>A theory loads what it uses.</strong> A file gets the symbols of the files that
+its loaded files load, too: after <code>load natural</code>, <code>∀</code> (from logic.kurt) and
+<code>+</code> (from numbers.kurt) are there. But a theory that relies on this breaks
+when the file in between stops loading them. So a trusted theory -- one that
+comes with Kurt, or one from a <code>-p</code> directory -- gets a note for a symbol of a
+theory it doesn't load itself:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">; note: `forall` comes from `logic.kurt`, which this file doesn't load itself --</span>
+<span class="c1">; `load logic` makes it independent of what the other files load</span>
+</code></pre></div>
+<p>The theories that come with Kurt load everything they use (a test checks
+it). For a proof, this isn't noted -- <code>load numbers</code> and then <code>=</code> is fine --
+but <code>kurt --deps</code> lists such symbols for any file (<a href="../running-kurt/">§1</a>).</p>
+<p>The same file reached twice (two files both load numbers.kurt) is one
+declaration, not two. (numbers.kurt used to be called <code>arith.kurt</code>.) In one run of Kurt, a file is checked once and its exports
+are reused, as long as neither it nor a file it loads changed; only the
+file you check itself is always checked again (it prints its steps).</p>
+<p>The packaged theories (<a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a>), and roughly what each adds,
+declaring their own prerequisites via their own <code>load</code> lines:</p>
+<table>
+<thead>
+<tr>
+<th>theory</th>
+<th>adds</th>
+<th>depends on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>propositional.kurt</code></td>
+<td><code>or</code>, <code>not</code>, <code>iff</code>, <code>invimplies</code>, <code>false</code>; aliases <code>⊤</code>, <code>⇒</code>, <code>∧</code>, <code>∨</code>, <code>¬</code>; and-elim, or-intro/elim, iff-intro, iff-elim-forward/backward, not-intro/elim, bottom-intro/elim</td>
+<td>(none — builds on the hard-coded core)</td>
+</tr>
+<tr>
+<td><code>equality.kurt</code></td>
+<td><code>=</code>, <code>≠</code> (<code>a ≠ b</code> is read as <code>¬(a = b)</code>, <code>inline</code>); equal-intro/elim</td>
+<td><code>propositional</code></td>
+</tr>
+<tr>
+<td><code>logic.kurt</code></td>
+<td>aliases <code>∀</code>/<code>∃</code>; forall-elim, exists-intro, the rules for quantifiers with a condition (<a href="../building-the-grammar/#sec-4-4">§4.4</a>), and rewriting under a quantifier ("forall-iff", "exists-iff": from <code>∀ x (A ⇔ B)</code>, <code>(∀ x A) ⇔ (∀ x B)</code>); the quantifiers <code>forall</code>/<code>exists</code> themselves, with their roles (<a href="#sec-8-1">§8.1</a>); unique existence <code>∃! x P(x)</code> (<code>existsunique</code>, below)</td>
+<td><code>propositional</code>, <code>equality</code></td>
+</tr>
+<tr>
+<td><code>objects.kurt</code></td>
+<td>the sorts of the objects (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>): <code>sort set real</code> (every number is a set; an object of no sort is any object); loaded by set.kurt and numbers.kurt</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>set.kurt</code></td>
+<td>Zermelo-Fraenkel-style (the words of its symbols: <a href="../building-the-grammar/#sec-4-7">§4.7</a>): <code>in</code>/<code>∈</code>, <code>⊂</code> (<code>A ⊃ B</code> read as <code>B ⊂ A</code>, <code>x ∉ A</code> as <code>¬(x ∈ A)</code>: <code>inline</code>), <code>∪</code>, <code>∩</code>, separation <code>{ x ∈ A \| ... }</code> (no unrestricted <code>{ x \| ... }</code>, which would allow Russell's paradox; "separation-in": an element of a part of <code>A</code> is in <code>A</code>), sets by their elements <code>{a, b}</code> ("singleton", and generated rules, <a href="../session-toggles-and-output/">§10</a>), <code>∅</code> (also <code>{}</code>), <code>Pow</code>, ordered pairs and tuples (<code>(a, b)</code>, "pair-eq", <code>fst</code>, <code>snd</code>), Cartesian products <code>A × B</code>, mappings as sets of pairs (<code>f ∈ (A → B)</code>: <code>f ⊂ A × B</code> with one pair <code>(a, f a)</code> for each <code>a ∈ A</code>), "apply", "apply-in", "function-extensionality"</td>
+<td><code>equality</code>, <code>logic</code>, <code>objects</code></td>
+</tr>
+<tr>
+<td><code>numbers.kurt</code></td>
+<td>arithmetic; the order (<code>&lt;</code>, <code>&lt;=</code>; <code>&gt;</code>, <code>&gt;=</code> are read as them, <code>inline</code>); its symbols are numbers (<code>default real</code>)</td>
+<td><code>equality</code>, <code>objects</code></td>
+</tr>
+<tr>
+<td><code>natural.kurt</code></td>
+<td>natural numbers (<code>set Nat</code>, <code>ℕ</code>), the set of all numbers <code>Real</code> (<code>ℝ</code>) with "ext-real" (two sets of numbers with the same numbers are equal), induction (for a variable that is a number: <code>default real</code>); <code>0 &lt;= n</code>, the predecessor, no number between n and n + 1, the well-ordering principle (proven from induction); <code>even</code> and <code>odd</code> (every number is one of them, none both); divisibility <code>∣</code> (<code>\mid</code>), <code>coprime</code></td>
+<td><code>set</code>, <code>numbers</code>, <code>logic</code></td>
+</tr>
+<tr>
+<td><code>integer.kurt</code></td>
+<td>integers <code>Int</code>: the natural numbers and their negatives, closed under <code>+</code>, <code>-</code>, <code>*</code></td>
+<td><code>natural</code></td>
+</tr>
+<tr>
+<td><code>rational.kurt</code></td>
+<td>rationals <code>Rat</code>: m / n with m ∈ <code>Int</code>, n ∈ <code>Nat</code>, n ≠ 0; closed under <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>; "lowest-terms": a positive rational is m / n with coprime m, n (proven from the well-ordering)</td>
+<td><code>integer</code></td>
+</tr>
+<tr>
+<td><code>real.kurt</code></td>
+<td>the number tower in one <code>load</code>: numbers, natural, integer, rational (<code>Nat ⊂ Int ⊂ Rat ⊂ Real</code>)</td>
+<td><code>numbers</code>, <code>natural</code>, <code>integer</code>, <code>rational</code></td>
+</tr>
+<tr>
+<td><code>complex.kurt</code></td>
+<td>complex numbers: the sort <code>complex</code> (<code>real ⊂ complex ⊂ set</code>), <code>+ - * / ^</code> overloaded on <code>real</code> and <code>complex</code> (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>: the least sort of a term; <code>&lt;</code> stays on <code>real</code>; <code>^</code> with the laws for a natural-number exponent, "complex-pow-succ"), the unit <code>i</code> (<code>builtin i imaginary</code>: <code>calc on</code> computes exactly with Gaussian rationals, <code>i * i</code> is <code>-1</code>, <code>(1 + i) ^ 2</code> is <code>2 * i</code>), the set <code>Complex</code> (<code>ℂ</code>, <code>\C</code>), the laws of a field for every complex number ("complex-distrib-add", ...), <code>re</code>, <code>im</code>, <code>conj</code>, the modulus <code>cabs</code> (not <code>abs</code>: a result of another sort than the argument is stage 2 of overloading) with their laws; <code>kurt --lean</code> with Mathlib's <code>ℂ</code>, every rule proved there</td>
+<td><code>real</code></td>
+</tr>
+<tr>
+<td><code>group.kurt</code></td>
+<td>groups: <code>group(G, (∘), e, inv)</code> defined by <code>closed</code>, <code>associative</code>, <code>identity</code>, <code>inverse</code>; rules for single steps ("group-associative", "group-right-inverse", ...); theorems: the identity and the inverse are unique, <code>inv (inv a) = a</code>. Also <code>abelian(G, (∘))</code> and <code>abeliangroup(G, (∘), e, inv)</code> (<code>group</code> and <code>abelian</code> together), with "abeliangroup-commute". <code>∘</code> is an operator variable, so it all holds for any group, e.g. <code>group(R, (+), 0, (-))</code></td>
+<td><code>set</code></td>
+</tr>
+<tr>
+<td><code>finite.kurt</code></td>
+<td>finite sets: <code>injective</code>, <code>surjective</code>, <code>bijection(f, A, B)</code> (set.kurt's mappings), their composition <code>comp(g, f, A, C)</code>, the difference <code>A ∖ B</code>, the numbers below n <code>below(n)</code> = {0, ..., n - 1}, <code>hassize(A, n)</code> (A has n elements: a bijection from <code>below(n)</code> onto A) and <code>finite(A)</code>; theorems: ∅ has 0 elements, <code>{a}</code> 1, adding a new element adds one, removing one removes one, the number is unique, a bijection keeps it, disjoint unions add up (and differences), a subset has at most as many, subsets, unions and bijective images of finite sets are finite. No <code>card</code> (a <code>def</code> needs a term, and Kurt has no description operator); one axiom, "nat-number" (an element of <code>Nat</code> is a number)</td>
+<td><code>set</code>, <code>natural</code></td>
+</tr>
+<tr>
+<td><code>field.kurt</code></td>
+<td>a field <code>K</code> with <code>+</code>, <code>·</code>, <code>-</code>, <code>inv</code>, <code>0</code>, <code>1</code> (<code>+</code> flat and sym, <code>·</code> flat): every axiom for the elements of <code>K</code> (<code>$a ∈ K</code>), the (K1)-(K9) of the mafi1 lecture with English names ("plus-commutative", "distributive", ...); theorems: the identities and inverses are unique, <code>0 · λ = 0</code>, no zero divisors, <code>x² = 1</code> only for <code>±1</code>; subtraction <code>λ - μ</code> with "minus-def", "minus-minus", "minus-of-plus", "minus-of-minus"; "zero-plus", "times-one", "minus-distributive" (<code>λa − μa = (λ − μ)a</code>), "difference-nonzero" (<code>a ≠ b ⇒ a − b ≠ 0</code>), "product-one-nonzero" (<code>a · b = 1 ⇒ a ≠ 0</code>). Its own <code>+</code>: not together with numbers.kurt</td>
+<td><code>set</code></td>
+</tr>
+<tr>
+<td><code>vectorspace.kurt</code></td>
+<td>vector spaces over <code>K</code>: <code>vectorspace($V)</code>, the (V1)-(V8) for the elements of <code>$V</code>; <code>+</code>, <code>·</code>, <code>-</code>, <code>0</code> shared with the scalars; theorems: the zero vector and the inverse are unique, <code>0 · x = 0</code>, <code>(-1) · x = - x</code></td>
+<td><code>field</code></td>
+</tr>
+<tr>
+<td><code>matrix.kurt</code></td>
+<td>vectors and matrices as literals (<code>[1, 2]</code>, <code>[[1, 2], [3, 4]]</code>, one row per line), computed exactly with <code>calc on</code>: <code>+</code>, <code>-</code>, <code>·</code>, <code>transpose</code>, <code>det</code>, <code>=</code>, <code>≠</code> (and <code>/</code> of numbers). Its own <code>+</code>: not together with numbers.kurt</td>
+<td><code>equality</code></td>
+</tr>
+<tr>
+<td><code>analysis.kurt</code></td>
+<td>subtraction for ε/2 arguments ("sub-def": <code>a - b = a + (-b)</code>, "sub-split", "sub-add", "sub-mul", "sub-zero", "double", "halves", "le-mul-nonneg"), <code>abs</code>, finite sums <code>sum i (a, b) T</code>, <code>max</code>/<code>min</code> and <code>sup</code>/<code>inf</code> of <code>T</code> over the <code>v</code> with a condition, <code>argmax</code>/<code>argmin</code> over a set (<em>some</em> place of the maximum, <code>argmax $v ∈ A T</code>), limits <code>lim v a T</code> (also with a condition, <code>lim $v &gt; 0 0 T</code>) by ε and δ; only introduction rules, since these functions give a value also where the maximum, supremum, or limit doesn't exist; <code>tends v a L T</code> ("T tends to L for v → a": the limit exists), "tends-def", "tends-lim", "tends-unique" and the limit laws ("tends-add", "tends-mul", ...)</td>
+<td><code>natural</code></td>
+</tr>
+<tr>
+<td><code>continuity.kurt</code></td>
+<td>only the definitions of <code>cont x a T</code>, <code>diff x a T</code>, <code>deriv x a T</code> by ε and δ ("cont-def", "diff-def", "deriv-intro"), which derivative.kurt loads -- without the rules, a proof goes through ε and δ; "cont-tends": continuity by <code>tends</code></td>
+<td><code>analysis</code></td>
+</tr>
+<tr>
+<td><code>sequences.kurt</code></td>
+<td>sequences and series: <code>converges n L T</code> (by ε and N), its value <code>seqlim n T</code>, "converges-unique", the limit laws, "archimedes"; <code>series i a T</code> (the limit of the partial sums, "series-def", "series-intro"), the geometric series ("geometric")</td>
+<td><code>analysis</code></td>
+</tr>
+<tr>
+<td><code>derivative.kurt</code></td>
+<td>continuity <code>cont x a T</code>, differentiability <code>diff x a T</code> and the derivative <code>deriv x a T</code> (of <code>T</code> in <code>x</code> at <code>a</code>), defined by ε and δ ("cont-def", "diff-def", "deriv-intro"); the rules of differentiation (constant, <code>x</code>, sum, difference, constant factor, product, quotient, natural powers, chain rule), each with the differentiability it needs; differentiable implies continuous; Fermat ("deriv-max", "deriv-min"), the mean value theorem</td>
+<td><code>continuity</code></td>
+</tr>
+<tr>
+<td><code>integral.kurt</code></td>
+<td>the Riemann integral <code>integral x (a, b) T</code> and <code>integrable x (a, b) T</code>: its value as the limit of Riemann sums (for an integrable <code>T</code>), continuous functions are integrable; linearity, constants, splitting the interval, <code>(b, a)</code>, monotonicity; the fundamental theorem of calculus, both parts ("ftc-diff", "ftc-deriv", "ftc")</td>
+<td><code>derivative</code></td>
+</tr>
+<tr>
+<td><code>modal.kurt</code></td>
+<td>classical normal modal logic T: formulas are terms built with <code>→</code>, <code>⇔</code>, <code>∧</code>, <code>∨</code>, <code>¬</code>, <code>□</code>, <code>◇</code>, <code>⊥</code>; <code>⊢ A</code> says that A is a theorem, <code>empty ⊢ A</code> the same with an empty list of assumptions; the propositional rules for theorems, K, T, duality, distribution, modus ponens, and necessitation</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>lambda.kurt</code></td>
+<td>simply typed lambda calculus: complete syntax-directed typing for a de Bruijn representation, readable named binders <code>λ</code>, compatible beta reduction <code>↦</code>, and call-by-value evaluation <code>⇝</code></td>
+<td>(none)</td>
+</tr>
+</tbody>
+</table>
+<p><code>modal.kurt</code> is the packaged modal theory. A modal formula is a Kurt
+term, not a statement, so its metavariable is <code>$A</code>; object connectives such as <code>→</code>, <code>∧</code>, and <code>□</code> only construct
+such terms. The
+judgment <code>⊢ $A</code>, a statement, says that the term is an object-level theorem. Therefore necessitation is the
+ordinary Kurt schema <code>(⊢ $A) implies (⊢ □$A)</code>, while object modus ponens has the two Kurt premises
+<code>⊢ $A</code> and <code>⊢ ($A → $B)</code>. The turnstile is declared both prefix and infix: prefix <code>⊢ A</code> means
+theoremhood, binary <code>G ⊢ A</code> means derivability from a represented context, and two explicit rules
+identify prefix theoremhood with <code>empty ⊢ A</code>. <a href="https://github.com/harmeling/kurt-lang/tree/main/proofs/logic-encodings"><code>proofs/logic-encodings/</code></a> contains a small sequent
+calculus and an ordered-resource experiment without exchange, weakening, or contraction.</p>
+<p><code>modal.kurt</code> declares the optional sort <code>formula</code> for the formulas of modal logic, so a modal
+formula can't be written as a claim by itself (<code>use □P → P</code> is an error) -- a claim is <code>⊢ A</code>,
+"A is a theorem". The theory still owns <code>→</code> and <code>□</code>, so it cannot be loaded together with
+<code>set.kurt</code> (where <code>→</code> is a function-space constructor) without future namespaces.</p>
+<p>The former shallow theory with the same filename could not express sound necessitation because
+its formulas were Kurt statements: <code>%A implies □%A</code> also applied below an assumption. It was
+replaced. Moving the pretty aliases out of the minimal core lets the current <code>modal.kurt</code> own the
+paper symbols <code>∧</code>, <code>∨</code>, and <code>¬</code> as formula constructors without changing their role in
+<code>propositional.kurt</code>.</p>
+<p><code>lambda.kurt</code> is another deep embedding. Its <code>type</code>, <code>term</code>, <code>index</code>, <code>ctx</code>, and <code>typing</code> sorts reject
+malformed typing judgments before proof search. De Bruijn terms <code>at zero</code>, <code>at (succ zero)</code>, and
+<code>abs A M</code> give complete variable, weakening, abstraction, and application rules using explicit
+contexts. Those judgments have the conventional surface <code>Γ ⊢ M : A</code>; the older prefix form
+<code>has Γ M A</code> remains available for compatibility. The theory also provides readable named terms:
+<code>λ</code> is a real Kurt binder, so
+alpha-equivalent terms match, and its <code>beta</code> rule uses <code>sub</code> for capture-avoiding substitution.
+Compatible application rules give weak beta reduction <code>↦</code>; <code>⇝</code> is a deterministic left-to-right
+call-by-value relation with explicit values. The executable examples include a concrete
+preservation instance and a finite confluence diamond. General preservation and Church–Rosser
+need induction over encoded derivations (and a substitution lemma or parallel reduction), which
+the current first-order theory does not supply automatically.
+Pure Kurt currently expresses several sound named typing conveniences rather than the full named
+hypothetical-context abstraction rule; the de Bruijn representation supplies the general rule
+without extending the language. See <a href="https://github.com/harmeling/kurt-lang/blob/main/tutorial/27-type-and-reduce-lambda-terms.kurt"><code>tutorial/27-type-and-reduce-lambda-terms.kurt</code></a>.</p>
+<p><code>load</code> with no arguments lists every file loaded so far, level by level.</p>
+<h3 id="what-gets-exported">What gets exported<a class="headerlink" href="#what-gets-exported" title="Permanent link">&para;</a></h3>
+<p>Not everything a loaded file declares becomes visible to whoever loads it.
+A <code>use</code>/<code>def</code> axiom or a proved (<code>show</code>/<code>proof</code>/<code>qed</code>) theorem is
+<strong>exported</strong> exactly when it carries a label and that label isn't marked
+<code>local</code> (<a href="../the-theory/#sec-6-2">§6.2</a>) — an unlabelled fact, or one labelled <code>EXPR local "..."</code>,
+stays entirely inside the file that wrote it. A symbol is exported when an
+exported fact mentions it, or when the file declares it at its top level:
+a declaration written out there (<code>const</code>, <code>prop</code>, <code>infix</code>, <code>prefix</code>,
+<code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code>, <code>chain</code>, <code>alias</code>,
+<code>tex</code>, <code>lean</code>, a sort's signature) is the file's vocabulary. Either way, all that is
+known about the symbol travels along (its arity and shape, fixity, statement
+places, <code>tex</code>, <code>lean</code>, ...), so it can still be parsed and type-checked
+downstream. Not exported are: a declaration with <code>local</code> at its end
+(<code>const helper local</code>, <code>prop Q, R local</code> -- for the whole line), a
+declaration inside a block, <code>var</code> (a loaded <code>var x</code> would make the loader's
+<code>x</code> a variable), and the constants Kurt adds by itself at a symbol's first
+use (<code>; added constant</code>). So a symbol that only ever appears in local facts
+and isn't declared at the top level (or only with <code>local</code>) is invisible
+from outside, freeing up its name for something else entirely unrelated in
+whatever file loads this one; a <code>local</code> declaration of a symbol that an
+exported fact needs still goes along with that fact. (Before 0.9, a
+declaration alone exported nothing.) A symbol bound to the calculator (<code>builtin + add</code>, <a href="../session-toggles-and-output/">§10</a>) is exported too, even
+without a fact that mentions it: the binding is an axiom about it (<code>1 + 1 =
+2</code>, ...) -- e.g. matrix.kurt's literals <code>[ ]</code>, <code>det</code>, <code>transpose</code>. An
+alias (<code>alias</code>) travels automatically with whatever symbol it names, since
+an alias never itself appears written out in a formula — axioms are always
+written with the canonical name.</p>
+<p>This makes <code>def</code>'s two halves — the new symbol, and the fact defining what
+it means — travel together when exported. If a <code>def</code> is marked <code>local</code> but
+some <em>other</em>, exported fact in the same file still needs that symbol, the
+file fails to load with a clear error naming the symbol, rather than
+silently promoting the <code>local</code> marking away or silently leaving the symbol
+meaningless downstream.</p>
+<p>The <code>var</code> declaration itself is file-local regardless of labelling. Before a formula is stored,
+however, each of its declared free variables is replaced in the formula's proof representation
+by a fresh internal schema variable. Its local inferred type does not occupy the printed name in
+the loading file. Therefore a labelled exported formula remains schematic:
+<code>var p, q</code> followed by <code>use p and q "pq"</code> can match <code>A and B</code> after <code>load</code>, even if the loading
+file uses the printed names <code>p</code> and <code>q</code> as constants. This also applies to variables in function,
+infix, prefix and postfix operator position. Parser-facing declarations such as <code>arity f 1</code> and
+<code>infix ∘ 70 70</code> still travel so the notation remains writable, but the variable role does not.
+The original expression is retained for source and normal display; generated internal names
+never become part of Kurt source. Normal output makes this conversion visible beside the
+original <code>use</code> as <code>; schema: ...</code> (<a href="../the-theory/#sec-6-2">§6.2</a>), using stable <code>$</code>/<code>%</code> names instead of the internal fresh
+names.</p>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">; helper.kurt</span>
+<span class="k">load</span> propositional
+<span class="kd">prop</span> P
+<span class="kd">prop</span> Q <span class="k">local</span>                     <span class="c1">; the declaration stays inside helper.kurt</span>
+<span class="k">use</span> P            <span class="s">"exported"</span>      <span class="c1">; travels to whoever loads helper.kurt</span>
+<span class="k">use</span> Q            <span class="k">local</span> <span class="s">"hidden"</span>  <span class="c1">; stays inside helper.kurt</span>
+<span class="k">def</span> R iff P      <span class="s">"also exported"</span> <span class="c1">; R travels too, since it's labelled</span>
+
+<span class="c1">; main.kurt</span>
+<span class="k">load</span> helper
+P                 <span class="c1">; fine -- P was exported</span>
+R                 <span class="c1">; fine -- R (and its definition) was exported</span>
+Q                 <span class="c1">; ProofError: can not derive `Q` -- never exported, so as far as</span>
+                  <span class="c1">; main.kurt is concerned `Q` is just a fresh symbol with no axiom</span>
+                  <span class="c1">; behind it (§3.4), not literally an "unknown symbol" error</span>
+</code></pre></div>
+<h3 id="save-keep-a-shell-session-as-a-file"><code>save</code>: keep a shell session as a file<a class="headerlink" href="#save-keep-a-shell-session-as-a-file" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">save</span> <span class="s">"path/to/file.kurt"</span>
+</code></pre></div>
+<p>Writes the input lines that were accepted so far to <code>path</code> (relative to the current working
+directory): in the shell, the session without the lines that failed, and without the ones that
+only show something (<code>theory</code>, <code>cert</code>, <code>help</code>, a declaration without arguments, ...); in a file,
+its lines so far. The result is ordinary Kurt source, which proves its results again when it is
+checked, and gets its certificates in a <code>.kurtc</code> then (<a href="../running-kurt/">§1</a>) -- nothing is taken over as an axiom.
+<code>save</code> needs all blocks closed and no pending <code>show</code>, since otherwise the saved file wouldn't
+load. <code>load</code> lines are kept as typed, so a saved file finds its theories as the session did
+(e.g. relative to the working directory). The name must end with <code>.kurt</code> and not be the name of
+a theory that comes with Kurt, and <code>save</code> works neither with <code>--strict</code> nor in a loaded file --
+it writes the checked file's (or the shell's) own lines, nothing else.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../goal-directed-proof/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 7. Goal-directed proof: show / proof / qed">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                7. Goal-directed proof: show / proof / qed
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../blocks-and-natural-deduction/" class="md-footer__link md-footer__link--next" aria-label="Next: 9. Blocks and natural deduction">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                9. Blocks and natural deduction
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

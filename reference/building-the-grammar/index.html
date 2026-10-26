@@ -1,0 +1,1555 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/building-the-grammar/">
+      
+      
+        <link rel="prev" href="../terms-symbols-and-their-roles/">
+      
+      
+        <link rel="next" href="../statements-terms-and-sorts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>4. Building the grammar - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-4" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              4. Building the grammar
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 infix, prefix, postfix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 brackets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 arity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 bindop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 flat and sym
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 alias
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.8 Inspecting the grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.9 Inspecting loaded theories
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 infix, prefix, postfix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 brackets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 arity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 bindop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 flat and sym
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 alias
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.8 Inspecting the grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sec-4-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.9 Inspecting loaded theories
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-4">4. Building the grammar<a class="headerlink" href="#sec-4" title="Permanent link">&para;</a></h1>
+<p>Kurt's grammar is not fixed — the fixity, precedence, and arity of every
+operator (including <code>implies</code>/<code>and</code>/space itself) is declared from Kurt
+source, using a small set of keywords, and looked up dynamically by the
+parser (a Pratt/TDOP parser). This is what "extensible from Kurt source"
+means throughout <code>CLAUDE.md</code>.</p>
+<h2 id="sec-4-1">4.1 <code>infix</code>, <code>prefix</code>, <code>postfix</code><a class="headerlink" href="#sec-4-1" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">infix</span> OP lbp rbp     <span class="c1">; e.g. infix "+" 20 20</span>
+<span class="kd">prefix</span> OP rbp        <span class="c1">; e.g. prefix "-" 100</span>
+<span class="kd">postfix</span> OP lbp       <span class="c1">; e.g. postfix "!" 100</span>
+</code></pre></div>
+<p>Each accepts a comma-separated list to declare several operators in one
+line (e.g. <code>infix "+" 20 20, "-" 20 20</code>). Binding powers control precedence
+and associativity: for <code>infix</code>, <code>lbp &gt; rbp</code> makes the operator <em>right</em>-
+associative (as <code>implies</code> is: <code>infix implies 13 12</code>, so <code>A implies B
+implies C</code> parses as <code>A implies (B implies C)</code>; and numbers.kurt's <code>infix ^
+75 74</code>, so <code>2 ^ 3 ^ 2</code> is <code>2 ^ 9</code>); <code>lbp == rbp</code> (as with <code>+</code> above) makes
+it left-associative (<code>a - b - c</code> is <code>(a - b) - c</code>), and a <code>flat</code> operator
+(<a href="#sec-4-5">§4.5</a>) collects all its arguments anyway. Declaring the same symbol both <code>infix</code> and <code>prefix</code> is
+allowed (useful for something like unary/binary <code>-</code>); declaring it as more
+than one of <code>infix</code>/<code>prefix</code>/<code>postfix</code>/a bracket otherwise is an error.
+Fixity alone does not classify a symbol as constant or variable.</p>
+<p>Called with no arguments (<code>infix</code>, <code>prefix</code>, <code>postfix</code>), each prints every
+currently-declared operator of that kind, across all open levels. The other
+property keywords (<code>const</code>, <code>var</code>, <code>sort</code>, <code>prop</code>, <code>arity</code>, <code>brackets</code>, <code>bindop</code>,
+<code>chain</code>, <code>flat</code>, <code>sym</code>, and <code>alias</code>) work the same way. Every listed entry's
+comment gives both its scope level and the source location that established
+that exact property, for example <code>; level 1, natural.kurt:20</code>. A basename is
+shown normally; if two loaded files have the same basename, Kurt shows their
+paths to keep the locations unambiguous. Hard-coded core declarations have no
+source line and therefore show only their level.</p>
+<h2 id="sec-4-2">4.2 <code>brackets</code><a class="headerlink" href="#sec-4-2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">brackets</span> LEFT RIGHT     <span class="c1">; e.g. brackets "[" "]"</span>
+</code></pre></div>
+<p>Declares a new matching pair of bracket symbols. <strong>Only Kurt's own <code>(</code> <code>)</code>
+pair (declared exactly this way in <code>minimal.kurt</code>) is treated as pure,
+disappearing grouping</strong> — <code>(A)</code> really is just <code>A</code>. Any <em>other</em> bracket
+pair you declare yourself stays around as a genuine operator: <code>[A]</code> parses
+to a real term whose operator is an internal name combining <code>[</code> and <code>]</code>
+(rendered as <code>[]</code> if you <code>parse</code>/<code>format sexpr</code> it), not to <code>A</code>. Custom brackets
+are meant to carry their own meaning (e.g. <code>⟨a, b⟩</code> for a scalar product,
+<code>brackets ⟨ ⟩</code>; in the shell <code>\langle</code>, <code>\rangle</code>) via <code>arity</code>/<code>prop</code>/<code>use</code>
+axioms about the resulting operator, not as alternative parentheses. <code>brackets</code> takes exactly the two
+symbols — there is no separate binding-power argument.
+The two delimiter symbols become constants. A later <code>prop LEFT ...</code> or <code>builtin LEFT ...</code>
+declaration applies to the combined bracket expression, and listings print the source left
+delimiter rather than its internal combined name.</p>
+<h2 id="sec-4-3">4.3 <code>arity</code><a class="headerlink" href="#sec-4-3" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">arity</span> SYMBOL N         <span class="c1">; e.g. arity f 2:         f a b</span>
+<span class="kd">arity</span> SYMBOL SHAPE     <span class="c1">; e.g. arity g (_, _):    g(a, b), one argument, a pair</span>
+                       <span class="c1">;      arity sum _ (_, _) _:  sum i (0, n) f</span>
+</code></pre></div>
+<p>Declares that <code>SYMBOL</code> is a plain (non-infix/prefix/postfix) function or
+predicate symbol taking exactly <code>N</code> arguments by space-application: <code>f a b</code>
+parses as one call <code>(f a b)</code>. The shape says more, written as the symbol is
+used: <code>_</code> for an argument, <code>(_, _)</code> for a tuple of two (also nested, <code>((_, _),
+_)</code>); Kurt checks each use, so <code>g(a)</code> or <code>g(a, b, c)</code> with <code>arity g (_, _)</code> is
+an error ("<code>g</code> takes <code>g (_, _)</code>"), and a variable may stand for a tuple
+(<code>g($p)</code>). A symbol with no declared arity defaults to arity 0: it takes all
+the arguments that follow it, curried, and nothing checks them (<a href="../terms-symbols-and-their-roles/#sec-3-1">§3.1</a>). You
+cannot set an <code>arity</code> on a symbol that's already <code>infix</code>/<code>prefix</code>/<code>postfix</code>
+or a bracket (their arities — 2, 1, 1 — are implicit and fixed), and you
+cannot re-set an arity once declared.</p>
+<p>Round brackets group, so <code>f(x)</code> is <code>f x</code>, <code>((a))</code> is <code>a</code>, and <code>f(x) = x * x</code>
+reads as usual. Round brackets around a list are a tuple, a term of its own
+(since 0.9): <code>(a, b)</code> is a pair, <code>(a, b, c)</code> a triple, and <code>(a, (b, c))</code> a pair
+whose second component is a pair -- so <code>g(a, b)</code> is <code>g</code> applied to one
+argument, the pair, never <code>g a b</code> (before 0.9: <code>g a b</code> for a <code>g</code> of arity 2).
+<code>a, b, c</code> without round brackets is a list: the elements in <code>{a, b}</code> or
+<code>⟨a, b⟩</code>, or the formulas of <code>use A, B</code>; <code>{(a, b)}</code> is the set with one
+element, the pair. Binders (<code>sum</code>, <code>∀</code>, ...) take their arguments as written,
+e.g. <code>sum i (0, n) f</code> with the pair <code>(0, n)</code>.</p>
+<p><code>def</code> defines a function of a tuple by its components, <code>def f($x, $y) = ...</code>:
+tuples are free, two are equal only if their components are, so this is
+conservative (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §8.14).</p>
+<p>An operator alone in round brackets is the operator itself -- as the argument of
+an operator parameter, <code>group(G, (∘), e, inv)</code>, <code>group(R, (+), 0, (-))</code>; <code>(- x)</code>
+is still <code>- x</code>. An operator is no object (<a href="../statements-terms-and-sorts/#sec-5-3">§5.3</a>): elsewhere, <code>(+)</code> or a bare <code>f</code>
+is a type error. An operator can also be a variable -- <code>var ∘</code> and
+<code>infix ∘ 70 70</code> -- then <code>$a ∘ $b</code> in a rule matches <code>x + y</code> as well as <code>a ∘ b</code>
+(by the rules of the operator it stands for, e.g. <code>flat</code>, <code>sym</code>). See
+<code>group.kurt</code>.</p>
+<p>A relation as a parameter works the same way: a variable with a statement as its result,
+<code>var R</code> and <code>prop R 0</code>, then <code>R(x, y)</code> -- or with <code>infix R 20 20</code> also <code>x R y</code>,
+which matches <code>x &lt; y</code> or <code>x ∈ y</code> -- e.g. <code>def reflexive((R), $A) ⇔ ∀ x ∈ $A (x
+R x)</code>, and then <code>reflexive((&lt;=), A)</code>. (<code>$R(x, y)</code> is a term, not a formula: a
+<code>$</code> variable stands for a term.) The symbols <code>~</code>, <code>∼</code> (<code>\sim</code>), <code>≈</code>
+(<code>\approx</code>), <code>≺</code> (<code>\prec</code>), <code>≼</code> (<code>\preceq</code>) are free for relations of your own.
+Names may end in primes, <code>a'</code>, <code>f''</code>, and a Greek letter may have digits, <code>λ1</code>.</p>
+<p>Empty brackets (<code>()</code>, <code>{}</code>, ...) are allowed and parse to nothing; the only
+place this is meaningful is directly after an arity-0 symbol, where <code>f()</code>
+then parses to <em>exactly</em> <code>f</code> — the same expression as writing <code>f</code> alone,
+matching ordinary mathematical usage of <code>()</code> for "no arguments." Directly
+after a symbol with a declared arity of 1 or more, <code>f()</code> is instead a
+clear, specific <code>EvalError</code> ("empty brackets <code>()</code> cannot supply an
+argument for <code>f</code>, which needs N argument(s)"), not a confusing parse —
+empty parens can never actually supply a real argument.</p>
+<h2 id="sec-4-4">4.4 <code>bindop</code><a class="headerlink" href="#sec-4-4" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">bindop</span> SYMBOL     <span class="c1">; e.g. bindop forall</span>
+</code></pre></div>
+<p>Declares <code>SYMBOL</code> a <em>variable-binding operator</em>: its first argument is
+treated as a bound variable (or, with the sugar below, a condition, a statement
+whose free variable is the one being bound) for the rest of the
+expression. <code>forall</code>/<code>exists</code> are declared exactly this way, in
+<code>logic.kurt</code> (<code>arity forall 2, exists 2</code>, <code>bindop forall, exists</code>), together
+with their roles (<code>builtin forall universal, ...</code>, <a href="../building-the-theory/#sec-8-1">§8.1</a>) and their axioms
+(<code>forall-elim</code>, <code>exists-intro</code>).
+For a plain space-applied binder, the symbol must already have an <code>arity</code> of at least 2 (the
+bound variable plus at least one more argument). An infix operator may instead be a binder, as
+set-builder <code>|</code> is: its left operand contains the condition and its right operand is the body.
+A binder cannot also be prefix, <code>flat</code>, <code>sym</code>, chained, calculator-bound, variable, or already
+used in a formula. <code>bindop</code> gives a fixed scope rule, so it makes the symbol a constant and
+reports <code>const SYMBOL ; added constant</code> when that role was not already explicit.</p>
+<p>The scope of the bound variable is the condition and the <em>last</em> argument,
+the body; arguments in between are outside of it, as in mathematics: in
+<code>sum i (a, b) T</code> the range <code>(a, b)</code>, in <code>lim v a T</code> the point <code>a</code>. So in
+<code>sum x (0, n) (sum x (0, x) x)</code>, the inner range <code>(0, x)</code> is the outer <code>x</code>.</p>
+<p>A schema variable in the body of a binder normally stands for something
+that does <em>not</em> depend on the bound variable — in <code>(∀ $x ($x = $T))</code>, <code>$T</code>
+is one fixed term. A statement variable <code>%A</code> may depend on it (that's what
+"forall-elim" is about), and so may a term variable <code>$T</code> of an axiom that
+occurs as the <em>whole</em> body of a binder over the same variable, and
+otherwise only inside binders over it or as the body of a <code>sub</code> for it, as
+in the sum axioms <code>(sum $i ($a, $a) $T) = sub $i $a $T</code> and
+<code>(sum $i ($a, $b+1) $T) = (sub $i ($b+1) $T) + (sum $i ($a, $b) $T)</code> (see
+<code>analysis.kurt</code>) — such a <code>$T</code> stands for any summand, which the axioms
+only ever use for the bound <code>$i</code> or with something substituted for it —
+or in the sum rule of derivatives, <code>(diff $v $a $S) ∧ (diff $v $a $T) ⇒
+(deriv $v $a ($S + $T)) = ...</code> (<code>derivative.kurt</code>). Only an axiom (<code>use</code>,
+<code>def</code>, <code>todo</code>) is read like this, and not the variables of the <code>∀</code>s it
+writes out: a proven fact holds for every <em>term</em> in place of its
+variables (a proof with <code>let c</code> is about terms <code>c</code>). This is decided by
+the form of the rule alone: there is no way to declare a dependence
+(<code>$T[$i]</code>, as in Isabelle) or a distinct-variable condition ("<code>$x</code> doesn't
+occur in <code>$T</code>", as in Metamath) -- a decision (2026-10-06): the form shows
+where a dependence is meant, the kernel checks it, and no theory has needed
+more. Anywhere else, <code>$T</code> can't depend on the bound variable, and a rule
+that would need it can't be written.</p>
+<p><strong>Conditions.</strong> The "bound variable" position may instead be a condition on
+it: <code>∀ $n ∈ Nat P($n)</code>, <code>∃ $d &gt; 0 ...</code>, <code>lim $x &gt; 0 0 (f $x)</code>. Unbracketed,
+it is a relation whose left-hand side is the variable; its right-hand side
+extends over infix operators (<code>∀ $x ∈ A ∪ B ...</code>) but stops at the first
+function application, which is where the body starts -- except for <code>f(x)</code>
+written without a space, which stays in the condition (<code>∀ $x ∈ Perp(M) ...</code>).
+In parentheses, any condition works, <code>∀ ($x &gt; 0 ∧ $x &lt; 1) (P $x)</code>. <strong>Which
+variable is bound:</strong> the first symbol of the condition, in the order it is
+written, that is new or a variable and not bound by an enclosing binder --
+constants, predicates and operators are skipped. So <code>∀ x ∈ M ...</code> binds a
+new <code>x</code> (also a plain name outside of a block), <code>∀ ($a ∈ $G) ...</code> in a rule
+binds <code>$a</code>, <code>∀ ($x &lt; $y) ...</code> binds <code>$x</code>, <code>∀ c &lt; x ...</code> with a constant <code>c</code>
+binds <code>x</code>, <code>∀ (P $x) ...</code> with a predicate <code>P</code> binds <code>$x</code>, and in
+<code>∀ (0 &lt; e) (∀ (e &lt; x) ...)</code> the inner binder binds <code>x</code> (<code>e</code> is bound
+outside). Kurt decides this when it reads the line, before anything is
+reordered (a <code>sym</code> operator sorts its arguments), and stores the variable
+with the condition: the binder binds the same variable whenever the formula
+is used later, whatever is a constant then (when a block closes, its
+constants are free again -- this used to change the reading, and Kurt
+refused such a block). A printed formula reads back the same way. A
+condition without such a symbol is an error ("has no variable to bind").</p>
+<p>A condition is part of the formula: <code>∀ $x &gt; 0 P($x)</code> is not the same
+formula as <code>∀ $x ($x &gt; 0 ⇒ P($x))</code>, and the engine doesn't treat it as an
+implication. What a condition means is said by rules, like for any other
+operator — for <code>∀</code> and <code>∃</code> in <code>logic.kurt</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span>  <span class="o">⇒</span>  sub <span class="nv">$v</span> <span class="nv">$a</span> <span class="nv">%P</span>                     <span class="s">"forall-cond-elim"</span>
+<span class="k">use</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$a</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇒</span>  <span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span>                     <span class="s">"exists-cond-intro"</span>
+<span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∀</span> <span class="nv">$w</span> <span class="p">((</span>sub <span class="nv">$x</span> <span class="nv">$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">⇒</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$w</span> <span class="nv">%P</span><span class="p">))</span>           <span class="s">"forall-cond-def"</span>
+<span class="k">use</span> <span class="p">(</span><span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∃</span> <span class="nv">$w</span> <span class="p">((</span>sub <span class="nv">$x</span> <span class="nv">$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$w</span> <span class="nv">%P</span><span class="p">))</span>           <span class="s">"exists-cond-def"</span>
+</code></pre></div>
+<p>In a rule (<code>use</code>/<code>def</code>), a binder <code>sub $x $v %C</code> stands for <em>any</em>
+condition: <code>$v</code> is the bound variable, and <code>%C</code> the condition with the
+hole <code>$x</code> for it — matching <code>∀ ($y &gt; 0) ...</code> gives <code>%C = $x &gt; 0</code>, with
+every occurrence of the bound variable in the hole. So <code>%C</code> never mentions
+the bound variable itself, and <code>%C</code> may only be used with something
+substituted for <code>$x</code>, as <code>sub $x ... %C</code> (checked when the rule is
+stated). A binder with a condition never matches one without, so rules
+for both kinds are written separately (see <code>lim</code> in <code>analysis.kurt</code>).</p>
+<p>So from <code>∀ $x &gt; 0 P($x)</code> and <code>1 &gt; 0</code> follows <code>P 1</code> in one step
+("forall-cond-elim"), while <code>∀ $x ($x &gt; 0 ⇒ P($x))</code> takes a step of its
+own ("forall-cond-def") — e.g. to close <code>∀ $c ($c ∈ A ⇒ $c ∈ B)</code> (the
+definition of <code>A ⊂ B</code>) after a <code>let x ∈ A</code> block, which gives
+<code>∀ x ∈ A (x ∈ B)</code>.</p>
+<p><strong>Unique existence.</strong> <code>logic.kurt</code> declares the binder <code>existsunique</code>, written
+<code>∃! x P(x)</code> (<code>∃!</code> is one symbol; in the shell <code>\exists!</code>). Its meaning is its
+definition, "existsunique-def": <code>∃! x P(x)</code> iff <code>∃ x (P(x) ∧ ∀ y (P(y) ⇒ y =
+x))</code>; with a condition, <code>∃! x ∈ M P(x)</code> is <code>∃! x (x ∈ M ∧ P(x))</code>
+("existsunique-cond-def"). Three rules follow from the definition and save
+the steps through it: "existsunique-intro" (from <code>P(a)</code> and <code>∀ y (P(y) ⇒ y =
+a)</code>), "existsunique-exists" (<code>∃!</code> gives <code>∃</code>), and "existsunique-unique"
+(from <code>∃! x P(x)</code>, <code>P(a)</code> and <code>P(b)</code> follows <code>a = b</code>). They are axioms, since a
+general proof would need <code>sub</code> in its lines; <a href="https://github.com/harmeling/kurt-lang/tree/main/proofs/natural-deduction">proofs/natural-deduction/</a>
+existsunique.kurt derives each of them from the definition alone, for a
+predicate <code>P</code>. To use the witness, get <code>∃ x P(x)</code> and <code>pick</code> from it, or
+unfold the definition.</p>
+<h2 id="sec-4-5">4.5 <code>flat</code> and <code>sym</code><a class="headerlink" href="#sec-4-5" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">flat</span> OP     <span class="c1">; e.g. flat "+"</span>
+<span class="kd">sym</span> OP      <span class="c1">; e.g. sym "+"</span>
+</code></pre></div>
+<p>Both require <code>OP</code> to already be <code>infix</code>. They are two separate laws, and
+each can be declared without the other: <code>flat</code> is associativity, <code>sym</code>
+commutativity; the normal form of a term and the search use each on its
+own. <code>flat OP</code> means a run of <code>OP</code>
+doesn't nest two arguments at a time in the parsed term — <code>a + b + c</code>
+parses to a single <code>(+ a b c)</code> rather than <code>(+ (+ a b) c)</code> (compare <code>parse
+a + b + c</code> before and after declaring <code>flat</code>), and so do <code>(a + b) + c</code> and
+<code>a + (b + c)</code>: they are the same term, and the order of the arguments stays
+as written. <code>sym OP</code> means <code>OP</code>'s
+arguments may be reordered when Kurt searches the theory for a match — an
+axiom about <code>a + b</code> also matches a goal written as <code>b + a</code>. An operator
+that is <em>both</em> <code>flat</code> and <code>sym</code> (like <code>and</code>/<code>or</code>) gets its arguments
+canonically sorted before matching, which means Kurt effectively does
+<em>multiset</em> matching on it: <code>A and B and C</code> matches a stored <code>C and A and B</code>
+directly, not just pairwise swaps.</p>
+<p><code>flat</code> alone is the law of an associative operation that isn't
+commutative, the product of a group or of matrices (<code>flat +, times</code> and
+<code>sym +</code> in matrix.kurt and field.kurt). From <code>P((a ∘ b) ∘ c)</code> with only
+<code>flat ∘</code>, Kurt gets <code>P(a ∘ (b ∘ c))</code> (the same term <code>a ∘ b ∘ c</code>), but not
+<code>P(c ∘ b ∘ a)</code> or <code>P(b ∘ a ∘ c)</code>; with only <code>sym ∘</code>, it gets <code>P(c ∘ (b ∘
+a))</code> (each <code>∘</code> swapped), but not <code>P(a ∘ (b ∘ c))</code>; with both, every order
+and grouping. (A <code>flat</code> operator is a constant, see below: group.kurt's <code>∘</code>,
+a variable for any group's operation, has its associativity in the
+definition of a group, <code>associative($G, (∘))</code>, instead.) Each of <code>flat</code>/<code>sym</code> can only be
+declared once per operator (redeclaring raises an error), and if the
+operator already has a partial <code>prop</code> signature (<a href="../statements-terms-and-sorts/">§5</a>), that signature must
+be consistent with binary use (both argument positions statement places, or
+neither; no signature information beyond position 2).</p>
+<p>Declaring <code>flat</code> or <code>sym</code> is a claim (associativity, commutativity), so it
+must come before the operator is used in any formula, and it can't be made
+for an operator that comes with one of Kurt's theories or its core (e.g.
+<code>sym -</code> or <code>sym implies</code> is an error) — see "frozen operators" in <a href="../building-the-theory/#sec-8-2">§8.2</a>.
+It also fixes the operator's meaning, so either declaration makes it a constant. A <code>flat</code>
+operator cannot share its symbol with a prefix form (flattening would erase the distinction
+between unary and binary trees); neither property can be attached to a binding or variable
+operator.</p>
+<h2 id="sec-4-6">4.6 <code>chain</code><a class="headerlink" href="#sec-4-6" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">chain</span> OP1 OP2 <span class="o">...</span>     <span class="c1">; e.g. chain = &lt;=  or  chain iff implies</span>
+</code></pre></div>
+<p>Chains of relations, in one place: <code>a &lt; b &lt; c</code> on one line is read as <code>a &lt; b and b &lt; c</code> (below, for
+every relation between terms, <code>prop OP 0</code>, declared in a <code>chain</code> or not), and the <code>chain</code> line, by the order of its
+relations, gives the transitivity facts, so <code>a &lt; c</code> follows from it in one step (with
+numbers.kurt's <code>chain = &lt;= &lt;</code>: "chain-trans-2-2"); a chain can also go on over indented
+continuation lines. <code>chain</code> declares that the listed infix operators may be written one after another
+across indented continuation lines, mimicking how mathematicians chain
+(in)equalities: after a chain is declared, writing</p>
+<div class="highlight"><pre><span></span><code>x <span class="o">=</span> y
+  <span class="o">&lt;</span> z
+</code></pre></div>
+<p>is sugar for two separate checked lines, <code>x = y</code> and <code>x &lt; z</code> (the second
+line's left-hand side is filled in from the previous line's right-hand
+side, and the operator used is the <em>strongest</em> one seen so far in the
+chain, by index in the declared list — this is why <code>chain = &lt;</code> lets <code>= ,
+&lt;</code>-chains resolve to <code>&lt;</code> once a <code>&lt;</code> has appeared).</p>
+<p>Declaring a chain also generates real, directly usable transitivity
+axioms — one for every ordered pair of the chain's operators, using the
+same "pick the operator with the larger index" rule as the parsing sugar
+above. For <code>chain = &lt;= &lt;</code>, that includes the familiar <code>$a &lt; $b and
+$b &lt; $c implies $a &lt; $c</code>, but also every <em>mixed</em> pair like
+<code>$a &lt;= $b and $b &lt; $c implies $a &lt; $c</code>. They are named "chain-trans-I-J", by the
+positions of the two relations in the chain (counted from 0): <code>&lt;</code> with <code>&lt;</code> is
+"chain-trans-2-2", <code>=</code> with <code>&lt;</code> is "chain-trans-0-2". So given <code>x = y</code> and <code>y &lt; z</code> as
+two separately-proven facts (not written as one continuation-line chain),
+<code>x &lt; z</code> really is now a single derivation step, citing the
+auto-generated fact (the line's reason lists the facts in the order the search used them, not in the order of the chain) — you don't need to hand-write these per theory
+(<code>numbers.kurt</code> used to; it no longer does). This only combines <em>two</em>
+facts in one hop, the same as every other inference rule — three or more
+links in a chain of relations still need an explicit intermediate step,
+same as any other multi-hop reasoning (<a href="../the-theory/#sec-6-1">§6.1</a>'s single-hop limitation still
+applies beyond one combination).</p>
+<p>Relations can also be chained on a single line: <code>a = b &lt;= c &lt; d</code> means <code>a =
+b and b &lt;= c and c &lt; d</code>, reusing each middle term. This applies to any infix
+operator with a statement as its result and no statements as arguments (<code>prop OP 0</code>, e.g.
+<code>=</code>, <code>≠</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>in</code>), whether or not it is declared in a <code>chain</code> —
+not to connectives like <code>and</code>, <code>iff</code>, <code>implies</code>. The operators of one chain
+must have the same binding power: with <code>infix &lt;= 50 50, &lt; 50 50</code> and <code>=</code> at
+<code>20 20</code>, <code>a = b &lt;= c &lt; d</code> is not a chain but <code>a = ((c &lt; d) and (b &lt;= c))</code>.
+Parentheses switch it off:
+<code>(a = b) = c</code> is still an equation between <code>a = b</code> and <code>c</code>. Since the
+auto-generated transitivity axioms take a conjunction as premise, a chain of
+two relations on one line like <code>a = b &lt;= c</code> directly gives <code>a &lt;= c</code> in one more step
+(<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/arithmetic/chains.kurt"><code>proofs/arithmetic/chains.kurt</code></a>); with three, <code>a = b &lt;= c &lt; d</code>, <code>a &lt;= c</code>
+is not derivable in one step. A same-line chain can't (yet) be
+continued on indented lines below it.</p>
+<p>Continuation lines must be indented relative to the line that starts the
+chain; writing the continuation at the same indentation is a <code>ParseError</code>,
+not a chain. All declared chains together must form a DAG (no operator
+ordering may create a cycle across different <code>chain</code> declarations) — this
+is checked when the chain is declared.
+Every member must be a constant, non-binding infix relation with a statement as its result. <code>chain</code> adds
+those <code>const</code> and <code>prop OP 0</code> declarations when necessary and reports them explicitly; a
+variable operator cannot acquire the generated fixed transitivity rules.</p>
+<p>A chain has at most three operators (at most 9 rules). With <code>--strict</code> (<a href="../running-kurt/">§1</a>), outside the
+trusted theories, a <code>chain</code> generates nothing: each of its rules -- one for every ordered pair,
+<code>($a Ri $b) and ($b Rj $c) implies ($a Rk $c)</code>, the later relation absorbing the earlier, so
+<code>chain = &lt;</code> is a different claim than <code>chain &lt; =</code> -- must be a fact before the <code>chain</code> line, or
+follow in one step (checked as a line is: the search, then the kernel); a missing one is an
+error that lists the <code>show</code> lines to prove. The chain's notation (continuation lines, <code>a ≺ b ≺
+c</code>) then uses the proved facts. Unproven, <code>chain R</code> for <code>x R y</code> meaning <code>y = x + 1</code> would give
+<code>3 = 2</code>.</p>
+<h2 id="sec-4-7">4.7 <code>alias</code><a class="headerlink" href="#sec-4-7" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">alias</span> NEW OLD     <span class="c1">; e.g. alias "⇒" implies</span>
+</code></pre></div>
+<p><code>alias</code> gives an existing symbol an additional name, resolved <em>in the
+scanner</em> (i.e. before parsing, with no inference step) — <code>implies</code> and <code>⇒</code>
+are completely interchangeable everywhere, including inside axioms already
+stored in the theory. This is different from <code>def</code> (<a href="../the-theory/#sec-6-2">§6.2</a>), which
+introduces a genuinely new constant that needs an inference step to
+unfold (<code>equal-elim</code> for <code>def c = ...</code>; a <code>def P iff ...</code> is used directly as
+an implication in both directions).</p>
+<p>A declaration written with an alias is about its symbol: after <code>alias ⊆ subset</code>, <code>tex ⊆ \subseteq</code>
+or <code>chain ⊆</code> declare <code>tex</code>/<code>chain</code> for <code>subset</code> (a declaration of the alias itself would never apply,
+since the scanner reads every <code>⊆</code> as <code>subset</code>).</p>
+<p><strong>The words of Kurt's theories.</strong> In the theories that come with Kurt (<a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a>), the
+standard name of every symbol is ASCII, a word, and the Unicode symbol is its alias: <code>union</code> and
+<code>∪</code>, as <code>implies</code> and <code>⇒</code>, <code>forall</code> and <code>∀</code>, <code>&lt;=</code> and <code>≤</code>, <code>Nat</code> and <code>ℕ</code> (todo 61). A
+file may write either: <code>A ∪ B</code> and <code>A union B</code> are the same term, and a line is printed as it is
+written, with the symbols of the line (<code>x ∈ (A ∪ B)</code> or <code>x in (A union B)</code>; the brackets and the
+order of the arguments of a <code>sym</code> operator are Kurt's, and that order follows the standard names).
+A line that Kurt derives keeps the symbols of the facts it comes from (a theory's rules are written
+with <code>∪</code>); the listings and messages use the standard name: <code>list</code>, <code>syntax</code>, <code>theory</code>'s
+declarations, an error message (<code>`union`</code>), a sort signature (<code>set union 0 1 2</code>). <code>kurt --latex</code> writes a
+word as its symbol (<code>union</code> is <code>\cup</code>, like <code>∪</code>), and <code>kurt --lean</code> names a symbol without a <code>lean</code>
+declaration by its word (<code>subset</code>, <code>divides</code>, <code>times_d2</code>). Other files are free to declare Unicode
+symbols as they like; but the words are symbols of the theories now, so a file that loads set.kurt
+can't declare a <code>union</code> of its own (a symbol is declared by one file only, <a href="../building-the-theory/#sec-8-2">§8.2</a>).</p>
+<table>
+<thead>
+<tr>
+<th>theory</th>
+<th>word</th>
+<th>symbol</th>
+<th></th>
+<th>theory</th>
+<th>word</th>
+<th>symbol</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>set.kurt</td>
+<td><code>in</code></td>
+<td><code>∈</code> (and <code>:</code>)</td>
+<td></td>
+<td>equality.kurt</td>
+<td><code>neq</code></td>
+<td><code>≠</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>subset</code></td>
+<td><code>⊂</code></td>
+<td></td>
+<td>natural.kurt</td>
+<td><code>divides</code></td>
+<td><code>∣</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>superset</code></td>
+<td><code>⊃</code></td>
+<td></td>
+<td>field.kurt, matrix.kurt</td>
+<td><code>times</code></td>
+<td><code>·</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>notin</code></td>
+<td><code>∉</code></td>
+<td></td>
+<td>group.kurt</td>
+<td><code>compose</code></td>
+<td><code>∘</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>union</code></td>
+<td><code>∪</code></td>
+<td></td>
+<td>lambda.kurt</td>
+<td><code>lambda</code></td>
+<td><code>λ</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>intersect</code></td>
+<td><code>∩</code></td>
+<td></td>
+<td>lambda.kurt</td>
+<td><code>reduces</code></td>
+<td><code>↦</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>emptyset</code></td>
+<td><code>∅</code> (and <code>{}</code>)</td>
+<td></td>
+<td>lambda.kurt</td>
+<td><code>steps</code></td>
+<td><code>⇝</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>cross</code></td>
+<td><code>×</code></td>
+<td></td>
+<td>lambda.kurt, modal.kurt</td>
+<td><code>proves</code></td>
+<td><code>⊢</code></td>
+</tr>
+<tr>
+<td>set.kurt</td>
+<td><code>to</code></td>
+<td><code>→</code></td>
+<td></td>
+<td>modal.kurt</td>
+<td><code>imp</code>, <code>equiv</code></td>
+<td><code>→</code>, <code>⇔</code></td>
+</tr>
+<tr>
+<td>propositional.kurt</td>
+<td><code>true</code>, <code>false</code></td>
+<td><code>⊤</code>, <code>⊥</code></td>
+<td></td>
+<td>modal.kurt</td>
+<td><code>wedge</code>, <code>vee</code>, <code>neg</code></td>
+<td><code>∧</code>, <code>∨</code>, <code>¬</code></td>
+</tr>
+<tr>
+<td>propositional.kurt</td>
+<td><code>implies</code>, <code>invimplies</code>, <code>iff</code></td>
+<td><code>⇒</code>, <code>⇐</code>, <code>⇔</code> (and <code>≡</code>)</td>
+<td></td>
+<td>modal.kurt</td>
+<td><code>bot</code></td>
+<td><code>⊥</code></td>
+</tr>
+<tr>
+<td>propositional.kurt</td>
+<td><code>and</code>, <code>or</code>, <code>not</code></td>
+<td><code>∧</code>, <code>∨</code>, <code>¬</code></td>
+<td></td>
+<td>modal.kurt</td>
+<td><code>box</code>, <code>diamond</code></td>
+<td><code>□</code>, <code>◇</code></td>
+</tr>
+<tr>
+<td>logic.kurt</td>
+<td><code>forall</code>, <code>exists</code>, <code>existsunique</code></td>
+<td><code>∀</code>, <code>∃</code>, <code>∃!</code></td>
+<td></td>
+<td>numbers.kurt</td>
+<td><code>&lt;=</code>, <code>&gt;=</code></td>
+<td><code>≤</code>, <code>≥</code></td>
+</tr>
+<tr>
+<td>natural.kurt</td>
+<td><code>Nat</code>, <code>Real</code></td>
+<td><code>ℕ</code>, <code>ℝ</code></td>
+<td></td>
+<td>integer.kurt, rational.kurt, complex.kurt</td>
+<td><code>Int</code>, <code>Rat</code>, <code>Complex</code></td>
+<td><code>ℤ</code>, <code>ℚ</code>, <code>ℂ</code></td>
+</tr>
+<tr>
+<td>finite.kurt</td>
+<td><code>setminus</code></td>
+<td><code>∖</code></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>modal.kurt's connectives are those of its formulas (terms), not the core's <code>implies</code>, <code>and</code>, ...:
+hence <code>imp</code>, <code>wedge</code>, <code>vee</code>, <code>neg</code>, <code>bot</code> (<code>conj</code> would be complex.kurt's conjugate); <code>∅</code> is
+<code>emptyset</code>, since <code>empty</code> is the empty context of lambda.kurt and modal.kurt. A Greek letter
+that is a name stays one (group.kurt's inverse <code>ι</code>, an operator variable); <code>λ</code>, a binder, has a word.</p>
+<h2 id="sec-4-8">4.8 Inspecting the grammar<a class="headerlink" href="#sec-4-8" title="Permanent link">&para;</a></h2>
+<p><code>syntax</code> (with no argument) prints every declared piece of syntax at every
+open level; <code>syntax SYMBOL</code> prints just what's known about one symbol. For
+the facts that mention a symbol too, not just its declarations, see <code>info</code>
+(<a href="#sec-4-9">§4.9</a>).
+<code>parse EXPR</code> parses <code>EXPR</code> without checking it and prints both its
+s-expression form -- in the normal form Kurt stores and matches (<code>flat</code>
+operators flattened, the arguments of <code>sym</code> ones sorted: <code>parse c + 1 + c</code>
+gives <code>(+ 1 c c)</code>; the exception is <code>=</code> and <code>iff</code>, which are <code>sym</code> for the search but keep their written order: <code>parse b = a</code> gives <code>(= b a)</code>) -- and the same per-symbol syntax info as <code>syntax</code>.
+<code>tokenize EXPR</code> shows the raw token stream before parsing. Each of
+<code>infix</code>/<code>prefix</code>/<code>postfix</code>/<code>brackets</code>/<code>arity</code>/<code>bindop</code>/<code>flat</code>/<code>sym</code>/
+<code>chain</code>/<code>sort</code>/<code>prop</code>/<code>var</code>/<code>const</code>/<code>alias</code>, called with no
+arguments, also prints its own currently-declared table.</p>
+<h2 id="sec-4-9">4.9 Inspecting loaded theories<a class="headerlink" href="#sec-4-9" title="Permanent link">&para;</a></h2>
+<p><code>list</code> shows which theory files are loaded. <code>list files</code> is the explicit spelling of the same
+command. Give it a loaded theory's stem or filename to see all declarations and formulas retained
+from that source:</p>
+<div class="highlight"><pre><span></span><code><span class="k">list</span>
+<span class="k">list</span> files
+<span class="k">list</span> natural
+<span class="k">list</span> natural<span class="o">.</span>kurt
+</code></pre></div>
+<p>A category before the optional source narrows the result:</p>
+<div class="highlight"><pre><span></span><code><span class="k">list</span> <span class="kd">const</span>                 <span class="c1">; every known constant</span>
+<span class="k">list</span> <span class="kd">const</span> natural         <span class="c1">; constants originating in natural.kurt</span>
+<span class="k">list</span> <span class="kd">infix</span> natural<span class="o">.</span>kurt    <span class="c1">; infix declarations originating there</span>
+<span class="k">list</span> <span class="k">theory</span> natural        <span class="c1">; all retained formulas originating there</span>
+<span class="k">list</span> <span class="k">use</span> natural           <span class="c1">; retained axioms originating there</span>
+<span class="k">list</span> <span class="k">def</span> natural           <span class="c1">; retained definitions originating there</span>
+<span class="k">list</span> <span class="k">syntax</span> natural        <span class="c1">; every retained declaration originating there</span>
+</code></pre></div>
+<p>The declaration categories are <code>prefix</code>, <code>infix</code>, <code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>bindop</code>,
+<code>flat</code>, <code>sym</code>, <code>sort</code>, <code>prop</code>, <code>chain</code>, <code>var</code>, <code>const</code>, and <code>alias</code>. A declared sort name is also
+a category, so <code>list term lambda</code> shows the retained <code>term</code> signatures. After <code>list</code>, <code>symbols</code> and
+<code>declarations</code> are synonyms for <code>syntax</code> (<code>list symbols natural</code>). Locations in a source-filtered result refer to the original file and line.</p>
+<p>A source without <code>.kurt</code> matches the stem of a loaded file; a name ending in <code>.kurt</code> matches its
+basename; and a path selects that file. If two loaded files have the same stem or basename, Kurt
+asks for a path. Category names are reserved after <code>list</code>, so a theory called <code>const.kurt</code> is
+selected with <code>list const.kurt</code>.</p>
+<p>Loading retains a theory's exported declarations and labelled, non-<code>local</code> facts. Therefore
+<code>list natural</code> describes the part of <code>natural.kurt</code> present in the current knowledge base, rather
+than reproducing the source file. It cannot show local declarations, unlabelled facts, comments,
+or intermediate proof lines that were discarded during loading.</p>
+<p><code>list</code>'s SOURCE is always a <em>file</em>. To ask about one <em>symbol</em> instead -- its declarations
+(<code>syntax SYMBOL</code>), its <code>def</code> if it has one, and every retained fact that mentions it, wherever it
+came from -- use <code>info SYMBOL</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">load</span> numbers
+<span class="kd">calc</span> on
+<span class="k">def</span> four <span class="o">=</span> <span class="m">2</span> <span class="o">+</span> <span class="m">2</span>
+four <span class="o">=</span> <span class="m">4</span>
+<span class="k">info</span> four
+<span class="c1">; const four                                ; ...</span>
+<span class="c1">; def four = (2 + 2)                        ; ...</span>
+<span class="c1">; four = 4                                  ; ...</span>
+</code></pre></div>
+<p><code>info</code> never resolves its argument as a file (unlike <code>list</code>), so a symbol and a loaded file
+happening to share a name never conflict: <code>info four</code> always means the symbol, even with a loaded
+<code>four.kurt</code> in scope -- <code>list four</code> still means that file.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../terms-symbols-and-their-roles/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 3. Terms, symbols, and their roles">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                3. Terms, symbols, and their roles
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../statements-terms-and-sorts/" class="md-footer__link md-footer__link--next" aria-label="Next: 5. Statements, terms and sorts">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                5. Statements, terms and sorts
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

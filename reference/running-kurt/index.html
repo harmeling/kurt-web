@@ -1,0 +1,1188 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The reference of Kurt, a proof language for students">
+      
+      
+      
+        <link rel="canonical" href="https://harmeling.github.io/kurt-web/reference/running-kurt/">
+      
+      
+        <link rel="prev" href="../the-goal-of-kurt/">
+      
+      
+        <link rel="next" href="../lexical-structure/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>1. Running Kurt - Kurt 0.11.0 Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sec-1" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Kurt 0.11.0 Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1. Running Kurt
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Kurt 0.11.0 Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/harmeling/kurt-lang" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    harmeling/kurt-lang
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-goal-of-kurt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Running Kurt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lexical-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Lexical structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terms-symbols-and-their-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Terms, symbols, and their roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Building the grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../statements-terms-and-sorts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Statements, terms and sorts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. The theory: making and using claims
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal-directed-proof/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Goal-directed proof: show / proof / qed
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building-the-theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Building the theory: hard-coded core vs. loaded theories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blocks-and-natural-deduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Blocks and natural deduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-toggles-and-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Session toggles and output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-gaps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Known gaps (so you don't mistake them for bugs in your proof)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://harmeling.github.io/kurt-web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="sec-1">1. Running Kurt<a class="headerlink" href="#sec-1" title="Permanent link">&para;</a></h1>
+<div class="highlight"><pre><span></span><code>kurt                        # start the interactive shell (a REPL)
+kurt path/to/proof.kurt     # check a proof file, then exit
+kurt -i path/to/proof.kurt  # check the file, then drop into the shell (after an error: at the failing line)
+kurt -d path/to/proof.kurt  # also print debug information
+kurt -v                     # show the version (also `-V`, `--version`)
+kurt -p DIR path/to/proof.kurt   # also search DIR for `load`ed theories
+kurt -s path/to/proof.kurt       # strict, for grading (see below)
+kurt -a path/to/proof.kurt       # all errors, not only the first (also `--all-errors`, see below)
+kurt --budget 10 path/to/proof.kurt  # at most 10 s of search per line (see below; by default no limit)
+kurt -r N path/to/proof.kurt     # set the comment/reason column to N (default 42)
+kurt --no-kurtc path/to/proof.kurt   # neither write nor use `.kurtc` files (see below)
+kurt path/to/proof.kurtc             # the certificates of proof.kurt, readable (see below)
+kurt --deps path/to/proof.kurt       # the files it loads, and their certificates (see below)
+kurt --json path/to/proof.kurt       # the result as JSON, for graders and editors (see below)
+kurt --unused path/to/proof.kurt     # check, then name the lines of the proofs that nothing cites (see below)
+kurt --foundation path/to/proof.kurt # check, then show what each of its facts rests on: axioms, definitions, todos (see below)
+kurt --foundation gauss proof.kurt   # ... only for the fact "gauss" (or at a line: --foundation 12)
+kurt --latex path/to/proof.kurt      # the checked file as a document, proof.tex (also --markdown: proof.md; see below)
+kurt --lean path/to/proof.kurt       # ... as a Lean 4 file, proof.lean (a prototype; see below)
+kurt --lean proof.kurt -o -          # -o FILE: to FILE instead, -o -: to the standard output
+kurt --no-line-numbers proof.kurt    # the output without the source line numbers in front
+kurt --lsp                           # a language server for editors (see below)
+</code></pre></div>
+<p><strong>In the browser:</strong> the playground, <a href="https://www.kurt-lang.org">www.kurt-lang.org</a>, runs the same
+Kurt, checked as you type, with the tutorial, the keyword lessons, the exercises, the theories and
+the proofs of a lecture in its menus. A link can open one of these files:
+<code>https://www.kurt-lang.org/#file=</code> followed by its path in the playground, e.g.
+<code>#file=exercises/01-knights-and-knaves/2-two-islanders.kurt</code>,
+<code>#file=tutorial/02-prove-an-implication.kurt</code> or <code>#file=theories/set.kurt</code>; it shows the
+file's current version, and an exercise loads its scene. "Copy link to this proof" (in the menu
+File) gives such a link for a file opened from a menu, as long as it is unchanged; for an edited
+one, the link contains the text itself.</p>
+<p>If no filename is given, Kurt starts the shell directly. If a filename is
+given without <code>-i</code>, Kurt checks the whole file, prints <code>Proof checked</code> (or,
+if any <code>todo</code>s are left, <code>Proof almost checked: N todos.</code> plus a list of
+where they are) and exits with code <code>1</code> if checking the file raised an
+error (<code>0</code> otherwise) — so a script (CI, an autograder) can tell a failed
+check from a successful one without scraping stderr text. Leftover <code>todo</code>s
+still exit <code>0</code> (a <code>todo</code> is a deliberate, self-reported placeholder, not a
+failure), and errors raised only while typing at an interactive shell
+session don't affect the exit code either.</p>
+<p><strong>All errors (<code>-a</code>/<code>--all-errors</code>):</strong> by default, a check stops at the first error. With <code>-a</code>,
+it goes on after an error in the checked file, so it finds all errors that don't depend on each
+other; each is printed when it is found, the lines after it get their reasons as usual, and the
+file ends with <code>Proof not checked: N errors.</code> (exit code <code>1</code>). To go on, Kurt does internally
+what a student would do to get past the error -- the file isn't changed:</p>
+<ul>
+<li>a formula that can't be derived is admitted, as <code>todo</code> would (so the lines that use it don't
+  fail because of it);</li>
+<li>a block that doesn't close -- a proof whose goal isn't reached, also at the end of the file --
+  is closed anyway, and its claim counts as admitted (any other block is discarded, as <code>break</code>
+  does); the line that closed it is then checked on its own;</li>
+<li>a claim without a proof counts as admitted;</li>
+<li>any other line (one that can't be read, a wrong use of a keyword, a type error) is dropped, as
+  in the shell; if it opens a block, the block is skipped too, and so is the <code>proof</code> of a <code>show</code>
+  that can't be read. A dropped line may cause later errors (e.g. a <code>def</code> that failed).</li>
+</ul>
+<p>The admitted lines are errors, not <code>todo</code>s: they aren't listed as <code>todo</code>s, the file gets no
+<code>.kurtc</code>, and the result is failed. Some errors still stop the check: an error in a file it
+loads (and on a <code>load</code> line), anything inside an <code>expect</code> block (there the error is the expected
+result; <a href="../blocks-and-natural-deduction/#sec-9-6">§9.6</a>), and a <code>KernelError</code>. The editors (<code>kurt --lsp</code>) and the playground show all errors
+by default; from Python, <code>kurt.RunConfig(all_errors=True)</code>, and <code>CheckResult.errors</code> lists them
+(<code>error</code> is the first one).</p>
+<p><strong>Budgets (<code>--budget SECONDS</code>), and cancelling a check:</strong> the search for one line normally takes
+a fraction of a second, but a false claim among many facts can take minutes (the search tries
+every combination before it gives up). A budget stops it: <code>kurt --budget 10 proof.kurt</code> allows
+each line 10 s of search; a line that takes longer fails with a <code>ResourceError</code>:</p>
+<div class="highlight"><pre><span></span><code>ResourceError: the search for this line stopped after 10 s, its budget -- the line is
+neither proved nor refuted; a larger budget may decide it (...)
+</code></pre></div>
+<p>It is a kind of its own, apart from a <code>ProofError</code> (a rejection): the budget says nothing about
+the line, only that the search didn't finish. A budget never changes which steps are accepted --
+it only stops the search early -- and the kernel isn't involved. With <code>--all-errors</code>, the check
+goes on after it as after a <code>ProofError</code> (the line is admitted, see above); <code>expect</code> can't name
+<code>ResourceError</code> (as it can't name <code>KernelError</code>), so a proof file can't depend on a budget, and an
+<code>expect "ProofError"</code> whose line runs out of budget is an error, not confirmed. The command line
+has no budget unless <code>--budget</code> says so; the editors (<code>kurt --lsp</code>) allow 30 s per line (the
+initialization option <code>budget</code>, 0 for none), the playground the same, and
+<a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/grade_exercise.py"><code>scripts/grade_exercise.py</code></a> too (<code>--budget SECONDS</code>). The budget applies to every line checked,
+also in the files a proof loads.</p>
+<p>From Python: <code>kurt.RunConfig(time_limit=10)</code> (seconds), <code>kurt.RunConfig(step_limit=5000)</code> (steps
+of the search: a goal against one fact, or a premise against the facts -- about 1000 to 4000 a
+second, the same on every machine), or both; <code>CheckResult.exhausted</code> says that a line's budget was
+used up (its <code>errors</code> entry has the kind <code>ResourceError</code>), and so does the JSON of <code>--json</code>.
+<code>kurt.RunConfig(cancel=f)</code> asks <code>f()</code> at every step and every line, and stops the check with a
+<code>ResourceError</code> at the current line when it returns true (<code>CheckResult.cancelled</code>; the lines after
+it are not checked, also with <code>all_errors</code>) -- e.g. <code>cancel=event.is_set</code> for a <code>threading.Event</code>
+another thread sets. The language server uses it to stop the check of a text that was edited
+meanwhile (before, the check of the new text waited for it), and the client's <code>$/cancelRequest</code>;
+an embedder of the server sets <code>LanguageServer.cancel = f</code> to stop its check the same way (the
+playground: <code>f</code> reads a flag in a <code>SharedArrayBuffer</code> that its Cancel button sets, so its worker,
+busy with the check, needn't be killed).</p>
+<p><strong>Progress, from Python:</strong> <code>kurt.RunConfig(progress=f)</code> calls <code>f</code> with a dict when a file starts,
+at each of its statements and when it is done: <code>file</code>, <code>line</code> (of <code>lines</code>), <code>index</code> of <code>files</code>
+(the files checked so far -- a theory that the session has checked before and that didn't change is not
+checked again) and <code>done</code>. The playground shows it as a progress bar.</p>
+<p><strong>Strict mode (<code>-s</code>/<code>--strict</code>), for grading:</strong> the checked file (and any
+file it loads that isn't trusted) may not contain <code>use</code> or <code>todo</code>, a <code>chain</code>
+there needs its rules proved before it (<a href="../building-the-grammar/#sec-4-6">§4.6</a>), and every symbol must be declared before its use (<a href="../terms-symbols-and-their-roles/#sec-3-2">§3.2</a>), and <code>calc</code> may not bind symbols to the calculator — everything has to be proven from the theories that come with Kurt, or
+from the ones found in a <code>-p DIR</code> directory (e.g. an exercise's axioms, as
+given by the teacher). Those are the <em>trusted</em> theory files; <code>use</code> inside a
+<code>sandbox</code> or <code>expect</code> stays allowed, since their content is discarded. It
+is a command-line switch rather than a statement in the file, so that the
+file being graded can't switch it off.</p>
+<p><strong>Certificates of a file (<code>.kurtc</code>):</strong> after a file checks completely (no error, no <code>todo</code>), Kurt
+writes <code>foo.kurtc</code> next to <code>foo.kurt</code> (if the directory is writable) -- the certificates of its
+claims (<a href="../the-theory/#sec-6-5">§6.5</a>), in JSON, with the hash of the file and the files it loads. When <code>foo.kurt</code> is
+checked or loaded again, unchanged, each claim first tries its stored certificate: rebuilt with
+the facts as they are now (a step of the line itself that it cites, <code>17a</code>, from its own stored
+certificate first), and checked by the kernel; only if that doesn't work, Kurt searches
+as usual. So the output is the same, it is just faster (for the proof files of this repository,
+up to five times). A <code>.kurtc</code> can't make Kurt accept anything the kernel doesn't check -- a wrong
+or outdated one only costs the time of the search -- so it is also used with <code>--strict</code>. Kurt
+writes and uses <code>.kurtc</code> files when run as <code>kurt</code> (the command line or shell); from Python, only
+in a session with <code>kurt.RunConfig(kurtc=True)</code> -- for a text (<code>check_text</code>), only for the files it
+loads, not for the text itself. <code>kurt --strict foo.kurtc</code> checks <code>foo.kurt</code> with the same options
+as <code>kurt --strict foo.kurt</code>.</p>
+<p>The theories that come with Kurt come with their certificates: the package has them next to the
+theories, and the single-file <code>kurt.py</code> embeds them (<a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/build_certificates.py"><code>scripts/build_certificates.py</code></a> makes them).
+In them, a theory of Kurt is named <code>&lt;kurt&gt;/propositional.kurt</code>, not by where it is, so they fit wherever
+Kurt is installed. If a theory's directory isn't writable, its new certificates go to the cache
+directory (<code>$XDG_CACHE_HOME/kurt</code>, or <code>~/.cache/kurt</code>). A <code>.kurtc</code> that is up to date isn't
+written again. (Without them, <code>load rational</code> in the single-file <code>kurt.py</code> took 8 s each time,
+1.2 s with them.)</p>
+<p><code>kurt --json foo.kurt</code> checks the file and prints the result as JSON (exit code as above): <code>ok</code>,
+<code>complete</code> (also no <code>todo</code> left), <code>error</code>, <code>error_kind</code>, <code>error_line</code>, <code>failure</code> (why a step
+failed, <a href="../the-theory/#sec-6-1">§6.1</a>), <code>errors</code> (each with its <code>kind</code>, <code>line</code>, <code>column</code>, <code>message</code>, <code>failure</code>, and the
+<code>file</code> for an error in a file it loads; with <code>--all-errors</code> all of them, else the one), <code>exhausted</code>
+and <code>cancelled</code> (a budget was used up, the check was cancelled; see above), <code>todos</code>,
+<code>loaded</code> (the files it loaded, also through other files), <code>certificates</code> (of each line, as <code>cert</code> shows them), the text <code>output</code>, and <code>events</code>, each printed line as a record -- the
+source <code>line</code>, its <code>id</code> (<code>5</code>, <code>5a</code>, <code>11-13</code>), its <code>kind</code> (<code>step</code>, <code>claim</code>, <code>open</code>, <code>close</code>,
+<code>assumed</code>, <code>load</code>, <code>declaration</code>, <code>expect</code>, <code>error</code>, <code>text</code>, <code>other</code>), <code>level</code>, <code>text</code>, the
+<code>rule</code> and the lines it <code>uses</code>, its <code>label</code>, the user's <code>comment</code>, and where they apply its
+<code>steps</code> and <code>schema</code>:</p>
+<div class="highlight"><pre><span></span><code>{"line": 5, "id": "5", "kind": "step", "level": 0, "text": "B", "reason": "5 by rule(4)",
+ "comment": "modus ponens", "rule": "rule", "uses": ["4"]}
+</code></pre></div>
+<p>From Python, the same comes from <code>kurt.check_file(path)</code> or <code>kurt.check_text(text)</code> (a
+<code>CheckResult</code>, with <code>.events</code> and <code>.to_json()</code>). A text is never trusted (under <code>strict</code>, it may
+not <code>use</code>), whatever name it is given -- trust comes from where a file is read. One exception, for
+the editors: a text under the path of a theory of the running Kurt that is exactly that file's text
+(saved, unchanged) is that theory, trusted like it; a changed text is not. Like the command
+line, the module refuses to check under <code>python -O</code> (which removes Kurt's internal checks).</p>
+<p><strong>Does the file prove a given theorem?</strong> <code>ok</code> and <code>complete</code> say that the file checks (an empty
+file is complete), not what it proves. <code>result.proves(statement, label=None)</code> says whether the
+file proves <code>statement</code> at its top level: derived in this file by steps that rest on no
+admission -- not a <code>use</code> or <code>def</code>, not a <code>todo</code> or a claim whose proof contains one (anywhere
+in the proof, needed or not) or uses a fact that was admitted (a <code>todo F</code> before it, a claim
+admitted after an error with <code>--all-errors</code>), not a fact of a loaded file, not a claim that is
+withdrawn (<code>break</code>) or only proved inside a block. With <code>label</code> (or a label written in the
+statement, <code>proves('A ⇒ B "ab"')</code>), the fact must carry that label; without one, any label
+will do. The statement is written as Kurt reads it, with or without <code>show</code>, and is read in the
+file's final context: <code>A ⇒ B</code> and <code>A implies B</code> are the same statement, <code>A ∧ B</code> and <code>B ∧ A</code>
+too (<code>∧</code> is <code>sym</code>), and a statement the file can't read (a notation it doesn't declare) is one it
+doesn't prove. <code>result.proof_of(statement, label=None)</code> says how the file states it:
+<code>'proved'</code>, <code>'admitted'</code> (a <code>todo</code>, or a proof that rests on one or on an error), <code>'assumed'</code>
+(<code>use</code>, <code>def</code>), <code>'loaded'</code> (a fact of a file it loads, not proved here), or <code>None</code> (not stated
+at the top level); when it is stated more than once, the best counts. <code>result.loaded</code> lists the
+files the check loaded, directly or through other files, by their paths -- a grader checks it
+against the files a solution may load (<a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/grade_exercise.py"><code>scripts/grade_exercise.py</code></a>: only what the exercise
+loads; a file that states the answer is no proof, even if the solution derives the answer from it
+in one step). Neither says anything after a check that stopped at an error (<code>proves</code> is false,
+<code>loaded</code> empty); with <code>all_errors</code>, the check runs to the end, and <code>proves</code> tells the claims
+whose proofs are sound from the ones admitted after an error.</p>
+<div class="highlight"><pre><span></span><code>&gt;&gt;&gt; result = kurt.check_text('load propositional\nbool A, B\nshow A ∧ B ⇒ A "a"\nproof\n    assume A ∧ B\n        A\nqed\n')
+&gt;&gt;&gt; result.proves('(A and B) implies A'), result.proves('A ∧ B ⇒ A', 'b'), result.proof_of('A')
+(True, False, None)
+</code></pre></div>
+<p><strong>What a fact rests on (<code>--foundation</code>).</strong> <code>kurt --foundation foo.kurt</code> checks the file and then
+shows, for each fact at its top level, its class -- <code>axiom</code> (<code>use</code>),
+<code>definition</code> (<code>def</code>), <code>todo</code>, or <code>theorem</code> (a proved line, or a <code>show</code> with its proof) -- and, for a
+theorem, what it rests on: the <code>use</code> axioms and <code>def</code>s that the steps of its proof cite, directly
+or through the facts they cite, by file; the <code>todo</code>s that admit a step; the steps computed by the
+calculator (<code>calc on</code>), with the symbols' bindings and the file whose <code>builtin</code> made them
+(<code>`+` add, `=` eq of numbers.kurt</code>). A fact without a label is named by its line (<code>line 12</code>), with
+its statement in its own heading: an unlabelled <code>use</code> is an axiom of the file like a labelled one
+(only it isn't exported). Found by walking the certificates of
+the steps (<a href="../the-theory/#sec-6-5">§6.5</a>): through the blocks (a block's result rests on what its last line rests on; the
+block's own assumption is discharged when it closes, so it is no postulate), and into the theories
+it loads (a loaded theorem brings what it rests on in its file). A theorem with no <code>todo</code> behind it
+is <em>established, relative to</em> these axioms and definitions; one with a <code>todo</code> (or, with
+<code>--all-errors</code>, a line admitted after an error) is <em>accepted relative to</em> it. The class of a fact
+stays what it is (<a href="../the-theory/#sec-6-3-1">§6.3.1</a>): <code>use</code> is an axiom, also where it could be proved. After the facts, the
+reverse: each postulate with the facts that rest on it -- for a change of an axiom, this is who is
+affected. For a teacher choosing a trusted set of theories: which <code>use</code>s a theorem really needs.
+<code>kurt --foundation LABEL foo.kurt</code> (or <code>kurt foo.kurt --foundation LABEL</code>) shows one fact, found by its
+label or its line: a theorem with what it rests on, an axiom, definition or <code>todo</code> with the facts of the
+file resting on it. In an editor (<code>kurt --lsp</code>), the hover of a theorem at the top level says it in
+one line: "<strong>rests on:</strong> 2 axioms of gauss.kurt, 3 axioms of natural.kurt, 1 def, the calculator, no todo".</p>
+<div class="highlight"><pre><span></span><code>gauss.kurt: what each fact at its top level rests on
+
+"gauss" (line 12, theorem): established, relative to 4 axioms, 1 definition and the calculator
+    gauss.kurt: "sum-def" (line 5), line 14 computed by the calculator (`+` add, `=` eq of numbers.kurt)
+    natural.kurt: "induction" (line 40), "plus-zero" (line 22), ...
+    equality.kurt: "equal-elim" (line 23)
+
+each postulate, and the facts above that rest on it:
+    ...
+</code></pre></div>
+<p>The rules a <code>chain</code> declaration stands for appear as <code>the rules of `chain = &lt; &lt;=`</code>. From Python,
+<code>check_file(path, foundation=True)</code> (and <code>check_text</code>) fills <code>CheckResult.foundations</code>, one record
+per fact -- <code>label</code>, <code>line</code>, <code>file</code>, <code>text</code>, <code>class</code>, <code>status</code> (<code>established</code>/<code>accepted</code>, or the class
+of an axiom, definition or <code>todo</code>) and <code>rests_on</code>, each postulate with its <code>kind</code> (<code>use</code>, <code>def</code>, <code>todo</code>,
+<code>calc</code>, <code>admitted</code>), <code>file</code>, <code>line</code>, <code>label</code> and <code>text</code> (and for <code>calc</code>, <code>bound_in</code>: the files of its
+bindings) -- and <code>result.foundation("gauss")</code> finds one by
+its label (or line); <code>kurt --json</code> includes them as <code>foundations</code>. Nothing is stored for this: it is
+computed from the certificates after the check, so it costs nothing where it isn't asked for.</p>
+<p><code>kurt --lsp</code> is a language server (the Language Server Protocol, over
+stdin/stdout) for editors -- VS Code (the extension of kurt-syntax), Emacs
+(Eglot), and Neovim. A file is checked when it is opened and saved. A client
+can request debounced checks while typing. Errors and <code>todo</code>s appear as
+diagnostics at their lines, the reason of each checked line appears at its end
+(an inlay hint) and on hover; what a line prints besides a reason (<code>builtin</code>, <code>infix</code>,
+<code>theory</code> without arguments, <code>cert 14</code>, ...) appears on hover too (its first 60 lines); a line
+without a certificate says on hover what it does, with its own symbols (<code>var a, b</code>: "<code>a</code>, <code>b</code>
+stand for anything ..."; <code>infix ^ 75 74</code>: right-associative; <code>calc on</code>, <code>tex</code>, ...); a theorem
+at the top level says what it rests on ("rests on: 3 axioms of propositional.kurt, 1 def, no
+todo", see <code>--foundation</code>). A line
+inside a proof that nothing cites is greyed out (a hint with the LSP tag "unnecessary", as an
+unused import), and <code>kurt --unused</code> names these lines: backwards from what must stay -- the
+top-level lines, the labelled ones, <code>qed</code>, and a proof's last line that is its goal -- along what
+each step cites; a block's result cites the block's last line and its first, so a block whose
+result nothing needs is greyed out entirely. A line that restates a block's result (<code>∀ x Q(x)</code>
+after a <code>let</code> block), an assumption, or the line before it isn't greyed out: it helps the reader,
+and the hover says that Kurt doesn't need it. Only lines of <code>proof</code>, <code>assume</code>, <code>let</code>, <code>pick</code> and
+<code>case</code> blocks are reported, and only of a file without errors; "nothing cites it" isn't "it could be
+deleted" (a step may be found without citing a line that helped). And
+completion knows the state at the cursor (the
+next step, the value after <code>=</code> with <code>calc on</code>, LaTeX shortcuts, theories, and
+names). Positions use the LSP's UTF-16 convention, so mathematical symbols
+before a completion or hint do not shift it.</p>
+<p>The initialization options are <code>theoryPaths</code> (additional trusted theory
+directories), <code>strict</code>, <code>allErrors</code> (all errors of a file, the default; <code>false</code>:
+only the first, as <code>kurt</code> without <code>-a</code>), <code>budget</code> (seconds of search per line, 30 by
+default; 0 for none; a line that takes longer gets a <code>ResourceError</code> diagnostic, see
+"Budgets" above), <code>checkOnChange</code> (also accepted as
+<code>checkOnType</code>), and <code>checkOnChangeDelay</code> in seconds. A check of a text that is edited while it
+runs stops at its next step. The directory of the edited file is searched
+first but remains untrusted; only an explicit theory path grants trust. When an
+open document loads another open document, Kurt checks the current unsaved
+text of the loaded document. Closing a document clears its diagnostics.</p>
+<p><code>kurt --deps foo.kurt</code> shows the tree of the files that <code>foo.kurt</code> loads (read from their <code>load</code>
+lines, before anything is checked), each with the state of its certificates and the dates of the
+file and its <code>.kurtc</code>:</p>
+<div class="highlight"><pre><span></span><code>gauss.kurt  -- certified  (file 2026-09-29 06:11, certificates 2026-09-29 06:13)
+└─ analysis.kurt  -- certified  (file 2026-09-28 16:11, certificates 2026-09-29 06:13)
+   └─ natural.kurt  -- out of date: the file changed since  (file 2026-09-29 07:02)
+      ├─ set.kurt  -- certified, but logic.kurt changed since  (...)
+      ...
+</code></pre></div>
+<p>"certified, but ... changed since" means: the certificates fit the file, but a file it loads has
+changed -- they are still tried (and checked by the kernel) the next time, and rewritten after it.</p>
+<p>After the tree, <code>--deps</code> checks <code>foo.kurt</code> (quietly) and lists the symbols it uses from theories
+that it doesn't load itself, by theory -- e.g. <code>logic.kurt: `forall`</code> for a file that loads
+only <code>natural</code> and writes <code>∀</code> (see <code>load</code>, <a href="../building-the-theory/#sec-8-2">§8.2</a>).</p>
+<p><strong>The <code>.kurt</code> file is the only source of truth.</strong> Everything else is derived from it, can be
+deleted, and is never trusted: a <code>.kurtc</code> only holds hints, which the kernel checks each time;
+the reasons Kurt prints and <code>cert</code> only show a check that already happened; and <code>save</code> writes
+Kurt source again, not a snapshot of facts.</p>
+<p><code>kurt foo.kurtc</code> shows the certificates of <code>foo.kurt</code>, line by line, as <code>cert</code> does: the goal, the
+rule (with its file and line), the values of its variables, and the facts it uses, and the
+blocks it closes. Kurt checks <code>foo.kurt</code> for that (quietly, with the <code>.kurtc</code>), so what is shown
+was checked by the kernel; the first line says whether the <code>.kurtc</code> still belongs to the file.</p>
+<p><strong>Documents and Lean (<code>--latex</code>, <code>--markdown</code>, <code>--lean</code>, <code>-o</code>).</strong> A checked proof as a document: <code>kurt --latex proof.kurt</code> writes <code>proof.tex</code>, <code>kurt --markdown
+proof.kurt</code> writes <code>proof.md</code> -- each line in mathematical notation, indented by its block, with its
+reason, and then the certificates. A line that continues a chain is written as in mathematics, its
+relation and its right side (<code>= x</code>), without the left side Kurt repeats. How a symbol is written comes from its theory:</p>
+<div class="highlight"><pre><span></span><code><span class="k">tex</span> alpha <span class="o">\</span>alpha                    <span class="c1">; a symbol</span>
+<span class="k">tex</span> sum <span class="o">\</span>sum_<span class="p">{</span>$<span class="m">1</span><span class="o">=</span>$<span class="m">2</span><span class="p">}</span><span class="o">^</span><span class="p">{</span>$<span class="m">3</span><span class="p">}</span> $<span class="m">4</span>        <span class="c1">; $1, $2, ... the places of the arguments, in the order of</span>
+                                    <span class="c1">; the shape (`arity sum _ (_, _) _`: the variable, a, b, T)</span>
+</code></pre></div>
+<p>(only output: nothing Kurt checks changes; exported with <code>load</code>). The <code>tex</code> lines, and the <code>lean</code>
+lines (below), belong in the theory files, with the symbols they write -- not in a file of their
+own (decided 2026-10-23); Kurt's theories in <a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a> keep theirs there. Without a declaration, Greek
+letters and symbols are written by their LaTeX names, longer names upright (<code>\mathrm{abs}</code>), and a
+variable <code>$x</code> as <code>x</code> -- as <code>\mathsf{x}</code> only where a constant <code>x</code> is in the same formula.</p>
+<p>A Lean 4 file of a checked proof (a prototype): <code>kurt --lean proof.kurt</code> writes <code>proof.lean</code>
+(it doesn't run Lean; the last line Kurt prints is the command for that), and <code>lean proof.lean</code> checks it again
+with Lean's kernel. It writes each step from its certificate -- the rule with the certificate's
+values, and its premise from the cited facts -- and the theories' rules as Lean <code>axiom</code>s (but
+those with a proof in Lean, see below), so Lean checks the proof, not the theories. Kurt's objects are one type <code>Obj</code>, its statements <code>Prop</code>; a
+<code>flat</code> or <code>sym</code> operator comes with its associativity or commutativity as an axiom (that is what
+the declaration asserts), <code>∀ x ∈ A P</code> is <code>∀ x, x ∈ A → P</code> and <code>∃ x ∈ A P</code> is <code>∃ x, x ∈ A ∧ P</code>
+(<a href="../building-the-grammar/#sec-4-4">§4.4</a>'s "forall-cond-def"/"exists-cond-def"), any other binder is a constant applied to <code>fun x =&gt;
+...</code> (<code>sum i (a, b) T</code> is <code>sum a b (fun i =&gt; T)</code>; logic.kurt's <code>∃! x P(x)</code> is what its definition
+says, <code>∃ x, P x ∧ ∀ y, P y → y = x</code>, by its <code>lean</code>), a <code>def</code> is a Lean <code>def</code> with its defining
+equation proved by <code>rfl</code> (a <code>def</code> over a tuple, <code>def coprime($a, $b) ⇔ ...</code>, a function of the
+components, <code>coprime a b</code>; the <code>def</code>s of the symbols in what a step cites of a loaded file are Lean
+<code>def</code>s too), a <code>case</code> step <code>rcases</code>, and a symbol that is applied and also an object (<code>f a</code>, <code>f ∈ (A
+→ B)</code>) is an <code>Obj</code> applied with <code>k_apply</code>. Without a number theory, a number is a constant of its
+own (<code>k_num_17 : Obj</code>; <code>0</code> and <code>1</code> of field.kurt are its zero and one, which only its axioms
+describe -- Kurt knows nothing else of them there), and a <code>calc</code> step is not translated: a <code>sorry</code>,
+listed at the end of the file. The rules of propositional.kurt, logic.kurt and equality.kurt are theorems
+of Lean's logic (each <code>lean "label" grind</code>, see below; <code>invimplies</code> by its <code>lean</code>), so Lean checks the
+logical rules a proof uses, with or without Mathlib.</p>
+<p><em>With Mathlib (numbers).</em> A theory says how its symbols read in Lean (with Mathlib, but for
+propositional.kurt's <code>lean invimplies ($2 → $1)</code> and logic.kurt's <code>∃!</code>), as <code>tex</code> does for LaTeX (raw to the end of the line, <code>$1</code>, <code>$2</code>, ... the places of the arguments; one template
+per number of arguments, so <code>-</code> has two; only output, exported with <code>load</code>):</p>
+<div class="highlight"><pre><span></span><code>lean Obj ZFSet                      ; the Lean type of Kurt's objects (objects.kurt)
+lean real ℝ                          ; the Lean type of the sort `real` (numbers.kurt), embedded into it
+lean complex ^ k_cpow $1 $2          ; the `complex` profile of the overloaded `^` (complex.kurt)
+lean + $1 + $2
+lean - $1 - $2                      ; `a - b`
+lean - -$1                          ; `- a`
+lean - opaque $1                    ; `- a` has no Lean meaning here: a constant of its own
+lean ! Real.Gamma ($1 + 1)
+lean Nat member $1 ∈ Set.range (fun n : ℕ =&gt; (n : ℝ))     ; what `x ∈ Nat` means
+lean {_,...,_} k_numset (fun x_ =&gt; ∃ k_ : ℕ, x_ = $1 + k_ ∧ x_ ≤ $2)   ; a set with `...`, by its shape
+lean lim (Filter.limUnder (nhdsWithin $1 {$1}ᶜ) $2)        ; a binder: `lim v a T`
+</code></pre></div>
+<p>A <code>lean</code> declaration replaces the one of a file it loads (for the same number of arguments). An
+overloaded operator (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>) is written by the least sort of each occurrence: <code>lean SORT OP TEMPLATE</code> for
+the profile of that sort, else the operator's own <code>lean</code> (<code>+</code> of <code>ℝ</code> or of <code>ℂ</code>: Lean's <code>+</code> either way),
+its arguments cast to the profile's type. A binder's places are its condition (if it has one) and its body, both as functions (<code>fun x =&gt; ...</code>),
+and the arguments between them, a range <code>(a, b)</code> as two (<code>sum i (a, b) T</code>: <code>$1</code> a, <code>$2</code> b, <code>$3</code> the
+body). <code>member</code> declares a set of numbers: a definition, the set of the embedded numbers with the
+property (<code>k_numset</code>), and what membership in it means a theorem (<code>k_mem_Nat : ∀ x : ℝ, k_emb x ∈
+Nat ↔ x ∈ Set.range ...</code>) -- from it the rules about the set are theorems. A set written with <code>...</code>
+has the <code>lean</code> of its shape, <code>{_,...,_}</code> for <code>{a, ..., c}</code>, <code>{_,_,...}</code> for <code>{a, b, ...}</code> (the places
+are its elements).</p>
+<p><em>A model of a theory's own operations.</em> <code>lean SYMBOL def TEMPLATE</code> makes the template a Lean
+definition (<code>@[irreducible] noncomputable def</code>, named by the symbol and the number of arguments),
+and the terms use its name -- they stay small, and the laws of a <code>flat</code>/<code>sym</code> operator are proved by
+unfolding it. A numeral can be mapped like a symbol (<code>lean 0 ...</code>) where no theory of numbers gives
+it a type. field.kurt is the example: <code>K</code> is the set of the embedded reals, and the operations decode
+their arguments (<code>k_dec</code>, the inverse of <code>k_emb</code>), compute in ℝ and embed the result:</p>
+<div class="highlight"><pre><span></span><code>lean K def ZFSet.range (fun x : ℝ =&gt; k_emb x)
+lean 0 k_emb (0 : ℝ)
+lean + def k_emb ((k_dec $1 : ℝ) + (k_dec $2 : ℝ))
+</code></pre></div>
+<p>modal.kurt has a model of its own as the objects (<code>lean Obj ((Nat → Nat → Prop) → Nat → Prop)</code>,
+Kripke semantics): <code>kurt --lean field.kurt</code> and <code>kurt --lean modal.kurt</code> prove every axiom of the
+theory true in its model (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §11).</p>
+<p><em>Sets and numbers.</em> Kurt's objects are the sets of Mathlib's model of ZFC (<code>ZFSet</code>, objects.kurt's
+<code>lean Obj ZFSet</code>), and a sort with a type of its own -- numbers.kurt's <code>lean real ℝ</code> -- is embedded
+into them, as <code>real ⊂ set</code> says: <code>k_emb : ℝ → Obj</code> is a definition (an ordinal for each real, by a
+well-ordering, and its von Neumann level), injective by Mathlib's theorems, so nothing is assumed.
+A variable, constant or binder of the sort <code>real</code> is a real (<code>∀ x ∈ Nat</code> over <code>ℝ</code>, <code>x</code> a number by its places or <code>default real</code>),
+every other object a set; a number at the place of a set is <code>k_emb x</code> (<code>1 ∈ A</code> is <code>k_emb 1 ∈ A</code>,
+<code>{1, 2}</code> Lean's own <code>{k_emb 1, k_emb 2}</code>, <code>(1, c)</code> the Kuratowski pair <code>ZFSet.pair</code>), and <code>=</code>
+between a number and a set compares them as sets. In set.kurt <code>∈</code> is <code>ZFSet</code>'s membership, <code>∅</code>,
+<code>∪</code>, <code>Pow</code>, <code>×</code>, <code>A → B</code> (<code>ZFSet.funs</code>) Mathlib's, <code>{z ∈ A | P}</code> separation (<code>ZFSet.sep</code>; a part
+chosen among the numbers, <code>{n ∈ Nat | n &gt; 2}</code>, with the property read on the embedded numbers,
+<code>k_lift</code>), a mapping applied, <code>f a</code>, the <code>b</code> with <code>(a, b) ∈ f</code> (<code>k_apply</code>, a choice), and every rule
+of set.kurt, its theorems and the rules of a set by its elements (<code>$x ∈ {a, b, c} ≡ ...</code>) are
+theorems of Mathlib. So a proof that mixes sets and numbers is checked against one model of both --
+no axiom of set.kurt is read over the reals. The rules of propositional.kurt, logic.kurt and equality.kurt
+are proved once for every type (<code>∀ {α : Type u}</code>: their variables without a sort), so "forall-elim"
+applies to <code>∀ x ∈ Nat</code> over the reals and to <code>∀ x</code> over the sets alike. Without set.kurt and the
+numbers (field.kurt, group.kurt, vectorspace.kurt: no sorts), the objects stay an opaque <code>Obj</code>.</p>
+<p>The theories of numbers all read Kurt's numbers as Mathlib's reals <code>ℝ</code> (numbers.kurt's <code>lean real
+ℝ</code>; natural.kurt, integer.kurt, rational.kurt extend it, as in Kurt): <code>Nat</code>, <code>Int</code>, <code>Rat</code> are the
+sets of the embedded casts of <code>ℕ</code>, <code>ℤ</code>, <code>ℚ</code>, so <code>-</code> and <code>/</code> are the real ones everywhere, <code>^</code>
+is the real power <code>Real.rpow</code>, and <code>n!</code> is <code>Γ(n + 1)</code> (<code>Real.Gamma</code>: <code>0! = 1</code> and <code>n! = n (n -
+1)!</code> for every <code>n &gt; 0</code>, the two rules numbers.kurt has, and the factorial for a natural number). In
+analysis.kurt <code>abs</code> is <code>|x|</code>, <code>sum i (a, b) T</code> the sum of <code>T(b), T(b-1), ..., T(a)</code> (<code>⌈b - a⌉ + 1</code>
+terms; for fewer than none, its negative, as for a sum over an integer range: so "sum-last" holds
+for any <code>a</code>, <code>b</code>), <code>max</code>/<code>sup</code> the supremum <code>sSup</code> of the values (<code>min</code>/<code>inf</code>: <code>sInf</code>), <code>argmax</code> a
+choice (Hilbert's ε), <code>lim</code> and <code>tends</code> Mathlib's limit along the punctured neighbourhoods; in
+continuity.kurt and derivative.kurt <code>cont</code>, <code>diff</code>, <code>deriv</code> are <code>ContinuousAt</code>,
+<code>DifferentiableAt</code>, <code>deriv</code>; in sequences.kurt <code>converges</code> and <code>seqlim</code> the limit along <code>atTop</code> of
+the values at <code>0, 1, 2, ...</code>; in integral.kurt <code>integral</code> is Mathlib's interval integral and
+<code>integrable</code> is read as "continuous on [a, b]" (the rules make a function integrable only that way).</p>
+<p>complex.kurt reads <code>complex</code> as Mathlib's <code>ℂ</code> (<code>lean complex ℂ</code>): a real where a complex number is
+required is its cast <code>((x : ℝ) : ℂ)</code>, <code>z + x</code> is the <code>+</code> of <code>ℂ</code> and <code>x + 1</code> of reals the one of <code>ℝ</code>,
+<code>i</code> is <code>Complex.I</code>, <code>re</code>, <code>im</code>, <code>conj</code>, <code>cabs</code> are <code>Complex.re</code>, <code>Complex.im</code>, <code>starRingEnd ℂ</code>, <code>‖z‖</code>.
+Among the sets a real is the complex number it is: <code>k_embC</code> embeds a complex number with imaginary
+part 0 as its real part (<code>k_emb</code>), every other one at a von Neumann level above those of the reals
+(a definition, injective, nothing assumed), and <code>Complex</code> is the set of them. The complex <code>^</code> is
+<code>k_cpow</code>, the real power on two reals (<code>^</code> is one function: a real power is a complex one) and
+Mathlib's <code>cpow</code> otherwise. A rule about complex numbers used for reals (<code>complex-div-self</code> for <code>x / x
+= 1</code>) is a statement about their casts, which Mathlib's casts bring back (<code>norm_cast</code>, <code>push_cast</code>).</p>
+<p><em>The theories' rules are theorems.</em> A rule's proof in Lean is kept with the rule, in its theory:</p>
+<div class="highlight"><pre><span></span><code><span class="k">use</span> <span class="nv">$a</span> <span class="o">=</span> <span class="nv">$b</span>  <span class="o">⇒</span>  <span class="nv">$a</span> <span class="o">+</span> <span class="nv">$c</span> <span class="o">=</span> <span class="nv">$b</span> <span class="o">+</span> <span class="nv">$c</span>   <span class="s">"add-eq"</span>
+<span class="k">lean</span> <span class="s">"add-eq"</span> intros<span class="c1">; subst_vars; rfl</span>
+</code></pre></div>
+<p><code>lean "label" TACTIC</code> is a line of a proof (a tactic, raw to the end of the line, <code>;</code> too, so no
+comment after it; more lines for the same label are the next lines of the proof, an indentation
+after one space is kept) of the fact "label" of the file, at its top level and after the fact --
+only output, as <code>tex</code>: Kurt doesn't read the tactic. <code>kurt --lean</code> writes such a rule as a
+<code>theorem</code> with this proof instead of an <code>axiom</code> (with a comment <code>-- numbers.kurt:70 "add-eq":
+proved in Lean</code>), so Lean checks the theory's rules, not only the steps of the proof; a tactic that
+doesn't prove the rule is an error in Lean. The rules a <code>chain</code> of Mathlib's relations generates
+(<code>chain = &lt;= &lt;</code>: "chain-trans-1-2") are theorems by <code>linarith</code>, as <code>flat</code>/<code>sym</code> of <code>+</code> are by <code>ring</code>,
+and what the calculator knows of <code>Nat</code> (<code>6 ∈ Nat</code>, <code>k_calc_Nat</code>) is one of <code>k_mem_Nat</code>; a <code>def</code> of a
+loaded file that a step uses is a Lean <code>def</code>, as the file's own. Every rule of the theories of
+numbers (numbers, natural, integer, rational, analysis, continuity, sequences, derivative,
+integral) and of set.kurt is proved this way -- natural.kurt's six rules of <code>{a, ..., c}</code> and <code>{a, b,
+...}</code> too (the sets of their shapes' <code>lean</code>) -- but "integral-riemann" (true for a continuous
+function, but its proof isn't in Mathlib); and the theorems Kurt proves in natural.kurt,
+integer.kurt and rational.kurt have a <code>lean "label"</code> too, for a proof that cites them (those about
+<code>⊂</code>, <code>even</code>, <code>odd</code>, <code>∣</code>, <code>coprime</code> unfold the <code>def</code>s of these symbols). The tactics don't name the variables (<code>intros</code>, <code>‹_›</code>):
+Kurt orders the arguments of <code>+</code>, <code>*</code> and <code>∧</code> its own way, and names its variables by numbers.
+<code>kurt --lean numbers.kurt</code> writes a theory itself, all its rules with their proofs.</p>
+<p>Where the proof's theories give a <code>lean Obj</code>, <code>kurt --lean</code> writes <code>import Mathlib</code>, <code>abbrev Obj :
+Type 1 := ZFSet.{0}</code> with the embedding instead of the opaque <code>axiom Obj : Type</code>, a number <code>2</code> as <code>(2 : ℝ)</code>, a mapped symbol by
+its template (the others stay <code>axiom</code>s), the laws of a mapped <code>flat</code>/<code>sym</code> operator as theorems
+(<code>ring</code>), and a <code>calc</code> step by <code>norm_num</code> (then <code>simp</code>, <code>ring_nf</code>, <code>linarith</code>, <code>decide</code>; for a fact
+that computes to the goal, the same on the fact and the goal) -- what none of them closes stays a
+<code>sorry</code>, which Lean reports. The last line Kurt prints is then <code>lake env lean FILE</code>, to run in a
+lake project with Mathlib. Kurt's repository has one, <a href="https://github.com/harmeling/kurt-lang/tree/main/scripts/lean"><code>scripts/lean</code></a> (Lean and Mathlib of the same
+version as <a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/lean-toolchain"><code>scripts/lean-toolchain</code></a>; neither Kurt nor <code>pip install kurt-lang</code> needs it):</p>
+<div class="highlight"><pre><span></span><code>cd scripts/lean &amp;&amp; lake exe cache get      # once: Mathlib's prebuilt files, ~5 GB in scripts/lean/.lake
+python3 scripts/lean_check.py proof.lean   # Lean with Mathlib if the file imports it, else plain `lean`
+</code></pre></div>
+<p><code>-o FILE</code> writes the document (or the Lean file) to <code>FILE</code> instead of next to the proof, <code>-o -</code> to
+the standard output, for a pipe: <code>kurt --lean proof.kurt -o - | lean --stdin</code>, <code>kurt --markdown
+proof.kurt -o - | pandoc -o proof.pdf</code>. Then what Kurt says goes to the standard error, and a proof
+that doesn't check writes nothing (an error, exit status 1). With <code>-o</code>, one format per run
+(without it, <code>--latex --lean</code> writes both files).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../the-goal-of-kurt/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 0. The goal of Kurt">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                0. The goal of Kurt
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../lexical-structure/" class="md-footer__link md-footer__link--next" aria-label="Next: 2. Lexical structure">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                2. Lexical structure
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "navigation.top", "navigation.tracking", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
