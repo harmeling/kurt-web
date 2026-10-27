@@ -455,13 +455,13 @@ test('the reference next to the playground: its pages, the links between them, K
   await expect(page.locator('#sec-3-1')).toBeVisible();
 });
 
-// a proof whose last line takes more than 8 s of search (Kurt's tests/test_budgets.py, `false_case(8, decoy=True)`)
-function slowProof(n = 8) {
-  const alts = Array.from({ length: n }, (_, i) => `A${i}`), noise = Array.from({ length: n }, (_, j) => [`B${j}`, `C${j}`, `H${j}`]);
-  const lines = ['load propositional', `prop ${[...alts, 'G', ...noise.flat()].join(', ')}`, `use ${alts.join(' or ')}`];
-  for (const [b, c, h] of noise) lines.push(`use ${b} or ${c}`, `use ${b} implies ${h}`, `use ${c} implies ${h}`);
+// a proof whose last line takes more than 8 s of search (Kurt's tests/test_budgets.py, `twice_case(10)`: a false goal
+// after a disjunction with one alternative twice; the decoy case of an earlier Kurt is fast since 0.11)
+function slowProof(n = 10) {
+  const alts = Array.from({ length: n - 1 }, (_, i) => `A${i}`);
+  const lines = ['load propositional', `prop ${[...alts, 'G'].join(', ')}`, `use ${[...alts, alts[alts.length - 1]].join(' or ')}`];
   for (const a of alts.slice(0, -1)) lines.push(`use ${a} implies G`);
-  lines.push('prop D', `use (${alts[0]} or (D and %X)) implies G`, 'G');
+  lines.push('G');
   return lines.join('\n') + '\n';
 }
 
