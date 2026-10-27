@@ -264,9 +264,11 @@ function buildGrammar() {
 }
 function escapeHtml(text) { return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function highlightLine(line) {
-  const safe = escapeHtml(line); let quoted = false, commentAt = -1;
-  for (let i = 0; i < safe.length; i++) { if (safe[i] === '"') quoted = !quoted; if (!quoted && safe[i] === ';') { commentAt = i; break; } }
-  const code = commentAt < 0 ? safe : safe.slice(0, commentAt), comment = commentAt < 0 ? '' : safe.slice(commentAt);
+  // (the comment starts at the first `;` outside a string of the line as written: not of the escaped text,
+  // where `&lt;` and `&gt;` have a `;` of their own)
+  let quoted = false, commentAt = -1;
+  for (let i = 0; i < line.length; i++) { if (line[i] === '"') quoted = !quoted; if (!quoted && line[i] === ';') { commentAt = i; break; } }
+  const code = escapeHtml(commentAt < 0 ? line : line.slice(0, commentAt)), comment = commentAt < 0 ? '' : escapeHtml(line.slice(commentAt));
   let last = 0, pieces = [], match, strings = /".*?"/g;
   while ((match = strings.exec(code))) { pieces.push(colorCode(code.slice(last, match.index))); pieces.push(`<span class="tok-string">${match[0]}</span>`); last = match.index + match[0].length; }
   pieces.push(colorCode(code.slice(last)));

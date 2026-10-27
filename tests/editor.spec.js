@@ -325,6 +325,15 @@ test('has a content security policy, and nothing the page loads breaks it', asyn
   expect(violations).toEqual([]);
 });
 
+test('a line with < or > is shown as written, its comment starts at its own ;', async ({ page }) => {
+  const shown = await page.evaluate(() => ['x < 0 ∨ x = 0 ∨ x > 0   ; by trichotomy', '$x * $x >= 0', 'case x <= 0 "a;b <"'].map(line => {
+    const box = document.createElement('div'); box.innerHTML = highlightLine(line);
+    return { text: box.textContent, comment: [...box.querySelectorAll('.tok-comment')].map(e => e.textContent) };
+  }));
+  expect(shown.map(s => s.text)).toEqual(['x < 0 ∨ x = 0 ∨ x > 0   ; by trichotomy', '$x * $x >= 0', 'case x <= 0 "a;b <"']);
+  expect(shown.map(s => s.comment)).toEqual([['; by trichotomy'], [], []]);
+});
+
 test('has the proofs of the course mafi1 in a menu of their own', async ({ page }) => {
   await page.locator('.menu-wrapper button', { hasText: 'mafi1' }).click();
   const menu = page.locator('.menu-wrapper', { hasText: 'mafi1' }).locator('.dropdown-menu');
