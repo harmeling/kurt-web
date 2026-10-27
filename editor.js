@@ -24,6 +24,12 @@ let replacements = {}, language = {}, saveTimer;
 // The text has a version (one more with each edit); a check reports for the version it checked.
 // While a check runs, an edit only notes that another check is due (`pending`).
 let version = 0, checking = false, pending = false, checkTimer, cancelTimer, paused = false;
+// Cancel: a flag the worker's Kurt reads at its next step (kurt-worker.js) -- where a SharedArrayBuffer is
+// available, i.e. the page is cross-origin isolated (the service worker adds the headers, from the second
+// visit on; server.py always). Else, or when the worker doesn't answer in time, the worker is killed.
+let cancelFlag = null, killTimer = null;
+const CANCEL_WAIT = 3000;           // ms for a cancelled check to stop before its worker is killed
+const CANCELLED = 'Cancelled -- edit or press Check to check again';
 let results = null;                 // the last check: { version, diagnostics, hints, hovers, ok, todos }
 let diagnosticsByLine = new Map(), hintByLine = new Map();
 
@@ -33,6 +39,8 @@ function spawnWorker() {
   $('#checkBtn').disabled = true;
   setStatus('Loading Kurt runtime…');
   worker = new Worker('kurt-worker.js');
+  cancelFlag = self.crossOriginIsolated && typeof SharedArrayBuffer === 'function' ? new Int32Array(new SharedArrayBuffer(4)) : null;
+  if (cancelFlag) worker.postMessage({ type: 'cancel-flag', flag: cancelFlag });
   worker.onmessage = async ({ data }) => {
     if (data.type === 'ready') {
       ready = true; $('#checkBtn').disabled = false;
@@ -41,7 +49,7 @@ function spawnWorker() {
     } else if (data.type === 'progress') {
       showProgress(data);
     } else if (data.type === 'checked') {
-      checked(data);
+      if (data.cancelled) cancelled(); else checked(data);
     } else if (data.type === 'editor-completions') {
       editorCompleted(data.items, data.requestId);
     } else if (data.type === 'result') {
@@ -51,7 +59,7 @@ function spawnWorker() {
     } else if (data.type === 'completions') {
       shellCompleted(data.items, data.line, data.word);
     } else if (data.type === 'error') {
-      checking = false; showCancel(false); hideProgress();
+      checking = false; showCancel(false); hideProgress(); clearTimeout(killTimer); killTimer = null;
       setStatus('Runtime error', 'err'); showLineInfo(`Runtime error: ${data.message}`, 'err');
     }
   };
@@ -68,6 +76,7 @@ async function checkNow() {
   checking = true; pending = false;
   const code = editor.value, checkedVersion = version;
   setStatus('Checking…');
+  if (cancelFlag) Atomics.store(cancelFlag, 0, 0);
   clearTimeout(cancelTimer); cancelTimer = setTimeout(() => showCancel(true), 1500);
   const files = await loadedFiles(code);
   worker.postMessage({ type: 'check', code, version: checkedVersion, files });
@@ -75,7 +84,7 @@ async function checkNow() {
 // a check that takes a while: the file and line being checked (a loaded theory, the first time), and the
 // files checked so far -- their number grows as `load`s are found; the bar is the part of the file done
 function showProgress(data) {
-  if (!checking) return;
+  if (!checking || killTimer) return;          // (not while a check is being cancelled)
   const line = Math.min(data.line, data.lines);
   if (matchMedia('(max-width: 600px)').matches)      // (a phone: short)
     setStatus(`${data.file} ${data.lines ? `${line}/${data.lines} ` : ''}· ${data.index}/${data.files}`);
@@ -109,9 +118,19 @@ function checked(data) {
 }
 function showCancel(on) { $('#cancelBtn').classList.toggle('hidden', !on); clearTimeout(cancelTimer); if (!on) cancelTimer = null; }
 function cancelCheck() {
-  // a check that takes too long: a new runtime; no more checks while typing until the next edit
-  worker.terminate(); showCancel(false); hideProgress(); paused = true; pending = false;
-  spawnWorker(); setStatus('Cancelled -- edit or press Check to check again');
+  // a check that takes too long: no more checks while typing until the next edit. With the flag, Kurt stops
+  // at its next step and the worker answers (`cancelled`); else a new runtime
+  showCancel(false); paused = true; pending = false;
+  if (!cancelFlag) { killWorker(); return; }
+  Atomics.store(cancelFlag, 0, 1); setStatus('Cancelling…');
+  clearTimeout(killTimer); killTimer = setTimeout(killWorker, CANCEL_WAIT);
+}
+function killWorker() {
+  clearTimeout(killTimer); killTimer = null; worker.terminate(); hideProgress();
+  spawnWorker(); setStatus(CANCELLED);
+}
+function cancelled() {
+  clearTimeout(killTimer); killTimer = null; checking = false; showCancel(false); hideProgress(); setStatus(CANCELLED);
 }
 // ---- a run of the whole proof: the shell, and the certificate -----------------------------------------
 // A run checks the proof as `kurt` does, up to its first error (or a `breakpoint`): the shell continues

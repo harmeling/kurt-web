@@ -296,3 +296,25 @@ Operational log for agent-session setup and activity on the `agent` branch.
 - To go live: merge `reference-site` into `main` at (or after) the first Kurt release with
   `scripts/build_reference_site.py`, before that release's sync (or run "Sync with Kurt" after the
   merge): <https://harmeling.github.io/kurt-web/reference/>.
+
+## 2026-10-24 -- Cancel without killing the worker (Kurt's todo 51; branch `cancel-check`, not on `main`)
+
+- Cancel set a flag in a SharedArrayBuffer (an Int32Array the page posts to the worker) instead of
+  `worker.terminate()`: the worker's Kurt asks it at every step of the search and every line
+  (`LanguageServer.cancel` of the Kurt after 0.10.0; for 0.10.0 itself the same through
+  `lsp.session_for(..., cancel=...)`) and stops there, the worker answers `cancelled`, Pyodide and the
+  checked theories stay. The completion hint's shell asks it too (it may run a long search before a
+  check: the first try of the test hung there). No answer within 3 s, or no SharedArrayBuffer: the
+  worker is killed, as before.
+- A SharedArrayBuffer needs cross-origin isolation (COOP/COEP), which GitHub Pages can't send:
+  service-worker.js adds both headers to the playground's own files (the coi-serviceworker trick, without
+  its forced reload), from the second visit on; Pyodide from jsDelivr has
+  `Cross-Origin-Resource-Policy: cross-origin`. `pyodide.setInterruptBuffer` was not used: it needs a
+  SharedArrayBuffer too, and raises KeyboardInterrupt anywhere (in the kernel, in the middle of an
+  update of the server's state), while Kurt's own flag stops at a step.
+- Browser tests on parrot (srun): the two new Cancel tests pass (the isolated one fails with the old
+  editor.js: the worker was replaced); all: 28 passed, 1 flaky (the exercise-scene test, passed 3 of 3
+  alone). By hand, a run with `python3 -m http.server` (no headers): not isolated at the first visit,
+  isolated after a reload by the service worker, Cancel kept the worker. Not tried: Safari/Firefox, the
+  deployed site.
+
