@@ -171,7 +171,7 @@ test('continues in the shell where the check stopped', async ({ page }) => {
 });
 
 test('continues at a breakpoint, and completes with Tab in the shell', async ({ page }) => {
-  await typeProof(page, 'load numbers\ncalc on\nbreakpoint\n1 + 1 = 2\n');
+  await typeProof(page, 'load number\ncalc on\nbreakpoint\n1 + 1 = 2\n');
   await page.locator('#shellBtn').click();
   await expect(page.locator('#shellHint')).toContainText('at the breakpoint', { timeout: 60000 });
   await page.locator('#shellInput').fill('17*42=');

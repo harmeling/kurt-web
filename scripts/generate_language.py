@@ -20,7 +20,7 @@ for node in tree.body:
         version = node.value.value
 if not keywords: raise SystemExit(f'keywords not found in {source}')
 if not replacements: raise SystemExit(f'REPLACEMENTS not found in {source}')
-declarations = ['var','const','infix','postfix','prefix','brackets','arity','bindop','chain','flat','sym','prop','calc','alias']
+declarations = ['var','const','infix','postfix','prefix','brackets','arity','binder','nested','chain','flat','sym','prop','calc','alias']
 payload = {
     'kurtVersion': version,
     'declarations': declarations,
