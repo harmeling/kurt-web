@@ -27,7 +27,7 @@
     
     
       
-        <title>3. Terms, symbols, and their roles - Kurt 0.11.0 Reference</title>
+        <title>3. Terms, symbols, and their roles - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -852,6 +852,13 @@ it cannot be changed in either direction on that level: declaring <code>const x<
 then <code>var x</code> fails, and so does the reverse. A symbol that is a constant
 inside a block can still be an ordinary (as-yet-undecided) symbol outside
 it, once the block closes and its constants go out of scope.</p>
+<p><strong>A <code>var</code> needs no <code>let</code> in a proof.</strong> A <code>show</code> about declared variables is a claim for all of
+them, and its proof works with them as they are: no <code>let x, y</code> first (that is for a <code>const</code>-like
+fresh object, <a href="../blocks-and-natural-deduction/#sec-9-2">§9.2</a>). After <code>var x, y</code>, <code>show x &gt; y implies not x = y</code> is proved by <code>assume x &gt; y</code>,
+<code>assume x = y</code>, ... directly (regression test: <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/debug/var-needs-no-let.kurt"><code>proofs/debug/var-needs-no-let.kurt</code></a>).</p>
+<p><strong>A sort with the names.</strong> <code>var real x, y, z</code> declares the variables <code>x</code>, <code>y</code>, <code>z</code> and gives them the sort <code>real</code>: it is
+<code>var x, y, z</code> followed by <code>real x, y, z</code> (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>); <code>const real c, d</code> is <code>const c, d</code> and <code>real c, d</code> the same way. Only the plain
+form: a sort in front of the list, no places (<code>real x 0</code> is the sort line of <a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a> itself).</p>
 <p><strong>How Kurt handles variables</strong> (the design, kept as it is on 2026-10-15):</p>
 <ul>
 <li>A variable stands for anything: a <code>use</code>, <code>def</code> or <code>todo</code> with a variable
@@ -865,8 +872,8 @@ it, once the block closes and its constants go out of scope.</p>
   below every number).</li>
 <li>A constant stands for one object. <code>const c</code> declares it; <code>let x</code>, <code>pick c</code>
   and <code>def</code> introduce one; so does the first use of an undeclared name.</li>
-<li>Inside a block, a variable can be held fixed: <code>let $x</code> (or <code>let x</code> for a
-  declared <code>var x</code>) makes it an arbitrary but fixed object for the block,
+<li>Inside a block, a variable can be held fixed: <code>let x</code> (a new name, or a
+  declared <code>var x</code>; <code>let $x</code> is a type error, a <code>$</code> name is always a variable) makes it an arbitrary but fixed object for the block,
   and closing the block gives the <code>∀</code> (<a href="../blocks-and-natural-deduction/#sec-9-2">§9.2</a>); an assumption's variables are
   fixed inside it the same way (<code>assume P $x</code>: one <code>$x</code> throughout the block).</li>
 <li><code>load</code> exports no variable: a loaded file's <code>var n</code> stays its own, and its
@@ -894,7 +901,7 @@ everywhere, without a declaration:</p>
 <tbody>
 <tr>
 <td><code>$x</code></td>
-<td>a term variable: stands for any term (an object)</td>
+<td>a term variable: stands for any term (an object) of its sort</td>
 <td><code>use $a = $a</code></td>
 </tr>
 <tr>
@@ -904,14 +911,24 @@ everywhere, without a declaration:</p>
 </tr>
 <tr>
 <td><code>$$x</code></td>
-<td>a polymorphic term variable: the bound variable of a rule for a binder over any sort (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>)</td>
+<td>a polymorphic (polysorted) term variable: the bound variable of a rule for a binder over any sort (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>)</td>
 <td>logic.kurt's <code>∀ $$x %A ⇒ sub $$x $a %A</code></td>
 </tr>
 </tbody>
 </table>
 <p>There are two kinds, <code>$</code> and <code>%</code>, because a statement is no object (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>; decision 17 of
 dev/todo-sorts.md): a term and a statement are never a value of the same variable, so the sigil
-says which a variable stands for. <code>$$</code> is a <code>$</code> that isn't tied to one sort. There is no other
+says which a variable stands for. <code>$$</code> is a <code>$</code> that isn't tied to one sort.</p>
+<p><em>A sigil and the sorts</em> (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>). A term variable has a sort like every symbol: <code>$x</code> ranges over the
+objects of its sort and of the smaller sorts, and the sigil doesn't say which. The sort comes from
+a declaration (<code>real $x</code> or <code>var real x</code>, <code>set $A</code>), from a place of an operator where it is used
+(<code>$x + 1</code> is a number, <code>$x ∈ $A</code> takes an element of any sort on the left, a set on the right) or
+from <code>default real</code> of the file; without any of them it is <code>any</code>, the sort of all objects, so
+<code>$x</code> is any object. A statement variable <code>%A</code> has no sort: it is no object. <code>$$x</code> is the one
+exception, a variable that has no sort of its own: a rule with a binder <code>∀ $$x ...</code> is
+<em>polymorphic</em> (polysorted): each use of the rule takes the sort of the binder it is matched with
+(<code>∀ n (...)</code> over the numbers, <code>∀ A (...)</code> over the sets), once per use (the rule can't mix two
+sorts). Because of that, <code>$$x</code> may occur only in its binder, in <code>sub</code>s and as a side of <code>=</code>. There is no other
 sigil: <code>@x</code> is a scanning error. A plain name declared with <code>var</code> is a variable too (a term
 variable, or a statement variable with <code>prop</code>, <a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>).</p>
 <p>Symbols starting with <code>$</code> or <code>%</code> are <strong>always</strong> variables: <code>const $x</code> is an
@@ -964,7 +981,7 @@ that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code
 </tr>
 <tr>
 <td><code>let x</code>, <code>pick x</code></td>
-<td>a constant inside the block (one arbitrary object); after the block, <code>x</code> is free again</td>
+<td>a constant inside the block (one arbitrary object); after the block, <code>x</code> is free again. <code>x</code> is a new name or a declared <code>var x</code>; an existing constant, a name fixed by an enclosing <code>assume</code>, and a <code>$</code>/<code>%</code> name are errors</td>
 </tr>
 <tr>
 <td><code>assume P $x</code></td>
@@ -979,7 +996,7 @@ that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code
 <td><code>nat</code> a reserved sort name and declaration keyword, never a term symbol</td>
 </tr>
 <tr>
-<td><code>bindop</code>, <code>flat</code>, <code>sym</code></td>
+<td><code>binder</code>, <code>flat</code>, <code>sym</code></td>
 <td>a constant: each gives the named operator fixed semantic behavior</td>
 </tr>
 <tr>
@@ -1010,12 +1027,15 @@ that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code
   <code>prefix</code>, <code>postfix</code> for that symbol are errors ("already used in a formula"): the formula was
   read with what was known then.</li>
 <li><strong>Syntax and meaning are separate.</strong> Fixity, arity, <code>prop</code>, and optional sorts say how a symbol is parsed and
-  typed; they deliberately do not decide whether it is a constant or a variable. <code>bindop</code>,
+  typed; they deliberately do not decide whether it is a constant or a variable. <code>binder</code>,
   <code>flat</code>, <code>sym</code>, <code>chain</code> and calculator bindings do decide: their behavior belongs to one fixed
   operator, so Kurt makes it a constant and prints the implied declaration. A variable operator
   may still have fixity, arity and a prop signature, as <code>group.kurt</code>'s schematic <code>∘</code> does.</li>
 <li><strong>The variable of a binder.</strong> Without a condition, <code>∀ x (...)</code> binds <code>x</code> (a new name or a
-  variable; it doesn't become a constant). With a condition, it binds the first symbol of the
+  variable; it doesn't become a constant). The bound variable is written as a plain name, <code>∀ x (x = x)</code>,
+  <code>∃ x &gt; 0 P(x)</code>: it needs no declaration and no sigil, and a <code>$</code> on it (<code>∀ $x ($x = $x)</code>) is accepted but
+  not needed. The sigils <code>$</code> and <code>%</code> are for the <em>free</em> variables of a rule (<code>use $a + 0 = $a</code>,
+  <code>use %A ⇒ %A</code>), where they say "for any term" or "for any statement"; a free plain name is a constant. With a condition, it binds the first symbol of the
   condition, as written, that is new or a variable and not bound by an enclosing binder:
   <code>x</code> in <code>∀ x &gt; 0 (...)</code>, <code>x</code> in <code>∀ c &lt; x (...)</code> with a constant <code>c</code>, <code>$x</code> in <code>∀ (P $x) (...)</code>
   with a predicate <code>P</code>, <code>x</code> in <code>∀ (0 &lt; e) (∀ (e &lt; x) ...)</code>. Kurt decides it when it reads the
@@ -1029,6 +1049,26 @@ that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code
   constant. A declaration like <code>prop Q</code> or <code>infix ∘ 50 50</code> counts. (It also refuses <code>use</code>,
   <code>todo</code> and <code>chain</code> outside the trusted theories.)</li>
 </ul>
+<p><strong>Variables, constants and binders in one place</strong> (the four rules, checked 2026-10-30):</p>
+<ol>
+<li><strong>A variable is ad hoc or declared.</strong> <code>$x</code> (a term), <code>%A</code> (a statement) and <code>$$x</code> are variables by
+   their name and need no declaration; a plain name is a variable after <code>var x</code>. A plain name that
+   is neither declared nor a variable is a constant from its first use on a formula.</li>
+<li><strong><code>let</code> and <code>pick</code> introduce a constant, and take only a new symbol.</strong> The name is new (never
+   used as a constant) or a declared <code>var x</code>, which becomes a constant of the block. They refuse an
+   existing constant ("already a constant and can not be declared freshly again"), a name that an
+   enclosing <code>assume</code> fixed, and an ad hoc variable: <code>let $x</code>, <code>let %A</code> and <code>pick $x with ...</code> are type
+   errors, because a <code>$</code> or <code>%</code> name is always a variable (as <code>const $x</code> is an error). A claim with free
+   <code>$</code>-variables needs no <code>let</code>: they are one arbitrary object in its proof, and so is a <code>var</code>.
+   <code>pick</code> works the same as <code>let</code>, and <code>pick x, y, z with F</code> picks several witnesses (<a href="../blocks-and-natural-deduction/#sec-9-3">§9.3</a>).</li>
+<li><strong>A binder binds a variable or a new symbol, never a constant.</strong> <code>∀ x</code>, <code>sum i</code>, <code>lim v</code> bind a
+   plain name that is new (it needs no declaration and stays undeclared), a declared <code>var</code>, or a
+   <code>$x</code>; a constant is refused ("first arg of binding operator must not be constant ... give the bound
+   variable another name"). Names fixed by an enclosing block (<code>let</code>, <code>pick</code>, <code>assume</code>) count as constants there.</li>
+<li><strong><code>sub $x $a A</code> is a binder over <code>$x</code> with two extra rules</strong>: its first argument must be a
+   variable (<code>$x</code> or a declared <code>var x</code>), not a new symbol; it is written only in <code>use</code> and <code>def</code>
+   (in a claim, write the result of the substitution); and it is never nested.</li>
+</ol>
 <p><a href="https://github.com/harmeling/kurt-lang/blob/main/tutorial/20-constants-variables-and-declarations.kurt"><code>tutorial/20-constants-variables-and-declarations.kurt</code></a> shows these rules, one at a time.</p>
 
 

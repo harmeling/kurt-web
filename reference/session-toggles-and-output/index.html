@@ -27,7 +27,7 @@
     
     
       
-        <title>10. Session toggles and output - Kurt 0.11.0 Reference</title>
+        <title>10. Session toggles and output - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -687,7 +687,7 @@ should use structured API/LSP data when they need positions rather than parsing 
 <p><strong>What <code>calc</code> computes</strong> is said by the theories: they bind their symbols to
 Kurt's built-in calculator, whose operations are <code>add</code>, <code>subtract</code>, <code>negate</code>,
 <code>multiply</code>, <code>divide</code>, <code>power</code> and the comparisons <code>eq</code>, <code>ne</code>, <code>lt</code>, <code>le</code>, <code>gt</code>,
-<code>ge</code>. numbers.kurt does</p>
+<code>ge</code>. number.kurt does</p>
 <div class="highlight"><pre><span></span><code><span class="kd">builtin</span> <span class="o">+</span> add<span class="p">,</span> <span class="o">-</span> subtract<span class="p">,</span> <span class="o">-</span> negate<span class="p">,</span> <span class="o">*</span> multiply<span class="p">,</span> <span class="o">/</span> divide<span class="p">,</span> <span class="o">^</span> power
 <span class="kd">builtin</span> <span class="o">=</span> eq<span class="p">,</span> <span class="o">&lt;</span> lt<span class="p">,</span> <span class="o">&lt;=</span> le
 </code></pre></div>
@@ -695,7 +695,7 @@ Kurt's built-in calculator, whose operations are <code>add</code>, <code>subtrac
 negation of a computed comparison holds by calc, <code>¬(2 = 3)</code>)</p>
 <p>and a symbol that isn't bound is never computed. Sets of numbers, too: the
 calculator knows <code>naturals</code>, <code>integers</code> and <code>rationals</code>, natural.kurt does
-<code>builtin Nat naturals</code> (integer.kurt and rational.kurt likewise for <code>Int</code> and
+<code>builtin Nat naturals</code> (number.kurt likewise for <code>Int</code> and
 <code>Rat</code>), and set.kurt <code>builtin in element</code>; then <code>calc on</code> proves <code>3 ∈ Nat</code> and
 <code>-3 ∈ Int</code>, but not <code>-3 ∈ Nat</code>. complex.kurt binds <code>i</code> to <code>imaginary</code>: an expression of numbers, <code>i</code> and the operations is
 computed exactly with rational real and imaginary parts, <code>calc on</code> proves <code>(1 + 2 * i) * (3 - i) = 5 + 5 * i</code>, <code>i * i = -1</code>, <code>(1 + i) ^ 2 = 2 * i</code> (a power with a natural-number exponent up to 64) and <code>i ≠ 0</code>.</p>
@@ -766,7 +766,7 @@ set itself, otherwise of its length ("enumeration-n"). The order of the elements
 counts for the terms, <code>{a, b} = {b, a}</code> follows from "extensionality". About
 15 elements take a second or two; a disjunction of twenty or more is slow to
 find (dev/todo.md, speed).</p>
-<p>With natural.kurt, <code>...</code> lists numbers: <code>{a, ..., c}</code> in steps of one
+<p>With interval.kurt, <code>...</code> lists numbers: <code>{a, ..., c}</code> in steps of one
 ("range"), <code>{a, b, ..., c}</code> and <code>{a, b, ...}</code> in steps of <code>b - a</code>, for <code>a &lt; b</code>
 ("progression", "progression-intro", "progression-infinite", ...) -- each
 membership is an <code>∃ k ∈ Nat</code> (<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/natural-numbers/progressions.kurt">proofs/natural-numbers/progressions.kurt</a>). One
@@ -805,7 +805,7 @@ entered for a stored formula.</p>
 <p>(a line break inside a bracket pair bound to <code>matrixbrackets</code> -- <code>builtin [ ] matrixbrackets</code> --
 without another one in it ends a row; elsewhere it is a space, also inside a
 <code>[ ]</code> that isn't bound: the theory makes the brackets special, not Kurt). matrix.kurt has its own <code>+</code>, <code>-</code>, <code>·</code>, so it isn't loaded together
-with numbers.kurt (<a href="../building-the-theory/#sec-8-2">§8.2</a>); it computes with literals and has no laws for
+with number.kurt (<a href="../building-the-theory/#sec-8-2">§8.2</a>); it computes with literals and has no laws for
 matrices written with variables (for those: <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/mafi1/matrices.kurt">proofs/mafi1/matrices.kurt</a>, over
 a field). As everywhere with <code>calc on</code>, a name defined as a matrix
 (<code>def A = ...</code>) isn't computed in the same line: replace it first, one step
@@ -819,9 +819,9 @@ operator cannot also be calculator-bound. Numbers are exact: integers, decimals 
 exactly one tenth, so <code>0.1 + 0.2 =
 0.3</code> holds), and fractions, which stay fractions (<code>1 / 3 + 1 / 3</code> is <code>2 / 3</code>).
 What has no exact value isn't computed: <code>1 / 0</code>, <code>0 ^ -1</code>, <code>2 ^ 0.5</code>, and
-<code>0 ^ 0</code> (which numbers.kurt leaves open). Neither is a result with more than
+<code>0 ^ 0</code> (which number.kurt leaves open). Neither is a result with more than
 1000 digits, and a longer number literal is a <code>ScanError</code>.
-<code>0 + x</code> and <code>1 * x</code> are <code>x</code>, <code>0 * x</code> is <code>0</code>. In numbers.kurt, <code>^</code> is
+<code>0 + x</code> and <code>1 * x</code> are <code>x</code>, <code>0 * x</code> is <code>0</code>. In number.kurt, <code>^</code> is
 right-associative and binds more tightly than the prefix <code>-</code>: <code>- 2 ^ 2</code> is
 <code>- 4</code>, and <code>2 ^ 3 ^ 2</code> is <code>2 ^ 9</code>. A decimal with an integer value is that
 integer: <code>1.0</code> is <code>1</code>.</p>

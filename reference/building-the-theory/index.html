@@ -27,7 +27,7 @@
     
     
       
-        <title>8. Building the theory: hard-coded core vs. loaded theories - Kurt 0.11.0 Reference</title>
+        <title>8. Building the theory: hard-coded core vs. loaded theories - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -957,35 +957,35 @@ library can't use a fact without loading the file it comes from, and the
 order of two <code>load</code>s doesn't change what either of them proves. What the file
 exports (below) is then added to the loading file. A symbol that both know
 must mean the same there: its declarations may not contradict each other
-(one side may have more, e.g. numbers.kurt binds <code>=</code> of equality.kurt to the
+(one side may have more, e.g. number.kurt binds <code>=</code> of equality.kurt to the
 calculator), and if it is defined by a <code>def</code>, it must be the same <code>def</code> on
 both sides -- a <code>def</code> is only conservative for a new symbol, so
 <code>const f</code> / <code>use f = 1</code> here and <code>def f = 2</code> in the loaded file is an error.
 A fact that two loaded files both pass on (from a file both of them load)
 is added once.</p>
 <p><strong>A symbol is declared by one file only.</strong> The declarations of a symbol --
-<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>arity</code>, <code>brackets</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code> --
+<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>arity</code>, <code>brackets</code>, <code>binder</code>, <code>flat</code>, <code>sym</code> --
 come from the one file that declares it; Kurt remembers which (it travels
 with the exports). If two different files declare the same symbol, they
 can't be loaded together, in either order, directly or through other files:</p>
-<div class="highlight"><pre><span></span><code>EvalError: `+` is declared in `numbers.kurt` and in `field.kurt` -- a symbol
+<div class="highlight"><pre><span></span><code>EvalError: `+` is declared in `number.kurt` and in `field.kurt` -- a symbol
 is declared by one file only, so these two can't be loaded together
 </code></pre></div>
 <p>The reason: a theory's laws hold for everything written with its operators.
-numbers.kurt says <code>$a * $b = $b * $a</code> for every <code>$a</code>, <code>$b</code>; a theory of
+number.kurt says <code>$a * $b = $b * $a</code> for every <code>$a</code>, <code>$b</code>; a theory of
 matrices that declares its own <code>·</code> or <code>+</code> must not get those laws. So:</p>
 <ul>
-<li>numbers (ℕ, ℤ, ℚ, ℝ): <code>load numbers</code> (or <code>natural</code>, <code>integer</code>, <code>rational</code>,
+<li>numbers (ℕ, ℤ, ℚ, ℝ): <code>load number</code> (or <code>natural</code>, <code>divisibility</code>, <code>interval</code>,
   <code>analysis</code>, which load it);</li>
 <li>linear algebra: a structure that declares its own operators, like
   <code>field.kurt</code>, <code>vectorspace.kurt</code> (and <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/mafi1/matrices.kurt"><code>proofs/mafi1/matrices.kurt</code></a>) -- not
-  together with numbers.kurt;</li>
+  together with number.kurt;</li>
 <li><code>group.kurt</code> takes its operation as an argument (<code>group(G, (∘), e, inv)</code>),
   so it goes with either.</li>
 </ul>
 <p><strong>A theory loads what it uses.</strong> A file gets the symbols of the files that
 its loaded files load, too: after <code>load natural</code>, <code>∀</code> (from logic.kurt) and
-<code>+</code> (from numbers.kurt) are there. But a theory that relies on this breaks
+<code>+</code> (from number.kurt) are there. But a theory that relies on this breaks
 when the file in between stops loading them. So a trusted theory -- one that
 comes with Kurt, or one from a <code>-p</code> directory -- gets a note for a symbol of a
 theory it doesn't load itself:</p>
@@ -993,10 +993,10 @@ theory it doesn't load itself:</p>
 <span class="c1">; `load logic` makes it independent of what the other files load</span>
 </code></pre></div>
 <p>The theories that come with Kurt load everything they use (a test checks
-it). For a proof, this isn't noted -- <code>load numbers</code> and then <code>=</code> is fine --
+it). For a proof, this isn't noted -- <code>load number</code> and then <code>=</code> is fine --
 but <code>kurt --deps</code> lists such symbols for any file (<a href="../running-kurt/">§1</a>).</p>
-<p>The same file reached twice (two files both load numbers.kurt) is one
-declaration, not two. (numbers.kurt used to be called <code>arith.kurt</code>.) In one run of Kurt, a file is checked once and its exports
+<p>The same file reached twice (two files both load number.kurt) is one
+declaration, not two. (number.kurt used to be called <code>arith.kurt</code>.) In one run of Kurt, a file is checked once and its exports
 are reused, as long as neither it nor a file it loads changed; only the
 file you check itself is always checked again (it prints its steps).</p>
 <p>The packaged theories (<a href="https://github.com/harmeling/kurt-lang/tree/main/src/kurt/theories"><code>src/kurt/theories/</code></a>), and roughly what each adds,
@@ -1026,39 +1026,29 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 <td><code>propositional</code>, <code>equality</code></td>
 </tr>
 <tr>
-<td><code>objects.kurt</code></td>
-<td>the sorts of the objects (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>): <code>sort set real</code> (every number is a set; an object of no sort is any object); loaded by set.kurt and numbers.kurt</td>
-<td>(none)</td>
-</tr>
-<tr>
 <td><code>set.kurt</code></td>
-<td>Zermelo-Fraenkel-style (the words of its symbols: <a href="../building-the-grammar/#sec-4-7">§4.7</a>): <code>in</code>/<code>∈</code>, <code>⊂</code> (<code>A ⊃ B</code> read as <code>B ⊂ A</code>, <code>x ∉ A</code> as <code>¬(x ∈ A)</code>: <code>inline</code>), <code>∪</code>, <code>∩</code>, separation <code>{ x ∈ A \| ... }</code> (no unrestricted <code>{ x \| ... }</code>, which would allow Russell's paradox; "separation-in": an element of a part of <code>A</code> is in <code>A</code>), sets by their elements <code>{a, b}</code> ("singleton", and generated rules, <a href="../session-toggles-and-output/">§10</a>), <code>∅</code> (also <code>{}</code>), <code>Pow</code>, ordered pairs and tuples (<code>(a, b)</code>, "pair-eq", <code>fst</code>, <code>snd</code>), Cartesian products <code>A × B</code>, mappings as sets of pairs (<code>f ∈ (A → B)</code>: <code>f ⊂ A × B</code> with one pair <code>(a, f a)</code> for each <code>a ∈ A</code>), "apply", "apply-in", "function-extensionality"</td>
+<td>the sorts of the objects (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>): <code>sort set real</code> (every number is a set; an object of no sort is any object); Zermelo-Fraenkel-style (the words of its symbols: <a href="../building-the-grammar/#sec-4-7">§4.7</a>): <code>in</code>/<code>∈</code>, <code>⊂</code> (<code>A ⊃ B</code> read as <code>B ⊂ A</code>, <code>x ∉ A</code> as <code>¬(x ∈ A)</code>: <code>inline</code>), <code>∪</code>, <code>∩</code>, separation <code>{ x ∈ A \| ... }</code> (no unrestricted <code>{ x \| ... }</code>, which would allow Russell's paradox; "separation-in": an element of a part of <code>A</code> is in <code>A</code>), sets by their elements <code>{a, b}</code> ("singleton", and generated rules, <a href="../session-toggles-and-output/">§10</a>), <code>∅</code> (also <code>{}</code>), <code>Pow</code>, ordered pairs and tuples (<code>(a, b)</code>, "pair-eq", <code>fst</code>, <code>snd</code>), Cartesian products <code>A × B</code>, mappings as sets of pairs (<code>f ∈ (A → B)</code>: <code>f ⊂ A × B</code> with one pair <code>(a, f a)</code> for each <code>a ∈ A</code>), "apply", "apply-in", "function-extensionality"</td>
 <td><code>equality</code>, <code>logic</code>, <code>objects</code></td>
 </tr>
 <tr>
-<td><code>numbers.kurt</code></td>
-<td>arithmetic; the order (<code>&lt;</code>, <code>&lt;=</code>; <code>&gt;</code>, <code>&gt;=</code> are read as them, <code>inline</code>); its symbols are numbers (<code>default real</code>)</td>
-<td><code>equality</code>, <code>objects</code></td>
+<td><code>number.kurt</code></td>
+<td>arithmetic (<code>^</code>: "pow-two" <code>$a ^ 2 = $a * $a</code> for every base, the other exponent laws for a positive one); the order (<code>&lt;</code>, <code>&lt;=</code>; <code>&gt;</code>, <code>&gt;=</code> are read as them, <code>inline</code>); its symbols are numbers (<code>default real</code>); theorems proved from its rules: "squares-non-negative" (<code>x * x &gt;= 0</code>), the binomial formulas "binomial-plus" (<code>(a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2</code>), "binomial-minus", "binomial-product" (<code>(a + b) * (a - b) = a ^ 2 - b ^ 2</code>), and "two-times" (<code>2 * x = x + x</code>); the sets of numbers <code>Real</code> (<code>ℝ</code>, with "ext-real": two sets of numbers with the same numbers are equal), <code>Int</code> (<code>ℤ</code>) and <code>Rat</code> (<code>ℚ</code>), closed under the operations</td>
+<td><code>equality</code>, <code>logic</code>, <code>set</code></td>
 </tr>
 <tr>
 <td><code>natural.kurt</code></td>
-<td>natural numbers (<code>set Nat</code>, <code>ℕ</code>), the set of all numbers <code>Real</code> (<code>ℝ</code>) with "ext-real" (two sets of numbers with the same numbers are equal), induction (for a variable that is a number: <code>default real</code>); <code>0 &lt;= n</code>, the predecessor, no number between n and n + 1, the well-ordering principle (proven from induction); <code>even</code> and <code>odd</code> (every number is one of them, none both); divisibility <code>∣</code> (<code>\mid</code>), <code>coprime</code></td>
-<td><code>set</code>, <code>numbers</code>, <code>logic</code></td>
+<td>natural numbers (<code>set Nat</code>, <code>ℕ</code>), induction (for a variable that is a number: <code>default real</code>); <code>0 &lt;= n</code>, the predecessor, no number between n and n + 1, the well-ordering principle (proven from induction); <code>Nat ⊂ Real</code>, an integer is a natural number or the negative of one, a positive integer is a natural number, the rational numbers as fractions m / n ("rat-def", "rat-pos", "frac-cancel"), the sets <code>{a, ..., c}</code></td>
+<td><code>set</code>, <code>number</code>, <code>logic</code></td>
 </tr>
 <tr>
-<td><code>integer.kurt</code></td>
-<td>integers <code>Int</code>: the natural numbers and their negatives, closed under <code>+</code>, <code>-</code>, <code>*</code></td>
+<td><code>divisibility.kurt</code></td>
+<td><code>even</code> and <code>odd</code> (every natural number is one of them, none both), the divisibility <code>∣</code> (<code>\mid</code>), <code>coprime</code>; "lowest-terms": a positive rational is m / n with coprime natural numbers m, n (proven from the well-ordering)</td>
 <td><code>natural</code></td>
 </tr>
 <tr>
-<td><code>rational.kurt</code></td>
-<td>rationals <code>Rat</code>: m / n with m ∈ <code>Int</code>, n ∈ <code>Nat</code>, n ≠ 0; closed under <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>; "lowest-terms": a positive rational is m / n with coprime m, n (proven from the well-ordering)</td>
-<td><code>integer</code></td>
-</tr>
-<tr>
-<td><code>real.kurt</code></td>
-<td>the number tower in one <code>load</code>: numbers, natural, integer, rational (<code>Nat ⊂ Int ⊂ Rat ⊂ Real</code>)</td>
-<td><code>numbers</code>, <code>natural</code>, <code>integer</code>, <code>rational</code></td>
+<td><code>interval.kurt</code></td>
+<td>the numbers between two numbers, <code>Icc a b</code> (<code>a ≤ x ≤ b</code>), <code>Ico a b</code>, <code>Ioc a b</code>, <code>Ioo a b</code> (Mathlib's names; each a subset of <code>Real</code>), and the progressions <code>{a, ..., c}</code>, <code>{a, b, ...}</code> ("range", "progression", ...)</td>
+<td><code>natural</code></td>
 </tr>
 <tr>
 <td><code>complex.kurt</code></td>
@@ -1077,7 +1067,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 </tr>
 <tr>
 <td><code>field.kurt</code></td>
-<td>a field <code>K</code> with <code>+</code>, <code>·</code>, <code>-</code>, <code>inv</code>, <code>0</code>, <code>1</code> (<code>+</code> flat and sym, <code>·</code> flat): every axiom for the elements of <code>K</code> (<code>$a ∈ K</code>), the (K1)-(K9) of the mafi1 lecture with English names ("plus-commutative", "distributive", ...); theorems: the identities and inverses are unique, <code>0 · λ = 0</code>, no zero divisors, <code>x² = 1</code> only for <code>±1</code>; subtraction <code>λ - μ</code> with "minus-def", "minus-minus", "minus-of-plus", "minus-of-minus"; "zero-plus", "times-one", "minus-distributive" (<code>λa − μa = (λ − μ)a</code>), "difference-nonzero" (<code>a ≠ b ⇒ a − b ≠ 0</code>), "product-one-nonzero" (<code>a · b = 1 ⇒ a ≠ 0</code>). Its own <code>+</code>: not together with numbers.kurt</td>
+<td>a field <code>K</code> with <code>+</code>, <code>·</code>, <code>-</code>, <code>inv</code>, <code>0</code>, <code>1</code> (<code>+</code> flat and sym, <code>·</code> flat): every axiom for the elements of <code>K</code> (<code>$a ∈ K</code>), the (K1)-(K9) of the mafi1 lecture with English names ("plus-commutative", "distributive", ...); theorems: the identities and inverses are unique, <code>0 · λ = 0</code>, no zero divisors, <code>x² = 1</code> only for <code>±1</code>; subtraction <code>λ - μ</code> with "minus-def", "minus-minus", "minus-of-plus", "minus-of-minus"; "zero-plus", "times-one", "minus-distributive" (<code>λa − μa = (λ − μ)a</code>), "difference-nonzero" (<code>a ≠ b ⇒ a − b ≠ 0</code>), "product-one-nonzero" (<code>a · b = 1 ⇒ a ≠ 0</code>). Its own <code>+</code>: not together with number.kurt</td>
 <td><code>set</code></td>
 </tr>
 <tr>
@@ -1087,7 +1077,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 </tr>
 <tr>
 <td><code>matrix.kurt</code></td>
-<td>vectors and matrices as literals (<code>[1, 2]</code>, <code>[[1, 2], [3, 4]]</code>, one row per line), computed exactly with <code>calc on</code>: <code>+</code>, <code>-</code>, <code>·</code>, <code>transpose</code>, <code>det</code>, <code>=</code>, <code>≠</code> (and <code>/</code> of numbers). Its own <code>+</code>: not together with numbers.kurt</td>
+<td>vectors and matrices as literals (<code>[1, 2]</code>, <code>[[1, 2], [3, 4]]</code>, one row per line), computed exactly with <code>calc on</code>: <code>+</code>, <code>-</code>, <code>·</code>, <code>transpose</code>, <code>det</code>, <code>=</code>, <code>≠</code> (and <code>/</code> of numbers). Its own <code>+</code>: not together with number.kurt</td>
 <td><code>equality</code></td>
 </tr>
 <tr>
@@ -1162,14 +1152,50 @@ hypothetical-context abstraction rule; the de Bruijn representation supplies the
 without extending the language. See <a href="https://github.com/harmeling/kurt-lang/blob/main/tutorial/27-type-and-reduce-lambda-terms.kurt"><code>tutorial/27-type-and-reduce-lambda-terms.kurt</code></a>.</p>
 <p><code>load</code> with no arguments lists every file loaded so far, level by level.</p>
 <h3 id="what-gets-exported">What gets exported<a class="headerlink" href="#what-gets-exported" title="Permanent link">&para;</a></h3>
-<p>Not everything a loaded file declares becomes visible to whoever loads it.
-A <code>use</code>/<code>def</code> axiom or a proved (<code>show</code>/<code>proof</code>/<code>qed</code>) theorem is
+<p>Not everything a loaded file declares becomes visible to whoever loads it. In short:</p>
+<table>
+<thead>
+<tr>
+<th>A <code>load</code> brings</th>
+<th>Stays in the file that wrote it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>its facts (<code>use</code>, <code>def</code>, proved theorems) that carry a label not marked <code>local</code></td>
+<td>a fact without a label, or labelled <code>local</code></td>
+</tr>
+<tr>
+<td>the symbols those facts mention, with everything known about each: fixity, arity and shape, <code>prop</code> places, sorts, <code>binder</code>, <code>flat</code>, <code>sym</code>, <code>alias</code>, <code>tex</code>, <code>lean</code></td>
+<td>a symbol that only local facts mention and the file doesn't declare at its top level (its name is free again for the loader)</td>
+</tr>
+<tr>
+<td>the symbols the file declares at its top level without <code>local</code> (<code>const</code>, <code>prop</code>, <code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>binder</code>, <code>flat</code>, <code>sym</code>, <code>alias</code>, <code>chain</code>, a sort's signature): its vocabulary</td>
+<td>a declaration with <code>local</code> at its end (<code>const helper local</code>), a declaration inside a block</td>
+</tr>
+<tr>
+<td>the symbols bound to the calculator (<code>builtin</code>), <code>inline</code>, <code>tex</code> and <code>lean</code> symbols</td>
+<td><code>var</code> (a loaded <code>var n</code> never makes the loader's <code>n</code> a variable; the exported schemas arrive with internal variables)</td>
+</tr>
+<tr>
+<td>its sorts, subsorts and the sorts of the elements of its sets; its chains whose relations are all exported; its open <code>todo</code>s</td>
+<td>the constants Kurt added at a first use (<code>; added constant</code>), <code>calc on</code>, <code>default</code></td>
+</tr>
+<tr>
+<td></td>
+<td>a <code>def</code> written inside a block (<a href="../the-theory/#sec-6-2">§6.2</a>): it is local to the block</td>
+</tr>
+</tbody>
+</table>
+<p>An exported fact that needs a symbol declared <code>local</code>, or a <code>local</code> definition, is an error when the file is
+loaded (drop the <code>local</code>, or mark the fact <code>local</code> too). The details:</p>
+<p>A <code>use</code>/<code>def</code> axiom or a proved (<code>show</code>/<code>proof</code>/<code>qed</code>) theorem is
 <strong>exported</strong> exactly when it carries a label and that label isn't marked
 <code>local</code> (<a href="../the-theory/#sec-6-2">§6.2</a>) — an unlabelled fact, or one labelled <code>EXPR local "..."</code>,
 stays entirely inside the file that wrote it. A symbol is exported when an
 exported fact mentions it, or when the file declares it at its top level:
 a declaration written out there (<code>const</code>, <code>prop</code>, <code>infix</code>, <code>prefix</code>,
-<code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code>, <code>chain</code>, <code>alias</code>,
+<code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>binder</code>, <code>flat</code>, <code>sym</code>, <code>chain</code>, <code>alias</code>,
 <code>tex</code>, <code>lean</code>, a sort's signature) is the file's vocabulary. Either way, all that is
 known about the symbol travels along (its arity and shape, fixity, statement
 places, <code>tex</code>, <code>lean</code>, ...), so it can still be parsed and type-checked
@@ -1180,9 +1206,9 @@ declaration inside a block, <code>var</code> (a loaded <code>var x</code> would 
 use (<code>; added constant</code>). So a symbol that only ever appears in local facts
 and isn't declared at the top level (or only with <code>local</code>) is invisible
 from outside, freeing up its name for something else entirely unrelated in
-whatever file loads this one; a <code>local</code> declaration of a symbol that an
-exported fact needs still goes along with that fact. (Before 0.9, a
-declaration alone exported nothing.) A symbol bound to the calculator (<code>builtin + add</code>, <a href="../session-toggles-and-output/">§10</a>) is exported too, even
+whatever file loads this one; a symbol that an exported fact needs but that
+is declared <code>local</code> is an error (drop the <code>local</code>, or mark the fact <code>local</code>
+too). (Before 0.9, a declaration alone exported nothing.) A symbol bound to the calculator (<code>builtin + add</code>, <a href="../session-toggles-and-output/">§10</a>) is exported too, even
 without a fact that mentions it: the binding is an axiom about it (<code>1 + 1 =
 2</code>, ...) -- e.g. matrix.kurt's literals <code>[ ]</code>, <code>det</code>, <code>transpose</code>. An
 alias (<code>alias</code>) travels automatically with whatever symbol it names, since
@@ -1224,7 +1250,7 @@ Q                 <span class="c1">; ProofError: can not derive `Q` -- never exp
                   <span class="c1">; behind it (§3.4), not literally an "unknown symbol" error</span>
 </code></pre></div>
 <h3 id="save-keep-a-shell-session-as-a-file"><code>save</code>: keep a shell session as a file<a class="headerlink" href="#save-keep-a-shell-session-as-a-file" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="k">save</span> <span class="s">"path/to/file.kurt"</span>
+<div class="highlight"><pre><span></span><code><span class="k">save</span> path<span class="o">/</span>to<span class="o">/</span>file<span class="o">.</span>kurt        <span class="c1">; the quotes are optional, as for `load` (needed for a name with spaces)</span>
 </code></pre></div>
 <p>Writes the input lines that were accepted so far to <code>path</code> (relative to the current working
 directory): in the shell, the session without the lines that failed, and without the ones that

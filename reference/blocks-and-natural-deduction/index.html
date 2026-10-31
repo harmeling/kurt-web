@@ -27,7 +27,7 @@
     
     
       
-        <title>9. Blocks and natural deduction - Kurt 0.11.0 Reference</title>
+        <title>9. Blocks and natural deduction - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -927,7 +927,8 @@ blocks (0.4 s for n = 128).</p>
     <span class="o">...</span>
 </code></pre></div>
 <p>Introduces one or more brand-new constants (each must not already be a
-declared constant). A condition (<code>let x&gt;0</code>) also <code>use</code>s the condition as a
+declared constant, nor fixed by an enclosing <code>assume</code>; a <code>$</code> or <code>%</code> name is refused:
+the free <code>$</code>-variables of a claim need no <code>let</code>, they are one arbitrary object in its proof). A condition (<code>let x&gt;0</code>) also <code>use</code>s the condition as a
 local axiom, in one step. Closing the block derives "forall-intro": the
 last thing proven inside becomes universally quantified over each new
 constant, in reverse declaration order, skipping any that turn out to be
@@ -956,6 +957,16 @@ the witness.</p>
 the body for the witness: <code>pick c with c &gt; 0 ∧ P c</code> -- as logic.kurt's "exists-cond-def" says,
 <code>∃ (sub $x $v %C) %P</code> is <code>∃ $w ((sub $x $w %C) ∧ (sub $v $w %P))</code>, so no detour through that
 rule is needed.</p>
+<p>Several witnesses at once: <code>pick x, y, z with F</code> is <code>pick x with ∃ y ∃ z F</code>, <code>pick y with ∃ z F</code>
+and <code>pick z with F</code>, one inside the other -- three blocks, but the lines indent once, and a
+dedent closes all three (the existential <code>∃ x ∃ y ∃ z F</code>, or one step to it, must be known).
+The names are distinct, and only the last carries <code>with F</code>. A <code>break</code> gives up all the blocks
+the <code>pick</code> line opened (they share one indentation), not only the innermost.</p>
+<p>The formula side has the same list: <code>∃ x, y, z P</code> is <code>∃ x ∃ y ∃ z P</code>, and <code>∀ x, y P</code> is <code>∀ x ∀ y P</code> (the parser
+writes the binder once for each name, for the binders that are <code>nested</code>, <a href="../building-the-grammar/#sec-4-4">§4.4</a>; <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/debug/exists-several-variables.kurt">proofs/debug/exists-several-variables.kurt</a>). Each name can have
+its own condition, <code>∀ x &gt; 0, y &gt; 0 P</code> (<code>∀ x &gt; 0 ∀ y &gt; 0 P</code>); a condition after a list of plain names
+belongs to one variable, so <code>∃ x, y &gt; 0 P</code> is a <code>ParseError</code> (write <code>∃ x, y &gt; 0 P</code> as <code>∃ x &gt; 0, y &gt; 0 P</code> or <code>∃ x ∃ y &gt; 0 P</code>). Only the
+two quantifiers take a list, not <code>sum</code>, <code>lim</code>, ... (their body or range is not repeatable).</p>
 <p><code>SYMBOL</code> must be a bare new-or-existing name, unlike <code>let</code>'s otherwise
 similar <code>let SYMBOL</code> / <code>let SYMBOL&gt;0</code> (<a href="#sec-9-2">§9.2</a>) — a <code>pick</code>ed witness can never
 carry an extra condition of its own the way a <code>let</code>-bound one can: <code>let</code>'s

@@ -27,7 +27,7 @@
     
     
       
-        <title>1. Running Kurt - Kurt 0.11.0 Reference</title>
+        <title>1. Running Kurt - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -682,6 +682,7 @@ kurt -p DIR path/to/proof.kurt   # also search DIR for `load`ed theories
 kurt -s path/to/proof.kurt       # strict, for grading (see below)
 kurt -a path/to/proof.kurt       # all errors, not only the first (also `--all-errors`, see below)
 kurt --budget 10 path/to/proof.kurt  # at most 10 s of search per line (see below; by default no limit)
+kurt --profile path/to/proof.kurt    # after the check: the slowest lines, with their time and search steps
 kurt -r N path/to/proof.kurt     # set the comment/reason column to N (default 42)
 kurt --no-kurtc path/to/proof.kurt   # neither write nor use `.kurtc` files (see below)
 kurt path/to/proof.kurtc             # the certificates of proof.kurt, readable (see below)
@@ -694,6 +695,8 @@ kurt --latex path/to/proof.kurt      # the checked file as a document, proof.tex
 kurt --lean path/to/proof.kurt       # ... as a Lean 4 file, proof.lean (a prototype; see below)
 kurt --lean proof.kurt -o -          # -o FILE: to FILE instead, -o -: to the standard output
 kurt --no-line-numbers proof.kurt    # the output without the source line numbers in front
+kurt --share path/to/proof.kurt      # the playground link of the proof (its text in the link; see below)
+kurt --unshare LINK &gt; proof.kurt     # the proof of such a link, back (see below)
 kurt --lsp                           # a language server for editors (see below)
 </code></pre></div>
 <p><strong>In the browser:</strong> the playground, <a href="https://www.kurt-lang.org">www.kurt-lang.org</a>, runs the same
@@ -736,6 +739,20 @@ loads (and on a <code>load</code> line), anything inside an <code>expect</code> 
 result; <a href="../blocks-and-natural-deduction/#sec-9-6">§9.6</a>), and a <code>KernelError</code>. The editors (<code>kurt --lsp</code>) and the playground show all errors
 by default; from Python, <code>kurt.RunConfig(all_errors=True)</code>, and <code>CheckResult.errors</code> lists them
 (<code>error</code> is the first one).</p>
+<p><strong>Where a proof is slow (<code>--profile</code>):</strong> <code>kurt --profile proof.kurt</code> checks the file as usual and then prints, on
+stderr, its ten slowest lines with the time and the search steps of each (the <code>load</code> line has the time of the files it
+loads, cached files cost nothing):</p>
+<div class="highlight"><pre><span></span><code>the slowest lines of <span class="k">proof</span><span class="o">.</span>kurt <span class="p">(</span><span class="m">1.37</span> s in all<span class="p">,</span> seconds and search steps<span class="p">)</span><span class="o">:</span>
+    <span class="m">0.85</span> s        <span class="m">0</span> steps      <span class="m">1</span>  <span class="k">load</span> logic<span class="p">,</span> number
+    <span class="m">0.40</span> s     <span class="m">1200</span> steps     <span class="m">14</span>  x <span class="o">+</span> y <span class="o">=</span> y <span class="o">+</span> x
+</code></pre></div>
+<p>From Python, <code>kurt.RunConfig(profile=True)</code> fills <code>CheckResult.profile</code> (also in <code>--json</code>): a record <code>file</code>, <code>line</code>,
+<code>seconds</code>, <code>steps</code> for each line. The editors (<code>kurt --lsp</code>) mark a line that took 2 s or more with an Information
+diagnostic (<code>slow line: 2.4 s, 5300 search steps</code>) and write the time into the hint at its end. An editor that asks for it
+(the initialization option <code>heat</code>: VS Code's <code>kurt.heat.enabled</code>) also gets two notifications: <code>kurt/progress</code> (the line being checked,
+at most ten times a second, for tinting the lines done and the line at work) and <code>kurt/profile</code> (time and steps of each line, after the
+check, for a heat map of the lines). <code>kurt/cancel</code> (with <code>uri</code>) from the editor stops the check that runs, at its next step (the editor is told
+by <code>kurt/progress</code> with <code>done</code> and <code>cancelled</code>); VS Code's status item shows <code>Kurt: checking 12/84</code> and a menu with the cancel.</p>
 <p><strong>Budgets (<code>--budget SECONDS</code>), and cancelling a check:</strong> the search for one line normally takes
 a fraction of a second, but a false claim among many facts can take minutes (the search tries
 every combination before it gives up). A budget stops it: <code>kurt --budget 10 proof.kurt</code> allows
@@ -795,7 +812,7 @@ theories, and the single-file <code>kurt.py</code> embeds them (<a href="https:/
 In them, a theory of Kurt is named <code>&lt;kurt&gt;/propositional.kurt</code>, not by where it is, so they fit wherever
 Kurt is installed. If a theory's directory isn't writable, its new certificates go to the cache
 directory (<code>$XDG_CACHE_HOME/kurt</code>, or <code>~/.cache/kurt</code>). A <code>.kurtc</code> that is up to date isn't
-written again. (Without them, <code>load rational</code> in the single-file <code>kurt.py</code> took 8 s each time,
+written again. (Without them, <code>load divisibility</code> in the single-file <code>kurt.py</code> took 8 s each time,
 1.2 s with them.)</p>
 <p><code>kurt --json foo.kurt</code> checks the file and prints the result as JSON (exit code as above): <code>ok</code>,
 <code>complete</code> (also no <code>todo</code> left), <code>error</code>, <code>error_kind</code>, <code>error_line</code>, <code>failure</code> (why a step
@@ -837,17 +854,37 @@ loads; a file that states the answer is no proof, even if the solution derives t
 in one step). Neither says anything after a check that stopped at an error (<code>proves</code> is false,
 <code>loaded</code> empty); with <code>all_errors</code>, the check runs to the end, and <code>proves</code> tells the claims
 whose proofs are sound from the ones admitted after an error.</p>
-<div class="highlight"><pre><span></span><code>&gt;&gt;&gt; result = kurt.check_text('load propositional\nbool A, B\nshow A ∧ B ⇒ A "a"\nproof\n    assume A ∧ B\n        A\nqed\n')
+<div class="highlight"><pre><span></span><code>&gt;&gt;&gt; result = kurt.check_text('load propositional\nprop A, B\nshow A ∧ B ⇒ A "a"\nproof\n    assume A ∧ B\n        A\nqed\n')
 &gt;&gt;&gt; result.proves('(A and B) implies A'), result.proves('A ∧ B ⇒ A', 'b'), result.proof_of('A')
 (True, False, None)
 </code></pre></div>
+<p><strong>A proof as a link (<code>--share</code>, <code>--unshare</code>).</strong> The playground's Share button makes a link that
+holds the whole proof: <code>https://www.kurt-lang.org/#proof=CODE</code>, where CODE is the text of the file as
+UTF-8 bytes in base64 with <code>-</code> and <code>_</code> instead of <code>+</code> and <code>/</code>, without the <code>=</code> padding (no
+compression, nothing secret: anyone can read it; an optional <code>&amp;folder=tutorial/</code> after it says
+where the proof's <code>load</code>s find their files). <code>kurt --share foo.kurt</code> prints that link for a file
+(it doesn't check it), and <code>kurt --unshare LINK</code> prints the proof of a link, or of the bare
+CODE, so that <code>kurt --unshare LINK &gt; foo.kurt</code> gives a file to check. A very long proof makes a
+link that browsers and chat programs may cut (a few thousand characters): for a file that the
+playground has, <code>#file=exercises/01-knights-and-knaves/2-two-islanders.kurt</code> is short.
+The same without Kurt, in Python:</p>
+<div class="highlight"><pre><span></span><code>import base64
+<span class="k">def</span> share<span class="p">(</span>text<span class="p">)</span><span class="o">:</span>                  <span class="o">#</span> the link of a <span class="k">proof</span>
+    return <span class="o">'</span>https<span class="o">://</span>www<span class="o">.</span>kurt<span class="o">-</span>lang<span class="o">.</span>org<span class="o">/#</span><span class="k">proof</span><span class="o">='</span> <span class="o">+</span> base64<span class="o">.</span>urlsafe_b64encode<span class="p">(</span>text<span class="o">.</span>encode<span class="p">(</span><span class="o">'</span>utf<span class="o">-</span><span class="m">8</span><span class="o">'</span><span class="p">))</span><span class="o">.</span>decode<span class="p">()</span><span class="o">.</span>rstrip<span class="p">(</span><span class="o">'='</span><span class="p">)</span>
+<span class="k">def</span> unshare<span class="p">(</span>link<span class="p">)</span><span class="o">:</span>                <span class="o">#</span> the <span class="k">proof</span> of a link
+    code <span class="o">=</span> link<span class="o">.</span>split<span class="p">(</span><span class="o">'#</span><span class="k">proof</span><span class="o">='</span><span class="p">)[</span><span class="o">-</span><span class="m">1</span><span class="p">]</span><span class="o">.</span>split<span class="p">(</span><span class="o">'&amp;'</span><span class="p">)[</span><span class="m">0</span><span class="p">]</span>
+    return base64<span class="o">.</span>urlsafe_b64decode<span class="p">(</span>code <span class="o">+</span> <span class="o">'='</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span>len<span class="p">(</span>code<span class="p">)</span> % <span class="m">4</span><span class="p">))</span><span class="o">.</span>decode<span class="p">(</span><span class="o">'</span>utf<span class="o">-</span><span class="m">8</span><span class="o">'</span><span class="p">)</span>
+</code></pre></div>
+<p>or in a shell, <code>python3 -c "import sys,base64; print('https://www.kurt-lang.org/#proof=' +
+base64.urlsafe_b64encode(open(sys.argv[1],'rb').read()).decode().rstrip('='))" foo.kurt</code>.
+(In the library: <code>kurt.kurt.share_link(text)</code> and <code>unshare_text(link)</code>, which also gives the folder.)</p>
 <p><strong>What a fact rests on (<code>--foundation</code>).</strong> <code>kurt --foundation foo.kurt</code> checks the file and then
 shows, for each fact at its top level, its class -- <code>axiom</code> (<code>use</code>),
 <code>definition</code> (<code>def</code>), <code>todo</code>, or <code>theorem</code> (a proved line, or a <code>show</code> with its proof) -- and, for a
 theorem, what it rests on: the <code>use</code> axioms and <code>def</code>s that the steps of its proof cite, directly
 or through the facts they cite, by file; the <code>todo</code>s that admit a step; the steps computed by the
 calculator (<code>calc on</code>), with the symbols' bindings and the file whose <code>builtin</code> made them
-(<code>`+` add, `=` eq of numbers.kurt</code>). A fact without a label is named by its line (<code>line 12</code>), with
+(<code>`+` add, `=` eq of number.kurt</code>). A fact without a label is named by its line (<code>line 12</code>), with
 its statement in its own heading: an unlabelled <code>use</code> is an axiom of the file like a labelled one
 (only it isn't exported). Found by walking the certificates of
 the steps (<a href="../the-theory/#sec-6-5">§6.5</a>): through the blocks (a block's result rests on what its last line rests on; the
@@ -865,7 +902,7 @@ one line: "<strong>rests on:</strong> 2 axioms of gauss.kurt, 3 axioms of natura
 <div class="highlight"><pre><span></span><code>gauss.kurt: what each fact at its top level rests on
 
 "gauss" (line 12, theorem): established, relative to 4 axioms, 1 definition and the calculator
-    gauss.kurt: "sum-def" (line 5), line 14 computed by the calculator (`+` add, `=` eq of numbers.kurt)
+    gauss.kurt: "sum-def" (line 5), line 14 computed by the calculator (`+` add, `=` eq of number.kurt)
     natural.kurt: "induction" (line 40), "plus-zero" (line 22), ...
     equality.kurt: "equal-elim" (line 23)
 
@@ -959,7 +996,8 @@ the declaration asserts), <code>∀ x ∈ A P</code> is <code>∀ x, x ∈ A →
 (<a href="../building-the-grammar/#sec-4-4">§4.4</a>'s "forall-cond-def"/"exists-cond-def"), any other binder is a constant applied to <code>fun x =&gt;
 ...</code> (<code>sum i (a, b) T</code> is <code>sum a b (fun i =&gt; T)</code>; logic.kurt's <code>∃! x P(x)</code> is what its definition
 says, <code>∃ x, P x ∧ ∀ y, P y → y = x</code>, by its <code>lean</code>), a <code>def</code> is a Lean <code>def</code> with its defining
-equation proved by <code>rfl</code> (a <code>def</code> over a tuple, <code>def coprime($a, $b) ⇔ ...</code>, a function of the
+equation proved by <code>rfl</code> (a <code>def</code> inside a block an <code>obtain ⟨t, h⟩ : ∃ t, t = R := ⟨R, rfl⟩</code> in the
+proof, local as in Kurt; a <code>def</code> over a tuple, <code>def coprime($a, $b) ⇔ ...</code>, a function of the
 components, <code>coprime a b</code>; the <code>def</code>s of the symbols in what a step cites of a loaded file are Lean
 <code>def</code>s too), a <code>case</code> step <code>rcases</code>, and a symbol that is applied and also an object (<code>f a</code>, <code>f ∈ (A
 → B)</code>) is an <code>Obj</code> applied with <code>k_apply</code>. Without a number theory, a number is a constant of its
@@ -971,8 +1009,8 @@ logical rules a proof uses, with or without Mathlib.</p>
 <p><em>With Mathlib (numbers).</em> A theory says how its symbols read in Lean (with Mathlib, but for
 propositional.kurt's <code>lean invimplies ($2 → $1)</code> and logic.kurt's <code>∃!</code>), as <code>tex</code> does for LaTeX (raw to the end of the line, <code>$1</code>, <code>$2</code>, ... the places of the arguments; one template
 per number of arguments, so <code>-</code> has two; only output, exported with <code>load</code>):</p>
-<div class="highlight"><pre><span></span><code>lean Obj ZFSet                      ; the Lean type of Kurt's objects (objects.kurt)
-lean real ℝ                          ; the Lean type of the sort `real` (numbers.kurt), embedded into it
+<div class="highlight"><pre><span></span><code>lean Obj ZFSet                      ; the Lean type of Kurt's objects (set.kurt)
+lean real ℝ                          ; the Lean type of the sort `real` (number.kurt), embedded into it
 lean complex ^ k_cpow $1 $2          ; the `complex` profile of the overloaded `^` (complex.kurt)
 lean + $1 + $2
 lean - $1 - $2                      ; `a - b`
@@ -1006,8 +1044,8 @@ lean + def k_emb ((k_dec $1 : ℝ) + (k_dec $2 : ℝ))
 <p>modal.kurt has a model of its own as the objects (<code>lean Obj ((Nat → Nat → Prop) → Nat → Prop)</code>,
 Kripke semantics): <code>kurt --lean field.kurt</code> and <code>kurt --lean modal.kurt</code> prove every axiom of the
 theory true in its model (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §11).</p>
-<p><em>Sets and numbers.</em> Kurt's objects are the sets of Mathlib's model of ZFC (<code>ZFSet</code>, objects.kurt's
-<code>lean Obj ZFSet</code>), and a sort with a type of its own -- numbers.kurt's <code>lean real ℝ</code> -- is embedded
+<p><em>Sets and numbers.</em> Kurt's objects are the sets of Mathlib's model of ZFC (<code>ZFSet</code>, set.kurt's
+<code>lean Obj ZFSet</code>), and a sort with a type of its own -- number.kurt's <code>lean real ℝ</code> -- is embedded
 into them, as <code>real ⊂ set</code> says: <code>k_emb : ℝ → Obj</code> is a definition (an ordinal for each real, by a
 well-ordering, and its von Neumann level), injective by Mathlib's theorems, so nothing is assumed.
 A variable, constant or binder of the sort <code>real</code> is a real (<code>∀ x ∈ Nat</code> over <code>ℝ</code>, <code>x</code> a number by its places or <code>default real</code>),
@@ -1023,14 +1061,14 @@ no axiom of set.kurt is read over the reals. The rules of propositional.kurt, lo
 are proved once for every type (<code>∀ {α : Type u}</code>: their variables without a sort), so "forall-elim"
 applies to <code>∀ x ∈ Nat</code> over the reals and to <code>∀ x</code> over the sets alike. Without set.kurt and the
 numbers (field.kurt, group.kurt, vectorspace.kurt: no sorts), the objects stay an opaque <code>Obj</code>.</p>
-<p>The theories of numbers all read Kurt's numbers as Mathlib's reals <code>ℝ</code> (numbers.kurt's <code>lean real
-ℝ</code>; natural.kurt, integer.kurt, rational.kurt extend it, as in Kurt): <code>Nat</code>, <code>Int</code>, <code>Rat</code> are the
+<p>The theories of numbers all read Kurt's numbers as Mathlib's reals <code>ℝ</code> (number.kurt's <code>lean real
+ℝ</code>; <code>Real</code>, <code>Int</code>, <code>Rat</code> of number.kurt and natural.kurt's <code>Nat</code> extend it, as in Kurt): <code>Nat</code>, <code>Int</code>, <code>Rat</code> are the
 sets of the embedded casts of <code>ℕ</code>, <code>ℤ</code>, <code>ℚ</code>, so <code>-</code> and <code>/</code> are the real ones everywhere, <code>^</code>
 is the real power <code>Real.rpow</code>, and <code>n!</code> is <code>Γ(n + 1)</code> (<code>Real.Gamma</code>: <code>0! = 1</code> and <code>n! = n (n -
-1)!</code> for every <code>n &gt; 0</code>, the two rules numbers.kurt has, and the factorial for a natural number). In
-analysis.kurt <code>abs</code> is <code>|x|</code>, <code>sum i (a, b) T</code> the sum of <code>T(b), T(b-1), ..., T(a)</code> (<code>⌈b - a⌉ + 1</code>
-terms; for fewer than none, its negative, as for a sum over an integer range: so "sum-last" holds
-for any <code>a</code>, <code>b</code>), <code>max</code>/<code>sup</code> the supremum <code>sSup</code> of the values (<code>min</code>/<code>inf</code>: <code>sInf</code>), <code>argmax</code> a
+1)!</code> for every <code>n &gt; 0</code>, the two rules number.kurt has, and the factorial for a natural number). In
+analysis.kurt <code>abs</code> is <code>|x|</code>, <code>sum i (a, b) T</code> the sum of <code>T(b), T(b-1), ..., T(b - k)</code> for the <code>k + 1 =
+⌊b - a⌋ + 1</code> terms that are at least <code>a</code>, and <code>0</code> for <code>a &gt; b</code> (the empty sum: "sum-empty"; "sum-last" is
+for <code>a &lt;= b + 1</code>), <code>max</code>/<code>sup</code> the supremum <code>sSup</code> of the values (<code>min</code>/<code>inf</code>: <code>sInf</code>), <code>argmax</code> a
 choice (Hilbert's ε), <code>lim</code> and <code>tends</code> Mathlib's limit along the punctured neighbourhoods; in
 continuity.kurt and derivative.kurt <code>cont</code>, <code>diff</code>, <code>deriv</code> are <code>ContinuousAt</code>,
 <code>DifferentiableAt</code>, <code>deriv</code>; in sequences.kurt <code>converges</code> and <code>seqlim</code> the limit along <code>atTop</code> of
@@ -1053,20 +1091,20 @@ Mathlib's <code>cpow</code> otherwise. A rule about complex numbers used for rea
 comment after it; more lines for the same label are the next lines of the proof, an indentation
 after one space is kept) of the fact "label" of the file, at its top level and after the fact --
 only output, as <code>tex</code>: Kurt doesn't read the tactic. <code>kurt --lean</code> writes such a rule as a
-<code>theorem</code> with this proof instead of an <code>axiom</code> (with a comment <code>-- numbers.kurt:70 "add-eq":
+<code>theorem</code> with this proof instead of an <code>axiom</code> (with a comment <code>-- number.kurt:70 "add-eq":
 proved in Lean</code>), so Lean checks the theory's rules, not only the steps of the proof; a tactic that
 doesn't prove the rule is an error in Lean. The rules a <code>chain</code> of Mathlib's relations generates
 (<code>chain = &lt;= &lt;</code>: "chain-trans-1-2") are theorems by <code>linarith</code>, as <code>flat</code>/<code>sym</code> of <code>+</code> are by <code>ring</code>,
 and what the calculator knows of <code>Nat</code> (<code>6 ∈ Nat</code>, <code>k_calc_Nat</code>) is one of <code>k_mem_Nat</code>; a <code>def</code> of a
 loaded file that a step uses is a Lean <code>def</code>, as the file's own. Every rule of the theories of
-numbers (numbers, natural, integer, rational, analysis, continuity, sequences, derivative,
-integral) and of set.kurt is proved this way -- natural.kurt's six rules of <code>{a, ..., c}</code> and <code>{a, b,
+numbers (number, natural, divisibility, analysis, continuity, sequences, derivative,
+integral) and of set.kurt is proved this way -- interval.kurt's six rules of <code>{a, ..., c}</code> and <code>{a, b,
 ...}</code> too (the sets of their shapes' <code>lean</code>) -- but "integral-riemann" (true for a continuous
-function, but its proof isn't in Mathlib); and the theorems Kurt proves in natural.kurt,
-integer.kurt and rational.kurt have a <code>lean "label"</code> too, for a proof that cites them (those about
+function, but its proof isn't in Mathlib); and the theorems Kurt proves in number.kurt, natural.kurt
+and divisibility.kurt have a <code>lean "label"</code> too, for a proof that cites them (those about
 <code>⊂</code>, <code>even</code>, <code>odd</code>, <code>∣</code>, <code>coprime</code> unfold the <code>def</code>s of these symbols). The tactics don't name the variables (<code>intros</code>, <code>‹_›</code>):
 Kurt orders the arguments of <code>+</code>, <code>*</code> and <code>∧</code> its own way, and names its variables by numbers.
-<code>kurt --lean numbers.kurt</code> writes a theory itself, all its rules with their proofs.</p>
+<code>kurt --lean number.kurt</code> writes a theory itself, all its rules with their proofs.</p>
 <p>Where the proof's theories give a <code>lean Obj</code>, <code>kurt --lean</code> writes <code>import Mathlib</code>, <code>abbrev Obj :
 Type 1 := ZFSet.{0}</code> with the embedding instead of the opaque <code>axiom Obj : Type</code>, a number <code>2</code> as <code>(2 : ℝ)</code>, a mapped symbol by
 its template (the others stay <code>axiom</code>s), the laws of a mapped <code>flat</code>/<code>sym</code> operator as theorems

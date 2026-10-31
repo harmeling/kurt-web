@@ -27,7 +27,7 @@
     
     
       
-        <title>6. The theory: making and using claims - Kurt 0.11.0 Reference</title>
+        <title>6. The theory: making and using claims - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -1005,16 +1005,17 @@ It is only allowed at the top level of a file, or inside a <code>sandbox</code> 
 <code>assume</code>, <code>case</code>, <code>let</code> or <code>pick</code>, where the result would look proven
 although it relies on the axiom (e.g. <code>assume A</code> with <code>use B</code> inside would
 give <code>A implies B</code> "by impl-intro"). State axioms before the proof, or use
-<code>todo</code> (<a href="#sec-6-3">§6.3</a>) for a step you want to leave open. The same holds for <code>def</code>,
-<code>inline</code>, <code>chain</code>, and every grammar declaration (<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>,
-<code>arity</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code>, <code>alias</code>, <code>sort</code>): not inside a <code>proof</code>, <code>assume</code>, <code>case</code>, <code>let</code>
-or <code>pick</code> (<code>EvalError: \</code>def` is not allowed inside `assume`<code>), but in a</code>sandbox<code>or</code>expect<code>-- declare them before the proof. For the grammar declarations this isn't only about
+<code>todo</code> (<a href="#sec-6-3">§6.3</a>) for a step you want to leave open. The same holds for <code>chain</code> (it generates
+axioms), <code>load</code>, <code>inline</code>, and every grammar declaration (<code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>,
+<code>arity</code>, <code>binder</code>, <code>flat</code>, <code>sym</code>, <code>alias</code>, <code>sort</code>): not inside a <code>proof</code>, <code>assume</code>, <code>case</code>, <code>let</code>
+or <code>pick</code> (<code>EvalError: \</code>inline` is not allowed inside `assume`<code>), but in a</code>sandbox<code>or</code>expect<code>-- declare them before the proof. For the grammar declarations this isn't only about
 looking proven: a notation used by a formula that survives the block gets locked in for good
 wherever that formula is visible, so it was never actually scoped to the block in the first place
-([§11.2](known-gaps.md#sec-11-2)). An optional trailing string labels it. The label
-is shown on the</code>use<code>output line and on later references and error messages instead of a bare
+([§11.2](known-gaps.md#sec-11-2)). A</code>def` is allowed in a block: it is local to the block (see below).</p>
+<p>An optional trailing string labels a <code>use</code>. The label
+is shown on the <code>use</code> output line and on later references and error messages instead of a bare
 line number. When the axiom contains declared named variables, normal output also shows the
-stored schematic form in a</code>; schema:` comment. For example:</p>
+stored schematic form in a <code>; schema:</code> comment. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span> x<span class="p">,</span> y<span class="p">,</span> <span class="o">∘</span>
 <span class="kd">infix</span> <span class="o">∘</span> <span class="m">70</span> <span class="m">70</span>
 <span class="k">use</span> x <span class="o">∘</span> y <span class="o">=</span> y <span class="o">∘</span> x <span class="s">"comm"</span>
@@ -1053,7 +1054,7 @@ of an existing operator is not supported: write <code>def injective($f) iff ...<
 not <code>def $f is injective iff ...</code>.</p>
 <p>The new symbol must not occur on its own right-hand side, even through an
 alias. It must not already have semantic declarations such as <code>calc</code>,
-<code>flat</code>, <code>sym</code>, <code>chain</code>, or <code>bindop</code>. Comma-separated definitions are checked
+<code>flat</code>, <code>sym</code>, <code>chain</code>, or <code>binder</code>. Comma-separated definitions are checked
 left to right: <code>def p iff true, q iff p</code> is allowed, but defining the same
 symbol twice, or defining a symbol already used by an earlier entry, is
 not. A rejected batch adds no definitions or declarations.</p>
@@ -1072,11 +1073,33 @@ rewriting and inference like a <code>use</code> axiom. Its provenance remains <c
 safe to admit is different: the checked extension is conservative rather than an additional
 mathematical assumption. Both <code>use</code> and <code>def</code>, called with no
 arguments, print everything <code>use</code>d/<code>def</code>ined so far.</p>
+<p><strong><code>def</code> inside a block.</strong> A <code>def</code> may also be written inside a <code>proof</code>, <code>assume</code>, <code>case</code>, <code>let</code> or
+<code>pick</code> (since 2026-10-27; also with <code>--strict</code>, it is conservative by its form). There it is local
+to the block: the new symbol is a constant of the block, and the symbol and its defining fact are
+gone when the block closes. The right side may mention the block's own constants -- a name for a
+term about the <code>let</code> constant or the <code>pick</code> witness:</p>
+<div class="highlight"><pre><span></span><code><span class="k">show</span> <span class="o">∀</span> <span class="nv">$a</span> <span class="o">∃</span> x <span class="p">(</span>x <span class="o">&gt;</span> <span class="nv">$a</span> <span class="o">*</span> <span class="nv">$a</span><span class="p">)</span>
+<span class="k">proof</span>
+    <span class="k">let</span> a
+        <span class="k">def</span> w <span class="o">=</span> a <span class="o">*</span> a <span class="o">+</span> <span class="m">1</span>             <span class="c1">; a name for a term about `a`</span>
+        <span class="m">0</span> <span class="o">&lt;</span> <span class="m">1</span>
+        <span class="m">0</span> <span class="o">+</span> a <span class="o">*</span> a <span class="o">&lt;</span> <span class="m">1</span> <span class="o">+</span> a <span class="o">*</span> a
+        a <span class="o">*</span> a <span class="o">&lt;</span> a <span class="o">*</span> a <span class="o">+</span> <span class="m">1</span>
+        a <span class="o">*</span> a <span class="o">&lt;</span> w
+        <span class="o">∃</span> x <span class="p">(</span>x <span class="o">&gt;</span> a <span class="o">*</span> a<span class="p">)</span>               <span class="c1">; `w` is the witness</span>
+<span class="k">qed</span>
+</code></pre></div>
+<p>A local function, <code>def sq($y) = $y * $y + 3</code>, works the same way (its parameters are variables, as
+at the top level). The result of the block -- its last line, made into <code>A ⇒ L</code>, <code>∀ x L</code>, or <code>L</code>
+itself after <code>pick</code> -- must not mention the defined symbol (<code>ProofError: \</code>w` is defined in this
+block (line 4), so the result of the block can't mention it<code>):</code>let x<code>with</code>def k iff P x<code>as the
+last line would otherwise give</code>∀ x (k iff P x)<code>, which makes</code>k<code>mean</code>P c<code>and</code>P d<code>at once. A</code>def<code>at the top level is exported with its label as before; one in a block never is. After the
+block the name is unknown again, and a later block may define it anew (</code>def t = 3<code>in one proof,</code>def t = 4` in the next).</p>
 <p><strong><code>inline</code>: a definition applied while reading.</strong> A <code>def</code> is a fact, and
 using it is a step: from <code>x &gt; 0</code> to <code>0 &lt; x</code> takes a line, and inside a formula
 a rewrite. When two notations should simply be the same, <code>inline</code> defines the
 new symbol by what it is read as:</p>
-<div class="highlight"><pre><span></span><code><span class="k">inline</span> <span class="nv">$a</span> <span class="o">&gt;</span> <span class="nv">$b</span>   iff  <span class="nv">$b</span> <span class="o">&lt;</span> <span class="nv">$a</span>          <span class="c1">; numbers.kurt (also `&gt;=`)</span>
+<div class="highlight"><pre><span></span><code><span class="k">inline</span> <span class="nv">$a</span> <span class="o">&gt;</span> <span class="nv">$b</span>   iff  <span class="nv">$b</span> <span class="o">&lt;</span> <span class="nv">$a</span>          <span class="c1">; number.kurt (also `&gt;=`)</span>
 <span class="k">inline</span> <span class="nv">$a</span> <span class="o">≠</span> <span class="nv">$b</span>   iff  not <span class="p">(</span><span class="nv">$a</span> <span class="o">=</span> <span class="nv">$b</span><span class="p">)</span>    <span class="c1">; equality.kurt</span>
 <span class="k">inline</span> <span class="nv">$A</span> <span class="o">⊃</span> <span class="nv">$B</span>   iff  <span class="nv">$B</span> <span class="o">⊂</span> <span class="nv">$A</span>          <span class="c1">; set.kurt (also `∉`)</span>
 <span class="k">inline</span> sq <span class="nv">$x</span>     <span class="o">=</span>    <span class="nv">$x</span> <span class="o">*</span> <span class="nv">$x</span>          <span class="c1">; a term</span>

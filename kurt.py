@@ -65,7 +65,7 @@ except ImportError:      # exotic/stripped-down Python builds lack the C extensi
     hashlib = None
 
 # config: general information
-version        = '0.11.0'     # the only place of the version (pyproject.toml reads it from here)
+version        = '0.12.0'     # the only place of the version (pyproject.toml reads it from here)
 made_by        = 'made by Stefan Harmeling, 2016-2026'
 
 def file_fingerprint() -> str:
@@ -127,7 +127,7 @@ IFF_SYMBOL    = 'iff'        # equivalence
 SYM_KEEP_ORDER = [EQUAL_SYMBOL, IFF_SYMBOL]
 
 # comparisons of two literal numbers that `calc on` evaluates to `true`/`false`
-# the built-in calculator of `calc`: a theory binds its symbols to these, e.g. numbers.kurt's
+# the built-in calculator of `calc`: a theory binds its symbols to these, e.g. number.kurt's
 # `calc + add, * multiply, ...` -- only bound symbols are computed (see `calculate`)
 # the largest numbers `calc` computes and the lexer reads (in digits): Python turns no bigger integer
 # into a string, and powers of such numbers would take forever
@@ -220,11 +220,11 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '; `(lim $v $a $T) = $L ⇔ ...` would be wrong, since `lim v '
                   '0 (1 / v) = lim v 0 (1 / v)` would\n'
                   '; then say that this limit exists.\n'
-                  'load propositional, equality, logic, set, numbers, natural\n'
+                  'load propositional, equality, logic, set, number, natural\n'
                   'default real              ; every symbol of this file is a '
                   'number, except where said otherwise\n'
                   "; `kurt --lean` with Mathlib: the objects are Mathlib's "
-                  'reals (numbers.kurt)\n'
+                  'reals (number.kurt)\n'
                   '\n'
                   ';; subtraction and halving, for ε/2 arguments: "sub-def" '
                   'links `-` to `+`, and the laws after it\n'
@@ -233,7 +233,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   ';; tests/test_subtraction_laws.py) -- stated here, since '
                   'their proofs (+ is flat and symmetric)\n'
                   ';; would make this file slow to check, and not in '
-                  'numbers.kurt, since every rule for rewriting makes\n'
+                  'number.kurt, since every rule for rewriting makes\n'
                   ';; the search a little slower\n'
                   'use $a - $b = $a + (-$b)                         "sub-def"\n'
                   'use ($a - $b) + $b = $a                          '
@@ -264,33 +264,33 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'use abs($a + $b) <= abs($a) + abs($b)       "abs-triangle"\n'
                   '\n'
                   ';; finite sums: `sum i (a, b) T` is T(a) + T(a+1) + ... + '
-                  'T(b)\n'
+                  'T(b); the empty sum, for `a > b`, is 0\n'
                   'const sum\n'
                   'arity sum _ (_, _) _      ; the variable, the range `(a, '
                   'b)`, the body\n'
-                  'bindop sum\n'
+                  'binder sum 65\n'
                   'tex sum \\sum_{$1=$2}^{$3} $4\n'
                   '; in Lean: `$1`, `$2` the range, `$3` the body (a function) '
-                  '-- the sum of `T(b), T(b - 1), ...,\n'
-                  '; T(a)` for `b - a + 1 = N` terms (`N = ⌈b - a⌉ + 1`), and '
-                  'for `N < 0` its negative, as for a sum\n'
-                  '; over an integer range (`∑_{k=0}^{N-1} = -∑_{k=N}^{-1}`): '
-                  'so "sum-last" holds for any `a`, `b`\n'
-                  'lean sum (∑ n_ ∈ Finset.Ico (0 : ℤ) (⌈$2 - $1⌉ + 1), $3 ($2 '
-                  '- n_) - ∑ n_ ∈ Finset.Ico (⌈$2 - $1⌉ + 1) 0, $3 ($2 - n_))\n'
+                  '-- for `a <= b` the sum of `T(b), T(b - 1), ...,\n'
+                  '; T(b - k)` for the `k + 1 = ⌊b - a⌋ + 1` terms that are at '
+                  'least `a`, and `0` for `a > b`\n'
+                  'lean sum (if $1 ≤ $2 then ∑ n_ ∈ Finset.range (⌊$2 - $1⌋₊ + '
+                  '1), $3 ($2 - (n_ : ℝ)) else 0)\n'
                   'use (sum $i ($a, $a) $T) = sub $i $a '
-                  '$T                                       "sum-one"\n'
-                  'use (sum $i ($a, $b + 1) $T) = (sub $i ($b + 1) $T) + (sum '
-                  '$i ($a, $b) $T)   "sum-last"\n'
-                  'use (sum $i ($b + 1, $b) $T) = '
-                  '0                                              "sum-empty"\n'
+                  '$T                                                     '
+                  '"sum-one"\n'
+                  'use $a <= $b + 1  ⇒  (sum $i ($a, $b + 1) $T) = (sub $i ($b '
+                  '+ 1) $T) + (sum $i ($a, $b) $T)   "sum-last"\n'
+                  'use $a > $b  ⇒  (sum $i ($a, $b) $T) = '
+                  '0                                                    '
+                  '"sum-empty"\n'
                   '\n'
                   ';; maximum and minimum: a value of `T` that is attained, '
                   'and that no other value exceeds\n'
                   'const max, min\n'
                   'arity max 2\n'
                   'arity min 2\n'
-                  'bindop max, min\n'
+                  'binder max 65, min 65\n'
                   'tex max \\max_{$1} $2\n'
                   'tex min \\min_{$1} $2\n'
                   '; in Lean with a condition: `$1` the condition, `$2` the '
@@ -317,7 +317,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'const argmax, argmin\n'
                   'arity argmax 2\n'
                   'arity argmin 2\n'
-                  'bindop argmax, argmin\n'
+                  'binder argmax 65, argmin 65\n'
                   'tex argmax \\operatorname{arg\\,max}_{$1} $2\n'
                   'tex argmin \\operatorname{arg\\,min}_{$1} $2\n'
                   "; in Lean: a choice (Hilbert's ε) of an element where `T` "
@@ -344,7 +344,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'const sup, inf\n'
                   'arity sup 2\n'
                   'arity inf 2\n'
-                  'bindop sup, inf\n'
+                  'binder sup 65, inf 65\n'
                   'tex sup \\sup_{$1} $2\n'
                   'tex inf \\inf_{$1} $2\n'
                   'lean sup (sSup (Set.image $2 {x_ | $1 x_}))\n'
@@ -370,7 +370,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'number would be a limit\n'
                   'const lim\n'
                   'arity lim 3\n'
-                  'bindop lim\n'
+                  'binder lim 65\n'
                   'tex lim \\lim_{$1 \\to $2} $3\n'
                   "; in Lean: Mathlib's limit along the punctured "
                   'neighbourhoods of the point (with a condition: of\n'
@@ -400,7 +400,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'file).\n'
                   'const tends\n'
                   'arity tends 4\n'
-                  'bindop tends                    ; the variable, the point '
+                  'binder tends                    ; the variable, the point '
                   'and the limit (outside), then the body\n'
                   'prop tends 0\n'
                   'tex tends $4 \\underset{$1 \\to $2}{\\longrightarrow} $3\n'
@@ -431,7 +431,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'use (tends $v $a $L $S) ∧ (tends $v $a $M $T) ∧ $M ≠ 0  ⇒  '
                   'tends $v $a ($L / $M) ($S / $T)   "tends-div"\n'
                   '\n'
-                  ';; the rules as theorems of Mathlib (see numbers.kurt)\n'
+                  ';; the rules as theorems of Mathlib (see number.kurt)\n'
                   'lean "sub-def" intros; ring\n'
                   'lean "sub-add-cancel" intros; ring\n'
                   'lean "sub-split" intros; ring\n'
@@ -449,59 +449,28 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'lean "abs-sub-sym" intros; exact abs_sub_comm _ _\n'
                   'lean "abs-triangle" intros; exact abs_add_le _ _\n'
                   'lean "sum-one" intro a T\n'
-                  'lean "sum-one" simp [show Finset.Ico (0 : ℤ) 1 = {0} from '
-                  'rfl]\n'
-                  'lean "sum-empty" intro b T\n'
-                  'lean "sum-empty" have h : ⌈b - (1 + b)⌉ + 1 = 0 := by\n'
-                  'lean "sum-empty"   have : b - (1 + b) = ((-1 : ℤ) : ℝ) := '
-                  'by push_cast; ring\n'
-                  'lean "sum-empty"   rw [this, Int.ceil_intCast]; norm_num\n'
-                  'lean "sum-empty" rw [h]; simp\n'
-                  'lean "sum-last" intro a b T\n'
+                  'lean "sum-one" beta_reduce\n'
+                  'lean "sum-one" simp\n'
+                  'lean "sum-empty" intro a b T h\n'
+                  'lean "sum-empty" beta_reduce\n'
+                  'lean "sum-empty" simp [not_le.mpr h]\n'
+                  'lean "sum-last" intro a b T h\n'
                   'lean "sum-last" beta_reduce\n'
-                  'lean "sum-last" -- the sum of `g k` for `k` from 0 to `n - '
-                  '1` (for `n < 0`: minus the sum from `n` to -1)\n'
-                  'lean "sum-last" have step : ∀ (g : ℤ → ℝ) (n : ℤ), (∑ k ∈ '
-                  'Finset.Ico (0 : ℤ) (n + 1), g k - ∑ k ∈ Finset.Ico (n + 1) '
-                  '0, g k) = (∑ k ∈ Finset.Ico (0 : ℤ) n, g k - ∑ k ∈ '
-                  'Finset.Ico n 0, g k) + g n := by\n'
-                  'lean "sum-last"   intro g n\n'
-                  'lean "sum-last"   rcases le_or_gt 0 n with hn | hn\n'
-                  'lean "sum-last"   · rw [← '
-                  'Finset.insert_Ico_right_eq_Ico_add_one hn, '
-                  'Finset.sum_insert (by simp), Finset.Ico_eq_empty_of_le (by '
-                  'omega : (0 : ℤ) ≤ n + 1), Finset.Ico_eq_empty_of_le hn]; '
-                  'simp; ring\n'
-                  'lean "sum-last"   · rw [Finset.Ico_eq_empty_of_le (by omega '
-                  ': n + 1 ≤ 0), Finset.Ico_eq_empty_of_le (by omega : n ≤ 0), '
-                  '← Finset.insert_Ico_add_one_left_eq_Ico hn, '
-                  'Finset.sum_insert (by simp)]; simp\n'
-                  'lean "sum-last" have shift : ∀ (g : ℤ → ℝ) (N : ℤ), (∑ k ∈ '
-                  'Finset.Ico (0 : ℤ) (N + 1), g k - ∑ k ∈ Finset.Ico (N + 1) '
-                  '0, g k) = g 0 + (∑ k ∈ Finset.Ico (0 : ℤ) N, g (k + 1) - ∑ '
-                  'k ∈ Finset.Ico N 0, g (k + 1)) := by\n'
-                  'lean "sum-last"   intro g N\n'
-                  'lean "sum-last"   induction N using Int.induction_on with\n'
-                  'lean "sum-last"   | zero => simp [show Finset.Ico (0 : ℤ) 1 '
-                  '= {0} from rfl]\n'
-                  'lean "sum-last"   | succ n ih => rw [step, ih, step (fun k '
-                  '=> g (k + 1))]; ring\n'
-                  'lean "sum-last"   | pred n ih =>\n'
-                  'lean "sum-last"     have e1 := step g (-(n : ℤ))\n'
-                  'lean "sum-last"     have e2 := step (fun k => g (k + 1)) '
-                  '(-(n : ℤ) - 1)\n'
-                  'lean "sum-last"     simp only [sub_add_cancel] at e2 ⊢\n'
-                  'lean "sum-last"     linarith\n'
-                  'lean "sum-last" have hc : ⌈1 + b - a⌉ = ⌈b - a⌉ + 1 := by '
-                  'rw [show 1 + b - a = (b - a) + 1 by ring, '
-                  'Int.ceil_add_one]\n'
-                  'lean "sum-last" rw [hc, shift (fun k => T (1 + b - k)) (⌈b '
-                  '- a⌉ + 1)]\n'
-                  'lean "sum-last" simp only [Int.cast_zero, sub_zero, '
-                  'Int.cast_add, Int.cast_one]\n'
-                  'lean "sum-last" congr 1\n'
-                  'lean "sum-last" congr 1 <;> apply Finset.sum_congr rfl <;> '
-                  'intro k _ <;> congr 1 <;> ring\n'
+                  'lean "sum-last" simp only [h, ↓reduceIte]\n'
+                  'lean "sum-last" by_cases hab : a ≤ b\n'
+                  'lean "sum-last" · simp only [hab, ↓reduceIte]\n'
+                  'lean "sum-last"   rw [show (1 + b) - a = (b - a) + 1 by '
+                  'ring, Nat.floor_add_one (by linarith), '
+                  "Finset.sum_range_succ']\n"
+                  'lean "sum-last"   have e : ∀ i : ℕ, T (1 + b - ((i + 1 : ℕ) '
+                  ': ℝ)) = T (b - (i : ℝ)) := fun i => by congr 1; push_cast; '
+                  'ring\n'
+                  'lean "sum-last"   simp only [e, Nat.cast_zero, sub_zero]\n'
+                  'lean "sum-last"   ring_nf\n'
+                  'lean "sum-last" · simp only [hab, ↓reduceIte]\n'
+                  'lean "sum-last"   rw [Nat.floor_eq_zero.mpr (by linarith '
+                  '[not_le.mp hab])]\n'
+                  'lean "sum-last"   simp\n'
                   'lean "max-intro" have key : ∀ (C : ℝ → Prop) (T : ℝ → ℝ) (a '
                   ": ℝ), C a → (∀ w, C w → T w ≤ T a) → sSup (T '' {x_ | C "
                   'x_}) = T a := by\n'
@@ -668,7 +637,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'the laws of a field with the unit `i`\n'
                  ';\n'
                  '; Stage 1 of overloading (decision 19 of dev/todo-sorts.md): '
-                 'the operators `+ - * / ^` of numbers.kurt get a\n'
+                 'the operators `+ - * / ^` of number.kurt get a\n'
                  '; second signature, on `complex`. A term has the least sort '
                  'the syntax gives it -- `1 + 2` and `x + y` for\n'
                  '; reals are `real`, `z + 1` for a complex `z` is `complex` '
@@ -676,7 +645,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; reads as before (`(1 + 2) < 3`, `x + 1 < 3` for a new '
                  'constant `x`: a `real`, the smallest signature),\n'
                  '; and `<` stays on `real`: `i < 1` is a type error. The laws '
-                 'of numbers.kurt are about reals; the ones\n'
+                 'of number.kurt are about reals; the ones\n'
                  '; here are the same laws for every complex number (the laws '
                  "of an ordered field, `<`, `!`, don't\n"
                  '; carry over). A complex constant is declared: `complex z`.\n'
@@ -687,7 +656,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'natural-number exponent only (`z ^ 2 = z * z` follows,\n'
                  '; `calc on` computes `(1 + i) ^ 2`), nothing is said of `i ^ '
                  '(1 / 2)`. Being one function `^`, the power\n'
-                 '; of two reals is the real power of numbers.kurt (in Lean '
+                 '; of two reals is the real power of number.kurt (in Lean '
                  '`k_cpow`: `Real.rpow` on reals, `cpow` else).\n'
                  ';\n'
                  '; also: the set `Complex` (`ℂ`, `Real ⊂ Complex`), the real '
@@ -702,8 +671,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '`abs` would make `|z|` a complex number, and\n'
                  '; `|z| >= 0` a type error; one name for both is for stage 2. '
                  'Every law holds in ℂ, with `x / 0 = 0` as\n'
-                 '; in the reals of numbers.kurt.\n'
-                 'load propositional, equality, set, numbers, real\n'
+                 '; in the reals of number.kurt.\n'
+                 'load propositional, equality, set, number, natural\n'
                  'sort set complex real\n'
                  'complex + 0 1 2\n'
                  'complex - 0 1 2\n'
@@ -729,8 +698,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  ';; the unit\n'
                  'use i * i = -1   "i-squared"\n'
                  '\n'
-                 ';; rules: the laws of numbers.kurt, for every complex '
-                 'number\n'
+                 ';; rules: the laws of number.kurt, for every complex number\n'
                  'use $a = $b  ⇒  $a + $c = $b + $c   "complex-add-eq"\n'
                  'use $a = $b  ⇒  $a - $c = $b - $c   "complex-sub-eq"\n'
                  'use $a = $b  ⇒  $a * $c = $b * $c   "complex-mul-eq"\n'
@@ -757,7 +725,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '"complex-mul-ne-zero"\n'
                  '\n'
                  ';; powers with a natural-number exponent (`0 ^ 0` left open, '
-                 'as in numbers.kurt)\n'
+                 'as in number.kurt)\n'
                  'use $a ^ 1 = $a                              '
                  '"complex-pow-identity"\n'
                  'use $a ≠ 0 ⇒ $a ^ 0 = 1                      '
@@ -835,7 +803,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'lean cabs ‖$1‖\n'
                  '\n'
                  ';; the rules as theorems of Mathlib (`lean "label" TACTIC`, '
-                 'as in numbers.kurt)\n'
+                 'as in number.kurt)\n'
                  'lean "complex-all" intro a; exact ZFSet.mem_range.mpr ⟨a, '
                  'rfl⟩\n'
                  'lean "real-sub-complex" simp only [subset]; intro z hz; '
@@ -908,7 +876,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     "; theorems about Mathlib's `ContinuousAt`, "
                     '`DifferentiableAt`, `deriv` (`lean "label" ...` at the '
                     'end).\n'
-                    'load propositional, equality, logic, set, numbers, '
+                    'load propositional, equality, logic, set, number, '
                     'natural, analysis\n'
                     'default real              ; every symbol of this file is '
                     'a number, except where said otherwise\n'
@@ -916,7 +884,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     ';; syntax\n'
                     'const cont, diff, deriv\n'
                     'arity cont 3, diff 3, deriv 3\n'
-                    'bindop cont, diff, deriv        ; the variable, then the '
+                    'binder cont, diff, deriv        ; the variable, then the '
                     'point (outside of the scope), then the body\n'
                     'prop cont 0, diff 0\n'
                     'tex cont \\operatorname{cont}_{$1=$2} $3\n'
@@ -952,7 +920,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     '$T                                "cont-tends"\n'
                     '\n'
                     ';; the definitions as theorems of Mathlib (see '
-                    'numbers.kurt): `lean "label" TACTIC` is a proof in Lean\n'
+                    'number.kurt): `lean "label" TACTIC` is a proof in Lean\n'
                     'lean "cont-def" intros; beta_reduce\n'
                     'lean "cont-def" rw [Metric.continuousAt_iff]\n'
                     'lean "cont-def" simp only [Real.dist_eq, gt_iff_lt]\n'
@@ -1042,14 +1010,14 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     ';\n'
                     '; These rules are theorems of real analysis, stated as '
                     'axioms (their proofs need the\n'
-                    '; completeness of the real numbers, which numbers.kurt '
+                    '; completeness of the real numbers, which number.kurt '
                     "doesn't have) -- each needs the conditions\n"
                     '; of the theorem. (The definitions "cont-def", '
                     '"diff-def", "deriv-intro" are continuity.kurt\'s.)\n'
                     "; For Lean they are proved, from Mathlib's calculus: "
                     '`kurt --lean` writes them as theorems with the\n'
                     '; proofs at the end of this file (`lean "label" ...`).\n'
-                    'load propositional, equality, logic, set, numbers, '
+                    'load propositional, equality, logic, set, number, '
                     'natural, analysis\n'
                     'load continuity             ; `cont`, `diff`, `deriv` and '
                     'their definitions (by ε and δ)\n'
@@ -1100,7 +1068,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     '$v $a $T) - (sub $v $a $S) * (deriv $v $a $T)) / (sub $v '
                     '$a $T) ^ 2   "deriv-div"\n'
                     '; (for `$n = 0`: `$v ^ 0` is undefined at 0 -- '
-                    'numbers.kurt leaves `0 ^ 0` open -- so not these rules)\n'
+                    'number.kurt leaves `0 ^ 0` open -- so not these rules)\n'
                     'use ($n ∈ Nat ∧ 0 < $n)  ⇒  diff $v $a ($v ^ '
                     '$n)                          "diff-pow"\n'
                     'use ($n ∈ Nat ∧ 0 < $n)  ⇒  (deriv $v $a ($v ^ $n)) = $n '
@@ -1130,7 +1098,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     '⇒  ∃ $c ($a < $c ∧ $c < $b ∧ (deriv $v $c $T) * ($b - $a) '
                     '= (sub $v $b $T) - (sub $v $a $T))   "mean-value"\n'
                     '\n'
-                    ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                    ';; the rules as theorems of Mathlib (see number.kurt): '
                     '`lean "label" TACTIC` is a proof in Lean\n'
                     'lean "diff-cont" intros; exact '
                     'DifferentiableAt.continuousAt ‹_›\n'
@@ -1212,6 +1180,623 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                     'lean "mean-value" exact ⟨c, by first | exact ⟨h1, h2, h3⟩ '
                     '| (simp only [and_comm, and_left_comm, and_assoc]; exact '
                     '⟨h1, h2, h3⟩) | tauto⟩\n',
+ 'divisibility.kurt': '; divisibility -- even and odd numbers, `∣`, `coprime`, '
+                      'and the lowest terms of a rational\n'
+                      ';\n'
+                      '; covers: `even` and `odd` (every natural number is one '
+                      'of them, none is both), the divisibility `∣` (`\\mid`) '
+                      'of\n'
+                      '; natural numbers and `coprime`; and "lowest-terms": '
+                      'every positive rational is m / n with coprime natural '
+                      'numbers m, n,\n'
+                      '; proved from the well-ordering of natural.kurt. As for '
+                      'natural.kurt, they are numbers of number.kurt, so its '
+                      'laws\n'
+                      '; (and `calc`) apply.\n'
+                      'load propositional, equality\n'
+                      'load set\n'
+                      'load number\n'
+                      'load logic\n'
+                      'load natural\n'
+                      'default real              ; every symbol of this file '
+                      'is a number, except where said otherwise:\n'
+                      '\n'
+                      ';; even and odd numbers\n'
+                      'prop even, odd\n'
+                      'arity even 1, odd 1\n'
+                      'def even $m  iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)       '
+                      '"even-def"\n'
+                      'def odd $m   iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)   '
+                      '"odd-def"\n'
+                      '\n'
+                      '; every natural number is even or odd (by induction)\n'
+                      'show ∀ $n ∈ Nat  (even $n ∨ odd $n)   "even-or-odd"\n'
+                      'proof\n'
+                      '    ; base case: 0 = 2 * 0\n'
+                      '    0 = 2 * 0\n'
+                      '    0 ∈ Nat ∧ 0 = 2 * 0\n'
+                      '    ∃ $k ($k ∈ Nat ∧ 0 = 2 * $k)\n'
+                      '    even 0\n'
+                      '    even 0 ∨ odd 0\n'
+                      '    ; induction step\n'
+                      '    show ∀ $n ∈ Nat  ((even $n ∨ odd $n)  ⇒  (even ($n '
+                      '+ 1) ∨ odd ($n + 1)))\n'
+                      '    proof\n'
+                      '        let n ∈ Nat\n'
+                      '            assume even n ∨ odd n\n'
+                      '                assume even n\n'
+                      '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k)\n'
+                      '                    pick k with k ∈ Nat ∧ n = 2 * k\n'
+                      '                        n = 2 * k\n'
+                      '                        k ∈ Nat\n'
+                      '                        n + 1 = 2 * k + 1\n'
+                      '                        k ∈ Nat ∧ n + 1 = 2 * k + 1\n'
+                      '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * $j '
+                      '+ 1)\n'
+                      '                        odd (n + 1)\n'
+                      '                        even (n + 1) ∨ odd (n + 1)\n'
+                      '                assume odd n\n'
+                      '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k + 1)\n'
+                      '                    pick k with k ∈ Nat ∧ n = 2 * k + '
+                      '1\n'
+                      '                        n = 2 * k + 1\n'
+                      '                        k ∈ Nat\n'
+                      '                        n + 1 = 2 * k + 1 + 1\n'
+                      '                        calc on\n'
+                      '                        n + 1 = 2 * k + 2\n'
+                      '                        calc off\n'
+                      '                        2 * (k + 1) = 2 * k + 2 * 1\n'
+                      '                        calc on\n'
+                      '                        2 * (k + 1) = 2 * k + 2\n'
+                      '                        calc off\n'
+                      '                        n + 1 = 2 * (k + 1)\n'
+                      '                        k + 1 ∈ Nat\n'
+                      '                        k + 1 ∈ Nat ∧ n + 1 = 2 * (k + '
+                      '1)\n'
+                      '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * '
+                      '$j)\n'
+                      '                        even (n + 1)\n'
+                      '                        even (n + 1) ∨ odd (n + 1)\n'
+                      '                even (n + 1) ∨ odd (n + 1)\n'
+                      '    qed\n'
+                      '    ; by induction (natural.kurt)\n'
+                      'qed\n'
+                      '\n'
+                      '; 2 k = 2 j + 1 has no solution in Nat\n'
+                      'show ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)     '
+                      '"even-ne-odd"\n'
+                      'proof\n'
+                      '    ; k = 0: 2 j + 1 ≠ 0\n'
+                      '    let j ∈ Nat\n'
+                      '        2 * j ∈ Nat\n'
+                      '        2 * j + 1 ≠ 0                                 ; '
+                      'nat-succ-ne-zero\n'
+                      '        calc on\n'
+                      '        2 * 0 ≠ 2 * j + 1\n'
+                      '        calc off\n'
+                      '    ∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)\n'
+                      '    ; k → k + 1\n'
+                      '    let k ∈ Nat\n'
+                      '        assume ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)\n'
+                      '            2 * k ∈ Nat\n'
+                      '            2 * (k + 1) = 2 * k + 2 * 1\n'
+                      '            let j ∈ Nat\n'
+                      '                assume 2 * (k + 1) = 2 * j + 1\n'
+                      '                    j = 0 ∨ ∃ $m ($m ∈ Nat ∧ j = $m + '
+                      '1)       ; nat-zero-or-succ\n'
+                      '                    case j = 0\n'
+                      '                        2 * k + 2 * 1 = 2 * (k + 1)\n'
+                      '                                      = 2 * j + 1\n'
+                      '                                      = 2 * 0 + 1\n'
+                      '                        2 * k + 2 * 1 + (- 1) = 2 * 0 + '
+                      '1 + (- 1)\n'
+                      '                        calc on\n'
+                      '                        2 * k + 1 = 0\n'
+                      '                        calc off\n'
+                      '                        2 * k + 1 ≠ '
+                      '0                         ; nat-succ-ne-zero\n'
+                      '                        ¬(2 * k + 1 = 0)\n'
+                      '                        2 * k + 1 = 0 ∧ ¬(2 * k + 1 = '
+                      '0)\n'
+                      '                        ⊥\n'
+                      '                    case ∃ $m ($m ∈ Nat ∧ j = $m + 1)\n'
+                      '                        pick m with m ∈ Nat ∧ j = m + '
+                      '1\n'
+                      '                            m ∈ Nat\n'
+                      '                            j = m + 1\n'
+                      '                            2 * (m + 1) = 2 * m + 2 * '
+                      '1\n'
+                      '                            2 * k + 2 * 1 = 2 * (k + '
+                      '1)\n'
+                      '                                          = 2 * j + 1\n'
+                      '                                          = 2 * (m + 1) '
+                      '+ 1\n'
+                      '                                          = 2 * m + 2 * '
+                      '1 + 1\n'
+                      '                            2 * k + 2 * 1 + (- 2) = 2 * '
+                      'm + 2 * 1 + 1 + (- 2)\n'
+                      '                            calc on\n'
+                      '                            2 * k = 2 * m + 1\n'
+                      '                            calc off\n'
+                      '                            2 * k ≠ 2 * m + 1\n'
+                      '                            ¬(2 * k = 2 * m + 1)\n'
+                      '                            2 * k = 2 * m + 1 ∧ ¬(2 * k '
+                      '= 2 * m + 1)\n'
+                      '                            ⊥\n'
+                      '                    ⊥\n'
+                      '                ¬(2 * (k + 1) = 2 * j + 1)\n'
+                      '                2 * (k + 1) ≠ 2 * j + 1\n'
+                      '            ∀ $j ∈ Nat (2 * (k + 1) ≠ 2 * $j + 1)\n'
+                      '    ∀ $k ∈ Nat (∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ '
+                      '$j ∈ Nat (2 * ($k + 1) ≠ 2 * $j + 1))\n'
+                      '    (∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)) ∧ ∀ $k ∈ Nat (∀ '
+                      '$j ∈ Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ $j ∈ Nat (2 * ($k '
+                      '+ 1) ≠ 2 * $j + 1))\n'
+                      '    ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)\n'
+                      'qed\n'
+                      '\n'
+                      '; no number is even and odd\n'
+                      'show ¬(even $m ∧ odd $m)     "not-even-and-odd"\n'
+                      'proof\n'
+                      '    assume even $m ∧ odd $m\n'
+                      '        even $m\n'
+                      '        odd $m\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
+                      '        pick k with k ∈ Nat ∧ $m = 2 * k\n'
+                      '            k ∈ Nat\n'
+                      '            $m = 2 * k\n'
+                      '            pick j with j ∈ Nat ∧ $m = 2 * j + 1\n'
+                      '                j ∈ Nat\n'
+                      '                $m = 2 * j + 1\n'
+                      '                2 * k = $m\n'
+                      '                      = 2 * j + 1\n'
+                      '                ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)        '
+                      '; even-ne-odd\n'
+                      '                2 * k ≠ 2 * j + 1\n'
+                      '                ¬(2 * k = 2 * j + 1)\n'
+                      '                2 * k = 2 * j + 1 ∧ ¬(2 * k = 2 * j + '
+                      '1)\n'
+                      '                ⊥\n'
+                      'qed\n'
+                      '\n'
+                      '; the square of an odd number is odd: m m = (2k+1) m = '
+                      '2 k m + m = 2 (k m + k) + 1\n'
+                      'show $m ∈ Nat ∧ odd $m  ⇒  odd ($m * $m)   '
+                      '"odd-square"\n'
+                      'proof\n'
+                      '    assume $m ∈ Nat ∧ odd $m\n'
+                      '        odd $m\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
+                      '        pick k with k ∈ Nat ∧ $m = 2 * k + 1\n'
+                      '            $m = 2 * k + 1\n'
+                      '            k ∈ Nat\n'
+                      '            $m ∈ Nat\n'
+                      '            $m * $m = (2 * k + 1) * $m\n'
+                      '                    = 2 * k * $m + 1 * $m\n'
+                      '                    = 2 * k * $m + $m\n'
+                      '                    = 2 * k * $m + (2 * k + 1)\n'
+                      '                    = 2 * k * $m + 2 * k + 1\n'
+                      '                    = 2 * (k * $m + k) + 1\n'
+                      '            k * $m ∈ Nat\n'
+                      '            k * $m + k ∈ Nat\n'
+                      '            k * $m + k ∈ Nat ∧ $m * $m = 2 * (k * $m + '
+                      'k) + 1\n'
+                      '            ∃ $j ($j ∈ Nat ∧ $m * $m = 2 * $j + 1)\n'
+                      '            odd ($m * $m)\n'
+                      'qed\n'
+                      '\n'
+                      '; if the square is even, so is the number: otherwise it '
+                      'is odd, and so is its square\n'
+                      'show $m ∈ Nat ∧ even ($m * $m)  ⇒  even $m   '
+                      '"even-square"\n'
+                      'proof\n'
+                      '    assume $m ∈ Nat ∧ even ($m * $m)\n'
+                      '        $m ∈ Nat\n'
+                      '        even $m ∨ odd $m                               '
+                      '; even-or-odd\n'
+                      '        assume even $m\n'
+                      '            even $m\n'
+                      '        assume odd $m\n'
+                      '            odd ($m * $m)                              '
+                      '; odd-square\n'
+                      '            even ($m * $m) ∧ odd ($m * $m)\n'
+                      '            false                                      '
+                      '; not-even-and-odd\n'
+                      '            even $m\n'
+                      '        even $m                                        '
+                      '; or-elim\n'
+                      'qed\n'
+                      '\n'
+                      ';; divisibility\n'
+                      'infix divides 20 20\n'
+                      'prop divides 0\n'
+                      'alias ∣ divides\n'
+                      'def $a ∣ $b  ⇔  ∃ $k ($k ∈ Nat ∧ $b = $a * $k)       '
+                      '"divides"\n'
+                      '\n'
+                      'show $a ∈ Nat  ⇒  $a ∣ $a     "divides-refl"\n'
+                      'proof\n'
+                      '    assume $a ∈ Nat\n'
+                      '        1 ∈ Nat\n'
+                      '        $a = $a * 1\n'
+                      '        1 ∈ Nat ∧ $a = $a * 1\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $a = $a * $k)\n'
+                      '        $a ∣ $a\n'
+                      'qed\n'
+                      '\n'
+                      'show $a ∈ Nat  ⇒  1 ∣ $a     "one-divides"\n'
+                      'proof\n'
+                      '    assume $a ∈ Nat\n'
+                      '        $a = 1 * $a\n'
+                      '        $a ∈ Nat ∧ $a = 1 * $a\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $a = 1 * $k)\n'
+                      '        1 ∣ $a\n'
+                      'qed\n'
+                      '\n'
+                      'show $a ∣ $b ∧ $b ∣ $c  ⇒  $a ∣ $c     "divides-trans"\n'
+                      'proof\n'
+                      '    assume $a ∣ $b ∧ $b ∣ $c\n'
+                      '        $a ∣ $b\n'
+                      '        $b ∣ $c\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $b = $a * $k)\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $c = $b * $k)\n'
+                      '        pick k with k ∈ Nat ∧ $b = $a * k\n'
+                      '            k ∈ Nat\n'
+                      '            $b = $a * k\n'
+                      '            pick j with j ∈ Nat ∧ $c = $b * j\n'
+                      '                j ∈ Nat\n'
+                      '                $c = $b * j\n'
+                      '                $c = $a * k * j\n'
+                      '                k * j ∈ Nat\n'
+                      '                k * j ∈ Nat ∧ $c = $a * (k * j)\n'
+                      '                ∃ $l ($l ∈ Nat ∧ $c = $a * $l)\n'
+                      '                $a ∣ $c\n'
+                      'qed\n'
+                      '\n'
+                      '; even means divisible by 2\n'
+                      'show even $m  ⇔  2 ∣ $m     "even-divides"\n'
+                      'proof\n'
+                      '    assume even $m\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                      '        2 ∣ $m\n'
+                      '    assume 2 ∣ $m\n'
+                      '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
+                      '        even $m\n'
+                      'qed\n'
+                      '\n'
+                      '; coprime: 1 is the only common divisor\n'
+                      'arity coprime (_, _)\n'
+                      'def coprime($a, $b)  ⇔  ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  '
+                      '⇒  $d = 1)     "coprime"\n'
+                      '\n'
+                      'show coprime($a, $b)  ⇒  ¬(even $a ∧ even $b)     '
+                      '"coprime-not-both-even"\n'
+                      'proof\n'
+                      '    assume coprime($a, $b)\n'
+                      '        ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  ⇒  $d = 1)\n'
+                      '        assume even $a ∧ even $b\n'
+                      '            even $a\n'
+                      '            even $b\n'
+                      '            2 ∣ $a                                     '
+                      '; even-divides\n'
+                      '            2 ∣ $b                                     '
+                      '; even-divides\n'
+                      '            2 ∣ $a ∧ 2 ∣ $b\n'
+                      '            2 ∣ $a ∧ 2 ∣ $b  ⇒  2 = 1\n'
+                      '            2 = 1\n'
+                      '            calc on\n'
+                      '            2 ≠ 1\n'
+                      '            calc off\n'
+                      '            ¬(2 = 1)\n'
+                      '            2 = 1 ∧ ¬(2 = 1)\n'
+                      '            false\n'
+                      'qed\n'
+                      '\n'
+                      '; lowest terms: a positive rational is m / n with '
+                      'coprime natural numbers m, n -- take the least\n'
+                      '; denominator n (well-ordering); a common divisor d ≥ 2 '
+                      'of m and n would give the smaller\n'
+                      '; denominator n / d\n'
+                      'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ '
+                      'Nat ∧ $n ≠ 0 ∧ coprime($m, $n) ∧ $q = $m / $n)     '
+                      '"lowest-terms"\n'
+                      'proof\n'
+                      '    assume $q ∈ Rat ∧ $q > 0\n'
+                      '        ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = '
+                      '$m / $n)     ; rat-pos\n'
+                      '        ; the denominators -- a subset of `Nat`: for '
+                      'every element, not only the numbers among\n'
+                      '        ; them, so `c` is any set (`set c`; the '
+                      '`default real` would make it a number)\n'
+                      '        set c\n'
+                      '        let c\n'
+                      '            assume c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                      'Nat ∧ $q = $i / $j) }\n'
+                      '                c ∈ '
+                      'Nat                                     ; '
+                      'separation-in\n'
+                      '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
+                      '/ $j) } ⊂ Nat\n'
+                      '        pick m with ∃ $n (m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ '
+                      '$q = m / $n)\n'
+                      '            pick n with m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q '
+                      '= m / n\n'
+                      '                m ∈ Nat\n'
+                      '                n ∈ Nat\n'
+                      '                n ≠ 0\n'
+                      '                $q = m / n\n'
+                      '                m ∈ Nat ∧ $q = m / n\n'
+                      '                ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
+                      '                n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = '
+                      '$i / n)\n'
+                      '                n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
+                      'Nat ∧ $q = $i / $j) }     ; separation\n'
+                      '                ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i '
+                      '($i ∈ Nat ∧ $q = $i / $j) })\n'
+                      '        ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
+                      '∧ $q = $i / $j) })\n'
+                      '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
+                      '/ $j) } ⊂ Nat ∧ ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i '
+                      '($i ∈ Nat ∧ $q = $i / $j) })\n'
+                      '        ; the least one\n'
+                      '        ∃ $l ($l ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
+                      '∧ $q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i '
+                      '($i ∈ Nat ∧ $q = $i / $j) } ($l <= $y))   ; '
+                      'well-ordering\n'
+                      '        pick n with n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i '
+                      '∈ Nat ∧ $q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ '
+                      '∃ $i ($i ∈ Nat ∧ $q = $i / $j) } (n <= $y)\n'
+                      '            n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
+                      '$q = $i / $j) }\n'
+                      '            ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
+                      '∧ $q = $i / $j) } (n <= $y)\n'
+                      '            n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
+                      '/ n)     ; separation\n'
+                      '            n ∈ Nat\n'
+                      '            n ≠ 0\n'
+                      '            ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
+                      '            pick m with m ∈ Nat ∧ $q = m / n\n'
+                      '                m ∈ Nat\n'
+                      '                $q = m / n\n'
+                      '                ; m and n are coprime\n'
+                      '                let d ∈ Nat\n'
+                      '                    assume d ∣ m ∧ d ∣ n\n'
+                      '                        d ∣ m\n'
+                      '                        d ∣ n\n'
+                      '                        ∃ $k ($k ∈ Nat ∧ m = d * $k)\n'
+                      '                        ∃ $k ($k ∈ Nat ∧ n = d * $k)\n'
+                      '                        pick a with a ∈ Nat ∧ m = d * '
+                      'a\n'
+                      '                            a ∈ Nat\n'
+                      '                            m = d * a\n'
+                      '                            pick b with b ∈ Nat ∧ n = d '
+                      '* b\n'
+                      '                                b ∈ Nat\n'
+                      '                                n = d * b\n'
+                      '                                ; d ≠ 0 and b ≠ 0, '
+                      'since n ≠ 0\n'
+                      '                                assume d = 0\n'
+                      '                                    n = 0 * b\n'
+                      '                                    n = '
+                      '0                      ; mul-zero\n'
+                      '                                    ¬(n = 0)\n'
+                      '                                    n = 0 ∧ ¬(n = 0)\n'
+                      '                                    ⊥\n'
+                      '                                ¬(d = 0)\n'
+                      '                                d ≠ 0\n'
+                      '                                assume b = 0\n'
+                      '                                    n = d * 0\n'
+                      '                                    n = '
+                      '0                      ; mul-zero\n'
+                      '                                    ¬(n = 0)\n'
+                      '                                    n = 0 ∧ ¬(n = 0)\n'
+                      '                                    ⊥\n'
+                      '                                ¬(b = 0)\n'
+                      '                                b ≠ 0\n'
+                      '                                ; so q = a / b, and b '
+                      'is a denominator too\n'
+                      '                                (d * a) / (d * b) = a / '
+                      'b      ; frac-cancel\n'
+                      '                                $q = m / n\n'
+                      '                                   = (d * a) / n\n'
+                      '                                   = (d * a) / (d * b)\n'
+                      '                                   = a / b\n'
+                      '                                a ∈ Nat ∧ $q = a / b\n'
+                      '                                ∃ $i ($i ∈ Nat ∧ $q = '
+                      '$i / b)\n'
+                      '                                b ∈ Nat ∧ b ≠ 0 ∧ ∃ $i '
+                      '($i ∈ Nat ∧ $q = $i / b)\n'
+                      '                                b ∈ { $j ∈ Nat | $j ≠ 0 '
+                      '∧ ∃ $i ($i ∈ Nat ∧ $q = $i / $j) }     ; separation\n'
+                      '                                n <= b\n'
+                      '                                ; d = 1, since d ≥ 2 '
+                      'would make b < d b = n\n'
+                      '                                assume ¬(d = 1)\n'
+                      '                                    d ≠ 1\n'
+                      '                                    2 <= '
+                      'd                     ; nat-ge-two\n'
+                      '                                    b < d * '
+                      'b                  ; nat-lt-mul\n'
+                      '                                    b < n\n'
+                      '                                    b >= '
+                      'n                     ; le-ge\n'
+                      '                                    b < n ∧ b >= n\n'
+                      '                                    '
+                      '⊥                          ; lt-ge-contra\n'
+                      '                                ¬¬(d = 1)\n'
+                      '                                d = 1\n'
+                      '                ∀ $d ∈ Nat ($d ∣ m ∧ $d ∣ n  ⇒  $d = '
+                      '1)\n'
+                      '                coprime(m, n)\n'
+                      '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ coprime(m, '
+                      'n) ∧ $q = m / n\n'
+                      '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
+                      'coprime(m, $j) ∧ $q = m / $j)\n'
+                      '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 '
+                      '∧ coprime($i, $j) ∧ $q = $i / $j)\n'
+                      'qed\n'
+                      '\n'
+                      ';; the theorems Kurt proves above, as theorems of '
+                      'Mathlib (see natural.kurt): `coprime` and `∣` unfolded\n'
+                      'lean "even-or-odd" intro x hx; obtain ⟨n, rfl⟩ := '
+                      '(k_mem_Nat x).mp hx; simp only [even, odd]\n'
+                      'lean "even-or-odd" rcases Nat.even_or_odd\' n with ⟨k, '
+                      'rfl | rfl⟩\n'
+                      'lean "even-or-odd" all_goals first\n'
+                      'lean "even-or-odd"   | (left; refine ⟨(k : ℝ), ?_⟩; '
+                      'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, '
+                      'rfl⟩ | (push_cast; first | done | ring1))\n'
+                      'lean "even-or-odd"   | (right; refine ⟨(k : ℝ), ?_⟩; '
+                      'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, '
+                      'rfl⟩ | (push_cast; first | done | ring1))\n'
+                      'lean "even-ne-odd" intro x hx y hy\n'
+                      'lean "even-ne-odd" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp '
+                      'hx; obtain ⟨m, rfl⟩ := (k_mem_Nat y).mp hy; '
+                      'beta_reduce\n'
+                      'lean "even-ne-odd" intro h; have : 2 * n = 1 + 2 * m := '
+                      'by exact_mod_cast h\n'
+                      'lean "even-ne-odd" omega\n'
+                      'lean "not-even-and-odd" intro x h; casesm* _ ∧ _\n'
+                      'lean "not-even-and-odd" have he : even x := by '
+                      'assumption\n'
+                      'lean "not-even-and-odd" have ho : odd x := by '
+                      'assumption\n'
+                      'lean "not-even-and-odd" simp only [even, odd] at he ho\n'
+                      'lean "not-even-and-odd" obtain ⟨a, ha⟩ := he; obtain '
+                      '⟨b, hb⟩ := ho; casesm* _ ∧ _\n'
+                      'lean "not-even-and-odd" obtain ⟨i, rfl⟩ := (k_mem_Nat '
+                      'a).mp (by assumption)\n'
+                      'lean "not-even-and-odd" obtain ⟨j, rfl⟩ := (k_mem_Nat '
+                      'b).mp (by assumption)\n'
+                      'lean "not-even-and-odd" have e : ((2 * i : ℕ) : ℝ) = '
+                      '((2 * j + 1 : ℕ) : ℝ) := by push_cast; linarith\n'
+                      'lean "not-even-and-odd" have := Nat.cast_injective e\n'
+                      'lean "not-even-and-odd" omega\n'
+                      'lean "odd-square" intro x h; casesm* _ ∧ _\n'
+                      'lean "odd-square" have ho : odd x := by assumption\n'
+                      'lean "odd-square" simp only [odd] at ho ⊢\n'
+                      'lean "odd-square" obtain ⟨b, hb⟩ := ho; casesm* _ ∧ _\n'
+                      'lean "odd-square" obtain ⟨j, rfl⟩ := (k_mem_Nat b).mp '
+                      '(by assumption)\n'
+                      'lean "odd-square" have e : x = 2 * j + 1 := by '
+                      'linarith\n'
+                      'lean "odd-square" subst e\n'
+                      'lean "odd-square" refine ⟨((2 * j * j + 2 * j : ℕ) : '
+                      'ℝ), ?_⟩\n'
+                      'lean "odd-square" constructor <;> first | exact '
+                      '(k_mem_Nat _).mpr ⟨_, rfl⟩ | (push_cast; first | done | '
+                      'ring1)\n'
+                      'lean "even-square" intro x h; casesm* _ ∧ _\n'
+                      'lean "even-square" have he : even (x * x) := by '
+                      'assumption\n'
+                      'lean "even-square" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp '
+                      '(by assumption)\n'
+                      'lean "even-square" simp only [even] at he ⊢\n'
+                      'lean "even-square" obtain ⟨a, ha⟩ := he; casesm* _ ∧ _\n'
+                      'lean "even-square" obtain ⟨i, rfl⟩ := (k_mem_Nat a).mp '
+                      '(by assumption)\n'
+                      'lean "even-square" have e : ((n * n : ℕ) : ℝ) = ((2 * i '
+                      ': ℕ) : ℝ) := by push_cast; linarith\n'
+                      'lean "even-square" have e\' := Nat.cast_injective e\n'
+                      'lean "even-square" have : Even (n * n) := ⟨i, by '
+                      'omega⟩\n'
+                      'lean "even-square" obtain ⟨t, ht⟩ := (Nat.even_mul.mp '
+                      'this).elim id id\n'
+                      'lean "even-square" refine ⟨(t : ℝ), ?_⟩\n'
+                      'lean "even-square" constructor <;> first | exact '
+                      '(k_mem_Nat _).mpr ⟨t, rfl⟩ | (rw [ht]; push_cast; first '
+                      '| done | ring1)\n'
+                      'lean "divides-refl" intro x hx; simp only [divides]; '
+                      'refine ⟨1, ?_⟩\n'
+                      'lean "divides-refl" constructor <;> first | exact '
+                      '(k_mem_Nat _).mpr ⟨1, by simp⟩ | ring1\n'
+                      'lean "one-divides" intro x hx; simp only [divides]; '
+                      'refine ⟨x, ?_⟩\n'
+                      'lean "one-divides" constructor <;> first | exact hx | '
+                      'ring1\n'
+                      'lean "divides-trans" intro a b c h\n'
+                      'lean "divides-trans" obtain ⟨h1, h2⟩ := h\n'
+                      'lean "divides-trans" simp only [divides] at h1 h2 ⊢\n'
+                      'lean "divides-trans" obtain ⟨p, hp⟩ := h1; obtain ⟨q, '
+                      'hq⟩ := h2; casesm* _ ∧ _\n'
+                      'lean "divides-trans" obtain ⟨i, rfl⟩ := (k_mem_Nat '
+                      'p).mp (by assumption)\n'
+                      'lean "divides-trans" obtain ⟨j, rfl⟩ := (k_mem_Nat '
+                      'q).mp (by assumption)\n'
+                      'lean "divides-trans" refine ⟨((i * j : ℕ) : ℝ), ?_⟩\n'
+                      'lean "divides-trans" constructor <;> first | exact '
+                      '(k_mem_Nat _).mpr ⟨_, rfl⟩ | (push_cast; subst_vars; '
+                      'first | done | ring1)\n'
+                      'lean "even-divides" intro x; simp only [even, divides]\n'
+                      'lean "even-divides" first | done | (constructor <;> '
+                      'rintro ⟨k, h1, h2⟩ <;> first | exact ⟨k, h1, h2⟩ | '
+                      'exact ⟨k, h2, h1⟩)\n'
+                      'lean "coprime-not-both-even" intro a b h he\n'
+                      'lean "coprime-not-both-even" obtain ⟨ha, hb⟩ := he\n'
+                      'lean "coprime-not-both-even" simp only [even] at ha hb\n'
+                      'lean "coprime-not-both-even" simp only [coprime, '
+                      'divides] at h\n'
+                      'lean "coprime-not-both-even" have two := h 2 '
+                      '((k_mem_Nat _).mpr ⟨2, by norm_num⟩)\n'
+                      'lean "coprime-not-both-even" obtain ⟨p, hp⟩ := ha; '
+                      'obtain ⟨q, hq⟩ := hb; casesm* _ ∧ _\n'
+                      'lean "coprime-not-both-even" have : (2 : ℝ) = 1 := by\n'
+                      'lean "coprime-not-both-even"   apply two\n'
+                      'lean "coprime-not-both-even"   constructor\n'
+                      'lean "coprime-not-both-even"   · refine ⟨p, ?_⟩; '
+                      'constructor <;> assumption\n'
+                      'lean "coprime-not-both-even"   · refine ⟨q, ?_⟩; '
+                      'constructor <;> assumption\n'
+                      'lean "coprime-not-both-even" norm_num at this\n'
+                      'lean "lowest-terms" intro q h; casesm* _ ∧ _\n'
+                      'lean "lowest-terms" obtain ⟨r, rfl⟩ := (k_mem_Rat q).mp '
+                      '(by assumption)\n'
+                      'lean "lowest-terms" have hr : 0 < r := by '
+                      'exact_mod_cast (by assumption : (0 : ℝ) < r)\n'
+                      'lean "lowest-terms" have key : ∃ a b : ℕ, b ≠ 0 ∧ '
+                      'Nat.Coprime a b ∧ (r : ℝ) = (a : ℝ) / (b : ℝ) := by\n'
+                      'lean "lowest-terms"   have h0 : 0 ≤ r.num := '
+                      '(Rat.num_pos.mpr hr).le\n'
+                      'lean "lowest-terms"   refine ⟨r.num.toNat, r.den, '
+                      'r.den_nz, ?_, ?_⟩\n'
+                      'lean "lowest-terms"   · have e : r.num.toNat = '
+                      'r.num.natAbs := by omega\n'
+                      'lean "lowest-terms"     rw [e]; exact r.reduced\n'
+                      'lean "lowest-terms"   · have hnum : ((r.num.toNat : ℕ) '
+                      ': ℤ) = r.num := Int.toNat_of_nonneg h0\n'
+                      'lean "lowest-terms"     rw [Rat.cast_def r]; congr 1; '
+                      'exact_mod_cast hnum.symm\n'
+                      'lean "lowest-terms" obtain ⟨a, b, hb, hab, he⟩ := key\n'
+                      'lean "lowest-terms" refine ⟨(a : ℝ), (b : ℝ), ?_⟩\n'
+                      'lean "lowest-terms" refine ⟨?_, ?_, ?_, ?_, ?_⟩\n'
+                      'lean "lowest-terms" all_goals first\n'
+                      'lean "lowest-terms"   | exact he\n'
+                      'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨a, '
+                      'rfl⟩\n'
+                      'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨b, '
+                      'rfl⟩\n'
+                      'lean "lowest-terms"   | exact_mod_cast hb\n'
+                      'lean "lowest-terms"   | (simp only [coprime]\n'
+                      'lean "lowest-terms"      intro d hd hdiv\n'
+                      'lean "lowest-terms"      obtain ⟨e, rfl⟩ := (k_mem_Nat '
+                      'd).mp hd\n'
+                      'lean "lowest-terms"      have dvd : ∀ c : ℕ, divides (e '
+                      ': ℝ) (c : ℝ) → e ∣ c := by\n'
+                      'lean "lowest-terms"        intro c hc; simp only '
+                      '[divides] at hc; obtain ⟨s, hs⟩ := hc; casesm* _ ∧ _\n'
+                      'lean "lowest-terms"        obtain ⟨s\', rfl⟩ := '
+                      '(k_mem_Nat s).mp (by assumption)\n'
+                      'lean "lowest-terms"        exact ⟨s\', by '
+                      "exact_mod_cast (by linarith : (c : ℝ) = e * s')⟩\n"
+                      'lean "lowest-terms"      have hda := dvd a (by first | '
+                      'exact hdiv.1 | exact hdiv.2)\n'
+                      'lean "lowest-terms"      have hdb := dvd b (by first | '
+                      'exact hdiv.1 | exact hdiv.2)\n'
+                      'lean "lowest-terms"      have := Nat.dvd_gcd hda hdb\n'
+                      'lean "lowest-terms"      rw [Nat.Coprime.gcd_eq_one '
+                      'hab] at this\n'
+                      'lean "lowest-terms"      simp [Nat.dvd_one.mp this])\n',
  'equality.kurt': '; equality\n'
                   ';\n'
                   '; covers: reflexivity ("equal-intro"), Leibniz substitution '
@@ -1220,7 +1805,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'Deliberately small -- "equal-elim"\n'
                   "; is the substitution primitive nearly every other theory's "
                   '`=`-chain proofs are built out of\n'
-                  "; (numbers.kurt's algebraic rules, set.kurt's "
+                  "; (number.kurt's algebraic rules, set.kurt's "
                   'distributive-law proof, ...).\n'
                   'load propositional\n'
                   '\n'
@@ -1275,7 +1860,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                'Kurt derives (a step `17a`).\n'
                ';\n'
                '; A structure with its own operators: not together with '
-               'numbers.kurt, whose laws hold for\n'
+               'number.kurt, whose laws hold for\n'
                '; everything written with `+` -- a symbol is declared by one '
                'file only (doc/kurt-ref.md, `load`).\n'
                '; For vectors over `K`: vectorspace.kurt.\n'
@@ -1958,7 +2543,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 'the embedded natural numbers there),\n'
                 '; see the `lean "nat-number"` at the end. Everything else '
                 'here is a `def` or a theorem.\n'
-                'load propositional, equality, logic, set, numbers, natural\n'
+                'load propositional, equality, logic, set, number, natural, '
+                'interval\n'
                 '\n'
                 '; the sorts of the variables (a fact gives no sort, '
                 'doc/kurt-ref.md §5.2): mappings and sets are\n'
@@ -4189,134 +4775,6 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '        $b ∈ $G\n'
                '        $a ∘ $b = $b ∘ $a\n'
                'qed\n',
- 'integer.kurt': '; integers\n'
-                 ';\n'
-                 '; covers: `Int`, the integers -- the natural numbers and '
-                 'their negatives -- closed under `+`, `-`\n'
-                 '; and `*`. As for natural.kurt, they are numbers of '
-                 'numbers.kurt, so its laws (and `calc`) apply.\n'
-                 'load propositional, equality, set, numbers, natural\n'
-                 'default real              ; every symbol of this file is a '
-                 'number, except where said otherwise:\n'
-                 'set Int                  ; the integers are a set (of '
-                 'numbers)\n'
-                 'const Int\n'
-                 'builtin Int integers                   ; `calc on` proves '
-                 '`-3 ∈ Int`\n'
-                 'tex Int \\mathbb{Z}\n'
-                 "; `kurt --lean` with Mathlib: the objects are Mathlib's "
-                 'reals (numbers.kurt), `Int` the integers\n'
-                 '; among them (as `Nat` in natural.kurt)\n'
-                 'lean Int member $1 ∈ Set.range (fun n : ℤ => (n : ℝ))\n'
-                 'alias ℤ Int\n'
-                 'use Int ⊂ Real  "int-sub-real"      ; a set of numbers '
-                 '(natural.kurt\'s "ext-real")\n'
-                 'lean "int-sub-real" simp only [subset]; intro z hz; obtain '
-                 '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
-                 '_).mpr rfl\n'
-                 '\n'
-                 'use $n ∈ Nat  ⇒  $n ∈ Int                         "int-nat"\n'
-                 'use $n ∈ Nat  ⇒  -$n ∈ Int                        '
-                 '"int-neg-nat"\n'
-                 'use $z ∈ Int  ⇒  $z ∈ Nat ∨ -$z ∈ Nat             '
-                 '"int-cases"      ; nothing else\n'
-                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a + $b ∈ Int         "int-add"\n'
-                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a - $b ∈ Int         "int-sub"\n'
-                 'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a * $b ∈ Int         "int-mul"\n'
-                 '\n'
-                 'show 0 ∈ Int     "int-zero"\n'
-                 'proof\n'
-                 '    0 ∈ Nat\n'
-                 '    0 ∈ Int\n'
-                 'qed\n'
-                 '\n'
-                 'show 1 ∈ Int     "int-one"\n'
-                 'proof\n'
-                 '    1 ∈ Nat\n'
-                 '    1 ∈ Int\n'
-                 'qed\n'
-                 '\n'
-                 'show $z ∈ Int  ⇒  -$z ∈ Int     "int-neg"\n'
-                 'proof\n'
-                 '    assume $z ∈ Int\n'
-                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
-                 '        case $z ∈ Nat\n'
-                 '            -$z ∈ Int                                  ; '
-                 'int-neg-nat\n'
-                 '        case -$z ∈ Nat\n'
-                 '            -$z ∈ Int                                  ; '
-                 'int-nat\n'
-                 '        -$z ∈ Int\n'
-                 'qed\n'
-                 '\n'
-                 '; a positive integer is a natural number\n'
-                 'show $z ∈ Int ∧ $z > 0  ⇒  $z ∈ Nat     "int-pos-nat"\n'
-                 'proof\n'
-                 '    assume $z ∈ Int ∧ $z > 0\n'
-                 '        $z ∈ Int\n'
-                 '        $z > 0\n'
-                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
-                 '        case $z ∈ Nat\n'
-                 '            $z ∈ Nat\n'
-                 '        case -$z ∈ Nat\n'
-                 '            0 <= -$z                                   ; '
-                 'nat-nonneg\n'
-                 '            -$z >= 0                                   ; '
-                 'le-ge\n'
-                 '            -$z + $z >= 0 + $z                         ; '
-                 'ge-add\n'
-                 '            -$z + $z = 0                               ; '
-                 'add-inverse\n'
-                 '            0 + $z = $z                                ; '
-                 'add-identity\n'
-                 '            0 >= 0 + $z\n'
-                 '            0 >= $z\n'
-                 '            $z <= 0                                    ; '
-                 'le-ge\n'
-                 '            $z > 0 ∧ $z <= 0\n'
-                 '            ⊥                                          ; '
-                 'gt-le-contra\n'
-                 '            $z ∈ Nat\n'
-                 '        $z ∈ Nat\n'
-                 'qed\n'
-                 '\n'
-                 '\n'
-                 ';; the rules as theorems of Mathlib (see numbers.kurt and '
-                 'natural.kurt): `Int` by its axiom `k_mem_Int`\n'
-                 'lean "int-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
-                 'x).mp hx; exact (k_mem_Int _).mpr ⟨n, by simp⟩\n'
-                 'lean "int-neg-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
-                 'x).mp hx; exact (k_mem_Int _).mpr ⟨-n, by simp⟩\n'
-                 'lean "int-cases" intro z hz\n'
-                 'lean "int-cases" obtain ⟨m, rfl⟩ := (k_mem_Int z).mp hz\n'
-                 'lean "int-cases" obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg '
-                 'm\n'
-                 'lean "int-cases" all_goals first | (left; refine (k_mem_Nat '
-                 '_).mpr ⟨n, ?_⟩; simp; done) | (right; refine (k_mem_Nat '
-                 '_).mpr ⟨n, ?_⟩; simp; done)\n'
-                 'lean "int-add" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
-                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
-                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_add _ _⟩\n'
-                 'lean "int-sub" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
-                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
-                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_sub _ _⟩\n'
-                 'lean "int-mul" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
-                 'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
-                 'exact (k_mem_Int _).mpr ⟨_, Int.cast_mul _ _⟩\n'
-                 '\n'
-                 ';; the theorems Kurt proves above, as theorems of Mathlib '
-                 'too (see natural.kurt)\n'
-                 'lean "int-zero" exact (k_mem_Int _).mpr ⟨0, by simp⟩\n'
-                 'lean "int-one" exact (k_mem_Int _).mpr ⟨1, by simp⟩\n'
-                 'lean "int-neg" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
-                 'z).mp hz; exact (k_mem_Int _).mpr ⟨-m, by simp⟩\n'
-                 'lean "int-pos-nat" intros; casesm* _ ∧ _\n'
-                 'lean "int-pos-nat" obtain ⟨m, rfl⟩ := (k_mem_Int _).mp '
-                 '‹k_emb _ ∈ Int›; beta_reduce at *\n'
-                 'lean "int-pos-nat" have : 0 < m := by exact_mod_cast (‹_› : '
-                 '(0 : ℝ) < m)\n'
-                 'lean "int-pos-nat" exact (k_mem_Nat _).mpr ⟨m.toNat, by '
-                 'beta_reduce; exact_mod_cast Int.toNat_of_nonneg this.le⟩\n',
  'integral.kurt': '; integrals\n'
                   ';\n'
                   '; covers: the (Riemann) integral `integral x (a, b) T` of '
@@ -4347,7 +4805,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'conditions it needs -- for Lean they\n'
                   "; are proved, from Mathlib's integrals, but "
                   '"integral-riemann" (`lean "label" ...` at the end).\n'
-                  'load propositional, equality, logic, set, numbers, natural, '
+                  'load propositional, equality, logic, set, number, natural, '
                   'analysis, continuity, derivative\n'
                   'default real              ; every symbol of this file is a '
                   'number, except where said otherwise\n'
@@ -4356,7 +4814,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'variable\n'
                   'const integral, integrable\n'
                   'arity integral _ (_, _) _, integrable _ (_, _) _\n'
-                  'bindop integral, integrable\n'
+                  'binder integral 65, integrable 65\n'
                   'tex integral \\int_{$2}^{$3} $4 \\, d$1\n'
                   'tex integrable \\operatorname{integrable}_{$1 \\in [$2, '
                   '$3]} $4\n'
@@ -4434,7 +4892,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   '(sub $v $y $T)))  ⇒  (integral $v ($a, $b) $T) = (sub $v $b '
                   '$F) - (sub $v $a $F)   "ftc"\n'
                   '\n'
-                  ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                  ';; the rules as theorems of Mathlib (see number.kurt): '
                   '`lean "label" TACTIC` is a proof in Lean --\n'
                   ';; all but "integral-riemann" (that the Riemann sums of a '
                   'continuous function converge to its\n'
@@ -4535,6 +4993,149 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                   'lean "ftc"   | (have H := ‹∀ y, y ≤ _ ∧ _ ≤ y → _ ∧ _› y '
                   '⟨hy.2, hy.1⟩; exact ⟨by first | exact H.1 | exact H.2, by '
                   'first | exact H.1 | exact H.2⟩)\n',
+ 'interval.kurt': '; interval -- the numbers between two numbers: `Icc a b`, '
+                  '`Ico a b`, `Ioc a b`, `Ioo a b`, and the progressions `{a, '
+                  '..., c}`\n'
+                  ';\n'
+                  "; covers: the intervals of numbers by Mathlib's names, "
+                  'closed `Icc a b` (`a ≤ x ≤ b`), half open `Ico a b` (`a ≤ x '
+                  '< b`) and\n'
+                  '; `Ioc a b` (`a < x ≤ b`), open `Ioo a b` (`a < x < b`) -- '
+                  'sets of numbers, each a subset of `Real`; and the '
+                  'arithmetic\n'
+                  '; progressions with `...`, `{a, ..., c}` the numbers from '
+                  '`a` to `c` in steps of one (the natural numbers `k` with\n'
+                  '; `a + k ≤ c`), see below. (The brackets `[a, b]` are left '
+                  'out: matrix.kurt has `[ ]` too, and a symbol is declared\n'
+                  '; by one file only.) As for natural.kurt, they are numbers '
+                  'of number.kurt, so its laws (and `calc`) apply.\n'
+                  'load propositional, equality, logic\n'
+                  'load set\n'
+                  'load number\n'
+                  'load natural\n'
+                  'default real              ; every symbol of this file is a '
+                  'number, except where said otherwise:\n'
+                  '\n'
+                  ';; the intervals\n'
+                  'const Icc, Ico, Ioc, Ioo\n'
+                  'arity Icc 2, Ico 2, Ioc 2, Ioo 2\n'
+                  'set Icc 0, Ico 0, Ioc 0, Ioo 0           ; a set of '
+                  'numbers, of the two numbers at its places 1 and 2\n'
+                  'real Icc 1 2, Ico 1 2, Ioc 1 2, Ioo 1 2\n'
+                  'tex Icc [$1, $2]\n'
+                  'tex Ico [$1, $2)\n'
+                  'tex Ioc ($1, $2]\n'
+                  'tex Ioo ($1, $2)\n'
+                  'use $x ∈ Icc $a $b  ≡  $a <= $x ∧ $x <= $b     "in-Icc"\n'
+                  'use $x ∈ Ico $a $b  ≡  $a <= $x ∧ $x < $b      "in-Ico"\n'
+                  'use $x ∈ Ioc $a $b  ≡  $a < $x ∧ $x <= $b      "in-Ioc"\n'
+                  'use $x ∈ Ioo $a $b  ≡  $a < $x ∧ $x < $b       "in-Ioo"\n'
+                  'use Icc $a $b ⊂ Real     "Icc-sub-real"\n'
+                  'use Ico $a $b ⊂ Real     "Ico-sub-real"\n'
+                  'use Ioc $a $b ⊂ Real     "Ioc-sub-real"\n'
+                  'use Ioo $a $b ⊂ Real     "Ioo-sub-real"\n'
+                  '; `kurt --lean`: the sets of the embedded numbers with the '
+                  'property (`k_numset`), so the eight rules are theorems of '
+                  'Mathlib\n'
+                  'lean Icc k_numset (fun x_ => $1 ≤ x_ ∧ x_ ≤ $2)\n'
+                  'lean Ico k_numset (fun x_ => $1 ≤ x_ ∧ x_ < $2)\n'
+                  'lean Ioc k_numset (fun x_ => $1 < x_ ∧ x_ ≤ $2)\n'
+                  'lean Ioo k_numset (fun x_ => $1 < x_ ∧ x_ < $2)\n'
+                  '\n'
+                  ';; the progressions\n'
+                  '; sets of numbers with `...` (an arithmetic progression): '
+                  '`{a, ..., c}` the numbers from `a` to\n'
+                  '; `c` in steps of one, `{a, b, ..., c}` and `{a, b, ...}` '
+                  'in steps of `b - a` (for `a < b`), with\n'
+                  '; or without an end -- Kurt refuses other lists with `...`: '
+                  'their pattern would be a guess\n'
+                  '; (`{2, 3, 5, 7, 11, ...}`; write `{p ∈ Nat | ...}`), see '
+                  'dev/design-sets-and-brackets.md §7\n'
+                  'use $x ∈ {$a, ..., $c}  ≡  ∃ $k ∈ Nat ($x = $a + $k ∧ $x <= '
+                  '$c)                                 "range"\n'
+                  'use $x ∈ {$a, ...}  ≡  ∃ $k ∈ Nat ($x = $a + '
+                  '$k)                                              '
+                  '"range-infinite"\n'
+                  'use $a < $b ∧ $x ∈ {$a, $b, ..., $c}  ⇒  ∃ $k ∈ Nat ($x = '
+                  '$a + $k * ($b - $a) ∧ $x <= $c)   "progression"\n'
+                  'use $a < $b ∧ (∃ $k ∈ Nat ($x = $a + $k * ($b - $a) ∧ $x <= '
+                  '$c))  ⇒  $x ∈ {$a, $b, ..., $c}  "progression-intro"\n'
+                  'use $a < $b ∧ $x ∈ {$a, $b, ...}  ⇒  ∃ $k ∈ Nat ($x = $a + '
+                  '$k * ($b - $a))                  "progression-infinite"\n'
+                  'use $a < $b ∧ (∃ $k ∈ Nat ($x = $a + $k * ($b - $a)))  ⇒  '
+                  '$x ∈ {$a, $b, ...}                '
+                  '"progression-infinite-intro"\n'
+                  '; ... in Lean: the sets of the embedded numbers so made '
+                  '(`k_numset`) -- the six rules above are then\n'
+                  '; theorems (their `lean "label" ...` below), the '
+                  'definitions of these notations\n'
+                  'lean {_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ ∧ '
+                  'x_ ≤ $2)\n'
+                  'lean {_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_)\n'
+                  'lean {_,_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ '
+                  '* ($2 - $1) ∧ x_ ≤ $3)\n'
+                  'lean {_,_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ * '
+                  '($2 - $1))\n'
+                  '\n'
+                  ';; the rules as theorems of Mathlib (`k_mem_numset`: `x ∈ '
+                  'k_numset p` iff `p x`)\n'
+                  'lean "in-Icc" intros; rw [k_mem_numset]; all_goals '
+                  '(beta_reduce; first | exact Iff.rfl | tauto)\n'
+                  'lean "Icc-sub-real" intro a b; simp only [subset]; intro z '
+                  'hz; obtain ⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact '
+                  '(k_mem_Real _).mpr rfl\n'
+                  'lean "in-Ico" intros; rw [k_mem_numset]; all_goals '
+                  '(beta_reduce; first | exact Iff.rfl | tauto)\n'
+                  'lean "Ico-sub-real" intro a b; simp only [subset]; intro z '
+                  'hz; obtain ⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact '
+                  '(k_mem_Real _).mpr rfl\n'
+                  'lean "in-Ioc" intros; rw [k_mem_numset]; all_goals '
+                  '(beta_reduce; first | exact Iff.rfl | tauto)\n'
+                  'lean "Ioc-sub-real" intro a b; simp only [subset]; intro z '
+                  'hz; obtain ⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact '
+                  '(k_mem_Real _).mpr rfl\n'
+                  'lean "in-Ioo" intros; rw [k_mem_numset]; all_goals '
+                  '(beta_reduce; first | exact Iff.rfl | tauto)\n'
+                  'lean "Ioo-sub-real" intro a b; simp only [subset]; intro z '
+                  'hz; obtain ⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact '
+                  '(k_mem_Real _).mpr rfl\n'
+                  'lean "range" intros; rw [k_mem_numset]; simp only '
+                  '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
+                  'lean "range" all_goals constructor <;> rintro ⟨n, h⟩ <;> '
+                  'exact ⟨n, by first | (constructor <;> linarith [h.1, h.2]) '
+                  '| linarith [h]⟩\n'
+                  'lean "range-infinite" intros; rw [k_mem_numset]; simp only '
+                  '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
+                  'lean "range-infinite" all_goals constructor <;> rintro ⟨n, '
+                  'h⟩ <;> exact ⟨n, by first | (constructor <;> linarith [h.1, '
+                  'h.2]) | linarith [h]⟩\n'
+                  'lean "progression" intros; casesm* _ ∧ _\n'
+                  'lean "progression" obtain ⟨n, h⟩ := (k_mem_numset _ _).mp '
+                  '‹_›\n'
+                  'lean "progression" exact ⟨n, (k_mem_Nat _).mpr ⟨n, rfl⟩, by '
+                  'first | (constructor <;> linarith [h.1, h.2]) | linarith '
+                  '[h]⟩\n'
+                  'lean "progression-intro" intros; casesm* _ ∧ _\n'
+                  'lean "progression-intro" obtain ⟨k, hk, h⟩ := ‹∃ _, _›\n'
+                  'lean "progression-intro" obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                  '_).mp hk\n'
+                  'lean "progression-intro" exact (k_mem_numset _ _).mpr ⟨n, '
+                  'by first | (constructor <;> linarith [h.1, h.2]) | linarith '
+                  '[h]⟩\n'
+                  'lean "progression-infinite" intros; casesm* _ ∧ _\n'
+                  'lean "progression-infinite" obtain ⟨n, h⟩ := (k_mem_numset '
+                  '_ _).mp ‹_›\n'
+                  'lean "progression-infinite" exact ⟨n, (k_mem_Nat _).mpr ⟨n, '
+                  'rfl⟩, by first | (constructor <;> linarith [h.1, h.2]) | '
+                  'linarith [h]⟩\n'
+                  'lean "progression-infinite-intro" intros; casesm* _ ∧ _\n'
+                  'lean "progression-infinite-intro" obtain ⟨k, hk, h⟩ := ‹∃ '
+                  '_, _›\n'
+                  'lean "progression-infinite-intro" obtain ⟨n, rfl⟩ := '
+                  '(k_mem_Nat _).mp hk\n'
+                  'lean "progression-infinite-intro" exact (k_mem_numset _ '
+                  '_).mpr ⟨n, by first | (constructor <;> linarith [h.1, h.2]) '
+                  '| linarith [h]⟩\n',
  'lambda.kurt': '; SIMPLY TYPED LAMBDA CALCULUS\n'
                 ';\n'
                 '; `term`, `type`, `index`, `ctx`, and `typing` are optional '
@@ -4568,7 +5169,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 'infix steps 15 15\n'
                 'infix : 25 24\n'
                 'infix proves 10 9\n'
-                'bindop lambda\n'
+                'binder lambda\n'
                 '\n'
                 'const fun, app, has, value, reduces, steps, :, proves, succ, '
                 'at, abs, extend, zero, empty, base, unit\n'
@@ -4691,18 +5292,21 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                '; language may use the words and the glyphs for something '
                'else).\n'
                'arity   forall 2, exists 2\n'
-               'bindop  forall, exists          ; with a condition, `∀ x > 0 '
-               '...` binds the first symbol of the\n'
+               'binder  forall 17, exists 17          ; with a condition, `∀ x '
+               '> 0 ...` binds the first symbol of the\n'
                '                                ; condition that is new or a '
                'variable (decided when it is read)\n'
                'prop    forall 0 2, exists 0 2  ; the body is a statement, and '
                'so is the whole\n'
                'builtin forall universal, exists existential\n'
+               'nested  forall, exists          ; the variable may be a list, '
+               'each with its own condition: `∀ x > 0, y > 0 P` is `∀ x > 0 ∀ '
+               'y > 0 P`\n'
                'alias   ∀ forall\n'
                'alias   ∃ exists\n'
                'arity  existsunique 2     ; unique existence: `existsunique x '
                'P(x)`, `∃! x P(x)`\n'
-               'bindop existsunique       ; binds its variable, also with a '
+               'binder existsunique 17       ; binds its variable, also with a '
                'condition: `∃! x ∈ M P(x)`\n'
                'prop   existsunique 0 2   ; the body is a statement, and so is '
                'the whole\n'
@@ -4859,7 +5463,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                 '; code that comes with Kurt (doc/kurt-ref.md, `calc`).\n'
                 ';\n'
                 '; A structure with its own operators: not together with '
-                'numbers.kurt (a symbol is declared by one\n'
+                'number.kurt (a symbol is declared by one\n'
                 '; file only). This theory computes with literals and has no '
                 'laws for matrices written with\n'
                 '; variables; for those, see proofs/mafi1/matrices.kurt '
@@ -4988,7 +5592,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; doc.md §10) -- propositional.kurt `builtin iff '
                  'equivalence, or disjunction, not negation, false falsum`,\n'
                  "; equality.kurt `builtin = equality`, and the calculator's "
-                 'operations, e.g. numbers.kurt `builtin\n'
+                 'operations, e.g. number.kurt `builtin\n'
                  '; + add, * multiply, ...` and matrix.kurt `builtin [ ] '
                  'matrixbrackets` (computed with `calc on`). The\n'
                  '; quantifiers too: logic.kurt declares `forall`/`exists` '
@@ -4999,7 +5603,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  ';; substitution operator\n'
                  'arity  sub 3                                 ; operator for '
                  'substitutions\n'
-                 'bindop sub                                   ; first arg '
+                 'binder sub                                   ; first arg '
                  'must be a variable that is bound\n'
                  '\n'
                  '; The minimal core deliberately has no aliases. '
@@ -5203,16 +5807,23 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '; also: `0 <= n`, so `n + 1 ≠ 0` and every n ≠ 0 has a '
                  'predecessor; no natural number between\n'
                  '; n and n + 1; the well-ordering principle (from induction); '
-                 'even and odd numbers (every number is\n'
-                 '; one of them, none is both); divisibility `∣` (`\\mid`) and '
-                 '`coprime`.\n'
+                 'how `Nat` sits in the other sets of\n'
+                 '; number.kurt (`Nat ⊂ Real`, an integer is a natural number '
+                 'or the negative of one, a positive\n'
+                 '; integer is a natural number, a rational is a fraction of '
+                 'an integer and a natural number, a\n'
+                 '; positive one of two natural numbers, cancelling a common '
+                 'factor). Even and odd numbers, `∣` and\n'
+                 '; `coprime` are in divisibility.kurt, the sets `{a, ..., c}` '
+                 'and the intervals in interval.kurt.\n'
                  ';\n'
-                 '; arithmetic comes from numbers.kurt: natural numbers are '
-                 'real numbers, so all of its laws\n'
-                 '; (and `calc`) apply to them as well.\n'
+                 '; arithmetic and the sets `Real`, `Int`, `Rat` come from '
+                 'number.kurt: natural numbers are real\n'
+                 '; numbers, so all of its laws (and `calc`) apply to them as '
+                 'well.\n'
                  'load propositional, equality\n'
                  'load set\n'
-                 'load numbers\n'
+                 'load number\n'
                  'load logic\n'
                  'default real              ; every symbol of this file is a '
                  'number, except where said otherwise:\n'
@@ -5225,39 +5836,22 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '∈ Nat`\n'
                  'tex Nat \\mathbb{N}\n'
                  "; `kurt --lean` with Mathlib: the numbers are Mathlib's "
-                 'reals (numbers.kurt), embedded into the sets\n'
-                 '; (objects.kurt), and `Nat` is the set of the natural '
-                 'numbers among them -- a definition (the set of\n'
+                 'reals (number.kurt), embedded into the sets\n'
+                 '; (set.kurt), and `Nat` is the set of the natural numbers '
+                 'among them -- a definition (the set of\n'
                  '; the embedded reals that are natural numbers), and what `x '
                  '∈ Nat` means a theorem, `k_mem_Nat`; the\n'
                  '; rules below are theorems then (each `lean "label" ...`)\n'
                  'lean Nat member $1 ∈ Set.range (fun n : ℕ => (n : ℝ))\n'
                  '\n'
-                 '; the real numbers as a set (`Real`, `ℝ`): every number is '
-                 'in it -- a fact about the numbers, not a\n'
-                 '; sort (decision 11 of dev/todo-sorts.md: `x ∈ Real` gives '
-                 '`x` no sort; `real x` is what makes `x` a\n'
-                 '; number). With it, two sets of numbers are equal when they '
-                 'have the same numbers ("ext-real"):\n'
-                 '; extensionality over all objects ("extensionality", '
-                 'set.kurt) needs every object, and a binder of a\n'
-                 '; `default real` file ranges over the numbers only\n'
-                 'set Real\n'
-                 'const Real\n'
-                 'alias ℝ Real\n'
-                 'tex Real \\mathbb{R}\n'
-                 'lean Real member $1 = $1\n'
-                 'use $x ∈ Real  "real-all"\n'
                  'use Nat ⊂ Real  "nat-sub-real"\n'
-                 'use (∀ $n ($n ∈ $A ⇔ $n ∈ $B)) ∧ $A ⊂ Real ∧ $B ⊂ Real  ⇒  '
-                 '$A = $B   "ext-real"\n'
                  'alias ℕ Nat\n'
                  '\n'
                  'use 0 in Nat  "nat-zero"\n'
                  'use $n in Nat  implies  $n+1 in Nat  "nat-succ"\n'
                  '; sums and products of natural numbers are natural numbers '
                  '(by induction from a recursive\n'
-                 '; definition of `+` and `*`; numbers.kurt states their laws '
+                 '; definition of `+` and `*`; number.kurt states their laws '
                  'instead)\n'
                  'use $a in Nat ∧ $b in Nat  implies  $a + $b in Nat  '
                  '"nat-add"\n'
@@ -5594,334 +6188,169 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  '        $b < $d * $b\n'
                  'qed\n'
                  '\n'
-                 ';; even and odd numbers\n'
-                 'prop even, odd\n'
-                 'arity even 1, odd 1\n'
-                 'def even $m  iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)       '
-                 '"even-def"\n'
-                 'def odd $m   iff  ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)   '
-                 '"odd-def"\n'
                  '\n'
-                 '; every natural number is even or odd (by induction)\n'
-                 'show ∀ $n ∈ Nat  (even $n ∨ odd $n)   "even-or-odd"\n'
+                 '; ---- integers and rationals (the sets `Int` and `Rat` are '
+                 'in number.kurt)\n'
+                 ';\n'
+                 '; `Nat` in `Int`, the integers are the natural numbers and '
+                 'their negatives (and nothing else);\n'
+                 '; an integer ≥ 1 is a natural number\n'
+                 '\n'
+                 'use $n ∈ Nat  ⇒  $n ∈ Int                         "int-nat"\n'
+                 '\n'
+                 'use $n ∈ Nat  ⇒  -$n ∈ Int                        '
+                 '"int-neg-nat"\n'
+                 '\n'
+                 'use $z ∈ Int  ⇒  $z ∈ Nat ∨ -$z ∈ Nat             '
+                 '"int-cases"      ; nothing else\n'
+                 '\n'
+                 'show 0 ∈ Int     "int-zero"\n'
                  'proof\n'
-                 '    ; base case: 0 = 2 * 0\n'
-                 '    0 = 2 * 0\n'
-                 '    0 ∈ Nat ∧ 0 = 2 * 0\n'
-                 '    ∃ $k ($k ∈ Nat ∧ 0 = 2 * $k)\n'
-                 '    even 0\n'
-                 '    even 0 ∨ odd 0\n'
-                 '    ; induction step\n'
-                 '    show ∀ $n ∈ Nat  ((even $n ∨ odd $n)  ⇒  (even ($n + 1) '
-                 '∨ odd ($n + 1)))\n'
-                 '    proof\n'
-                 '        let n ∈ Nat\n'
-                 '            assume even n ∨ odd n\n'
-                 '                assume even n\n'
-                 '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k)\n'
-                 '                    pick k with k ∈ Nat ∧ n = 2 * k\n'
-                 '                        n = 2 * k\n'
-                 '                        k ∈ Nat\n'
-                 '                        n + 1 = 2 * k + 1\n'
-                 '                        k ∈ Nat ∧ n + 1 = 2 * k + 1\n'
-                 '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * $j + '
-                 '1)\n'
-                 '                        odd (n + 1)\n'
-                 '                        even (n + 1) ∨ odd (n + 1)\n'
-                 '                assume odd n\n'
-                 '                    ∃ $k ($k ∈ Nat ∧ n = 2 * $k + 1)\n'
-                 '                    pick k with k ∈ Nat ∧ n = 2 * k + 1\n'
-                 '                        n = 2 * k + 1\n'
-                 '                        k ∈ Nat\n'
-                 '                        n + 1 = 2 * k + 1 + 1\n'
-                 '                        calc on\n'
-                 '                        n + 1 = 2 * k + 2\n'
-                 '                        calc off\n'
-                 '                        2 * (k + 1) = 2 * k + 2 * 1\n'
-                 '                        calc on\n'
-                 '                        2 * (k + 1) = 2 * k + 2\n'
-                 '                        calc off\n'
-                 '                        n + 1 = 2 * (k + 1)\n'
-                 '                        k + 1 ∈ Nat\n'
-                 '                        k + 1 ∈ Nat ∧ n + 1 = 2 * (k + 1)\n'
-                 '                        ∃ $j ($j ∈ Nat ∧ n + 1 = 2 * $j)\n'
-                 '                        even (n + 1)\n'
-                 '                        even (n + 1) ∨ odd (n + 1)\n'
-                 '                even (n + 1) ∨ odd (n + 1)\n'
-                 '    qed\n'
-                 '    ; by induction (natural.kurt)\n'
+                 '    0 ∈ Nat\n'
+                 '    0 ∈ Int\n'
                  'qed\n'
                  '\n'
-                 '; 2 k = 2 j + 1 has no solution in Nat\n'
-                 'show ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)     '
-                 '"even-ne-odd"\n'
+                 'show 1 ∈ Int     "int-one"\n'
                  'proof\n'
-                 '    ; k = 0: 2 j + 1 ≠ 0\n'
-                 '    let j ∈ Nat\n'
-                 '        2 * j ∈ Nat\n'
-                 '        2 * j + 1 ≠ 0                                 ; '
-                 'nat-succ-ne-zero\n'
-                 '        calc on\n'
-                 '        2 * 0 ≠ 2 * j + 1\n'
-                 '        calc off\n'
-                 '    ∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)\n'
-                 '    ; k → k + 1\n'
-                 '    let k ∈ Nat\n'
-                 '        assume ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)\n'
-                 '            2 * k ∈ Nat\n'
-                 '            2 * (k + 1) = 2 * k + 2 * 1\n'
-                 '            let j ∈ Nat\n'
-                 '                assume 2 * (k + 1) = 2 * j + 1\n'
-                 '                    j = 0 ∨ ∃ $m ($m ∈ Nat ∧ j = $m + '
-                 '1)       ; nat-zero-or-succ\n'
-                 '                    case j = 0\n'
-                 '                        2 * k + 2 * 1 = 2 * (k + 1)\n'
-                 '                                      = 2 * j + 1\n'
-                 '                                      = 2 * 0 + 1\n'
-                 '                        2 * k + 2 * 1 + (- 1) = 2 * 0 + 1 + '
-                 '(- 1)\n'
-                 '                        calc on\n'
-                 '                        2 * k + 1 = 0\n'
-                 '                        calc off\n'
-                 '                        2 * k + 1 ≠ '
-                 '0                         ; nat-succ-ne-zero\n'
-                 '                        ¬(2 * k + 1 = 0)\n'
-                 '                        2 * k + 1 = 0 ∧ ¬(2 * k + 1 = 0)\n'
-                 '                        ⊥\n'
-                 '                    case ∃ $m ($m ∈ Nat ∧ j = $m + 1)\n'
-                 '                        pick m with m ∈ Nat ∧ j = m + 1\n'
-                 '                            m ∈ Nat\n'
-                 '                            j = m + 1\n'
-                 '                            2 * (m + 1) = 2 * m + 2 * 1\n'
-                 '                            2 * k + 2 * 1 = 2 * (k + 1)\n'
-                 '                                          = 2 * j + 1\n'
-                 '                                          = 2 * (m + 1) + 1\n'
-                 '                                          = 2 * m + 2 * 1 + '
-                 '1\n'
-                 '                            2 * k + 2 * 1 + (- 2) = 2 * m + '
-                 '2 * 1 + 1 + (- 2)\n'
-                 '                            calc on\n'
-                 '                            2 * k = 2 * m + 1\n'
-                 '                            calc off\n'
-                 '                            2 * k ≠ 2 * m + 1\n'
-                 '                            ¬(2 * k = 2 * m + 1)\n'
-                 '                            2 * k = 2 * m + 1 ∧ ¬(2 * k = 2 '
-                 '* m + 1)\n'
-                 '                            ⊥\n'
-                 '                    ⊥\n'
-                 '                ¬(2 * (k + 1) = 2 * j + 1)\n'
-                 '                2 * (k + 1) ≠ 2 * j + 1\n'
-                 '            ∀ $j ∈ Nat (2 * (k + 1) ≠ 2 * $j + 1)\n'
-                 '    ∀ $k ∈ Nat (∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ $j ∈ '
-                 'Nat (2 * ($k + 1) ≠ 2 * $j + 1))\n'
-                 '    (∀ $j ∈ Nat (2 * 0 ≠ 2 * $j + 1)) ∧ ∀ $k ∈ Nat (∀ $j ∈ '
-                 'Nat (2 * $k ≠ 2 * $j + 1)  ⇒  ∀ $j ∈ Nat (2 * ($k + 1) ≠ 2 * '
-                 '$j + 1))\n'
-                 '    ∀ $k ∈ Nat ∀ $j ∈ Nat (2 * $k ≠ 2 * $j + 1)\n'
+                 '    1 ∈ Nat\n'
+                 '    1 ∈ Int\n'
                  'qed\n'
                  '\n'
-                 '; no number is even and odd\n'
-                 'show ¬(even $m ∧ odd $m)     "not-even-and-odd"\n'
+                 'show $z ∈ Int  ⇒  -$z ∈ Int     "int-neg"\n'
                  'proof\n'
-                 '    assume even $m ∧ odd $m\n'
-                 '        even $m\n'
-                 '        odd $m\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
-                 '        pick k with k ∈ Nat ∧ $m = 2 * k\n'
-                 '            k ∈ Nat\n'
-                 '            $m = 2 * k\n'
-                 '            pick j with j ∈ Nat ∧ $m = 2 * j + 1\n'
-                 '                j ∈ Nat\n'
-                 '                $m = 2 * j + 1\n'
-                 '                2 * k = $m\n'
-                 '                      = 2 * j + 1\n'
-                 '                ∀ $j ∈ Nat (2 * k ≠ 2 * $j + 1)        ; '
-                 'even-ne-odd\n'
-                 '                2 * k ≠ 2 * j + 1\n'
-                 '                ¬(2 * k = 2 * j + 1)\n'
-                 '                2 * k = 2 * j + 1 ∧ ¬(2 * k = 2 * j + 1)\n'
-                 '                ⊥\n'
+                 '    assume $z ∈ Int\n'
+                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
+                 '        case $z ∈ Nat\n'
+                 '            -$z ∈ Int                                  ; '
+                 'int-neg-nat\n'
+                 '        case -$z ∈ Nat\n'
+                 '            -$z ∈ Int                                  ; '
+                 'int-nat\n'
+                 '        -$z ∈ Int\n'
                  'qed\n'
                  '\n'
-                 '; the square of an odd number is odd: m m = (2k+1) m = 2 k m '
-                 '+ m = 2 (k m + k) + 1\n'
-                 'show $m ∈ Nat ∧ odd $m  ⇒  odd ($m * $m)   "odd-square"\n'
+                 '; a positive integer is a natural number\n'
+                 'show $z ∈ Int ∧ $z > 0  ⇒  $z ∈ Nat     "int-pos-nat"\n'
                  'proof\n'
-                 '    assume $m ∈ Nat ∧ odd $m\n'
-                 '        odd $m\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k + 1)\n'
-                 '        pick k with k ∈ Nat ∧ $m = 2 * k + 1\n'
-                 '            $m = 2 * k + 1\n'
-                 '            k ∈ Nat\n'
-                 '            $m ∈ Nat\n'
-                 '            $m * $m = (2 * k + 1) * $m\n'
-                 '                    = 2 * k * $m + 1 * $m\n'
-                 '                    = 2 * k * $m + $m\n'
-                 '                    = 2 * k * $m + (2 * k + 1)\n'
-                 '                    = 2 * k * $m + 2 * k + 1\n'
-                 '                    = 2 * (k * $m + k) + 1\n'
-                 '            k * $m ∈ Nat\n'
-                 '            k * $m + k ∈ Nat\n'
-                 '            k * $m + k ∈ Nat ∧ $m * $m = 2 * (k * $m + k) + '
-                 '1\n'
-                 '            ∃ $j ($j ∈ Nat ∧ $m * $m = 2 * $j + 1)\n'
-                 '            odd ($m * $m)\n'
+                 '    assume $z ∈ Int ∧ $z > 0\n'
+                 '        $z ∈ Int\n'
+                 '        $z > 0\n'
+                 '        $z ∈ Nat ∨ -$z ∈ Nat\n'
+                 '        case $z ∈ Nat\n'
+                 '            $z ∈ Nat\n'
+                 '        case -$z ∈ Nat\n'
+                 '            0 <= -$z                                   ; '
+                 'nat-nonneg\n'
+                 '            -$z >= 0                                   ; '
+                 'le-ge\n'
+                 '            -$z + $z >= 0 + $z                         ; '
+                 'ge-add\n'
+                 '            -$z + $z = 0                               ; '
+                 'add-inverse\n'
+                 '            0 + $z = $z                                ; '
+                 'add-identity\n'
+                 '            0 >= 0 + $z\n'
+                 '            0 >= $z\n'
+                 '            $z <= 0                                    ; '
+                 'le-ge\n'
+                 '            $z > 0 ∧ $z <= 0\n'
+                 '            ⊥                                          ; '
+                 'gt-le-contra\n'
+                 '            $z ∈ Nat\n'
+                 '        $z ∈ Nat\n'
                  'qed\n'
                  '\n'
-                 '; if the square is even, so is the number: otherwise it is '
-                 'odd, and so is its square\n'
-                 'show $m ∈ Nat ∧ even ($m * $m)  ⇒  even $m   "even-square"\n'
-                 'proof\n'
-                 '    assume $m ∈ Nat ∧ even ($m * $m)\n'
-                 '        $m ∈ Nat\n'
-                 '        even $m ∨ odd $m                               ; '
-                 'even-or-odd\n'
-                 '        assume even $m\n'
-                 '            even $m\n'
-                 '        assume odd $m\n'
-                 '            odd ($m * $m)                              ; '
-                 'odd-square\n'
-                 '            even ($m * $m) ∧ odd ($m * $m)\n'
-                 '            false                                      ; '
-                 'not-even-and-odd\n'
-                 '            even $m\n'
-                 '        even $m                                        ; '
-                 'or-elim\n'
-                 'qed\n'
+                 '; ---- the rationals: the fractions m / n of an integer m '
+                 'and a natural number n ≠ 0, and a positive one with natural '
+                 'm, n\n'
                  '\n'
-                 ';; divisibility\n'
-                 'infix divides 20 20\n'
-                 'prop divides 0\n'
-                 'alias ∣ divides\n'
-                 'def $a ∣ $b  ⇔  ∃ $k ($k ∈ Nat ∧ $b = $a * $k)       '
-                 '"divides"\n'
+                 '; A defining axiom, not `def`: `Rat` is an existing '
+                 'calculator-bound carrier, and this\n'
+                 '; characterizes membership in it rather than introducing one '
+                 'fresh predicate abbreviation.\n'
+                 'use $q ∈ Rat  ⇔  ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ '
+                 '$q = $m / $n)     "rat-def"\n'
                  '\n'
-                 'show $a ∈ Nat  ⇒  $a ∣ $a     "divides-refl"\n'
+                 'show $z ∈ Int  ⇒  $z ∈ Rat     "rat-int"\n'
                  'proof\n'
-                 '    assume $a ∈ Nat\n'
+                 '    assume $z ∈ Int\n'
                  '        1 ∈ Nat\n'
-                 '        $a = $a * 1\n'
-                 '        1 ∈ Nat ∧ $a = $a * 1\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $a = $a * $k)\n'
-                 '        $a ∣ $a\n'
+                 '        calc on\n'
+                 '        1 ≠ 0\n'
+                 '        calc off\n'
+                 '        $z = $z / 1                                    ; '
+                 'div-identity\n'
+                 '        $z ∈ Int ∧ 1 ∈ Nat ∧ 1 ≠ 0 ∧ $z = $z / 1\n'
+                 '        ∃ $n ($z ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $z / $n)\n'
+                 '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $m / '
+                 '$n)\n'
+                 '        $z ∈ Rat\n'
                  'qed\n'
                  '\n'
-                 'show $a ∈ Nat  ⇒  1 ∣ $a     "one-divides"\n'
+                 '; a positive rational is a fraction of natural numbers\n'
+                 'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ '
+                 '$n ≠ 0 ∧ $q = $m / $n)     "rat-pos"\n'
                  'proof\n'
-                 '    assume $a ∈ Nat\n'
-                 '        $a = 1 * $a\n'
-                 '        $a ∈ Nat ∧ $a = 1 * $a\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $a = 1 * $k)\n'
-                 '        1 ∣ $a\n'
+                 '    assume $q ∈ Rat ∧ $q > 0\n'
+                 '        $q ∈ Rat\n'
+                 '        $q > 0\n'
+                 '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
+                 '$n)\n'
+                 '        pick m with ∃ $n (m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = '
+                 'm / $n)\n'
+                 '            pick n with m ∈ Int ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m / '
+                 'n\n'
+                 '                m ∈ Int\n'
+                 '                n ∈ Nat\n'
+                 '                n ≠ 0\n'
+                 '                $q = m / n\n'
+                 '                0 < n                                  ; '
+                 'nat-pos\n'
+                 '                n > 0                                  ; '
+                 'lt-gt\n'
+                 '                ; m = q n > 0\n'
+                 '                (m / n) * n = m                        ; '
+                 'div-mul\n'
+                 '                $q * n = (m / n) * n\n'
+                 '                       = m\n'
+                 '                $q * n > 0                             ; '
+                 'mul-pos\n'
+                 '                m > 0\n'
+                 '                m ∈ Nat                                ; '
+                 'int-pos-nat\n'
+                 '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m / n\n'
+                 '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ $q = m / '
+                 '$j)\n'
+                 '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ $q '
+                 '= $i / $j)\n'
                  'qed\n'
                  '\n'
-                 'show $a ∣ $b ∧ $b ∣ $c  ⇒  $a ∣ $c     "divides-trans"\n'
+                 '; cancelling a common factor\n'
+                 'show $d ≠ 0 ∧ $b ≠ 0  ⇒  ($d * $a) / ($d * $b) = $a / $b     '
+                 '"frac-cancel"\n'
                  'proof\n'
-                 '    assume $a ∣ $b ∧ $b ∣ $c\n'
-                 '        $a ∣ $b\n'
-                 '        $b ∣ $c\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $b = $a * $k)\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $c = $b * $k)\n'
-                 '        pick k with k ∈ Nat ∧ $b = $a * k\n'
-                 '            k ∈ Nat\n'
-                 '            $b = $a * k\n'
-                 '            pick j with j ∈ Nat ∧ $c = $b * j\n'
-                 '                j ∈ Nat\n'
-                 '                $c = $b * j\n'
-                 '                $c = $a * k * j\n'
-                 '                k * j ∈ Nat\n'
-                 '                k * j ∈ Nat ∧ $c = $a * (k * j)\n'
-                 '                ∃ $l ($l ∈ Nat ∧ $c = $a * $l)\n'
-                 '                $a ∣ $c\n'
+                 '    assume $d ≠ 0 ∧ $b ≠ 0\n'
+                 '        $d ≠ 0\n'
+                 '        $b ≠ 0\n'
+                 '        ($d / $d) * ($a / $b) = ($d * $a) / ($d * $b)    ; '
+                 'div-mul-div\n'
+                 '        $d / $d = 1                                    ; '
+                 'div-self\n'
+                 '        1 * ($a / $b) = $a / $b                        ; '
+                 'mul-identity\n'
+                 '        ($d * $a) / ($d * $b) = ($d / $d) * ($a / $b)\n'
+                 '                              = 1 * ($a / $b)\n'
+                 '                              = $a / $b\n'
                  'qed\n'
                  '\n'
-                 '; even means divisible by 2\n'
-                 'show even $m  ⇔  2 ∣ $m     "even-divides"\n'
-                 'proof\n'
-                 '    assume even $m\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
-                 '        2 ∣ $m\n'
-                 '    assume 2 ∣ $m\n'
-                 '        ∃ $k ($k ∈ Nat ∧ $m = 2 * $k)\n'
-                 '        even $m\n'
-                 'qed\n'
                  '\n'
-                 '; coprime: 1 is the only common divisor\n'
-                 'arity coprime (_, _)\n'
-                 'def coprime($a, $b)  ⇔  ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  ⇒  $d '
-                 '= 1)     "coprime"\n'
-                 '\n'
-                 'show coprime($a, $b)  ⇒  ¬(even $a ∧ even $b)     '
-                 '"coprime-not-both-even"\n'
-                 'proof\n'
-                 '    assume coprime($a, $b)\n'
-                 '        ∀ $d ∈ Nat ($d ∣ $a ∧ $d ∣ $b  ⇒  $d = 1)\n'
-                 '        assume even $a ∧ even $b\n'
-                 '            even $a\n'
-                 '            even $b\n'
-                 '            2 ∣ $a                                     ; '
-                 'even-divides\n'
-                 '            2 ∣ $b                                     ; '
-                 'even-divides\n'
-                 '            2 ∣ $a ∧ 2 ∣ $b\n'
-                 '            2 ∣ $a ∧ 2 ∣ $b  ⇒  2 = 1\n'
-                 '            2 = 1\n'
-                 '            calc on\n'
-                 '            2 ≠ 1\n'
-                 '            calc off\n'
-                 '            ¬(2 = 1)\n'
-                 '            2 = 1 ∧ ¬(2 = 1)\n'
-                 '            false\n'
-                 'qed\n'
-                 '\n'
-                 '; sets of numbers with `...` (an arithmetic progression): '
-                 '`{a, ..., c}` the numbers from `a` to\n'
-                 '; `c` in steps of one, `{a, b, ..., c}` and `{a, b, ...}` in '
-                 'steps of `b - a` (for `a < b`), with\n'
-                 '; or without an end -- Kurt refuses other lists with `...`: '
-                 'their pattern would be a guess\n'
-                 '; (`{2, 3, 5, 7, 11, ...}`; write `{p ∈ Nat | ...}`), see '
-                 'dev/design-sets-and-brackets.md §7\n'
-                 'use $x ∈ {$a, ..., $c}  ≡  ∃ $k ∈ Nat ($x = $a + $k ∧ $x <= '
-                 '$c)                                 "range"\n'
-                 'use $x ∈ {$a, ...}  ≡  ∃ $k ∈ Nat ($x = $a + '
-                 '$k)                                              '
-                 '"range-infinite"\n'
-                 'use $a < $b ∧ $x ∈ {$a, $b, ..., $c}  ⇒  ∃ $k ∈ Nat ($x = $a '
-                 '+ $k * ($b - $a) ∧ $x <= $c)   "progression"\n'
-                 'use $a < $b ∧ (∃ $k ∈ Nat ($x = $a + $k * ($b - $a) ∧ $x <= '
-                 '$c))  ⇒  $x ∈ {$a, $b, ..., $c}  "progression-intro"\n'
-                 'use $a < $b ∧ $x ∈ {$a, $b, ...}  ⇒  ∃ $k ∈ Nat ($x = $a + '
-                 '$k * ($b - $a))                  "progression-infinite"\n'
-                 'use $a < $b ∧ (∃ $k ∈ Nat ($x = $a + $k * ($b - $a)))  ⇒  $x '
-                 '∈ {$a, $b, ...}                "progression-infinite-intro"\n'
-                 '; ... in Lean: the sets of the embedded numbers so made '
-                 '(`k_numset`) -- the six rules above are then\n'
-                 '; theorems (their `lean "label" ...` below), the definitions '
-                 'of these notations\n'
-                 'lean {_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ ∧ '
-                 'x_ ≤ $2)\n'
-                 'lean {_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_)\n'
-                 'lean {_,_,...,_} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ '
-                 '* ($2 - $1) ∧ x_ ≤ $3)\n'
-                 'lean {_,_,...} k_numset (fun x_ => ∃ k_ : ℕ, x_ = $1 + k_ * '
-                 '($2 - $1))\n'
-                 '\n'
-                 ';; the rules as theorems of Mathlib (see numbers.kurt): '
-                 '`Nat` by its axiom `k_mem_Nat` (`lean Nat\n'
+                 ';; the rules as theorems of Mathlib (see number.kurt): `Nat` '
+                 'by its axiom `k_mem_Nat` (`lean Nat\n'
                  ';; member ...` above: `x ∈ Nat` iff `x` is `↑n` for an `n : '
                  'ℕ`)\n'
-                 'lean "real-all" intro x; exact (k_mem_Real _).mpr rfl\n'
                  'lean "nat-sub-real" simp only [subset]; intro z hz; obtain '
                  '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
                  '_).mpr rfl\n'
-                 'lean "ext-real" intro A B ⟨h, hA, hB⟩; simp only [subset] at '
-                 'hA hB; apply ZFSet.ext; intro z; constructor\n'
-                 'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
-                 'k_numset_elem _ z (hA z hz); exact (h x).mp hz\n'
-                 'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
-                 'k_numset_elem _ z (hB z hz); exact (h x).mpr hz\n'
                  'lean "nat-zero" exact (k_mem_Nat _).mpr ⟨0, by simp⟩\n'
                  'lean "nat-succ" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
                  'x).mp hx; exact (k_mem_Nat _).mpr ⟨n + 1, by push_cast; '
@@ -6017,12 +6446,6 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'lean "nat-lt-mul" have : (0 : ℝ) < n := by exact_mod_cast '
                  'Nat.pos_of_ne_zero h0\n'
                  'lean "nat-lt-mul" nlinarith\n'
-                 'lean "even-ne-odd" intro x hx y hy\n'
-                 'lean "even-ne-odd" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp hx; '
-                 'obtain ⟨m, rfl⟩ := (k_mem_Nat y).mp hy; beta_reduce\n'
-                 'lean "even-ne-odd" intro h; have : 2 * n = 1 + 2 * m := by '
-                 'exact_mod_cast h\n'
-                 'lean "even-ne-odd" omega\n'
                  'lean "well-ordering" intro S h; casesm* _ ∧ _\n'
                  'lean "well-ordering" obtain ⟨x, hx⟩ : ∃ x, k_emb x ∈ S := by '
                  'assumption\n'
@@ -6040,476 +6463,659 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                  'lean "well-ordering"   | (intro y hy; obtain ⟨m, rfl⟩ := '
                  '(k_mem_Nat y).mp (hsub (k_emb y) hy); beta_reduce at hy ⊢; '
                  "exact_mod_cast Nat.find_min' ex hy)\n"
-                 'lean "even-or-odd" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
-                 'x).mp hx; simp only [even, odd]\n'
-                 'lean "even-or-odd" rcases Nat.even_or_odd\' n with ⟨k, rfl | '
-                 'rfl⟩\n'
-                 'lean "even-or-odd" all_goals first\n'
-                 'lean "even-or-odd"   | (left; refine ⟨(k : ℝ), ?_⟩; '
-                 'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, rfl⟩ | '
-                 '(push_cast; first | done | ring1))\n'
-                 'lean "even-or-odd"   | (right; refine ⟨(k : ℝ), ?_⟩; '
-                 'constructor <;> first | exact (k_mem_Nat _).mpr ⟨k, rfl⟩ | '
-                 '(push_cast; first | done | ring1))\n'
-                 'lean "not-even-and-odd" intro x h; casesm* _ ∧ _\n'
-                 'lean "not-even-and-odd" have he : even x := by assumption\n'
-                 'lean "not-even-and-odd" have ho : odd x := by assumption\n'
-                 'lean "not-even-and-odd" simp only [even, odd] at he ho\n'
-                 'lean "not-even-and-odd" obtain ⟨a, ha⟩ := he; obtain ⟨b, hb⟩ '
-                 ':= ho; casesm* _ ∧ _\n'
-                 'lean "not-even-and-odd" obtain ⟨i, rfl⟩ := (k_mem_Nat a).mp '
-                 '(by assumption)\n'
-                 'lean "not-even-and-odd" obtain ⟨j, rfl⟩ := (k_mem_Nat b).mp '
-                 '(by assumption)\n'
-                 'lean "not-even-and-odd" have e : ((2 * i : ℕ) : ℝ) = ((2 * j '
-                 '+ 1 : ℕ) : ℝ) := by push_cast; linarith\n'
-                 'lean "not-even-and-odd" have := Nat.cast_injective e\n'
-                 'lean "not-even-and-odd" omega\n'
-                 'lean "odd-square" intro x h; casesm* _ ∧ _\n'
-                 'lean "odd-square" have ho : odd x := by assumption\n'
-                 'lean "odd-square" simp only [odd] at ho ⊢\n'
-                 'lean "odd-square" obtain ⟨b, hb⟩ := ho; casesm* _ ∧ _\n'
-                 'lean "odd-square" obtain ⟨j, rfl⟩ := (k_mem_Nat b).mp (by '
-                 'assumption)\n'
-                 'lean "odd-square" have e : x = 2 * j + 1 := by linarith\n'
-                 'lean "odd-square" subst e\n'
-                 'lean "odd-square" refine ⟨((2 * j * j + 2 * j : ℕ) : ℝ), '
-                 '?_⟩\n'
-                 'lean "odd-square" constructor <;> first | exact (k_mem_Nat '
-                 '_).mpr ⟨_, rfl⟩ | (push_cast; first | done | ring1)\n'
-                 'lean "even-square" intro x h; casesm* _ ∧ _\n'
-                 'lean "even-square" have he : even (x * x) := by assumption\n'
-                 'lean "even-square" obtain ⟨n, rfl⟩ := (k_mem_Nat x).mp (by '
-                 'assumption)\n'
-                 'lean "even-square" simp only [even] at he ⊢\n'
-                 'lean "even-square" obtain ⟨a, ha⟩ := he; casesm* _ ∧ _\n'
-                 'lean "even-square" obtain ⟨i, rfl⟩ := (k_mem_Nat a).mp (by '
-                 'assumption)\n'
-                 'lean "even-square" have e : ((n * n : ℕ) : ℝ) = ((2 * i : ℕ) '
-                 ': ℝ) := by push_cast; linarith\n'
-                 'lean "even-square" have e\' := Nat.cast_injective e\n'
-                 'lean "even-square" have : Even (n * n) := ⟨i, by omega⟩\n'
-                 'lean "even-square" obtain ⟨t, ht⟩ := (Nat.even_mul.mp '
-                 'this).elim id id\n'
-                 'lean "even-square" refine ⟨(t : ℝ), ?_⟩\n'
-                 'lean "even-square" constructor <;> first | exact (k_mem_Nat '
-                 '_).mpr ⟨t, rfl⟩ | (rw [ht]; push_cast; first | done | '
-                 'ring1)\n'
-                 'lean "divides-refl" intro x hx; simp only [divides]; refine '
-                 '⟨1, ?_⟩\n'
-                 'lean "divides-refl" constructor <;> first | exact (k_mem_Nat '
-                 '_).mpr ⟨1, by simp⟩ | ring1\n'
-                 'lean "one-divides" intro x hx; simp only [divides]; refine '
-                 '⟨x, ?_⟩\n'
-                 'lean "one-divides" constructor <;> first | exact hx | ring1\n'
-                 'lean "divides-trans" intro a b c h\n'
-                 'lean "divides-trans" obtain ⟨h1, h2⟩ := h\n'
-                 'lean "divides-trans" simp only [divides] at h1 h2 ⊢\n'
-                 'lean "divides-trans" obtain ⟨p, hp⟩ := h1; obtain ⟨q, hq⟩ := '
-                 'h2; casesm* _ ∧ _\n'
-                 'lean "divides-trans" obtain ⟨i, rfl⟩ := (k_mem_Nat p).mp (by '
-                 'assumption)\n'
-                 'lean "divides-trans" obtain ⟨j, rfl⟩ := (k_mem_Nat q).mp (by '
-                 'assumption)\n'
-                 'lean "divides-trans" refine ⟨((i * j : ℕ) : ℝ), ?_⟩\n'
-                 'lean "divides-trans" constructor <;> first | exact '
-                 '(k_mem_Nat _).mpr ⟨_, rfl⟩ | (push_cast; subst_vars; first | '
-                 'done | ring1)\n'
-                 'lean "even-divides" intro x; simp only [even, divides]\n'
-                 'lean "even-divides" first | done | (constructor <;> rintro '
-                 '⟨k, h1, h2⟩ <;> first | exact ⟨k, h1, h2⟩ | exact ⟨k, h2, '
-                 'h1⟩)\n'
-                 'lean "coprime-not-both-even" intro a b h he\n'
-                 'lean "coprime-not-both-even" obtain ⟨ha, hb⟩ := he\n'
-                 'lean "coprime-not-both-even" simp only [even] at ha hb\n'
-                 'lean "coprime-not-both-even" simp only [coprime, divides] at '
-                 'h\n'
-                 'lean "coprime-not-both-even" have two := h 2 ((k_mem_Nat '
-                 '_).mpr ⟨2, by norm_num⟩)\n'
-                 'lean "coprime-not-both-even" obtain ⟨p, hp⟩ := ha; obtain '
-                 '⟨q, hq⟩ := hb; casesm* _ ∧ _\n'
-                 'lean "coprime-not-both-even" have : (2 : ℝ) = 1 := by\n'
-                 'lean "coprime-not-both-even"   apply two\n'
-                 'lean "coprime-not-both-even"   constructor\n'
-                 'lean "coprime-not-both-even"   · refine ⟨p, ?_⟩; constructor '
-                 '<;> assumption\n'
-                 'lean "coprime-not-both-even"   · refine ⟨q, ?_⟩; constructor '
-                 '<;> assumption\n'
-                 'lean "coprime-not-both-even" norm_num at this\n'
-                 'lean "range" intros; rw [k_mem_numset]; simp only '
-                 '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
-                 'lean "range" all_goals constructor <;> rintro ⟨n, h⟩ <;> '
-                 'exact ⟨n, by first | (constructor <;> linarith [h.1, h.2]) | '
-                 'linarith [h]⟩\n'
-                 'lean "range-infinite" intros; rw [k_mem_numset]; simp only '
-                 '[k_mem_Nat, Set.mem_range, exists_exists_eq_and]\n'
-                 'lean "range-infinite" all_goals constructor <;> rintro ⟨n, '
-                 'h⟩ <;> exact ⟨n, by first | (constructor <;> linarith [h.1, '
-                 'h.2]) | linarith [h]⟩\n'
-                 'lean "progression" intros; casesm* _ ∧ _\n'
-                 'lean "progression" obtain ⟨n, h⟩ := (k_mem_numset _ _).mp '
-                 '‹_›\n'
-                 'lean "progression" exact ⟨n, (k_mem_Nat _).mpr ⟨n, rfl⟩, by '
-                 'first | (constructor <;> linarith [h.1, h.2]) | linarith '
-                 '[h]⟩\n'
-                 'lean "progression-intro" intros; casesm* _ ∧ _\n'
-                 'lean "progression-intro" obtain ⟨k, hk, h⟩ := ‹∃ _, _›\n'
-                 'lean "progression-intro" obtain ⟨n, rfl⟩ := (k_mem_Nat _).mp '
-                 'hk\n'
-                 'lean "progression-intro" exact (k_mem_numset _ _).mpr ⟨n, by '
-                 'first | (constructor <;> linarith [h.1, h.2]) | linarith '
-                 '[h]⟩\n'
-                 'lean "progression-infinite" intros; casesm* _ ∧ _\n'
-                 'lean "progression-infinite" obtain ⟨n, h⟩ := (k_mem_numset _ '
-                 '_).mp ‹_›\n'
-                 'lean "progression-infinite" exact ⟨n, (k_mem_Nat _).mpr ⟨n, '
-                 'rfl⟩, by first | (constructor <;> linarith [h.1, h.2]) | '
-                 'linarith [h]⟩\n'
-                 'lean "progression-infinite-intro" intros; casesm* _ ∧ _\n'
-                 'lean "progression-infinite-intro" obtain ⟨k, hk, h⟩ := ‹∃ _, '
-                 '_›\n'
-                 'lean "progression-infinite-intro" obtain ⟨n, rfl⟩ := '
-                 '(k_mem_Nat _).mp hk\n'
-                 'lean "progression-infinite-intro" exact (k_mem_numset _ '
-                 '_).mpr ⟨n, by first | (constructor <;> linarith [h.1, h.2]) '
-                 '| linarith [h]⟩\n',
- 'numbers.kurt': '; numbers -- the laws of numbers (N, Z, Q, R: an ordered '
-                 'field), formerly arith.kurt\n'
-                 ';\n'
-                 '; Its laws hold for everything written with its operators '
-                 '(`$a * $b = $b * $a` for any `$a`, `$b`):\n'
-                 '; for vectors or matrices, use a structure with its own '
-                 'operators instead (a field, a vector\n'
-                 '; space) -- a symbol is declared by one file only, so the '
-                 "two can't be loaded together.\n"
-                 ';\n'
-                 '; covers: +, -, *, /, ^ (with real algebraic identities: '
-                 'distributivity, inverses, identities,\n'
-                 '; the exponent laws), <, >, <=, >= (with transitivity, '
-                 'antisymmetry, trichotomy), and\n'
-                 '; factorial (recursively defined via "factorial-step", not '
-                 'just the base case) -- see\n'
-                 '; proofs/arithmetic/ for worked examples of all of this.\n'
-                 ';\n'
-                 '; `calc on` computes what you type, the results of '
-                 'substitutions, and a part of a rule as soon as\n'
-                 '; its variables have values (`($n - 1)!` with `$n := 3` '
-                 'matches `2!`, see\n'
-                 '; proofs/arithmetic/factorial-with-calc.kurt) -- but it '
-                 "doesn't solve: `$b / 3` doesn't match\n"
-                 '; `0` while `$b` is unknown.\n'
-                 'load propositional, equality\n'
-                 'load objects               ; the sorts: `real`, and `real ⊂ '
-                 'set`\n'
-                 'default real                ; every symbol of this file is a '
-                 "number, every position a number's\n"
                  '\n'
-                 ';; syntax\n'
-                 'infix   +  60 60           ; binary plus\n'
-                 'infix   -  60 60           ; binary minus\n'
-                 'infix   *  70 70           ; binary times\n'
-                 'infix   /  70 70           ; binary divide\n'
-                 'infix   ^  75 74           ; power, right associative: `2 ^ '
-                 '3 ^ 2` is `2 ^ (3 ^ 2)`\n'
-                 'prefix  -     72           ; unary minus, weaker than `^`: '
-                 '`- 2 ^ 2` is `- (2 ^ 2)`\n'
-                 'postfix !  82              ; factorial\n'
-                 'infix   <  20 20           ; less than\n'
-                 'infix   >  20 20           ; greater than\n'
-                 'infix   <= 20 20           ; less than or equal\n'
-                 'infix   >= 20 20           ; greater than or equal\n'
-                 '\n'
-                 'flat +, *\n'
-                 'sym  +, *\n'
-                 'prop <  0, <= 0\n'
-                 'chain   = <= <\n'
-                 'alias   ≤ <=\n'
-                 'alias   ≥ >=\n'
-                 '; `a > b` is read as `b < a`, and `a >= b` as `b <= a`: one '
-                 'term, nothing to switch\n'
-                 'inline  $a > $b   iff  $b < $a\n'
-                 'inline  $a >= $b  iff  $b <= $a\n'
-                 'chain   = >= >\n'
-                 '\n'
-                 '; `calc on` computes these with numbers, exactly (see '
-                 'doc/kurt-ref.md, `calc`)\n'
-                 'builtin + add, - subtract, - negate, * multiply, / divide, ^ '
-                 'power\n'
-                 'builtin = eq, < lt, <= le\n'
-                 '\n'
-                 '; how `kurt --latex` writes them\n'
-                 'tex / \\frac{$1}{$2}\n'
-                 'tex ^ {$1}^{$2}\n'
-                 '\n'
-                 '; how `kurt --lean` writes them with Mathlib '
-                 "(doc/kurt-ref.md, `--lean`): the numbers are Mathlib's\n"
-                 '; reals -- for every theory of numbers (natural.kurt, '
-                 'integer.kurt, rational.kurt: `Nat`, `Int`,\n'
-                 '; `Rat` are sets of them, as here) --, embedded into the '
-                 'sets of Mathlib, the objects (`lean Obj\n'
-                 '; ZFSet`, objects.kurt: every number is a set), a number `2` '
-                 'is `(2 : ℝ)`, `^` the real power\n'
-                 '; (`Real.rpow`), and `n!` is `Γ(n + 1)` (`Real.Gamma`: `0! = '
-                 '1` and `n! = n (n - 1)!` for every\n'
-                 '; `n > 0`, as the rules below say, and `n!` the factorial '
-                 'for a natural number). With `ℝ`, `x / 0 =\n'
-                 "; 0` (Mathlib's convention); no rule below says otherwise. "
-                 'Each rule is a theorem of Mathlib: its\n'
-                 '; proof is the `lean "label" ...` after it (a tactic; only '
-                 "output, Kurt doesn't read it), and\n"
-                 '; `kurt --lean` writes the rule as a `theorem` with it, '
-                 'which Lean checks.\n'
-                 'lean real ℝ                 ; a number is a real (and a set: '
-                 '`k_emb x`, where a set is required)\n'
-                 'lean + $1 + $2\n'
-                 'lean - $1 - $2\n'
-                 'lean - -$1\n'
-                 'lean * $1 * $2\n'
-                 'lean / $1 / $2\n'
-                 'lean ^ $1 ^ $2\n'
-                 'lean < $1 < $2\n'
-                 'lean <= $1 ≤ $2\n'
-                 'lean ! Real.Gamma ($1 + 1)\n'
-                 '\n'
-                 ';; rules\n'
-                 'use $a = $b  ⇒  $a + $c = $b + $c   "add-eq"\n'
-                 'use $a = $b  ⇒  $a - $c = $b - $c   "sub-eq"\n'
-                 'use $a = $b  ⇒  $a * $c = $b * $c   "mul-eq"\n'
-                 'use $a = $b  ⇒  $a / $c = $b / $c   "div-eq"\n'
-                 'use ($a + $b) * $c = $a * $c + $b * $c   "distrib-add"\n'
-                 'use ($a - $b) * $c = $a * $c - $b * $c   "distrib-sub"\n'
-                 'use ($a + $b) - $c = $a - ($c - $b)      "add-sub"\n'
-                 '\n'
-                 'use $a + (-$a) = 0       "add-inverse"\n'
-                 'use $a - $a = 0          "sub-inverse"\n'
-                 'use $a * 1 = $a          "mul-identity"\n'
-                 'use $a / 1 = $a          "div-identity"\n'
-                 'use $a * (-1) = -$a      "mul-neg-one"\n'
-                 'use -(-$a) = $a          "double-negation"\n'
-                 'use $a * 0 = 0           "mul-zero"\n'
-                 'use $a ≠ 0 ⇒ 0 / $a = 0  "zero-div"\n'
-                 'use $a ≠ 0 ⇒ $a / $a = 1 "div-self"\n'
-                 'use $c ≠ 0 ⇒ ($a * $c) / $c = $a             "mul-div"\n'
-                 'use $c ≠ 0 ⇒ ($a / $c) * $c = $a             "div-mul"\n'
-                 'use $c ≠ 0 ⇒ $a / $c + $b / $c = ($a + $b) / $c  "div-add"\n'
-                 'use $c ≠ 0 ∧ $d ≠ 0 ⇒ ($a / $c) * ($b / $d) = ($a * $b) / '
-                 '($c * $d)  "div-mul-div"\n'
-                 'use $a ≠ 0 ∧ $b ≠ 0 ⇒ $a * $b ≠ 0             "mul-ne-zero"\n'
-                 'use $a + 0 = $a          "add-identity"\n'
-                 'use $a - 0 = $a          "sub-identity"\n'
-                 '\n'
-                 '; `$a ^ 0 = 1` unconditionally would be wrong: 0^0 is '
-                 "conventionally left undefined, so it's\n"
-                 '; guarded by `$a ≠ 0` below instead of being a blanket '
-                 'axiom.\n'
-                 'use $a ^ 1 = $a                          "pow-identity"\n'
-                 'use $a ≠ 0  ⇒  $a ^ 0 = 1                "pow-zero"\n'
-                 '; the other laws only for a positive base: `((-1) ^ 2) ^ (1 '
-                 '/ 2)` is `1`, but `(-1) ^ 1` is `-1`,\n'
-                 '; and `0 ^ 1 * 0 ^ (-1)` would be `0 ^ 0`\n'
-                 'use $a > 0  ⇒  $a ^ $b * $a ^ $c = $a ^ ($b + $c)   '
-                 '"pow-add"\n'
-                 'use $a > 0  ⇒  ($a ^ $b) ^ $c = $a ^ ($b * $c)      '
-                 '"pow-mul"\n'
-                 '\n'
-                 ';; order rules: <\n'
-                 'use $a < $b  ⇒  $a + $c < $b + $c   "lt-add"\n'
-                 'use $a < $b  ⇒  $a - $c < $b - $c   "lt-sub"\n'
-                 'use $c > 0 ∧ $a < $b  ⇒  $a * $c < $b * $c   "lt-mul-pos"\n'
-                 'use $c > 0 ∧ $a < $b  ⇒  $a / $c < $b / $c   "lt-div-pos"\n'
-                 'use $c < 0 ∧ $a < $b  ⇒  $a * $c > $b * $c   "lt-mul-neg"\n'
-                 'use $c < 0 ∧ $a < $b  ⇒  $a / $c > $b / $c   "lt-div-neg"\n'
-                 '\n'
-                 ';; order rules: <=\n'
-                 'use $a <= $b  ⇒  $a + $c <= $b + $c   "le-add"\n'
-                 'use $a <= $b  ⇒  $a - $c <= $b - $c   "le-sub"\n'
-                 'use $c > 0 ∧ $a <= $b  ⇒  $a * $c <= $b * $c   "le-mul-pos"\n'
-                 'use $c > 0 ∧ $a <= $b  ⇒  $a / $c <= $b / $c   "le-div-pos"\n'
-                 'use $c < 0 ∧ $a <= $b  ⇒  $a * $c >= $b * $c   "le-mul-neg"\n'
-                 'use $c < 0 ∧ $a <= $b  ⇒  $a / $c >= $b / $c   "le-div-neg"\n'
-                 '\n'
-                 ';; order rules: >\n'
-                 'use $a > $b  ⇒  $a + $c > $b + $c   "gt-add"\n'
-                 'use $a > $b  ⇒  $a - $c > $b - $c   "gt-sub"\n'
-                 'use $c > 0 ∧ $a > $b  ⇒  $a * $c > $b * $c   "gt-mul-pos"\n'
-                 'use $c > 0 ∧ $a > $b  ⇒  $a / $c > $b / $c   "gt-div-pos"\n'
-                 'use $c < 0 ∧ $a > $b  ⇒  $a * $c < $b * $c   "gt-mul-neg"\n'
-                 'use $c < 0 ∧ $a > $b  ⇒  $a / $c < $b / $c   "gt-div-neg"\n'
-                 '\n'
-                 ';; order rules: >=\n'
-                 'use $a >= $b  ⇒  $a + $c >= $b + $c   "ge-add"\n'
-                 'use $a >= $b  ⇒  $a - $c >= $b - $c   "ge-sub"\n'
-                 'use $c > 0 ∧ $a >= $b  ⇒  $a * $c >= $b * $c   "ge-mul-pos"\n'
-                 'use $c > 0 ∧ $a >= $b  ⇒  $a / $c >= $b / $c   "ge-div-pos"\n'
-                 'use $c < 0 ∧ $a >= $b  ⇒  $a * $c <= $b * $c   "ge-mul-neg"\n'
-                 'use $c < 0 ∧ $a >= $b  ⇒  $a / $c <= $b / $c   "ge-div-neg"\n'
-                 '\n'
-                 ';; order rules: adding inequalities, powers\n'
-                 'use $a < $b ∧ $c < $d  ⇒  $a + $c < $b + $d            '
-                 '"lt-add-lt"\n'
-                 'use $a > $b ∧ $c > $d  ⇒  $a + $c > $b + $d            '
-                 '"gt-add-gt"\n'
-                 'use $a > 0 ∧ $b > 0  ⇒  $a * $b > 0                   '
-                 '"mul-pos"\n'
-                 'use $a > 0 ∧ $b > 0  ⇒  $a / $b > 0                   '
-                 '"div-pos"\n'
-                 'use $a > 0  ⇒  $a ^ $b > 0                             '
-                 '"pow-pos"\n'
-                 'use $a > 0 ∧ $a < $b ∧ $c > 0  ⇒  $a ^ $c < $b ^ $c    '
-                 '"pow-lt"\n'
-                 'use $b > 0 ∧ $a > $b ∧ $c > 0  ⇒  $a ^ $c > $b ^ $c    '
-                 '"pow-gt"\n'
-                 '\n'
-                 ';; order rules: mixed\n'
-                 'use $a < $b  ⇒  ¬($a >= $b)   "lt-not-ge"\n'
-                 'use $a > $b  ⇒  ¬($a <= $b)   "gt-not-le"\n'
-                 'use $a <= $b  ⇒  ¬($a > $b)   "le-not-gt"\n'
-                 'use $a >= $b  ⇒  ¬($a < $b)   "ge-not-lt"\n'
-                 '\n'
-                 ';; transitivity: genuinely automatic now, not hand-written '
-                 '-- `chain = <= <` and\n'
-                 ';; `chain = >= >` above make kurt itself generate every '
-                 'combined-transitivity fact\n'
-                 ';; ("chain-trans-I-J", by the positions of the two relations '
-                 'in the chain, one per ordered pair) as a\n'
-                 ';; real, directly-usable axiom. See '
-                 '`generate_chain_transitivity` in kurt.py and\n'
-                 ';; doc/kurt-soundness.md for how and why.\n'
-                 '\n'
-                 ';; the relations among each other\n'
-                 'use $a <= $b  ⇔  $b >= $a            "le-ge"\n'
-                 'use $a < $b  ⇔  $b > $a              "lt-gt"\n'
-                 'use $a < $b  ⇒  $a <= $b             "lt-le"\n'
-                 'use $a <= $a                         "le-refl"\n'
-                 'use $a < $b  ⇒  $a ≠ $b              "lt-ne"\n'
-                 '\n'
-                 ';; anti-symmetry\n'
-                 'use $a <= $b ∧ $a >= $b  ⇒  $a = $b   "le-ge-antisym"\n'
-                 'use $a > $b  ⇒  $a ≠ $b                "gt-ne"\n'
-                 'use $a - $b >= 0  ⇒  $a >= $b          "sub-ge-zero"\n'
-                 'use $a <  $b ∧ $a >  $b  ⇒  false   "lt-gt-contra"\n'
-                 'use $a <  $b ∧ $a >= $b  ⇒  false   "lt-ge-contra"\n'
-                 'use $a >  $b ∧ $a <= $b  ⇒  false   "gt-le-contra"\n'
-                 '\n'
-                 ';; trichotomy\n'
-                 'use $a < $b ∨ $a = $b ∨ $a > $b   "trichotomy"\n'
-                 '\n'
-                 ';; factorial\n'
-                 'use 0! = 1                              "factorial-base"\n'
-                 'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n'
-                 '\n'
-                 ';; the rules as theorems of Mathlib: `lean "label" TACTIC` '
-                 'is a proof in Lean of the rule "label"\n'
-                 ';; (in `ℝ`, see `lean real ℝ` above) -- `kurt --lean` writes '
-                 'the rule as a `theorem` with it, and\n'
-                 ";; Lean checks it; Kurt itself doesn't read the tactic "
-                 "(doc/kurt-ref.md, `--lean`). The tactics don't\n"
-                 ';; name the variables (`intros`): Kurt orders the arguments '
-                 'of `+` and `*` its own way.\n'
-                 'lean "add-eq" intros; subst_vars; rfl\n'
-                 'lean "sub-eq" intros; subst_vars; rfl\n'
-                 'lean "mul-eq" intros; subst_vars; rfl\n'
-                 'lean "div-eq" intros; subst_vars; rfl\n'
-                 'lean "distrib-add" intros; ring\n'
-                 'lean "distrib-sub" intros; ring\n'
-                 'lean "add-sub" intros; ring\n'
-                 'lean "add-inverse" intros; ring\n'
-                 'lean "sub-inverse" intros; ring\n'
-                 'lean "mul-identity" intros; ring\n'
-                 'lean "div-identity" intros; ring\n'
-                 'lean "mul-neg-one" intros; ring\n'
-                 'lean "double-negation" intros; ring\n'
-                 'lean "mul-zero" intros; ring\n'
-                 'lean "zero-div" intros; simp\n'
-                 'lean "div-self" intros; field_simp\n'
-                 'lean "mul-div" intros; field_simp\n'
-                 'lean "div-mul" intros; field_simp\n'
-                 'lean "div-add" intros; ring\n'
-                 'lean "div-mul-div" intros; ring\n'
-                 'lean "mul-ne-zero" intros; simp_all\n'
-                 'lean "add-identity" intros; ring\n'
-                 'lean "sub-identity" intros; ring\n'
-                 'lean "pow-identity" intros; simp\n'
-                 'lean "pow-zero" intros; simp\n'
-                 'lean "pow-add" intros; rw [← Real.rpow_add ‹_›]\n'
-                 'lean "pow-mul" intros; rw [← Real.rpow_mul (le_of_lt ‹_›)]\n'
-                 'lean "lt-add" intros; linarith\n'
-                 'lean "lt-sub" intros; linarith\n'
-                 'lean "lt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "lt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "lt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "lt-div-neg" intros; casesm* _ ∧ _; exact '
-                 '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
-                 'lean "le-add" intros; linarith\n'
-                 'lean "le-sub" intros; linarith\n'
-                 'lean "le-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "le-div-pos" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "le-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "le-div-neg" intros; casesm* _ ∧ _; exact '
-                 '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
-                 'lean "gt-add" intros; linarith\n'
-                 'lean "gt-sub" intros; linarith\n'
-                 'lean "gt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "gt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "gt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "gt-div-neg" intros; casesm* _ ∧ _; exact '
-                 '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
-                 'lean "ge-add" intros; linarith\n'
-                 'lean "ge-sub" intros; linarith\n'
-                 'lean "ge-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "ge-div-pos" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "ge-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
-                 'lean "ge-div-neg" intros; casesm* _ ∧ _; exact '
-                 '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
-                 'lean "lt-add-lt" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "gt-add-gt" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "mul-pos" intros; casesm* _ ∧ _; positivity\n'
-                 'lean "div-pos" intros; casesm* _ ∧ _; positivity\n'
-                 'lean "pow-pos" intros; apply Real.rpow_pos_of_pos; '
-                 'assumption\n'
-                 'lean "pow-lt" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "pow-gt" intros; casesm* _ ∧ _; gcongr\n'
-                 'lean "lt-not-ge" intros; linarith\n'
-                 'lean "gt-not-le" intros; linarith\n'
-                 'lean "le-not-gt" intros; linarith\n'
-                 'lean "ge-not-lt" intros; linarith\n'
-                 'lean "le-ge" intros; exact Iff.rfl\n'
-                 'lean "lt-gt" intros; exact Iff.rfl\n'
-                 'lean "lt-le" intros; linarith\n'
-                 'lean "le-refl" intros; exact le_refl _\n'
-                 'lean "lt-ne" intros; linarith\n'
-                 'lean "le-ge-antisym" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "gt-ne" intros; linarith\n'
-                 'lean "sub-ge-zero" intros; linarith\n'
-                 'lean "lt-gt-contra" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "lt-ge-contra" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "gt-le-contra" intros; casesm* _ ∧ _; linarith\n'
-                 'lean "trichotomy" intro a b; rcases lt_trichotomy a b with h '
-                 '| h | h <;> tauto\n'
-                 'lean "factorial-base" norm_num\n'
-                 'lean "factorial-step" intro n h; rw [sub_add_cancel, '
-                 "Real.Gamma_add_one h.ne']\n",
- 'objects.kurt': '; objects -- the sorts of the objects of numbers.kurt and '
-                 'set.kurt: every number is a set\n'
-                 ';\n'
-                 '; `real ⊂ set`: a number fits wherever a set is required (`3 '
-                 "∈ Nat`, `{1, 2}`), but a set doesn't\n"
-                 '; fit where a number is required (`{1, 2} + 0` is a type '
-                 'error). The rules of set.kurt are written\n'
-                 '; once, with `set` variables, and hold for numbers too; the '
-                 'rules of numbers.kurt are about\n'
-                 '; numbers only. Both theories load this file, so the two '
-                 'sorts are declared once, in one file,\n'
-                 '; and a file can load either theory, or both, in any order '
-                 '(doc/kurt-ref.md §5.2).\n'
-                 'sort set real\n'
-                 '; `kurt --lean` (doc/kurt-ref.md, `--lean`): the objects are '
-                 "the sets of Mathlib's model of ZFC, and a\n"
-                 "; sort with a type of its own (numbers.kurt's `lean real ℝ`) "
-                 'is embedded into them -- so a proof that\n'
-                 '; mixes sets and numbers is checked by Lean in one model of '
-                 'both\n'
-                 'lean Obj ZFSet\n',
+                 ';; the rules about the integers and rationals as theorems of '
+                 'Mathlib (`Int`, `Rat` by `k_mem_Int`, `k_mem_Rat`)\n'
+                 'lean "int-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; exact (k_mem_Int _).mpr ⟨n, by simp⟩\n'
+                 'lean "int-neg-nat" intro x hx; obtain ⟨n, rfl⟩ := (k_mem_Nat '
+                 'x).mp hx; exact (k_mem_Int _).mpr ⟨-n, by simp⟩\n'
+                 'lean "int-cases" intro z hz\n'
+                 'lean "int-cases" obtain ⟨m, rfl⟩ := (k_mem_Int z).mp hz\n'
+                 'lean "int-cases" obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg '
+                 'm\n'
+                 'lean "int-cases" all_goals first | (left; refine (k_mem_Nat '
+                 '_).mpr ⟨n, ?_⟩; simp; done) | (right; refine (k_mem_Nat '
+                 '_).mpr ⟨n, ?_⟩; simp; done)\n'
+                 'lean "int-zero" exact (k_mem_Int _).mpr ⟨0, by simp⟩\n'
+                 'lean "int-one" exact (k_mem_Int _).mpr ⟨1, by simp⟩\n'
+                 'lean "int-neg" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
+                 'z).mp hz; exact (k_mem_Int _).mpr ⟨-m, by simp⟩\n'
+                 'lean "int-pos-nat" intros; casesm* _ ∧ _\n'
+                 'lean "int-pos-nat" obtain ⟨m, rfl⟩ := (k_mem_Int _).mp '
+                 '‹k_emb _ ∈ Int›; beta_reduce at *\n'
+                 'lean "int-pos-nat" have : 0 < m := by exact_mod_cast (‹_› : '
+                 '(0 : ℝ) < m)\n'
+                 'lean "int-pos-nat" exact (k_mem_Nat _).mpr ⟨m.toNat, by '
+                 'beta_reduce; exact_mod_cast Int.toNat_of_nonneg this.le⟩\n'
+                 'lean "rat-def" intro q; rw [k_mem_Rat]; constructor\n'
+                 'lean "rat-def" · rintro ⟨r, rfl⟩\n'
+                 'lean "rat-def"   refine ⟨r.num, r.den, ?_⟩\n'
+                 'lean "rat-def"   refine ⟨?_, ?_, ?_, ?_⟩ <;> first | exact '
+                 '(k_mem_Int _).mpr ⟨r.num, rfl⟩ | exact (k_mem_Nat _).mpr '
+                 '⟨r.den, rfl⟩ | exact Rat.cast_def r | (simp [r.den_nz]; '
+                 'done)\n'
+                 'lean "rat-def" · rintro ⟨m, n, h⟩\n'
+                 'lean "rat-def"   casesm* _ ∧ _\n'
+                 'lean "rat-def"   obtain ⟨i, rfl⟩ := (k_mem_Int m).mp ‹_›\n'
+                 'lean "rat-def"   obtain ⟨j, rfl⟩ := (k_mem_Nat n).mp ‹_›\n'
+                 'lean "rat-def"   subst_vars\n'
+                 'lean "rat-def"   exact ⟨(i : ℚ) / (j : ℚ), by push_cast; '
+                 'ring⟩\n'
+                 'lean "rat-int" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
+                 'z).mp hz; exact (k_mem_Rat _).mpr ⟨m, by simp⟩\n'
+                 'lean "rat-pos" intros; casesm* _ ∧ _\n'
+                 'lean "rat-pos" obtain ⟨r, rfl⟩ := (k_mem_Rat _).mp ‹k_emb _ '
+                 '∈ Rat›; beta_reduce at *\n'
+                 'lean "rat-pos" have hr : 0 < r := by exact_mod_cast (‹_› : '
+                 '(0 : ℝ) < r)\n'
+                 'lean "rat-pos" have hnum : 0 ≤ r.num := (Rat.num_pos.mpr '
+                 'hr).le\n'
+                 'lean "rat-pos" refine ⟨(r.num.toNat : ℝ), (r.den : ℝ), ?_⟩\n'
+                 'lean "rat-pos" refine ⟨?_, ?_, ?_, ?_⟩\n'
+                 'lean "rat-pos" all_goals first\n'
+                 'lean "rat-pos"   | exact (k_mem_Nat _).mpr ⟨_, rfl⟩\n'
+                 'lean "rat-pos"   | (simp [r.den_nz]; done)\n'
+                 'lean "rat-pos"   | (rw [show ((r.num.toNat : ℕ) : ℝ) = '
+                 '((r.num.toNat : ℤ) : ℝ) from (Int.cast_natCast _).symm, '
+                 'Int.toNat_of_nonneg hnum]; exact Rat.cast_def r)\n'
+                 'lean "frac-cancel" intros; casesm* _ ∧ _\n'
+                 'lean "frac-cancel" field_simp\n',
+ 'number.kurt': '; number -- the laws of numbers (an ordered field), and the '
+                'sets of numbers `Real`, `Int`, `Rat`\n'
+                ';\n'
+                '; Its laws hold for everything written with its operators '
+                '(`$a * $b = $b * $a` for any `$a`, `$b`):\n'
+                '; for vectors or matrices, use a structure with its own '
+                'operators instead (a field, a vector\n'
+                '; space) -- a symbol is declared by one file only, so the two '
+                "can't be loaded together.\n"
+                ';\n'
+                '; covers: +, -, *, /, ^ (with real algebraic identities: '
+                'distributivity, inverses, identities,\n'
+                '; the exponent laws, "pow-two": a square), <, >, <=, >= (with '
+                'transitivity, antisymmetry,\n'
+                '; trichotomy), theorems proved from these rules (a square is '
+                'not negative, the three binomial\n'
+                '; formulas "binomial-plus", "binomial-minus", '
+                '"binomial-product", and "two-times"), factorial\n'
+                '; (recursively defined via "factorial-step", not just the '
+                'base case), and the sets of numbers\n'
+                '; `Real` (ℝ), `Int` (ℤ), `Rat` (ℚ) with their closure under '
+                'the operations (the natural numbers\n'
+                '; `Nat` are in natural.kurt) -- see proofs/arithmetic/ for '
+                'worked examples of all of this.\n'
+                ';\n'
+                '; `calc on` computes what you type, the results of '
+                'substitutions, and a part of a rule as soon as\n'
+                '; its variables have values (`($n - 1)!` with `$n := 3` '
+                'matches `2!`, see\n'
+                '; proofs/arithmetic/factorial-with-calc.kurt) -- but it '
+                "doesn't solve: `$b / 3` doesn't match\n"
+                '; `0` while `$b` is unknown.\n'
+                'load propositional, equality, logic     ; (`logic`: the '
+                'quantifiers, for the theorems below)\n'
+                'load set                   ; the sorts: `real`, and `real ⊂ '
+                'set` (every number is a set)\n'
+                'default real                ; every symbol of this file is a '
+                "number, every position a number's\n"
+                '\n'
+                ';; syntax\n'
+                'infix   +  60 60           ; binary plus\n'
+                'infix   -  60 60           ; binary minus\n'
+                'infix   *  70 70           ; binary times\n'
+                'infix   /  70 70           ; binary divide\n'
+                'infix   ^  75 74           ; power, right associative: `2 ^ 3 '
+                '^ 2` is `2 ^ (3 ^ 2)`\n'
+                'prefix  -     72           ; unary minus, weaker than `^`: `- '
+                '2 ^ 2` is `- (2 ^ 2)`\n'
+                'postfix !  82              ; factorial\n'
+                'infix   <  20 20           ; less than\n'
+                'infix   >  20 20           ; greater than\n'
+                'infix   <= 20 20           ; less than or equal\n'
+                'infix   >= 20 20           ; greater than or equal\n'
+                '\n'
+                'flat +, *\n'
+                'sym  +, *\n'
+                'prop <  0, <= 0\n'
+                'chain   = <= <\n'
+                'alias   ≤ <=\n'
+                'alias   ≥ >=\n'
+                '; `a > b` is read as `b < a`, and `a >= b` as `b <= a`: one '
+                'term, nothing to switch\n'
+                'inline  $a > $b   iff  $b < $a\n'
+                'inline  $a >= $b  iff  $b <= $a\n'
+                'chain   = >= >\n'
+                '\n'
+                '; `calc on` computes these with numbers, exactly (see '
+                'doc/kurt-ref.md, `calc`)\n'
+                'builtin + add, - subtract, - negate, * multiply, / divide, ^ '
+                'power\n'
+                'builtin = eq, < lt, <= le\n'
+                '\n'
+                '; how `kurt --latex` writes them\n'
+                'tex / \\frac{$1}{$2}\n'
+                'tex ^ {$1}^{$2}\n'
+                '\n'
+                '; how `kurt --lean` writes them with Mathlib '
+                "(doc/kurt-ref.md, `--lean`): the numbers are Mathlib's\n"
+                '; reals -- for every theory of numbers (natural.kurt, '
+                'divisibility.kurt: `Nat`, `Int`,\n'
+                '; `Rat` are sets of them, as here) --, embedded into the sets '
+                'of Mathlib, the objects (`lean Obj\n'
+                '; ZFSet`, set.kurt: every number is a set), a number `2` is '
+                '`(2 : ℝ)`, `^` the real power\n'
+                '; (`Real.rpow`), and `n!` is `Γ(n + 1)` (`Real.Gamma`: `0! = '
+                '1` and `n! = n (n - 1)!` for every\n'
+                '; `n > 0`, as the rules below say, and `n!` the factorial for '
+                'a natural number). With `ℝ`, `x / 0 =\n'
+                "; 0` (Mathlib's convention); no rule below says otherwise. "
+                'Each rule is a theorem of Mathlib: its\n'
+                '; proof is the `lean "label" ...` after it (a tactic; only '
+                "output, Kurt doesn't read it), and\n"
+                '; `kurt --lean` writes the rule as a `theorem` with it, which '
+                'Lean checks.\n'
+                'lean real ℝ                 ; a number is a real (and a set: '
+                '`k_emb x`, where a set is required)\n'
+                'lean + $1 + $2\n'
+                'lean - $1 - $2\n'
+                'lean - -$1\n'
+                'lean * $1 * $2\n'
+                'lean / $1 / $2\n'
+                'lean ^ $1 ^ $2\n'
+                'lean < $1 < $2\n'
+                'lean <= $1 ≤ $2\n'
+                'lean ! Real.Gamma ($1 + 1)\n'
+                '\n'
+                ';; rules\n'
+                'use $a = $b  ⇒  $a + $c = $b + $c   "add-eq"\n'
+                'use $a = $b  ⇒  $a - $c = $b - $c   "sub-eq"\n'
+                'use $a = $b  ⇒  $a * $c = $b * $c   "mul-eq"\n'
+                'use $a = $b  ⇒  $a / $c = $b / $c   "div-eq"\n'
+                'use ($a + $b) * $c = $a * $c + $b * $c   "distrib-add"\n'
+                'use ($a - $b) * $c = $a * $c - $b * $c   "distrib-sub"\n'
+                'use ($a + $b) - $c = $a - ($c - $b)      "add-sub"\n'
+                '\n'
+                'use $a + (-$a) = 0       "add-inverse"\n'
+                'use $a - $a = 0          "sub-inverse"\n'
+                'use $a * 1 = $a          "mul-identity"\n'
+                'use $a / 1 = $a          "div-identity"\n'
+                'use $a * (-1) = -$a      "mul-neg-one"\n'
+                'use -(-$a) = $a          "double-negation"\n'
+                'use $a * 0 = 0           "mul-zero"\n'
+                'use $a ≠ 0 ⇒ 0 / $a = 0  "zero-div"\n'
+                'use $a ≠ 0 ⇒ $a / $a = 1 "div-self"\n'
+                'use $c ≠ 0 ⇒ ($a * $c) / $c = $a             "mul-div"\n'
+                'use $c ≠ 0 ⇒ ($a / $c) * $c = $a             "div-mul"\n'
+                'use $c ≠ 0 ⇒ $a / $c + $b / $c = ($a + $b) / $c  "div-add"\n'
+                'use $c ≠ 0 ∧ $d ≠ 0 ⇒ ($a / $c) * ($b / $d) = ($a * $b) / ($c '
+                '* $d)  "div-mul-div"\n'
+                'use $a ≠ 0 ∧ $b ≠ 0 ⇒ $a * $b ≠ 0             "mul-ne-zero"\n'
+                'use $a + 0 = $a          "add-identity"\n'
+                'use $a - 0 = $a          "sub-identity"\n'
+                '\n'
+                '; `$a ^ 0 = 1` unconditionally would be wrong: 0^0 is '
+                "conventionally left undefined, so it's\n"
+                '; guarded by `$a ≠ 0` below instead of being a blanket '
+                'axiom.\n'
+                'use $a ^ 1 = $a                          "pow-identity"\n'
+                'use $a ≠ 0  ⇒  $a ^ 0 = 1                "pow-zero"\n'
+                '; a square, for every base (the binomial formulas below are '
+                'proved from it)\n'
+                'use $a ^ 2 = $a * $a                     "pow-two"\n'
+                '; the other laws only for a positive base: `((-1) ^ 2) ^ (1 / '
+                '2)` is `1`, but `(-1) ^ 1` is `-1`,\n'
+                '; and `0 ^ 1 * 0 ^ (-1)` would be `0 ^ 0`\n'
+                'use $a > 0  ⇒  $a ^ $b * $a ^ $c = $a ^ ($b + $c)   '
+                '"pow-add"\n'
+                'use $a > 0  ⇒  ($a ^ $b) ^ $c = $a ^ ($b * $c)      '
+                '"pow-mul"\n'
+                '\n'
+                ';; order rules: <\n'
+                'use $a < $b  ⇒  $a + $c < $b + $c   "lt-add"\n'
+                'use $a < $b  ⇒  $a - $c < $b - $c   "lt-sub"\n'
+                'use $c > 0 ∧ $a < $b  ⇒  $a * $c < $b * $c   "lt-mul-pos"\n'
+                'use $c > 0 ∧ $a < $b  ⇒  $a / $c < $b / $c   "lt-div-pos"\n'
+                'use $c < 0 ∧ $a < $b  ⇒  $a * $c > $b * $c   "lt-mul-neg"\n'
+                'use $c < 0 ∧ $a < $b  ⇒  $a / $c > $b / $c   "lt-div-neg"\n'
+                '\n'
+                ';; order rules: <=\n'
+                'use $a <= $b  ⇒  $a + $c <= $b + $c   "le-add"\n'
+                'use $a <= $b  ⇒  $a - $c <= $b - $c   "le-sub"\n'
+                'use $c > 0 ∧ $a <= $b  ⇒  $a * $c <= $b * $c   "le-mul-pos"\n'
+                'use $c > 0 ∧ $a <= $b  ⇒  $a / $c <= $b / $c   "le-div-pos"\n'
+                'use $c < 0 ∧ $a <= $b  ⇒  $a * $c >= $b * $c   "le-mul-neg"\n'
+                'use $c < 0 ∧ $a <= $b  ⇒  $a / $c >= $b / $c   "le-div-neg"\n'
+                '\n'
+                ';; order rules: >\n'
+                'use $a > $b  ⇒  $a + $c > $b + $c   "gt-add"\n'
+                'use $a > $b  ⇒  $a - $c > $b - $c   "gt-sub"\n'
+                'use $c > 0 ∧ $a > $b  ⇒  $a * $c > $b * $c   "gt-mul-pos"\n'
+                'use $c > 0 ∧ $a > $b  ⇒  $a / $c > $b / $c   "gt-div-pos"\n'
+                'use $c < 0 ∧ $a > $b  ⇒  $a * $c < $b * $c   "gt-mul-neg"\n'
+                'use $c < 0 ∧ $a > $b  ⇒  $a / $c < $b / $c   "gt-div-neg"\n'
+                '\n'
+                ';; order rules: >=\n'
+                'use $a >= $b  ⇒  $a + $c >= $b + $c   "ge-add"\n'
+                'use $a >= $b  ⇒  $a - $c >= $b - $c   "ge-sub"\n'
+                'use $c > 0 ∧ $a >= $b  ⇒  $a * $c >= $b * $c   "ge-mul-pos"\n'
+                'use $c > 0 ∧ $a >= $b  ⇒  $a / $c >= $b / $c   "ge-div-pos"\n'
+                'use $c < 0 ∧ $a >= $b  ⇒  $a * $c <= $b * $c   "ge-mul-neg"\n'
+                'use $c < 0 ∧ $a >= $b  ⇒  $a / $c <= $b / $c   "ge-div-neg"\n'
+                '\n'
+                ';; order rules: adding inequalities, powers\n'
+                'use $a < $b ∧ $c < $d  ⇒  $a + $c < $b + $d            '
+                '"lt-add-lt"\n'
+                'use $a > $b ∧ $c > $d  ⇒  $a + $c > $b + $d            '
+                '"gt-add-gt"\n'
+                'use $a > 0 ∧ $b > 0  ⇒  $a * $b > 0                   '
+                '"mul-pos"\n'
+                'use $a > 0 ∧ $b > 0  ⇒  $a / $b > 0                   '
+                '"div-pos"\n'
+                'use $a > 0  ⇒  $a ^ $b > 0                             '
+                '"pow-pos"\n'
+                'use $a > 0 ∧ $a < $b ∧ $c > 0  ⇒  $a ^ $c < $b ^ $c    '
+                '"pow-lt"\n'
+                'use $b > 0 ∧ $a > $b ∧ $c > 0  ⇒  $a ^ $c > $b ^ $c    '
+                '"pow-gt"\n'
+                '\n'
+                ';; order rules: mixed\n'
+                'use $a < $b  ⇒  ¬($a >= $b)   "lt-not-ge"\n'
+                'use $a > $b  ⇒  ¬($a <= $b)   "gt-not-le"\n'
+                'use $a <= $b  ⇒  ¬($a > $b)   "le-not-gt"\n'
+                'use $a >= $b  ⇒  ¬($a < $b)   "ge-not-lt"\n'
+                '\n'
+                ';; transitivity: genuinely automatic now, not hand-written -- '
+                '`chain = <= <` and\n'
+                ';; `chain = >= >` above make kurt itself generate every '
+                'combined-transitivity fact\n'
+                ';; ("chain-trans-I-J", by the positions of the two relations '
+                'in the chain, one per ordered pair) as a\n'
+                ';; real, directly-usable axiom. See '
+                '`generate_chain_transitivity` in kurt.py and\n'
+                ';; doc/kurt-soundness.md for how and why.\n'
+                '\n'
+                ';; the relations among each other\n'
+                'use $a <= $b  ⇔  $b >= $a            "le-ge"\n'
+                'use $a < $b  ⇔  $b > $a              "lt-gt"\n'
+                'use $a < $b  ⇒  $a <= $b             "lt-le"\n'
+                'use $a <= $a                         "le-refl"\n'
+                'use $a < $b  ⇒  $a ≠ $b              "lt-ne"\n'
+                '\n'
+                ';; anti-symmetry\n'
+                'use $a <= $b ∧ $a >= $b  ⇒  $a = $b   "le-ge-antisym"\n'
+                'use $a > $b  ⇒  $a ≠ $b                "gt-ne"\n'
+                'use $a - $b >= 0  ⇒  $a >= $b          "sub-ge-zero"\n'
+                'use $a <  $b ∧ $a >  $b  ⇒  false   "lt-gt-contra"\n'
+                'use $a <  $b ∧ $a >= $b  ⇒  false   "lt-ge-contra"\n'
+                'use $a >  $b ∧ $a <= $b  ⇒  false   "gt-le-contra"\n'
+                '\n'
+                ';; trichotomy\n'
+                'use $a < $b ∨ $a = $b ∨ $a > $b   "trichotomy"\n'
+                '\n'
+                ';; a theorem: the square of a number is not negative (by '
+                'trichotomy, from the rules above)\n'
+                'show ∀ x (x * x >= 0)   "squares-non-negative"\n'
+                'proof\n'
+                '    let x\n'
+                '        x < 0 ∨ x = 0 ∨ x > 0                  ; by '
+                'trichotomy\n'
+                '        case x < 0\n'
+                '            x < 0 ∧ x < 0\n'
+                '            x * x > 0 * x                       ; '
+                '"lt-mul-neg": a < b and c < 0, so a * c > b * c\n'
+                '            0 * x = 0\n'
+                '            x * x > 0\n'
+                '            x * x >= 0\n'
+                '        case x = 0\n'
+                '            x * x = 0 * 0\n'
+                '            0 * 0 = 0\n'
+                '            x * x = 0\n'
+                '            x * x >= 0\n'
+                '        case x > 0\n'
+                '            x > 0 ∧ x > 0\n'
+                '            x * x > 0\n'
+                '            x * x >= 0\n'
+                '        x * x >= 0\n'
+                'qed\n'
+                '\n'
+                ';; binomial formulas: theorems, proved from the rules above '
+                '("pow-two", "distrib-add",\n'
+                ';; "distrib-sub", "add-sub", ...), one rewrite per line\n'
+                'show ∀ x (2 * x = x + x)   "two-times"\n'
+                'proof\n'
+                '    let x\n'
+                '        calc on\n'
+                '        (1 + 1) * x = 1 * x + 1 * x             ; '
+                '"distrib-add"\n'
+                '        1 * x = x\n'
+                '        2 * x = x + x                           ; by calc: `1 '
+                '+ 1` is `2`\n'
+                'qed\n'
+                '\n'
+                '; two helpers, not exported: a difference as a sum, and a '
+                "factor's minus sign\n"
+                'show ∀ x ∀ y (x - y = x + (-y))   local "sub-as-add"\n'
+                'proof\n'
+                '    let x\n'
+                '        let y\n'
+                '            (y + (-y)) - (-y) = y - (-y - (-y))     ; '
+                '"add-sub"\n'
+                '            -y - (-y) = 0\n'
+                '            (y + (-y)) - (-y) = y - 0\n'
+                '            y - 0 = y\n'
+                '            (y + (-y)) - (-y) = y\n'
+                '            y + (-y) = 0\n'
+                '            0 - (-y) = y\n'
+                '            (x + (-y)) - 0 = x - (0 - (-y))          ; '
+                '"add-sub"\n'
+                '            (x + (-y)) - 0 = x - y\n'
+                '            (x + (-y)) - 0 = x + (-y)\n'
+                '            x - y = x + (-y)\n'
+                'qed\n'
+                '\n'
+                'show ∀ x ∀ y (x * (-y) = -(x * y))   local "mul-neg"\n'
+                'proof\n'
+                '    let x\n'
+                '        let y\n'
+                '            y * (-1) = -y\n'
+                '            x * (-y) = x * y * (-1)\n'
+                '            x * y * (-1) = -(x * y)\n'
+                '            x * (-y) = -(x * y)\n'
+                'qed\n'
+                '\n'
+                'show ∀ a ∀ b ((a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2)   '
+                '"binomial-plus"\n'
+                'proof\n'
+                '    let a\n'
+                '        let b\n'
+                '            (a + b) ^ 2 = (a + b) * (a + '
+                'b)                     ; "pow-two"\n'
+                '            (a + b) * (a + b) = a * (a + b) + b * (a + '
+                'b)       ; "distrib-add"\n'
+                '            a * (a + b) = a * a + a * b\n'
+                '            b * (a + b) = a * b + b * b\n'
+                '            (a + b) ^ 2 = a * (a + b) + b * (a + b)\n'
+                '            (a + b) ^ 2 = a * a + a * b + b * (a + b)\n'
+                '            (a + b) ^ 2 = a * a + a * b + a * b + b * b\n'
+                '            2 * (a * b) = a * b + a * '
+                'b                         ; "two-times"\n'
+                '            (a + b) ^ 2 = a * a + 2 * a * b + b * b\n'
+                '            a ^ 2 = a * a\n'
+                '            b ^ 2 = b * b\n'
+                '            (a + b) ^ 2 = a ^ 2 + 2 * a * b + b * b\n'
+                '            (a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2\n'
+                'qed\n'
+                '\n'
+                'show ∀ a ∀ b ((a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2)   '
+                '"binomial-minus"\n'
+                'proof\n'
+                '    let a\n'
+                '        let b\n'
+                '            a - b = a + '
+                '(-b)                                    ; "sub-as-add"\n'
+                '            (a - b) ^ 2 = (a + (-b)) ^ 2\n'
+                '            (a + (-b)) ^ 2 = a ^ 2 + 2 * a * (-b) + (-b) ^ '
+                '2    ; "binomial-plus"\n'
+                '            (a - b) ^ 2 = a ^ 2 + 2 * a * (-b) + (-b) ^ 2\n'
+                '            (2 * a) * (-b) = -(2 * a * '
+                'b)                       ; "mul-neg"\n'
+                '            (a - b) ^ 2 = a ^ 2 + -(2 * a * b) + (-b) ^ 2\n'
+                '            (-b) ^ 2 = (-b) * (-b)\n'
+                '            (-b) * (-b) = -((-b) * b)\n'
+                '            (-b) * b = -(b * b)\n'
+                '            (-b) * (-b) = -(-(b * b))\n'
+                '            -(-(b * b)) = b * b\n'
+                '            (-b) * (-b) = b * b\n'
+                '            b ^ 2 = b * b\n'
+                '            (-b) ^ 2 = b ^ 2\n'
+                '            (a - b) ^ 2 = a ^ 2 + -(2 * a * b) + b ^ 2\n'
+                '            a ^ 2 - 2 * a * b = a ^ 2 + -(2 * a * '
+                'b)            ; "sub-as-add"\n'
+                '            (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2\n'
+                'qed\n'
+                '\n'
+                'show ∀ a ∀ b ((a + b) * (a - b) = a ^ 2 - b ^ 2)   '
+                '"binomial-product"\n'
+                'proof\n'
+                '    let a\n'
+                '        let b\n'
+                '            (a - b) * (a + b) = a * (a + b) - b * (a + '
+                'b)       ; "distrib-sub"\n'
+                '            a * (a + b) = a * a + a * b\n'
+                '            b * (a + b) = a * b + b * b\n'
+                '            (a + b) * (a - b) = (a * a + a * b) - b * (a + '
+                'b)\n'
+                '            (a + b) * (a - b) = (a * a + a * b) - (a * b + b '
+                '* b)\n'
+                '            (a * a + a * b) - (a * b + b * b) = a * a - ((a * '
+                'b + b * b) - a * b)   ; "add-sub"\n'
+                '            (b * b + a * b) - a * b = b * b - (a * b - a * '
+                'b)\n'
+                '            a * b - a * b = 0\n'
+                '            (b * b + a * b) - a * b = b * b - 0\n'
+                '            b * b - 0 = b * b\n'
+                '            (a * b + b * b) - a * b = b * b\n'
+                '            (a + b) * (a - b) = a * a - ((a * b + b * b) - a '
+                '* b)\n'
+                '            (a + b) * (a - b) = a * a - b * b\n'
+                '            a ^ 2 = a * a\n'
+                '            b ^ 2 = b * b\n'
+                '            (a + b) * (a - b) = a ^ 2 - b * b\n'
+                '            (a + b) * (a - b) = a ^ 2 - b ^ 2\n'
+                'qed\n'
+                '\n'
+                ';; factorial\n'
+                'use 0! = 1                              "factorial-base"\n'
+                'use $n > 0  ⇒  $n! = $n * ($n - 1)!     "factorial-step"\n'
+                '\n'
+                ';; the rules as theorems of Mathlib: `lean "label" TACTIC` is '
+                'a proof in Lean of the rule "label"\n'
+                ';; (in `ℝ`, see `lean real ℝ` above) -- `kurt --lean` writes '
+                'the rule as a `theorem` with it, and\n'
+                ";; Lean checks it; Kurt itself doesn't read the tactic "
+                "(doc/kurt-ref.md, `--lean`). The tactics don't\n"
+                ';; name the variables (`intros`): Kurt orders the arguments '
+                'of `+` and `*` its own way.\n'
+                'lean "add-eq" intros; subst_vars; rfl\n'
+                'lean "sub-eq" intros; subst_vars; rfl\n'
+                'lean "mul-eq" intros; subst_vars; rfl\n'
+                'lean "div-eq" intros; subst_vars; rfl\n'
+                'lean "distrib-add" intros; ring\n'
+                'lean "distrib-sub" intros; ring\n'
+                'lean "add-sub" intros; ring\n'
+                'lean "add-inverse" intros; ring\n'
+                'lean "sub-inverse" intros; ring\n'
+                'lean "mul-identity" intros; ring\n'
+                'lean "div-identity" intros; ring\n'
+                'lean "mul-neg-one" intros; ring\n'
+                'lean "double-negation" intros; ring\n'
+                'lean "mul-zero" intros; ring\n'
+                'lean "zero-div" intros; simp\n'
+                'lean "div-self" intros; field_simp\n'
+                'lean "mul-div" intros; field_simp\n'
+                'lean "div-mul" intros; field_simp\n'
+                'lean "div-add" intros; ring\n'
+                'lean "div-mul-div" intros; ring\n'
+                'lean "mul-ne-zero" intros; simp_all\n'
+                'lean "add-identity" intros; ring\n'
+                'lean "sub-identity" intros; ring\n'
+                'lean "pow-identity" intros; simp\n'
+                'lean "pow-zero" intros; simp\n'
+                'lean "pow-two" intros; rw [Real.rpow_two]; ring\n'
+                'lean "pow-add" intros; rw [← Real.rpow_add ‹_›]\n'
+                'lean "pow-mul" intros; rw [← Real.rpow_mul (le_of_lt ‹_›)]\n'
+                'lean "lt-add" intros; linarith\n'
+                'lean "lt-sub" intros; linarith\n'
+                'lean "lt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "lt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "lt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "lt-div-neg" intros; casesm* _ ∧ _; exact '
+                '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
+                'lean "le-add" intros; linarith\n'
+                'lean "le-sub" intros; linarith\n'
+                'lean "le-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "le-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "le-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "le-div-neg" intros; casesm* _ ∧ _; exact '
+                '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
+                'lean "gt-add" intros; linarith\n'
+                'lean "gt-sub" intros; linarith\n'
+                'lean "gt-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "gt-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "gt-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "gt-div-neg" intros; casesm* _ ∧ _; exact '
+                '(div_lt_div_right_of_neg ‹_›).mpr ‹_›\n'
+                'lean "ge-add" intros; linarith\n'
+                'lean "ge-sub" intros; linarith\n'
+                'lean "ge-mul-pos" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "ge-div-pos" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "ge-mul-neg" intros; casesm* _ ∧ _; nlinarith\n'
+                'lean "ge-div-neg" intros; casesm* _ ∧ _; exact '
+                '(div_le_div_right_of_neg ‹_›).mpr ‹_›\n'
+                'lean "lt-add-lt" intros; casesm* _ ∧ _; linarith\n'
+                'lean "gt-add-gt" intros; casesm* _ ∧ _; linarith\n'
+                'lean "mul-pos" intros; casesm* _ ∧ _; positivity\n'
+                'lean "div-pos" intros; casesm* _ ∧ _; positivity\n'
+                'lean "pow-pos" intros; apply Real.rpow_pos_of_pos; '
+                'assumption\n'
+                'lean "pow-lt" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "pow-gt" intros; casesm* _ ∧ _; gcongr\n'
+                'lean "lt-not-ge" intros; linarith\n'
+                'lean "gt-not-le" intros; linarith\n'
+                'lean "le-not-gt" intros; linarith\n'
+                'lean "ge-not-lt" intros; linarith\n'
+                'lean "le-ge" intros; exact Iff.rfl\n'
+                'lean "lt-gt" intros; exact Iff.rfl\n'
+                'lean "lt-le" intros; linarith\n'
+                'lean "le-refl" intros; exact le_refl _\n'
+                'lean "lt-ne" intros; linarith\n'
+                'lean "le-ge-antisym" intros; casesm* _ ∧ _; linarith\n'
+                'lean "gt-ne" intros; linarith\n'
+                'lean "sub-ge-zero" intros; linarith\n'
+                'lean "lt-gt-contra" intros; casesm* _ ∧ _; linarith\n'
+                'lean "lt-ge-contra" intros; casesm* _ ∧ _; linarith\n'
+                'lean "gt-le-contra" intros; casesm* _ ∧ _; linarith\n'
+                'lean "trichotomy" intro a b; rcases lt_trichotomy a b with h '
+                '| h | h <;> tauto\n'
+                'lean "factorial-base" norm_num\n'
+                'lean "factorial-step" intro n h; rw [sub_add_cancel, '
+                "Real.Gamma_add_one h.ne']\n"
+                '\n'
+                ';; the sets of numbers: `Real`, `Int`, `Rat` (and `Nat`, '
+                'natural.kurt)\n'
+                ';\n'
+                '; They are sets of numbers, closed under the operations they '
+                'are closed under: `Int` under `+`, `-`, `*`, `Rat` under\n'
+                '; `+`, `-`, `*` and `/` by a number ≠ 0. What needs the '
+                'natural numbers (`Nat ⊂ Int`, the fractions m / n of an '
+                'integer\n'
+                '; and a natural number, "a positive rational is a fraction of '
+                'natural numbers") is in natural.kurt.\n'
+                '; the real numbers as a set (`Real`, `ℝ`): every number is in '
+                'it -- a fact about the numbers, not a\n'
+                '; sort (decision 11 of dev/todo-sorts.md: `x ∈ Real` gives '
+                '`x` no sort; `real x` is what makes `x` a\n'
+                '; number). With it, two sets of numbers are equal when they '
+                'have the same numbers ("ext-real"):\n'
+                '; extensionality over all objects ("extensionality", '
+                'set.kurt) needs every object, and a binder of a\n'
+                '; `default real` file ranges over the numbers only\n'
+                'set Real\n'
+                'const Real\n'
+                'alias ℝ Real\n'
+                'tex Real \\mathbb{R}\n'
+                'lean Real member $1 = $1\n'
+                'use $x ∈ Real  "real-all"\n'
+                '\n'
+                'use (∀ $n ($n ∈ $A ⇔ $n ∈ $B)) ∧ $A ⊂ Real ∧ $B ⊂ Real  ⇒  $A '
+                '= $B   "ext-real"\n'
+                '\n'
+                'set Int                  ; the integers are a set (of '
+                'numbers)\n'
+                'const Int\n'
+                'builtin Int integers                   ; `calc on` proves `-3 '
+                '∈ Int`\n'
+                'tex Int \\mathbb{Z}\n'
+                "; `kurt --lean` with Mathlib: the objects are Mathlib's reals "
+                '(number.kurt), `Int` the integers\n'
+                '; among them (as `Nat` in natural.kurt)\n'
+                'lean Int member $1 ∈ Set.range (fun n : ℤ => (n : ℝ))\n'
+                'alias ℤ Int\n'
+                'use Int ⊂ Real  "int-sub-real"      ; a set of numbers '
+                '(natural.kurt\'s "ext-real")\n'
+                '\n'
+                'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a + $b ∈ Int         "int-add"\n'
+                '\n'
+                'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a - $b ∈ Int         "int-sub"\n'
+                '\n'
+                'use $a ∈ Int ∧ $b ∈ Int  ⇒  $a * $b ∈ Int         "int-mul"\n'
+                '\n'
+                'set Rat                  ; the rationals are a set (of '
+                'numbers)\n'
+                'const Rat\n'
+                'builtin Rat rationals                  ; `calc on` proves `1 '
+                '/ 3 ∈ Rat`\n'
+                'tex Rat \\mathbb{Q}\n'
+                "; `kurt --lean` with Mathlib: the objects are Mathlib's reals "
+                '(number.kurt), `Rat` the rationals\n'
+                '; among them (as `Nat` in natural.kurt)\n'
+                'lean Rat member $1 ∈ Set.range (fun q : ℚ => (q : ℝ))\n'
+                'alias ℚ Rat\n'
+                'use Rat ⊂ Real  "rat-sub-real"      ; a set of numbers '
+                '(natural.kurt\'s "ext-real")\n'
+                '\n'
+                'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a + $b ∈ '
+                'Rat                          "rat-add"\n'
+                '\n'
+                'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a - $b ∈ '
+                'Rat                          "rat-sub"\n'
+                '\n'
+                'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a * $b ∈ '
+                'Rat                          "rat-mul"\n'
+                '\n'
+                'use $a ∈ Rat ∧ $b ∈ Rat ∧ $b ≠ 0  ⇒  $a / $b ∈ '
+                'Rat                 "rat-div"\n'
+                '\n'
+                '\n'
+                ';; the rules above as theorems of Mathlib (`Int`, `Rat` by '
+                'their axioms `k_mem_Int`, `k_mem_Rat`)\n'
+                'lean "real-all" intro x; exact (k_mem_Real _).mpr rfl\n'
+                'lean "ext-real" intro A B ⟨h, hA, hB⟩; simp only [subset] at '
+                'hA hB; apply ZFSet.ext; intro z; constructor\n'
+                'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
+                'k_numset_elem _ z (hA z hz); exact (h x).mp hz\n'
+                'lean "ext-real" · intro hz; obtain ⟨x, rfl, _⟩ := '
+                'k_numset_elem _ z (hB z hz); exact (h x).mpr hz\n'
+                'lean "int-sub-real" simp only [subset]; intro z hz; obtain '
+                '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real _).mpr '
+                'rfl\n'
+                'lean "int-add" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                'exact (k_mem_Int _).mpr ⟨_, Int.cast_add _ _⟩\n'
+                'lean "int-sub" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                'exact (k_mem_Int _).mpr ⟨_, Int.cast_sub _ _⟩\n'
+                'lean "int-mul" intro a b h; obtain ⟨⟨m, rfl⟩, ⟨n, rfl⟩⟩ := '
+                'And.intro ((k_mem_Int _).mp h.1) ((k_mem_Int _).mp h.2); '
+                'exact (k_mem_Int _).mpr ⟨_, Int.cast_mul _ _⟩\n'
+                'lean "rat-sub-real" simp only [subset]; intro z hz; obtain '
+                '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real _).mpr '
+                'rfl\n'
+                'lean "rat-add" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_add _ _⟩\n'
+                'lean "rat-sub" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_sub _ _⟩\n'
+                'lean "rat-mul" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
+                'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
+                'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_mul _ _⟩\n'
+                'lean "rat-div" intro a b h; casesm* _ ∧ _\n'
+                'lean "rat-div" obtain ⟨p, rfl⟩ := (k_mem_Rat a).mp ‹_›\n'
+                'lean "rat-div" obtain ⟨q, rfl⟩ := (k_mem_Rat b).mp ‹_›\n'
+                'lean "rat-div" exact (k_mem_Rat _).mpr ⟨_, Rat.cast_div _ '
+                '_⟩\n',
  'propositional.kurt': '; propositional logic\n'
                        ';\n'
                        '; covers: not, or, invimplies (backwards implication), '
@@ -6526,7 +7132,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                        ';\n'
                        '; loaded (directly or transitively) by nearly every '
                        'other theory here -- logic.kurt,\n'
-                       '; equality.kurt, set.kurt, and numbers.kurt all `load '
+                       '; equality.kurt, set.kurt, and number.kurt all `load '
                        'propositional` first.\n'
                        '\n'
                        ';; builtin syntax\n'
@@ -6783,374 +7389,6 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                        'lean "not-not-intro" grind\n'
                        'lean "not-not" grind\n'
                        'lean "excluded-middle" grind\n',
- 'rational.kurt': '; rational numbers\n'
-                  ';\n'
-                  '; covers: `Rat`, the fractions m / n of an integer m and a '
-                  'natural number n ≠ 0, closed under\n'
-                  '; `+`, `-`, `*` and `/` (by a number ≠ 0); and every '
-                  'positive rational in lowest terms\n'
-                  '; ("lowest-terms", proven from the well-ordering of '
-                  'natural.kurt). As for natural.kurt, they are\n'
-                  '; numbers of numbers.kurt, so its laws (and `calc`) apply.\n'
-                  'load propositional, equality, logic, set, numbers, natural, '
-                  'integer\n'
-                  'default real              ; every symbol of this file is a '
-                  'number, except where said otherwise:\n'
-                  'set Rat                  ; the rationals are a set (of '
-                  'numbers)\n'
-                  'const Rat\n'
-                  'builtin Rat rationals                  ; `calc on` proves '
-                  '`1 / 3 ∈ Rat`\n'
-                  'tex Rat \\mathbb{Q}\n'
-                  "; `kurt --lean` with Mathlib: the objects are Mathlib's "
-                  'reals (numbers.kurt), `Rat` the rationals\n'
-                  '; among them (as `Nat` in natural.kurt)\n'
-                  'lean Rat member $1 ∈ Set.range (fun q : ℚ => (q : ℝ))\n'
-                  'alias ℚ Rat\n'
-                  'use Rat ⊂ Real  "rat-sub-real"      ; a set of numbers '
-                  '(natural.kurt\'s "ext-real")\n'
-                  'lean "rat-sub-real" simp only [subset]; intro z hz; obtain '
-                  '⟨x, rfl, _⟩ := k_numset_elem _ z hz; exact (k_mem_Real '
-                  '_).mpr rfl\n'
-                  '\n'
-                  '; A defining axiom, not `def`: `Rat` is an existing '
-                  'calculator-bound carrier, and this\n'
-                  '; characterizes membership in it rather than introducing '
-                  'one fresh predicate abbreviation.\n'
-                  'use $q ∈ Rat  ⇔  ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ '
-                  '$q = $m / $n)     "rat-def"\n'
-                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a + $b ∈ '
-                  'Rat                          "rat-add"\n'
-                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a - $b ∈ '
-                  'Rat                          "rat-sub"\n'
-                  'use $a ∈ Rat ∧ $b ∈ Rat  ⇒  $a * $b ∈ '
-                  'Rat                          "rat-mul"\n'
-                  'use $a ∈ Rat ∧ $b ∈ Rat ∧ $b ≠ 0  ⇒  $a / $b ∈ '
-                  'Rat                 "rat-div"\n'
-                  '\n'
-                  'show $z ∈ Int  ⇒  $z ∈ Rat     "rat-int"\n'
-                  'proof\n'
-                  '    assume $z ∈ Int\n'
-                  '        1 ∈ Nat\n'
-                  '        calc on\n'
-                  '        1 ≠ 0\n'
-                  '        calc off\n'
-                  '        $z = $z / 1                                    ; '
-                  'div-identity\n'
-                  '        $z ∈ Int ∧ 1 ∈ Nat ∧ 1 ≠ 0 ∧ $z = $z / 1\n'
-                  '        ∃ $n ($z ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $z / $n)\n'
-                  '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $z = $m / '
-                  '$n)\n'
-                  '        $z ∈ Rat\n'
-                  'qed\n'
-                  '\n'
-                  '; a positive rational is a fraction of natural numbers\n'
-                  'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ '
-                  '$n ≠ 0 ∧ $q = $m / $n)     "rat-pos"\n'
-                  'proof\n'
-                  '    assume $q ∈ Rat ∧ $q > 0\n'
-                  '        $q ∈ Rat\n'
-                  '        $q > 0\n'
-                  '        ∃ $m ∃ $n ($m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
-                  '$n)\n'
-                  '        pick m with ∃ $n (m ∈ Int ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q '
-                  '= m / $n)\n'
-                  '            pick n with m ∈ Int ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m '
-                  '/ n\n'
-                  '                m ∈ Int\n'
-                  '                n ∈ Nat\n'
-                  '                n ≠ 0\n'
-                  '                $q = m / n\n'
-                  '                0 < n                                  ; '
-                  'nat-pos\n'
-                  '                n > 0                                  ; '
-                  'lt-gt\n'
-                  '                ; m = q n > 0\n'
-                  '                (m / n) * n = m                        ; '
-                  'div-mul\n'
-                  '                $q * n = (m / n) * n\n'
-                  '                       = m\n'
-                  '                $q * n > 0                             ; '
-                  'mul-pos\n'
-                  '                m > 0\n'
-                  '                m ∈ Nat                                ; '
-                  'int-pos-nat\n'
-                  '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m / n\n'
-                  '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ $q = m '
-                  '/ $j)\n'
-                  '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
-                  '$q = $i / $j)\n'
-                  'qed\n'
-                  '\n'
-                  '; cancelling a common factor\n'
-                  'show $d ≠ 0 ∧ $b ≠ 0  ⇒  ($d * $a) / ($d * $b) = $a / '
-                  '$b     "frac-cancel"\n'
-                  'proof\n'
-                  '    assume $d ≠ 0 ∧ $b ≠ 0\n'
-                  '        $d ≠ 0\n'
-                  '        $b ≠ 0\n'
-                  '        ($d / $d) * ($a / $b) = ($d * $a) / ($d * $b)    ; '
-                  'div-mul-div\n'
-                  '        $d / $d = 1                                    ; '
-                  'div-self\n'
-                  '        1 * ($a / $b) = $a / $b                        ; '
-                  'mul-identity\n'
-                  '        ($d * $a) / ($d * $b) = ($d / $d) * ($a / $b)\n'
-                  '                              = 1 * ($a / $b)\n'
-                  '                              = $a / $b\n'
-                  'qed\n'
-                  '\n'
-                  '; lowest terms: a positive rational is m / n with coprime '
-                  'natural numbers m, n -- take the least\n'
-                  '; denominator n (well-ordering); a common divisor d ≥ 2 of '
-                  'm and n would give the smaller\n'
-                  '; denominator n / d\n'
-                  'show $q ∈ Rat ∧ $q > 0  ⇒  ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ '
-                  '$n ≠ 0 ∧ coprime($m, $n) ∧ $q = $m / $n)     '
-                  '"lowest-terms"\n'
-                  'proof\n'
-                  '    assume $q ∈ Rat ∧ $q > 0\n'
-                  '        ∃ $m ∃ $n ($m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q = $m / '
-                  '$n)     ; rat-pos\n'
-                  '        ; the denominators -- a subset of `Nat`: for every '
-                  'element, not only the numbers among\n'
-                  '        ; them, so `c` is any set (`set c`; the `default '
-                  'real` would make it a number)\n'
-                  '        set c\n'
-                  '        let c\n'
-                  '            assume c ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat '
-                  '∧ $q = $i / $j) }\n'
-                  '                c ∈ Nat                                     '
-                  '; separation-in\n'
-                  '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
-                  '$j) } ⊂ Nat\n'
-                  '        pick m with ∃ $n (m ∈ Nat ∧ $n ∈ Nat ∧ $n ≠ 0 ∧ $q '
-                  '= m / $n)\n'
-                  '            pick n with m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ $q = m '
-                  '/ n\n'
-                  '                m ∈ Nat\n'
-                  '                n ∈ Nat\n'
-                  '                n ≠ 0\n'
-                  '                $q = m / n\n'
-                  '                m ∈ Nat ∧ $q = m / n\n'
-                  '                ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
-                  '                n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i '
-                  '/ n)\n'
-                  '                n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
-                  '$q = $i / $j) }     ; separation\n'
-                  '                ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
-                  'Nat ∧ $q = $i / $j) })\n'
-                  '        ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
-                  '$q = $i / $j) })\n'
-                  '        { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
-                  '$j) } ⊂ Nat ∧ ∃ $x ($x ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
-                  'Nat ∧ $q = $i / $j) })\n'
-                  '        ; the least one\n'
-                  '        ∃ $l ($l ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
-                  '$q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
-                  'Nat ∧ $q = $i / $j) } ($l <= $y))   ; well-ordering\n'
-                  '        pick n with n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ '
-                  'Nat ∧ $q = $i / $j) } ∧ ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i '
-                  '($i ∈ Nat ∧ $q = $i / $j) } (n <= $y)\n'
-                  '            n ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = '
-                  '$i / $j) }\n'
-                  '            ∀ $y ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ '
-                  '$q = $i / $j) } (n <= $y)\n'
-                  '            n ∈ Nat ∧ n ≠ 0 ∧ ∃ $i ($i ∈ Nat ∧ $q = $i / '
-                  'n)     ; separation\n'
-                  '            n ∈ Nat\n'
-                  '            n ≠ 0\n'
-                  '            ∃ $i ($i ∈ Nat ∧ $q = $i / n)\n'
-                  '            pick m with m ∈ Nat ∧ $q = m / n\n'
-                  '                m ∈ Nat\n'
-                  '                $q = m / n\n'
-                  '                ; m and n are coprime\n'
-                  '                let d ∈ Nat\n'
-                  '                    assume d ∣ m ∧ d ∣ n\n'
-                  '                        d ∣ m\n'
-                  '                        d ∣ n\n'
-                  '                        ∃ $k ($k ∈ Nat ∧ m = d * $k)\n'
-                  '                        ∃ $k ($k ∈ Nat ∧ n = d * $k)\n'
-                  '                        pick a with a ∈ Nat ∧ m = d * a\n'
-                  '                            a ∈ Nat\n'
-                  '                            m = d * a\n'
-                  '                            pick b with b ∈ Nat ∧ n = d * '
-                  'b\n'
-                  '                                b ∈ Nat\n'
-                  '                                n = d * b\n'
-                  '                                ; d ≠ 0 and b ≠ 0, since n '
-                  '≠ 0\n'
-                  '                                assume d = 0\n'
-                  '                                    n = 0 * b\n'
-                  '                                    n = '
-                  '0                      ; mul-zero\n'
-                  '                                    ¬(n = 0)\n'
-                  '                                    n = 0 ∧ ¬(n = 0)\n'
-                  '                                    ⊥\n'
-                  '                                ¬(d = 0)\n'
-                  '                                d ≠ 0\n'
-                  '                                assume b = 0\n'
-                  '                                    n = d * 0\n'
-                  '                                    n = '
-                  '0                      ; mul-zero\n'
-                  '                                    ¬(n = 0)\n'
-                  '                                    n = 0 ∧ ¬(n = 0)\n'
-                  '                                    ⊥\n'
-                  '                                ¬(b = 0)\n'
-                  '                                b ≠ 0\n'
-                  '                                ; so q = a / b, and b is a '
-                  'denominator too\n'
-                  '                                (d * a) / (d * b) = a / '
-                  'b      ; frac-cancel\n'
-                  '                                $q = m / n\n'
-                  '                                   = (d * a) / n\n'
-                  '                                   = (d * a) / (d * b)\n'
-                  '                                   = a / b\n'
-                  '                                a ∈ Nat ∧ $q = a / b\n'
-                  '                                ∃ $i ($i ∈ Nat ∧ $q = $i / '
-                  'b)\n'
-                  '                                b ∈ Nat ∧ b ≠ 0 ∧ ∃ $i ($i '
-                  '∈ Nat ∧ $q = $i / b)\n'
-                  '                                b ∈ { $j ∈ Nat | $j ≠ 0 ∧ ∃ '
-                  '$i ($i ∈ Nat ∧ $q = $i / $j) }     ; separation\n'
-                  '                                n <= b\n'
-                  '                                ; d = 1, since d ≥ 2 would '
-                  'make b < d b = n\n'
-                  '                                assume ¬(d = 1)\n'
-                  '                                    d ≠ 1\n'
-                  '                                    2 <= '
-                  'd                     ; nat-ge-two\n'
-                  '                                    b < d * '
-                  'b                  ; nat-lt-mul\n'
-                  '                                    b < n\n'
-                  '                                    b >= '
-                  'n                     ; le-ge\n'
-                  '                                    b < n ∧ b >= n\n'
-                  '                                    '
-                  '⊥                          ; lt-ge-contra\n'
-                  '                                ¬¬(d = 1)\n'
-                  '                                d = 1\n'
-                  '                ∀ $d ∈ Nat ($d ∣ m ∧ $d ∣ n  ⇒  $d = 1)\n'
-                  '                coprime(m, n)\n'
-                  '                m ∈ Nat ∧ n ∈ Nat ∧ n ≠ 0 ∧ coprime(m, n) ∧ '
-                  '$q = m / n\n'
-                  '                ∃ $j (m ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
-                  'coprime(m, $j) ∧ $q = m / $j)\n'
-                  '                ∃ $i ∃ $j ($i ∈ Nat ∧ $j ∈ Nat ∧ $j ≠ 0 ∧ '
-                  'coprime($i, $j) ∧ $q = $i / $j)\n'
-                  'qed\n'
-                  '\n'
-                  ';; the rules as theorems of Mathlib (see numbers.kurt and '
-                  'natural.kurt): `Rat` by its axiom `k_mem_Rat`\n'
-                  'lean "rat-def" intro q; rw [k_mem_Rat]; constructor\n'
-                  'lean "rat-def" · rintro ⟨r, rfl⟩\n'
-                  'lean "rat-def"   refine ⟨r.num, r.den, ?_⟩\n'
-                  'lean "rat-def"   refine ⟨?_, ?_, ?_, ?_⟩ <;> first | exact '
-                  '(k_mem_Int _).mpr ⟨r.num, rfl⟩ | exact (k_mem_Nat _).mpr '
-                  '⟨r.den, rfl⟩ | exact Rat.cast_def r | (simp [r.den_nz]; '
-                  'done)\n'
-                  'lean "rat-def" · rintro ⟨m, n, h⟩\n'
-                  'lean "rat-def"   casesm* _ ∧ _\n'
-                  'lean "rat-def"   obtain ⟨i, rfl⟩ := (k_mem_Int m).mp ‹_›\n'
-                  'lean "rat-def"   obtain ⟨j, rfl⟩ := (k_mem_Nat n).mp ‹_›\n'
-                  'lean "rat-def"   subst_vars\n'
-                  'lean "rat-def"   exact ⟨(i : ℚ) / (j : ℚ), by push_cast; '
-                  'ring⟩\n'
-                  'lean "rat-add" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
-                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
-                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_add _ _⟩\n'
-                  'lean "rat-sub" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
-                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
-                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_sub _ _⟩\n'
-                  'lean "rat-mul" intro a b h; obtain ⟨⟨p, rfl⟩, ⟨q, rfl⟩⟩ := '
-                  'And.intro ((k_mem_Rat _).mp h.1) ((k_mem_Rat _).mp h.2); '
-                  'exact (k_mem_Rat _).mpr ⟨_, Rat.cast_mul _ _⟩\n'
-                  'lean "rat-div" intro a b h; casesm* _ ∧ _\n'
-                  'lean "rat-div" obtain ⟨p, rfl⟩ := (k_mem_Rat a).mp ‹_›\n'
-                  'lean "rat-div" obtain ⟨q, rfl⟩ := (k_mem_Rat b).mp ‹_›\n'
-                  'lean "rat-div" exact (k_mem_Rat _).mpr ⟨_, Rat.cast_div _ '
-                  '_⟩\n'
-                  '\n'
-                  ';; the theorems Kurt proves above, as theorems of Mathlib '
-                  'too (see natural.kurt), "lowest-terms" too\n'
-                  ";; (`coprime` and `∣` unfolded; `Rat.reduced`: a rational's "
-                  'numerator and denominator are coprime)\n'
-                  'lean "rat-int" intro z hz; obtain ⟨m, rfl⟩ := (k_mem_Int '
-                  'z).mp hz; exact (k_mem_Rat _).mpr ⟨m, by simp⟩\n'
-                  'lean "rat-pos" intros; casesm* _ ∧ _\n'
-                  'lean "rat-pos" obtain ⟨r, rfl⟩ := (k_mem_Rat _).mp ‹k_emb _ '
-                  '∈ Rat›; beta_reduce at *\n'
-                  'lean "rat-pos" have hr : 0 < r := by exact_mod_cast (‹_› : '
-                  '(0 : ℝ) < r)\n'
-                  'lean "rat-pos" have hnum : 0 ≤ r.num := (Rat.num_pos.mpr '
-                  'hr).le\n'
-                  'lean "rat-pos" refine ⟨(r.num.toNat : ℝ), (r.den : ℝ), ?_⟩\n'
-                  'lean "rat-pos" refine ⟨?_, ?_, ?_, ?_⟩\n'
-                  'lean "rat-pos" all_goals first\n'
-                  'lean "rat-pos"   | exact (k_mem_Nat _).mpr ⟨_, rfl⟩\n'
-                  'lean "rat-pos"   | (simp [r.den_nz]; done)\n'
-                  'lean "rat-pos"   | (rw [show ((r.num.toNat : ℕ) : ℝ) = '
-                  '((r.num.toNat : ℤ) : ℝ) from (Int.cast_natCast _).symm, '
-                  'Int.toNat_of_nonneg hnum]; exact Rat.cast_def r)\n'
-                  'lean "frac-cancel" intros; casesm* _ ∧ _\n'
-                  'lean "frac-cancel" field_simp\n'
-                  'lean "lowest-terms" intro q h; casesm* _ ∧ _\n'
-                  'lean "lowest-terms" obtain ⟨r, rfl⟩ := (k_mem_Rat q).mp (by '
-                  'assumption)\n'
-                  'lean "lowest-terms" have hr : 0 < r := by exact_mod_cast '
-                  '(by assumption : (0 : ℝ) < r)\n'
-                  'lean "lowest-terms" have key : ∃ a b : ℕ, b ≠ 0 ∧ '
-                  'Nat.Coprime a b ∧ (r : ℝ) = (a : ℝ) / (b : ℝ) := by\n'
-                  'lean "lowest-terms"   have h0 : 0 ≤ r.num := '
-                  '(Rat.num_pos.mpr hr).le\n'
-                  'lean "lowest-terms"   refine ⟨r.num.toNat, r.den, r.den_nz, '
-                  '?_, ?_⟩\n'
-                  'lean "lowest-terms"   · have e : r.num.toNat = r.num.natAbs '
-                  ':= by omega\n'
-                  'lean "lowest-terms"     rw [e]; exact r.reduced\n'
-                  'lean "lowest-terms"   · have hnum : ((r.num.toNat : ℕ) : ℤ) '
-                  '= r.num := Int.toNat_of_nonneg h0\n'
-                  'lean "lowest-terms"     rw [Rat.cast_def r]; congr 1; '
-                  'exact_mod_cast hnum.symm\n'
-                  'lean "lowest-terms" obtain ⟨a, b, hb, hab, he⟩ := key\n'
-                  'lean "lowest-terms" refine ⟨(a : ℝ), (b : ℝ), ?_⟩\n'
-                  'lean "lowest-terms" refine ⟨?_, ?_, ?_, ?_, ?_⟩\n'
-                  'lean "lowest-terms" all_goals first\n'
-                  'lean "lowest-terms"   | exact he\n'
-                  'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨a, rfl⟩\n'
-                  'lean "lowest-terms"   | exact (k_mem_Nat _).mpr ⟨b, rfl⟩\n'
-                  'lean "lowest-terms"   | exact_mod_cast hb\n'
-                  'lean "lowest-terms"   | (simp only [coprime]\n'
-                  'lean "lowest-terms"      intro d hd hdiv\n'
-                  'lean "lowest-terms"      obtain ⟨e, rfl⟩ := (k_mem_Nat '
-                  'd).mp hd\n'
-                  'lean "lowest-terms"      have dvd : ∀ c : ℕ, divides (e : '
-                  'ℝ) (c : ℝ) → e ∣ c := by\n'
-                  'lean "lowest-terms"        intro c hc; simp only [divides] '
-                  'at hc; obtain ⟨s, hs⟩ := hc; casesm* _ ∧ _\n'
-                  'lean "lowest-terms"        obtain ⟨s\', rfl⟩ := (k_mem_Nat '
-                  's).mp (by assumption)\n'
-                  'lean "lowest-terms"        exact ⟨s\', by exact_mod_cast '
-                  "(by linarith : (c : ℝ) = e * s')⟩\n"
-                  'lean "lowest-terms"      have hda := dvd a (by first | '
-                  'exact hdiv.1 | exact hdiv.2)\n'
-                  'lean "lowest-terms"      have hdb := dvd b (by first | '
-                  'exact hdiv.1 | exact hdiv.2)\n'
-                  'lean "lowest-terms"      have := Nat.dvd_gcd hda hdb\n'
-                  'lean "lowest-terms"      rw [Nat.Coprime.gcd_eq_one hab] at '
-                  'this\n'
-                  'lean "lowest-terms"      simp [Nat.dvd_one.mp this])\n',
- 'real.kurt': '; real -- the number tower up to the real numbers, one `load`\n'
-              ';\n'
-              '; numbers.kurt (the operators, the sort `real`, the laws of an '
-              'ordered field) -> natural.kurt (`Nat`, induction,\n'
-              '; and the set `Real`, `ℝ`) -> integer.kurt (`Int`) -> '
-              'rational.kurt (`Rat`). Loading this file is\n'
-              '; loading all four; a file that needs less loads one of them '
-              '(`load natural`). complex.kurt builds on it\n'
-              '; (`real ⊂ complex`). The order is the one of the sets: `Nat ⊂ '
-              'Int ⊂ Rat ⊂ Real`.\n'
-              'load numbers, natural, integer, rational\n',
  'sequences.kurt': '; sequences and series\n'
                    ';\n'
                    '; covers: the limit of a sequence, `converges n L T` ("T, '
@@ -7172,14 +7410,14 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    '1/n → 0 from the definition. For Lean\n'
                    '; they are proved, from Mathlib (`lean "label" ...` at the '
                    'end of this file).\n'
-                   'load propositional, equality, logic, set, numbers, '
-                   'natural, analysis\n'
+                   'load propositional, equality, logic, set, number, natural, '
+                   'analysis\n'
                    'default real              ; every symbol of this file is a '
                    'number, except where said otherwise\n'
                    '\n'
                    'const converges, seqlim, series\n'
                    'arity converges 3, seqlim 2, series 3\n'
-                   'bindop converges, seqlim, series      ; the variable, then '
+                   'binder converges, seqlim, series      ; the variable, then '
                    '(outside) the limit or the start, then the body\n'
                    'prop converges 0\n'
                    'tex converges $3 \\underset{$1 \\to '
@@ -7197,9 +7435,8 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    'lean seqlim (Filter.limUnder Filter.atTop (fun k_ : ℕ => '
                    '$1 (k_ : ℝ)))\n'
                    'lean series (Filter.limUnder Filter.atTop (fun k_ : ℕ => '
-                   '(∑ n_ ∈ Finset.Ico (0 : ℤ) (⌈(k_ : ℝ) - $1⌉ + 1), $2 ((k_ '
-                   ': ℝ) - n_) - ∑ n_ ∈ Finset.Ico (⌈(k_ : ℝ) - $1⌉ + 1) 0, $2 '
-                   '((k_ : ℝ) - n_))))\n'
+                   '(if $1 ≤ (k_ : ℝ) then ∑ n_ ∈ Finset.range (⌊(k_ : ℝ) - '
+                   '$1⌋₊ + 1), $2 ((k_ : ℝ) - (n_ : ℝ)) else 0)))\n'
                    '\n'
                    ';; the limit of a sequence, by ε and N\n'
                    'use (converges $n $L $T)  ⇔  ∀ $e > 0 ∃ $N ∀ $m ∈ Nat ($m '
@@ -7241,11 +7478,11 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    '$a $T) = $L               "series-intro"\n'
                    '; the geometric series, for |q| < 1\n'
                    '; (the first summand is `$q ^ 0`: not for `$q = 0`, whose '
-                   '`0 ^ 0` numbers.kurt leaves open)\n'
+                   '`0 ^ 0` number.kurt leaves open)\n'
                    'use (abs($q) < 1 ∧ $q ≠ 0)  ⇒  converges $n (1 / (1 - $q)) '
                    '(sum $i (0, $n) ($q ^ $i))   "geometric"\n'
                    '\n'
-                   ';; the rules as theorems of Mathlib (see numbers.kurt): '
+                   ';; the rules as theorems of Mathlib (see number.kurt): '
                    '`lean "label" TACTIC` is a proof in Lean\n'
                    'lean "converges-def" have key : ∀ (f : ℝ → ℝ) (L : ℝ), '
                    'Filter.Tendsto (fun k_ : ℕ => f (k_ : ℝ)) Filter.atTop '
@@ -7302,26 +7539,19 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
                    'lean "geometric" have h1 : |q| < 1 := by first | exact h.1 '
                    '| exact h.2\n'
                    'lean "geometric" beta_reduce\n'
-                   'lean "geometric" have e : ∀ (q : ℝ) (n : ℕ), (∑ n_ ∈ '
-                   'Finset.Ico (0 : ℤ) (⌈(n : ℝ) - 0⌉ + 1), q ^ ((n : ℝ) - n_) '
-                   '- ∑ n_ ∈ Finset.Ico (⌈(n : ℝ) - 0⌉ + 1) 0, q ^ ((n : ℝ) - '
-                   'n_)) = ∑ i ∈ Finset.range (n + 1), q ^ i := by\n'
+                   'lean "geometric" have e : ∀ (q : ℝ) (n : ℕ), (if (0 : ℝ) ≤ '
+                   '(n : ℝ) then ∑ n_ ∈ Finset.range (⌊(n : ℝ) - 0⌋₊ + 1), q ^ '
+                   '((n : ℝ) - (n_ : ℝ)) else 0) = ∑ i ∈ Finset.range (n + 1), '
+                   'q ^ i := by\n'
                    'lean "geometric"   intro q n\n'
-                   'lean "geometric"   rw [show (n : ℝ) - 0 = ((n : ℤ) : ℝ) by '
-                   'simp, Int.ceil_intCast, Finset.Ico_eq_empty_of_le (by '
-                   'omega : (0 : ℤ) ≤ (n : ℤ) + 1), Finset.sum_empty, '
-                   'sub_zero, Int.Ico_eq_finset_map, Finset.sum_map]\n'
-                   'lean "geometric"   simp only '
-                   '[Function.Embedding.trans_apply, Nat.castEmbedding_apply, '
-                   'addLeftEmbedding_apply, zero_add, show ((n : ℤ) + 1 - '
-                   '0).toNat = n + 1 by omega]\n'
-                   'lean "geometric"   rw [← Finset.sum_range_reflect]\n'
+                   'lean "geometric"   rw [if_pos (Nat.cast_nonneg n), '
+                   'sub_zero, Nat.floor_natCast, ← Finset.sum_range_reflect]\n'
                    'lean "geometric"   apply Finset.sum_congr rfl\n'
                    'lean "geometric"   intro i hi\n'
                    'lean "geometric"   rw [Finset.mem_range] at hi\n'
                    'lean "geometric"   rw [show n + 1 - 1 - i = n - i by '
-                   'omega, Int.cast_natCast, Nat.cast_sub (by omega : i ≤ n), '
-                   'sub_sub_cancel, Real.rpow_natCast]\n'
+                   'omega, Nat.cast_sub (by omega : i ≤ n), sub_sub_cancel, '
+                   'Real.rpow_natCast]\n'
                    'lean "geometric" simp only [e]\n'
                    'lean "geometric" have h := '
                    '((hasSum_geometric_of_abs_lt_one h1).tendsto_sum_nat).comp '
@@ -7355,8 +7585,22 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; space-application `$f $a` -- see the comment further down, '
              'right above "function-space".\n'
              'load propositional, equality, logic\n'
-             'load objects             ; the sorts: `set`, and `real ⊂ set` -- '
-             'every number is a set\n'
+             '; the sorts of the objects: `real ⊂ set` -- a number fits '
+             'wherever a set is required (`3 ∈ Nat`, `{1, 2}`), but a\n'
+             "; set doesn't fit where a number is required (`{1, 2} + 0` is a "
+             'type error). The rules below are written once, with\n'
+             "; `set` variables, and hold for numbers too; number.kurt's rules "
+             'are about numbers only. number.kurt loads this\n'
+             '; file, so the two sorts are declared in one place '
+             '(doc/kurt-ref.md §5.2).\n'
+             'sort set real\n'
+             '; `kurt --lean` (doc/kurt-ref.md, `--lean`): the objects are the '
+             "sets of Mathlib's model of ZFC, and a\n"
+             "; sort with a type of its own (number.kurt's `lean real ℝ`) is "
+             'embedded into them -- so a proof that\n'
+             '; mixes sets and numbers is checked by Lean in one model of '
+             'both\n'
+             'lean Obj ZFSet\n'
              '                         ; -- a set, a number, or one of no sort '
              '(`term`); every place that must be a set is\n'
              '                         ; declared below (`set ∈ 2`). The '
@@ -7367,7 +7611,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '; syntax\n'
              'infix    in 25 25        ; element\n'
              'infix    |  10 10        ; separator for set comprehension\n'
-             'bindop   |               ; `{ $z ∈ $A | P $z }` binds `$z`, like '
+             'binder   |               ; `{ $z ∈ $A | P $z }` binds `$z`, like '
              '`∀ $z ∈ $A ...`\n'
              'infix    subset    18 18     ; subset\n'
              'infix    superset  18 18     ; superset: `A ⊃ B` is read as `B ⊂ '
@@ -7439,7 +7683,7 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
              '\n'
              '; how `kurt --lean` writes them (doc/kurt-ref.md, `--lean`): in '
              "the sets of Mathlib's model of ZFC\n"
-             "; (`ZFSet`, objects.kurt's `lean Obj ZFSet`) -- `∈` is its "
+             "; (`ZFSet`, set.kurt's `lean Obj ZFSet`) -- `∈` is its "
              'membership, `{z ∈ A | P}` its separation\n'
              "; (`ZFSet.sep`), `{a, b, c}` Lean's own, `(a, b)` the Kuratowski "
              'pair, `A → B` the set of the\n'
@@ -8362,29 +8606,27 @@ _EMBEDDED_THEORIES: dict[str, str] = {'analysis.kurt': '; analysis\n'
 # ... and their certificates (the `.kurtc` of each theory, compressed: zlib, then base64): the
 # bundle can't write them next to its theories, and checking natural.kurt etc. from scratch takes
 # seconds every time
-_EMBEDDED_CERTIFICATES: dict[str, str] = {'analysis.kurt': 'eNptkktumzEMhO/yr4NWfIiSgqAXKbogKbI16sauH4sg8N2rZFl7J4gEvyFn3rff19PFt2d8+nxtz9uQ0iU90CdsT9v5cD15rH991f3beXf+8tm3Cr8Uq6xC644DBil5g2gNRy3ca1KnZAM0J4RuhXprQlNYBg/mWWpkCOaaNeMYr/O8PX9/33K3/8C9fGC+fT2eDsfDeXfZHRb+Dl11zkU1U5hZajaVOWG0pYPCaCgJSrVAGqioECMHNgTp7lPL2G5P/wPj71X3u8vbHQsYaxPo3aoYhIWJ4EzGUqggTh+SagsYc3YuUkJzacmJjalBf8DaH37u/A4kNgcSAWimW48aXNZilTjENZjNSx+zaJtrbWtegyQpM7rxAH0AOsflDlNIpiMto2M21HURq6oJQ7hTQK1Rawawe2HWbsbdQCSbZQMp9gDzev1jcbpPSJCDS19SR3ZbRtXswD2xLId4xhgTKq+DSWLFoQpVOfvKT1bt1R+h9HI9PUgEmnUULzSt03RjxVgueTYyDQemKMpRWAHVx/SCHWw4GM3CwNvtx5p2ieMK4/vt9g/3kuwH',
- 'complex.kurt': 'eNptksGKWzEMRf/lrUNrybYshaE/UrqQbImGZvLS5AVaQv69nlk22RhzMfdI9/q+/Lpdtr7scfd5W/aLUGKK7tgHLLvlut4u3afe1/fz0f98+Xw29Z+KlabuxgisNhwTCHBGbTmxVCoMxtLc6jx6GACjO3vCoIqY3cpgnF7Dz34a12X//b7E4fhBe/vAfPt6vqzn9XrYDutJj0/oqmPk3swURqQaTWkMkNbAp3kWzYRUzTELKiq4hGBDIO59aJLlsfsf6L9vejxsf59YULA2AmarZODmRoQjCqaUE+LoQqE2gT4Gl0TJNeYsMbCV3IBfsK6+PWFSptExz/h9NNQ5qFXVAJlpZodavdZwKL2nUpTNChsQRbNoQMleYE63d/PL9bm43KETW+sSbDO/GgyFA9MMrgwXGVDL3IMCK4oqVC3BnCOqcu0vUBd/0VIWL0K5dIE8DCU5ULcSY+bpPXX1bLORLGI2w6tFnW2uW3MX85KXx4/ptvl5fpD74/EPefvLhg==',
- 'continuity.kurt': 'eNptksuOkzEMhd/lX48gdhwnGSFeBLHwLVBR2tLLYjTqu+NhSbvL1Z+Pz3nfft3OV9te8eXfanvdJpfBywLNYXvZLsfb2SLP7Xi47g633fXt07+XefVTsHFe6eroc5X80Wshp8ISlcBxaJ5wE/aRm16M8pn6hKGyxlSAKbVnLY9THPyyvX5739Zu/wH88oH5+vl0Pp6Ol911dzzI/gHdxL1aVxXwVdrqiXKYvUPU0JrVGblpYJ0oKBBzTewIPMxcytzuL/8D489N9s9kAmHrDGNoY4XQUGb0RVhKLYhuk5doAsN95AxKyMpelmOn2mE8Ye2PP3b2AOKcENYKIGuZjmhBJYW1SsEmQaRWxvQi3VO2dmtRedW1YihNkCegS1wfMKWyG9a0Oryj5ES0iSyYTKMGtBatrQAyK0QyVCntZF49/QYu+gRzuP3WOF8eUFENjEe2OtfQNKqtATQWlnSIPOZ0aJQD44UNpwg0oTVGamoymj1DyfV2fpIIVB3IVqrrqG5KgpEu2epVJQyoRhGKQgIoNt0KDtBpoNULAT1BSSbv7bJ7lNWH4YRZJSMI0TvOVmi0VbNxUkC1ihn1UkfvXJ2JJ00iLy1WMK7t/j2rXeOUwX+/3/8CEPwMcA==',
- 'derivative.kurt': 'eNptk8tuVDEMht/lrCuIHSdxKsSLIBa+BY4oM2Uulaqq747LkpldzkmUz/b/5W37dT1dbHvEh3+r7XGbvXBfFmgO28N2Pl5PFvnf47S/yGV/iU//TubWT8HWc6uxYq3SojGw6cTS52CHlYtBi7WTFZ+rMWvl4U0WiegC4AnTV97l8RwHP2+P3962tT99AL98YL5+fj4dn4/n/bIfD/J0ixb3akNVwFdpa0h3hzkGRA2tU2rH3jSwThQUiLkmDoTOZi5lbu8P/wPjz1We9svrDQsI2+iQTbSuEBraO/oiLKUWRLfZl2gCw52p9BKyspblOKgO4Dusp+OP3W5AXX3mQAFkLVOOFlSysVYpukkQqRWeXmR4tq3DWtS+6lrBShPkDugclxtMqd0Na0YdPlByItpEFsxOXANa5tlWAJkVImFVYoXe19A1oBe9gzlcf2uczjeoqAbWOUudqUMG1RYDcQqSCZHHnA6NcmB9YcMpAk1SHM6emnCzeyi5XE93jEBVxm6lunJ1UxKMTMnWqCphQDWKUBQSQLHpVpBBp4FWLwR0ByVp3ut5v21rsGEaXCUVhBgDZyvEbdUsnBRQrSKwlpR+9Oqd+qRJ5KXFio7rDsuOh8t+uN7zL8eO+YpKPsxRC3kqJlEJHDOXUXtL9zk/RjHKYylRsmXxVIAc89jev+dtl3jOZ/b2/v4Xkl4slQ==',
- 'equality.kurt': 'eNpljUtuwzAMRO+iddCIlEVJRpGLBF1QIoUaNWLXn0Vh+O5Rsu1uMDN47zA/+7IV0+PlnUxvEtlItSgWAXMx67QvRVuvvzuPw/b38f614ZvRUxugQx8IYsyeMmjWTIRSO7TWWUQpiSpnR6gisbNklatAqoKhcwFiY4nO+pDV9PfD1GF86T5fmtt1XqZ5WodtmB48/lN7FnEl5Mwg1foamKShQwB1ml3iZiWfFV1CRgZNNWFAoFiKsE3m/Gq0TeemPs7zCanOUOg=',
- 'field.kurt': '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',
- 'finite.kurt': 'eNrsvdtuI8nVLvgqBaI3egYWZzIizw3LF3NnYMb7YnzRZaMwoCiqm7KKKktUbVL/X4BhY3vbvjR+/L72hbGNDT+F/Sb9JMNDUkwyIyJjRayIjEyuG7dLUmbGYZ0P3/q30a9enpbT0Tf8avf/Rt+MyiwqsrvpjE9v2ehq9Pz48jSdbX5+N1/Ml7P/Y/dXmx9/P+FptvlxHpfZNOXpXXlzW9zkLLkrozjJ+N2k3PzvdFLEd2xWlLMJK/MyY9HNzSyZJVnG4jS6zbO7zbtuZ59mi9vn0Te//LfNVx62H/vx9jM/+T8/PT1+enyeL+ePi8lD49Pp5PY2nuY3NxN2exeld/kku73dfCZns3h2E5eTOONZejPjccknfMJm5V3Jc86yYjq9nUTl6MvV+Qdnv36ZPMyX68a3WMLTPGNFcZNmN2x2M7vJMn57l/AoiiPOb6dldje52XxwdntbJFEWzSZ3m7Xc3fI8iXNWCL718PjdfNr4UHZzW/I4Zmxydze9KWbpLIk2G0vjZJZNJ7MkuZlGRXkbTfLbzbZv8mk6i7O7+O5uVtwkJZsIPvQ8WzY+E8XZ7ZTHm2ue3eZ8sjmRm3QyuWNllhTxjKXpLE3vZiyZTqMkmRQ3N0lxw7LsLr+5y1kW3Qg+s3j5eDN7em58ahZP2TTb0Ma0vCtuNheV3hUsKe54tLmh5HZWlrcsTTYHlt3xlJeTCUsnyV2xIZy7dFKkU9GnJsuXJwFF8JubgmfTKL69KeLb6U0y4bPNLU3v8vhmMpuyJJ5Fk2QWJRPGJ9Pydhrxgt2UU3YT30YJS0ZfPmzetpx92hDjv43SaEeS3z1OHrb/3Hz/l78c/b/v/5//67/+35uPzu+2tPvD//iP0Yer5i8X29/94Q+b39V++tVX00j01/8u+uHN48vi9pvGCxjoc+z0Jz+bLEcfPnz58KX5ih+3Pbv5Cd8/LHp8srjdLeF/ipb3Y+ExCN4NPEjRzjYvGT29bIlFwQYP88X2FyyKtv+Y3Mw2Fzx6nn2aPE22smYrk+ZPs+nu/3+zeHl4uBrNVp+e5FTwx7+CriW2pYIE9Lmk8ZO0IoPaT//Lf5lmMuJQ3q5yl4LPNt/w/HKjseaz1x3X++HL5s7vHp8+brXUZLq94O1/tgplw86fnmYf58+z/+/uafb8/f5H08fF9OHleXO79Z9un6n/+/Pk4WX2vFvp7utNAtyuZ7fUs1/l+1/tVqjDDbmE0/avT0dNQt/+cpQyT/Jpwx+P/00kHxzJAuZcFpzr+Uog8KQmD3Z/M549zD9C5MHHTw/zDdV8EB+L4MfXostvkr453/AG36SymzNlxOqFRzbcHkONDc+P/9SWrA4/qR/+nuT0z/1an24z8WFCxG8O4qncQgnn4uXvT1vrWNO6joNrNqD8KGw1Wwn6XGlxtGVT7kRoBk4heTnwKMVS7QuqWgOJ+71aSwVPmeubhrwJXKlUepmP+itEKt1d7SQbCX69/1UhN3s2BC14bG+ZFCrL5Meijf9ot8af/uzno6tIcBWijdYeYcJH5Pr/zFc9+AMn+v+75Xhye2ug+7dc8Gc9MmW6fpDizNTvi1Vnp2F12Ov1jWdupIB+fEYR1UWjij82On6iImuFoc9HtWXsCb1sI3QN89qIjqffT+aLd8unyWIbH/u8sWXfbe7o3S+/vv766t3XP9n/79cffnK8h7x2Dbunx7unx3wcOTVwLaj+WpfA9eRgLItoWBJ4YU7gIDmYwOVgctigngQs09pWNtJvPL+dLZYb4rI1xVXb2kcFBD/74sV9F+nxdpa8OsgPuCaThQ2OS0pFv9oJnCzqSuCoGKC0kfCt0U3Vctk5AzsLADH5nWTKOIzYolvZOkqRjZ0NMh/PbelFr6Mr2spHFAyJ2163cY4SSHQl1gjXJH2KrqT20ZUMRNmZBWVnssC4dnQlSw2jKwCpIDroigcRNaStO9u9PNrHJpLRFeS0RcakXLfLr0KouBdvKiI3VBHNM4KktxJhems8X2B6tYHmOo/W/Zk4lToMgCAVit+QZe5lh7ekIoiDE5lFgSjPzqJTq1Mv/mzdV2ITL31L5MVaibxUuK+9BFCGxGar+fNyx2N/+J0eH123UunKwJKP6xJjMVmO926iF3EhrlW4gp0VN02xMZxgV5aj83TzTL4482pWB4WVR3CFdQ80XnrpPmgnFkTWPm97nUo96b2QyV5oSdeGLv51k0QaMuriTO1TprtXKhmpuOTA9Vc6LpIxvLKYBJJ9uxd9/wogQ4RWBUSLJfWA7HwxFri7o4enEXLqe2ClM3byIo8wmfW+O16NRLzaVJxvnl7OPfORjoR1xX3C+uwDBZykEha3G69z+fSIqa1P1VxTkzJ5JYHmwwPQmjkzW0LnEh+Lh3e3a8Y2lVoWBYIMKmLvNf0bncM9eJV5jOtVWuqfhW4aN7KRUkYVnyfdFgdvt84b+8PClFIig51pxPtjpd/ryeDf6LFQ5IYPDffFYaIwURr4QJZLTFkusWQ5WbxPGFW7l6Sy79/MpEQZX8CNOQONcHiACXiHXNdsv9aLIIDukcvrGmFeVpaON+rHzMqXC01Yz4z4ZhOjm00RbjbVLWe91ng0Bt5sqrjZwDpk3ipFiygAA+ZQABio6SLmvvg8n+87Vq/JjNyIGWOEy43Nywxj68BKrMWMRpZZ6TMO+sYb2MUG53W3skxEwQAVb/dn/GwSt8jO4hbYSQa9sEXjr2zJpvAWCNAXp0Gb8pLAgXrLpiEDHwezf4WEkbQWQOxE7NSjOBz0OBHZCRQCJLYitkJmK9BiPLGXFqtXge2Cm9Wf6HOXhPym2HlLQfmOU198f3wxvtEsObAJSu/H2Rp8HJEyAvnja1kXz72KqM6AiQ79MfF5Vd3jYjH7zlsRrlbW6bq1bclWtHMPrOUy8b8nm7RGNrU/uJs8PM+2C/3T3zYrg7Udn4RRv1uOH2bjzYqXTxNMCnFVWvJjnRabqFmJvT8we4MhdiN/9D6eGH5cLV18la8ctrsnbGUX2+Jxu+1//gMzGVMLLQG1Tl6OC8NqwO1GECOdJ3votAuxRCs82uYUzes5zp+mEr6elvCVDDXOvAilhm/3AXURXwkxnyXsQk79kZI81JI4Elp+g8niTSj8c9hu9rSdtOl5jT6IBayjQ2L3npRHbuzexcwt2o62rNU8BYWla80yOGat+KLcFTsdRWskE63kPwXlP7kltCtdSVB3pDbX9zS7e4D7U+pCKe7UtVJbFaIauRpPeHe9hBILZKCXbFyG4YK1dHF24IqxiFNZNtU2UW0TWBuxiA0IT0VLPayOUgOetCGnU0FKMXUwOC570ndUqfiJeIt4K5QaKORWTaqEIh6jgiiXh3sI3m4h3bqoi9oQ4zAKo1iUujKyZQeHWSDViK95OLAMmgsDAPguTNCG63LxYTl+fplOrUCHTTGSPcSYZFF0FuVAMsa4FDjmfCnFnOeeMef14/G6PbemD6Mgi2zZEi1uD6cNzfqorbR1J/xcxWpOqqTAZ3PVwrgFJj6QAVcTFFAnUEBbiY3FCg75NelPja5+oAp+XuCSi3tFxQWLSmQwTYMN4ZffPT1Q+Z3D8rutpvDi//vXIX7qm8H72jMri7CmebjgVsLGDQ8bd+Pj33SO87dVMr4QN00I2i1mNTZ+rskOhZb/W98QYyxcxCuzl5sMagJbIixi461M9oYzxfXPEz5JgqOdZ+wV24nLsZ1iKbYTYxQ6DDB0yHLURiF35iO4k4hiEC2ylPUiaMhS9MajrqMQhieG2/nBWGHg2iwoEHHhgQiWe2rf6kCVeOoHMI1FlO58Bh1QCA9+QWTqF7B0vBVo3vwCZntmzIUv1W2fA08MFQqVfilpmycOJC7sOjqLfHZUCSbTEGALDP9A4NWV/uLRxJ7Enl7Yc+UiXIvoW/HUuSqUEePEh7vsodKQZ513TWJ4INRWSW2VobVV8uTGX19lx+lBbly0J+3M5F1U216ygZX3p/RlmL2dqLFqav4k7iTu7El3qP9yQGofJS6l/tKwT/8Y5yi6aUDl+UAaUHnZmS8hO9lJp50p7o88VpZ0bz4/eXjYEclvhG7t48vi9hu9cBE4hNN8xePT7hV/FwqAa1Osr92T0NuBAsUJZyzX1dD+qLfgjLfu69Ore0UfzHz6s0S/wp21Tey0r3BvvjABFo6JJ1iwJDsbYXE7f54+zZYQxFZDRstAjJZpM5rhcnLQcnJXfJ+Ldo7B+YcXNT53DEVq6pU+lfE1JlUf6nd2LHQ1cKXx1bTAIp5CpTjEOKj7hwxaOJgqIRcr+y0gB3bvScXeq623PmvXSKMXiwu0a6yvXaO2ifWHT5ir68RR/1hs2N5iKIRSkBBKXQmh1J/lmh4rYTV1VzHq06yqRNQFK5GmwFvK/N1SdkwkiMoOs7dt8ZG9Eq2URGysJNTmyb0WuAwOQpjZ8IWTwOfyaT79/nH5+HENIHbI8VgB8Ejw8C1akrvqwBKR9rFFNE4xsWHQYR6p7cpUvycuIeCGp9HcQBAbALfEGTJwi22wltqhum+HitNgcFlDhF0RNx3HOTaqCoCVCDQlQNAUngcAmhJn3kBT3E6b8ICJIqn5UkCexIWpd3UtkATmw/2gcsTM1C3qo0senyws3aZVKjo8b9ZrPhrCSBbEdhNY9aMWLVcckygz1XpcAYHtrWP1MglWbzSOQlWJ13ppXNM+jbeHB6HqSidrWLidqrdSDc9TR1MSRtqn/9oniVDIVnyHfit3JZIft8NYRFAVP8Q0eTWkyass4SMXo1fvQVrBdA3dqgUN6Z9ckvQ/paWbx+Xy8aN5MKNJ6w7q0xO98UYyQeVYdIdMIAcKL0ieByXPeTkKH+E/ySwEvnV1U9DI30lJKiNslVGQyrBSGakdBrUJfg0C2BxzAjZndX+AmhQMQAxjkDyejFmKD55tRgjclhBiNELgeISgDRliti3puoNF/U4Npt189SI6g+U2gPXD7/989rffnv37PSFoNBg/Lf1BlGHcne63PgO+9f7s378AfmvVXHt3CSmEQzZtOw73KkygETGWTZKGJM1gJQ3CxpEljc9rR5Q0wleR7CDZMVzZIV5Mf6UBhiw8BF+yKCy/SMaSuHCyCBvwARGSMYPLcWhKyi4HF8YTYQNeLocbFo9ra1/ZcU/RSx8bS/JygLFxY1ltK43f7Zi7CdTVYGHYW/+3r7766n8X/eJKJwwuXtN5ym/7Vyr2e54tz5sFTiolJp8+PazHu110Fk61b5HhAPYXRbzfZhBe4dGU9u1L2pJkTRECGtCJ1ALeLzscSxs54z5kkOZaouBsA/+Vpy+yIPh7WRvUt2+x8Ux3YI65rCX/skavsVv/coAa0Z/faHx4ehWzXZ5ixeypG6vrM2R9TZsd8dR0r9ByD419fCbrjay3flhvibXFZCwnta06FlxQAdWq05UzQmvvs8za+4XM2nt/tPYyY2vPVsaTFVij79S3FUga+nP31qTlJbiwMru9jUoo5aZCydKAhm+h8dfTp8fnbX3qv/7SEh34BdhAZPVU5EZM3r7sgrFAYJ0//tWxxaSJtiM9KJH9Exth9gAsW25QGXsBwbTMgWloKfR8hNNEEhUoHISW2rcqS62SfUUbvEITY/V5GYIsPLss5VAqkXSrm0DbLcEaqdFPRSHMxOjR/uEaUQm2Ir8STH7PYsyMDsjP+i0Qcq2LxuedFrIiV9tThJArGwy55tGFkGu4Ql/NOYRrFyCuXVaYA5b0yfrQNnNLxPMYkDrEBf8LWITJcQgHesX1Nr0rma6uVCwzThGS/vWnfwceJiNod2Ntn0cXr91C515tQyXHj8f1TxZ4gMQjuvdC992USXWhvipbivc3sfXvTmcIYhgIEE7WwkWBc5YUEwUWXWRRXWc/zz5NniY7MY+f7dMAfIHcPLeBW6kl+oQTYrHSf5LkHV6YJkHKBebMQVkI6TfyytC8MschIu8XJx+nq61MuBtlwk9Xuc8h295gZZbEPa63efz4yWplnwUdP1qkT0mPXiU90nosaEc1lqEQa8prTOsVTJxtTjetDTq3M9UKkM1UgIx04LK1ZatkBnh1lKKfp7rytThV37ohmZwPMSQDoaMSREdl585e6UY/l2f049Yw6lDtaQ3t6p6mRdbTlbTfIhTB6YLgCzcEX5ynUBtTvmudKamsQTmTVUjmsgrJPOkIIdimk40DUX0kkKvSL3KRbQH8YqpfvI1ULp5KlHYs+XkkeoND30AEnRtp3HZyEtEAArqMT0ccdNkBmoFoMJeJCFvzQPrFonkXEfiTjMlMVWd0z5iEwEvJzzPhK5xSfqln0kvO3xsAdCYHgM5FAND7XxUjgXze/6ocCWLDVdlqNBIwevU7NhKIpr3GKiIv8ZX6v9cyCqY0jqs0TtBRH6YbphQFaWL9lIfpC7nshQOM+qRGkrXAifq49NaBy7b22OUGZGbqtetGfcqOoz5asr7L2PgX1BkPpMaw1Zg80eWURkXZ/qtAo1zNsMVnWdjiRWZ0fiszOY/xjCLAAmvB1YWQmhcuy3mqXU/WohU0G5cDPTxhlwNFtuVAzLIuhwvLgbpCAxCZskw/I2ptzBZRH6wOCH0koItKOlfNiRvVnDjLHUUjByL3SmqWAS/DqO9Kq3jB9kZq0bWDmubhBHHcgcywKBGqGjMoQmkSZjAaB6pUSAeQDiAd0FsdgDKkoH0EhO7Tax+YYhhuBWGKdYopVvBehCs76gMEAOt/K0NUXbcjexWJ6xExFwmdWjgG0HcurfsxBg20p4rg007AmXoYuyR+rvFzr3reKFDuPlDe137//tGGj358N0RSaZysE/BU8UUTGGp36JLnN1KRRx6QQdL4KYGPdk0erdDLKstXeYfUERpgR2iRBwaMpSkodIvUers/1NY5QZRGEW9W0+K6pYvM2SHt2bF/njQIZZuEZIhCMhuFhRWsaWxrC8m0F0IyZK/RnbxetcrrHsg9IdauxztqUx3nRq0D+T79fjJfvFs+TRbbaObnjYx/t5FJ73759fXXH35SY8Z6r8b2kfHukXE0jkKV9tc2vb/X/qpGhm7qFpPBiXHXkOyRLIPJsaYfMc8m8s6JLw2yrMIsFmVlKMtqm2VdK0qemG2ydk/wZWTVPoKv/YMsfSKU+FYNaq5A0WlIW+2TVGpNbaJfjkJ8BXOuB9nIrKCCOihgtO8u5xrd9gkMRwekRCQl+DJsaBnGDlCZiE45sa6/TNtClrLu8PFWLWNj+CCRY6YPd4NAjoUGsAyLgPA2QILMJYRXKFB4GmcGJshMAo4DeEWuOBfC1tmL+NTA33sBoEydV5y8tzA0h+odlqk/Owzj7nS/9Rnwrfcdla+5Oya4n4pxXqpwtbvPEjsTO4fMzhhLB7MzhgyptHQWlpaW0f3Euk8KeQNurbzqcnKDy3Eoc2WXc4N6OQgb8HA5PIrglzO1baInxCwCfiTgRwJ+JODHhhYqMZXQ1AmhEWrjZaM2nhEYQS6et+LziCEZVQTEdKlATDyKnGsCQlEKC0Xp9L4uEgKJR0oYvI3NvxFlW6L702/Dsm38yu56ue3bmaCMbj47YcOy5Y3gmzw87ITDbzRnOGvlpTXaXkDCm6so0jbKXYy3hoDDLL3GUKNOx5farh0FyeGgjtCg7Tq3YBmKRmhCSe21WyWGE9dopBZz+Ho3sFcSQsrPQkjjT5P5E6b1TbPoaBad11l0tiozCy8/prnyPLzkkaafWa9xfpgtrRcvLLhFdJROAzgrGTDiMbATyQI7TBbYSZqBHSFc4/ujvlSWic1W8+flTk7/4XfgQKSVhhUG+8JSmnK1+fD43Xx6Rq9x3aLenytmP4XeCAYuboa/kl28p2Z6fhLT84zDOkR7DrEWx9U865XH4n8bJrdt/VzV6314VPhwT2r/DHIGGhUV1mVf4baocNiU5GPnr2FaH/4KLgdNQo6xPXtBS5q15YM+BFJKpJRIKV2eUnolpbQOVCntPKYSC8ZjjeDoX9nEEnUfXmO0BeTCJI2pgiIoAIICaIECsLY4Jt3GAEOXh87QJNeyLMFnWYriRZKiWMkSEccMRSorPWVocE2vfZHzryTnSc5fnpy/CUbOv16UnH8NQ84zwDAJFJOd4jo17itHboaIDcjP8os9h3FauMhzLs70wPwcwPyvxPy4zM8i98zfd+PbL/O/Dov5X9XMHwM1/7mlRvj5oeHnb605DHRcDCWoWzfKOMqSMVjXWReeLKTzWi8hRSloYokVkqzzfKHnmENwWUMV7wdXTmslBSFRMx7l460+wu5x80HOsX4XySDJOZaFpvpIztLoowcU21iOYpvIUWxTEYptpQtS4xC+su82Aj/BwE8oe3tJfZH6cqy+ZK84I1p3IEHNMSrythBxPxAjJpACvg0W/KEfk2ViMZie1cP2vnNiZ392qpVS2SiAC9FKqcdhEc61knTyhX4v7njbSWpEzpWG09dtBUi3FSi6rXTISoUMgzE83aZND4YxtiFrSvNg39sckMPMj91/d9NDNJo1ybUi14pcKxVEKCQyQQ4YOWCBOWCywByLZBCx1bgs2cSqWkQvM21XD+lINZFzwHCGnNe75O5eFjsTZ/z8aTKdYcEa+ge7Mo/TxuAnEvATKRCDsduMDBTk0U1eRBNL5xpWG40YrYzBeJGaqkipLpNQSEJLadnAurcYR7ZxLBdTsZRCIAM/kYOfKIL1WrJ+hJ487r/or9eimA+CKmIzkIjNUPyRnJjgEv0R3Kq2IGGMxT0vXNrzknspkhsIGi5UdXSPIGt1zonZLPUyHW/d864q2DS8MukZAGS3Mq2j/8VcPubKO60VRuPPSgNaU7zFQ3lZKi8vy+TlZbl8SHohH5JeygHhOaM56J13HnE2osHJknCj7rdWYpt8iFPUTa49gKugEe0kaUjS9GrAe+jXjihpxJ2dJDtIdgxWdogX019pgCELD42bnFNqvyXCEp8ja32cfPo0X3xHk64otgeM7VlrJntwxG4GTG2WfjMKbcKUsx5Kv7ObeOx6mMhXFsNxvqJph6QDaNrh8KYdkp8Uvp/UzL8EMm+QJ20gUPsfhuR1NJSavUqEFBnXIRs3DsjDustMrw+t47Hw8kpBgm1CNj4PQx0/Zitg+QgdIre/Xru2pxGPOgMWHqahPPRKrlimIpOR9WWa1orxlGrFuvYlXJoh9gEpgbuB6LKAYNQ4G28tujCK0DLLkrACTFIl6IvNwi8WgT/JmH7xnFsyLvXq+iRbbtAxY1JCLiWEnAlPp+nkOitxy+Qlbrm8xK2Ql7iV8hI3Folq3KrfsZGAo/f6JFbOVbmZ31fMakMML5oVP5RurgvP2AUct+8LdbSAz9rZTNepZc8HqshO+z5ZVY2J57WQ3CC5cZFyQ38/ruWGvgSr7A7WA7tDxmCG2XbPu3Jr4VbXyN1fo7UakF3jTZfXqL0rL9cYG0Mz+03M7U7+8wybgeSduE+OvigRjjAaTuqZ1iNZnmLLPDy1Ysv8j/9wp/P1wldcfgfBhSwxKEKBmOWQDoF3gZCqilk/VKWrSSs6WXJpMjxOsKWyoxIGDNr8rO8LIHEDwBkgqUxSeUhSmffD8nUmlT/LpPL79gxsnFLHePdBrrj3NYaDd2UusPV88Hd6kIGZgQykXnZkGZj4k4HkOASZRQixKX7wd3qQgWrUNse6gAQhGYNkDPo6wT6AAnRnDBbuBeFnKhkji5AsQl+C8LNB/VkwRNSdRViqBKFv+UySkUxEMhE73FAvgKTcms0HyZhEHiQjlQuTzUg2Y3eSEaMY+VKo6igZlXXQYU2XNFwNA62G6a6mtdf5WqshWzp3TfCXTH82mqKQBFhOFNcBPo5kiVROhFU4w8X4F6iElIAIKZGtCG09KXgIhuZ6DElb2giv+bcp2ug/W5skN4XqcGrOItYjcVmVaNysEq0UBQ9OUbwPSlG8R+amz9qK4jMpClIUpCi6UBRFl4ris4d2Ai4rXI1lXQNJ3B9FcTYfsmOPQtdhYAJkt8ioCTGp92rX3HAkmY1WoM71gfQCEpsJMtnZDUlViHF9KZ0JSC9FG9V8YkEAxKnv0HpHhrgQ1LQmeJPgBO8vghK872H0/5kELwneyxC8SdSp4O2iIwti2ErRpCvBm9KsGppVQ7NqejGrJk77OqomzkY0qcYJ6n8a9Rr13wr0f2WGXsTKc4luiv1P8pywop1gRZOiCEdRaK48qSdeH2ZL68UL59j0TG2dTspZaagz1mt1trZRZ2tSZ6TOSJ2ROgtCnRXI6mw9OHW21lBn/HLVmcI7m34/mS/eLZ8mi23LwOf5cv1uIx/e/fLr668//KQWe6srtu0j490j42gcYbYPmFca6TwK0Gs63+UoY9ASw2xlr+IJITOVviBOowu4KnPh4mKQWtCE86ZxLE/uTQeGTyTKeRnX5uMBVzJBjOSvzX79MnnYKLeG9K1x9O5v0DviMFXa88uNhuvU7LqL5U3mOi9kshdaqr6UTwYqUHGsNW29xOgYFTIBUS8xDFm/4x8ducDN5en6bAhoPxRq5amhjHHQu5FmRMHN0OYVzE0795Jhw7RPgJF3EcjxfNH1PG0tBSd9A7cMYMb2GOC20Nh6FVqyyZEcTpvy98sOx9aV9ZN3ueptqNIVErg0m/PSXo/GZK16aWJaj6YraQnAombDOYb2GZo69AdJa3pyCnyIII6w4vLUi7G19klda1jIgIwtMrZ6aGz5yQqSsXVubK2dGFsZlrG1JmOr3dhKOza2eqYOAzK21p0YW9ZHWHF53p+mdgu8Ectsj1BHG/a5r0x6LR8ev5tPz2FJ6rGN/U2NN/R/6z5fVJHFB73sDWvL5xyyN2c/S/QzTqyt9M4+49R8YYJTbGE4Ms6QNe06PrGBiXLQanLvwESZNjBRrl+2k8keBiXYEmvr1jSKgGjGpiNdybxXpsnoarg6Ssvhg6ojbX9TkQYE4hBUhoV6eEVnqhxgM9nod/v6kD6r/EijYIMLVH6sr/KjNkSswyfMbYjEVZFJ7lXl24FOBG+Np+jWeAqudsncK+O1c2WcjHSllkJVBEIUDJ0o2Em1DB9ZGw+Vmiz1egDQFA6sfSw1xQEk/Y4UVE+5bSVdZweMI5v2fJJF/YFzxwFQX2mjp+s6ACtFtoniTpcWd2I9ijt9G1Tcyf3khEyb933HnXoHZCAEGQgplOSemji6JnEfSvq2ZiNnzEEoyc6IBqraFtubQj1DDfVkUY9CPcEYtKmxQQsO3fQOySARVf7gRmOM740Z3xtidOVEc7QiLLTIbFi0JGNeoyVdqDDbaEaJGc2wOgDU6ETiZlJ7oK1xtfG26HN0nh46nqOjmBuE5jFwkJ7m+oLWcD0xaD2x/nqM5+hE2l6M6G9jGz8mRpyjk+TjrRKysQF9TWdqi7EEY4V+uOpf2/jZHKhwV4k1gcoF8koQ59VWNp8pC2oN5zQ4KlaCzeer/ex1uPEMyhoo9VnSo6wB9pAeR9WqulyYC6oSMmi8I8uQ4x2vokN3Fr9/VcbvByJdj0B+GJH0X9TjIQW82uRzSx3SK/VynfNY4aCXy+ZyDEOX7720WllsTK/FqnWHKgA5wHuIB4gH7NsNW9cip3kbTqr0Qxmc82I9VLahXtfkvFyo8xIPodWuE+fFmgtxnJfiBhPTQShfnbku6/BcF3zZiuu61Avl8wipUF43xXuRZlseeTPb9C7HpoqwI9dFa2Ng12UlKXOAui7C9xAPEA+gui7itUBdFz1OqvQDo1GXNBuMZoPRbDCaDdbpbLA8QnXSLnLQZc4Hq8z0A3E0ICXAASl5NHFewXtOItqSZ6hDR4IbhsUATQhDkVanoS1JXZr48CuhHg9AqLcn/ml8Y8fjG3N+gWLQfIRiVkywETZa060XNJdwdTqXsFnLpZphJYv1JH1MU4db9I1S31sv+NhfwT5FPl8snx6dinS7TLjW6xKN16UtGdsPpp9i4k+5se/jQSuPhiAeYFBjRx/WjUA9NujfLDhRvWBDDa2OURflxIPnl6cBtnFK/gqSR0jq+bLaKSH1dVqcOzyszdFbPW1bKzlyHZBdkyAYWVGC3iGfQWNfeZqNtwain5ZLu1ZH7AYVRyBbfRD4mRLH9fKaEYUJhl8cVV3uZMZah+Rgmpf7hTxzO1zUhos2bgzLndKzcid0v1av3snmYfsKavt8+oBkhnaE0XhWx2AlkLbfbVgGcUnyrMNRaP3lXUUtYov1Q1bBQK2Cg2ms7JG+md9XAoiCQCdBoHo+93hISDEg81NHDQEFV83aAeJZN+E4jMxGPvI7YZWcYVJ7PVB7FBxrBMdKK7xxpcAIRJNhLSPW743AXkj4vRBMeRSgVp04Gm8NUyt04a5INYVMonC3jKK1yf2radkfUi2MzrmUp0/kR3E0vLbiv2Z4uWqVr0qS9mI6GwmM0/2v8pFA4u1/VYwECcb9r8qRgCv3kr9I3Ph+EP31vs3/usim3CJxYL37vtDGq76fPD/PX+08qfPPLfBNO0lk0PPxKUJ2bs9R1WTv9MskAUgCBC0B3K5ezu++JU9lHaQq66ATSSBjFcNqVad7cGtGVleU9cCAk12aYR+K5115uUbz8qSz0jmNUDxmSKb58tnD438TcYQ4GAmAkFic/vtnk6XBgOeTgo4D958mbR6eDJM2GMIEM0GjpIzYJWXEupTxVXNUXj0bAwIY4RL6sDfE0hCVC14s4iwuvFABP1TiqlCPfwLwL5n8dUpzkbJTigHuUgzwMBREJ4BgstXIbfy+39NBNkAglftnrYQvrvTG0bJeiqswrJbeiCuwmOkBB8JHpkoOei+uSmbseXUeS0NZwF13cpE6DHYBnH4EQfS2U0YdbgeDlC8mhRSO8KgEMe9LGfIL2hmoZDvwBaDQKy/OgXAlFcwOwXCpMIwKwzCicyUbYpo0INPOHfbsiwR79k4JlCXdgBiV9r2s/vUYzizjwYUs3reb5kJQK9YEtUK0ypGBq95wpvxAwZbct217GbaLM5zWSs/IkZ2wGDXBYNQ3IdWLWz8iffdjuZWkTy4rz/7eQ549pBCPLPZt87C93jCEGOxlJPx93bDXDIEVmFCDEvqlqLryrrCj6s4rB9+jVA5qlAMZ93DjlAOBepX7XgcgwLE8oPWCy4GYq3KgMqGsJ751gduVKw4AsGahUyWussE3wLoqToxVNIDzUa78KLDmeLzVTb1sK030GiDd3kUq72R199FM9VEPzZqJvFkzlTdrZvJmzVzUrLkTRXFUj0XWneDJw/PWNPnhT3/bnIaBK8ZOEWsel8vHjz4y7o0/XDwuRX94njbYbxhSpPQ8W57vOauH7GYfPy3X481fATa8X6yx1bH75P6LP/zhv4NQ9OKIY7pF07aFdVIl2boqoeaeHrklgRciT4WB1afH562G/9df1ObQT3/289FVdGYIiW7ZjEV5k0WNiwWbvIRfsbwVVzpEKhNknRGdewI4UGiqxti/qR7702/VrNAhyQrkapSfQODfNISqjtv8x79KckSSI4GMrjoDr9fwRxWqTbfl5G2yjM0bGFZmPI7YeCsgsY1dXSz/JonZzifG51Gh1jsY2wjOZ+Oj8rQ29uauRBn3GvZHHCl7DreGz9Xon//Qp4CV5rrBXtsJkN3uhePXGchshW+mPbB6sh8PTkgkHuISRwU5DIYOg0RsGnY1uOUYba+hXk/8APJ1bBfZiTEHOMOKX5D7k1SImLoxjpXYjhiEl8EwWLIIxcvAyf11SjMVHzCu6TpjrXCtszxqB64X4/GRXwRfpzfrYyWveizQ4QQBl0es6Pbo7KxVWGJdLYqEDAkZEjKmG/MqZNaaQmZn0cR9smhk3DgZoU+ccrk9D+hYMUsQIlV+KRISTPeepIx0kpQ+AlrId3KQAylFxFAjYixxGhHzzJm6kTQW90wSD9SpqZhaWaJ33Xhxw665kIQ8S0NOyGvc0+G+c3clmRikrCrN7sJHEa6Ha9oqbfekHNMFs2/ZeMvKXgswkY43ljWxd3Tdsag4E+u6E9nLPRiGsbzcMpGXW6aicstKlhTGXX/KOpII/AQDP6GsVSHx17n4k1U+n11qM0X5+LK4/QacLjIvUQDmrVh4lCMbXhdQCV0/umTjxk8S/S5ZycP2hmtuZxV0KgulnRgdyUJpmwaGLJS2Y+jXqIy3ZRhG113JVX2JWoAkauFOopYO6a+QjTPTqIDUvTTDtqmg5LO5e7uv24wqdcWq/+5aes78XhHQCJmRZEZqmJFVbi0ZXVl5KWRsXoixKW1CVE2TVIyTZDWfuYR3VrWfQW0st9+OlVPIy7uXxU51jZ8/TaYzrM4VGOdIJpSrIm2IoYsY/EQCfiIFttkEE8TT6uNxHrqrVXTaBOyQAxSxTUtQTfjCFEQSCklA1YKM+0+UAcBGsHWyCwfFXkohkIGfyMFPFMEat5mZH+5xPQWecZvLXo4sgjKQCMrcma15eJTTC7PVGdYPoN1SRAEimODGK/fmMWfUPDmA5knOqVQMtVSMsz43T/KImieVzZNcWWLdgzBUq1V4LUTnO9eSZ8LkC+wRgGcn7fK7mN5PzkPu/SSS90nyBymUqmOTO7y9z1aoc+12seT8oQVx9TToceVIELQoRwEFoTVkCW6JvCMNLIUW6DLjR3lmSvNvY31HXgm4aS/Qo/HWjvCT/U9At5hYCVpDQktBS0wD0wWHcCn4qRQpth1qMKFSVcggS+v21i3qPIPd8/oYDSAoJeRogDcopTUe7irHRlBaBwm92n5iFVNA8JJC9H9MVFp0Drawvii8Jd4nvKWh01zFhzFTA8k+deX1mtfEi0eyRCfQsk/ILjHOQdnPY+jIK+Wa5Rfu/CtNL1nfCU4EI2NitIoJno23KtCPtwp3BcFpe8N79plzNxGemYAI0gHlm2Nu3MIYSq1meIHafmnRfvSWyYDLbB62L3srR4ijNLyzjrbnajrZqGNG1N1fzExbkAJm606cf+8krECNa1FepCNAOuJgLygLNVBGkgXhLJ7EVd92heQrBjK6z8C6c9l00klSuRu3HcH0iB3Dq5JJ32txPQTXNMEdqOBpMDaK5/Xw+N182vA26knV3fYxna7nlxs9EdbE7VDEg1reeHjeXhwaFn6EbLEg8jATjWu6ksIKYI6WRe1I5jqyKNWSLql2H3K1TMF4aRn7LibLl6dGyCSpJ4A3fwJtmJgvWpbjAzM5zowDhgMR2abE0o84W1NAc/04m+Rhe+luCBSspLjYJcXFmLacbhgrRYhGKqRLaNOOQpQOlVLlI3MxUclZZYEfwvxzQeLLvBswqZPeYXFI0RKcWe+gqIC5GuMuCZWrCbU5vlbW7vDFfPL4mzKzF+qZgwjGMCS+hY3RgeN/3Fwluoo+ia6tpDWiQw8b8WHQJ8mFGPRffevUiDfViw9PnepFvIxBsKK32dkknYxu3imGpxeTuDN5tGWRhgzCUyi8riuuRIGpb9/iM0k6nOjvieQJf0agLASAXw+eJBdvAiJpJXLOJWeK5pAnOXKl5B1yJvWwa0fZ07sgEqZ3jsSveRWIsf1GVSBUBWKtQLMO0552vOgsUHGHUpRQN0UL9x1SdmdJg6frPJF7q4wiFd6BCndc2BzEJo2rmi+OSo/2eRkEhJzWORk2yzHQahh+s9wdLM/koD/X2NpGM/G4PtB3p2A+Yujx7vo2AahRov5cDmvNtLciii57goIxrbnEtI5BpnUiM61TPkQQkLt2DIapOpkkrP+t27V7MTLeXCm+4Q7oN7crGtaaFaj3iVRWV6z3Qq7xQpxxhIldz797THuXBkwOWk3ugzNzgRbJoDPsUobZBzwV3QKiTD+tj56+VYInA8LE0RDBtVCcvBJetyyqYpVKqymbJHXWuxLqCwrz1HkudhDmsbgbF/DybiMd5ptVxCcQAOGvgOPh9F9ODEQMFNLwAzkbWfBmpYMS+JxFe0aSUdoNpn0EGH7hoX4yTWlizwAm9qQZYfSiYvSm6ajHE3vSpCOJ1YtxPWkBVy7TNlTBHmDg4phd462wCQQHV59Ippq4zllEgtRQkIaApM/wAM/T0mFULBC083auENW5T9/MjoxZS9J96OlCpGcW9V5ynoQKM2UCrGUIkz5xoFGzGZ2xui242RS+2NajSwiOqOwFTCr7hdfnC4o0ZeOtWWYmcOWn2w2R6WuY8VaCdrJp4HTtVnnwJSDZBA3vatuGMbK0kxVd4Y4OAka7onGcGaLzmR0BszwCFsT0pAZGVXS0kpK2hFqzidHA02za32V6grm2nC2edwpuvlzD4S3++FdZxFyrdaG1lkxn7qERfXFJMhVhrCKC5stin7wWW/JarMFrAp46oKkhxDx3SxZ5JRKEh1iEHVfxpRpErW0oICayi0aRgGO5n8TjraDCNkYw2/zBhxS8Zsgjx1gj59rkqwU13QiIP48cJJPdXp9uqOy6+QbPeWan56Aw9o0PRFXDYfpSYjdiNz/sZrwwOSe55eBKFbLgVKGMeCddI9wI9uCjViTnbbUimJJRdvo35ol5k+V5Odh4eCBmZzRqCBpzfjEEaEaAZp4BzXIWorh31SO3+0QLuFluUJwp4V8yi+uUFvvGEwsD79etgugkMSVbzZUZRlkP7ukgG/oJfKhLjAR/2KW4CsNq6Y246hUUoq6Y0QREbD3oSlwFBIuocQLdYNaIgjZd4StZCmoCSiSgxB4CJeYBAyVqcWTncInnMqwFNDE3aBFxLPrJU67xQy9AEkmh4yn0Trx4t3ff6fD34VHIQXIrgRR/LENLr94NmohZlGcTMTeC2EC6SgvMzE02QaDVNCGmWaEmP9g3REVbmY/a0ypxC3VL93PuOQvpyn7a0f2ec4qIZsqaZG8LZhxDaBNHwx7Wqt3MBHjYXswYtn22XKWuYCmiUU+moIrMqJZD0O3MaZ1mUnCwqIIYO7DoUb1tbb4Y79+LND3UFJdEEBC5MhFNRo0dQNMEgWkL5sAfdCecsbW5cihZTcHHGMFuqJkvZcA7gV15Ftn5AlvJnQbqu3bzFI/rNt7k06eH9Xi+wNOG1pa9AQNyy3BubB9fRk8hyTu8zinqrd4ItD5FB5nkcGyFGUc0ASBqT9v5KTA9MbdBFreiVoEvLm1ZA9xIJbZ1y63g8pCCynW+i90GlfutOP0FYA1Wp+VXeD3/A+8il0OBh7dAEPrZSbf4dmmYEQA7sH3Z2bW88Yikbysc7KOPcLpG5DkEdPA3ldfKEBXtZ1bt1c6bvYDFA9rxcq1mZXi5JxTfwKS3ZrwVWNgt4B4uEjTDSPsiE+uLtJ17FI/8QcvGojZ14QCcPZvsmbxk6umSN1W//Z9+29La8AuyR8/YsXQR1ALfCOQN70Vv8DDyELYlhbUI3puqVRz6MiJ+In5M4n+PR/zfSoh/pwG4Dw0goxLDXmzosnzkkcvY8CDfYxzkDfpBvu/sIBMrx8MXVt9BQuinJFiUn0wZvWmAKeuUqYuB3BQXKa1uBmK6xWqkU3MUM3giJFaVa9uqLu5JJmmzzBv8mtoDSOQeAJMFtM8qqH9xdAxSP0z4npiQmFDAhLEnfdYdE77XYEJlG8Pj0+5i/t4NcvKec0Gcd3KpLwujJi0x48HqbA6f/uEP/8umBwp+/i6qcOpsZ8t0+Qh5ZALg6L8Vk5ezytkpWDm+P/BlEkUOlCMqc/7CBEO0tMQPDcYk9z7Ja3okDYSRGnAHcEuRPq/OBa3aCi+X814w83kVncQeRMh7/yIk7VqEvO+/CEm6ESFxpyLkfeciJIm4SxHyHl2EZO5cdHvDzZ1PL5E82TiJ8LPfyiILr6fEOhNUcgT0JMoBQW/b49KXcEZhH+MhGsqwj8t5GgZkG/Q0ja1I82w+xL7ZONbPM9qO3bDel9A//oXGbI4kKtwVj+Gwm/ItXL8Ly1zGSUM5kk8DM4LjJMr9FoMpj1RS4wV8SyqrFMO9mFj04cbFJN40MLS4a/+rdCSgrj1/shQw0+rckl0BVe/JjKTn+eK7h9myq9jvv3311Vdf9Ln7Wr/o1FL1scR58FW091VXYdbVkRYzx/7u7Ncvu6Fp5x2C9RPf/Q16+RXmvDVRAT5ve92xgN70hY4q8hNm6KvpyCbNTriEoTr822/bZBiBfljFWdDmAC4rK2tii9RYNPcYalCIKc9BhYTF46146jaogHMeQYYPWGETPpAeDAUKhh4oYHkQgQIc1uwyJCDfgbnzz0o/tWO6vr2mExAh+d4bs2K8lWzetAYXNx5hnQuXgyV40B5c7vrG0r6mhCc0mTOAPpCEJ6NBjAq8Gv3zHwCenIjbuQc9qxPpiNqmd+J8hpiUmLQrJkVcaqczPxOe9mPm54bAL3TmZ8KztpmfbuWp7D4spoDiLNjL4ec0F5TmgtJc0BDngm6VF80FrQ9NSXhBc0GdmNcupp3QXFCaC+pvLmjCS1MQyx8dUZhYy3eNZhCk0dkMgsntrR+UX9PJHYJHmcwKEj8sOWSdWLmQlXTlm+QGirMbeFzMrHBvmcVoj60W8zBnxAUsLWtDAE/iiKbzXsZ03g6MBprOS9N5UafzJjEzdCikO4FaF+BIAmP1WtXdZ8fLx09ddDKq7AeDoSKAo6shkNrLsT6qY6Hu5QbEPNHNsk/AYBpaRdXGlUq9K6qW1fjGjRpfKCb2tUa9BXdLhRNZ8GYiw6qYHOk2xsWQEQfUr1xxhJlZeDJQ6PHJAge9GTQSnaGn6WZJjFuwDL2MbmIuYJLRHFPWliOq+CfBkvvq7jscpjBBXfKkJAh1ScLThrgLPRDdHWjEE/QmwGorZs8wRqzR+PHQhksD63frLuCbg46UT8b0+F3lmGGCHTCAjjulW+hIEBwKhd4FhsowzF2j0B4GRzpTDHeGo9qETtQxNR7ncCPQseinDHuNH7KR09FvpNBDU+ideKJu717htrbQKVGIvHAhbilq6ursSHyT+Cbx7Ux8d3Tq5jI8BGINUXyXaoCAUBZM8pzkOclzd1PSgtlqrwV8d3rxIM8TZQXjGbJJ8yuPL4vbbxBGbcPWf4W1UGYPBgRcaGs10rV8srUG9sudk6IPA7TLmsI5EjlSxB4rNs3l84HRKCwBUVgiWxHaepAmKGMRtvAWJDikwr9N9ck7kT2MkwIwrqvrSAU4a227q+PBAFZVKSRmnPFV4nBF4CcY+Akl1pcZtrKqkwcjDXd+cV88LoFLlqDHzi0Zvav+GjPKqnUWBJVoITy3Cajp0+Pzdpv/+otDh79ZgMVPSqDvXhY7MT1+/jSZGpgowEqsGJSwT/T1nblkzMBP5OAnCiAKog+ZmIn2dU7tcuw2Z6so5KvQk4y57JXIkjEDUX6mjxSvFIB5KCQBlYEy7j8RgwCT1dZgRR0u6TZy8sUVcv9dHbYfXJ6SyspTEm42et61mqSoeI0BTsoKsaLicP8APl1a+UQSrA8iDbf480G4VAeZ+SCx7H3ImpaD4Wed+iBxEFQSng/iPOvS2dYMsywkDUkakjT0Jg2PQdTYC+D7HUY/fEdRII2xEsbRH6UPKIlbYohCE6z62LoTL1YFYm1tdMP+2u5Upb4N8DY6Qu2wJnK8fSbxZUWddnhbrERMAigcoFTMRadiwo86xI2fJIKoQ9zLqEPaVUYgCHZLRbvzy26pTlQZwG7SKDWynQ2vFXFqZ2dBUMmgow6igg1S5aTKv5z1UySWgSCSQIOSQAeXoMCKOhgf5NnE17VXdpR8vJuIh8T6NMS2GXDIyMPIPFEw346oDhxnjAIeME0DKbpwT9Ekjgy4ycw7ti9KcX1ZXxAHEqURMrzVCmgC6b53DZsyJSi6ZPWWkE9Pj7cv06WDaks35jykZovr90yYYz5pJRC0R4/XCtps+bcMjn/DCPYDYZNWylh+W13aaV5gLZvPe6xXS1nnlrulO40In4YgLgU8ZmqwZ+PkZKIK+ujqrooYzG6Mu7uxWDp+NNSh2mnqIM0/tXDYpp0l+MndDcrdPaWJA7lmcNC+aUcV0ZKxlqlXegqbFS1NxTTB7D8QHRWqp6YEnLzWOHulWm0GzJ+XjXcKw77nyexpe8u+qCUuanpn40+T+dMzur0BFXjGELbXeh+zvBc5FkPjak7nuNgzUIbNQL10laZuEGbTwklo1QGjd6IfZeNdksZ4F+zCHXMgE2HSTMOniUTlQtIsnMYLmeyFthLBMHoapvrSHTB5sXKQjQK4pitp4QjMh0fuVlG5ISVG0N34LE2DFZqXQmF6CtO3i8zCc5i+b2bPF7fJf/Hu7SL+ukfXkgrIIlO7F0MAUn96jUnLkVPU1j5pMH/jBVycit4APPPjqTiXmXKu7oeIPYk9Q2NP7UWa8SAG91fsyX0pVudDucuyMZP74+Pi0VuCTev0FW6Bh4HdDK0FNovwbXUEqu7SQmaymeAZxmxlc/WI8VaaxWzMKAyfUXSvfrgKEINMK+ZMkO1TGuhMA521BIPbgc590heOtbYy5IQ6GDpLh56ehVvxbgUidhoBQyhSGqHTNELGu3dNTJxd3cxylnizKJ2ybse+GkxNqNIfBpctn0SBeMKVTvJb39ofBUHFQlQsFEixUJZebuY7PIGBWwzVLAr1WJkU3uEey6C6589KQebeYfH77EVpQJQaO1FKiFJtlWiO2wTt+dOquAe8AS8/k8bjreXnsENT2aZ4Z4DWOhwRJ9Qgb8Cq9s0Fd8rmgp4em6SvNDmm0QrXsDLbnYpWR8EyCpYNNFgWM8w2hR0DdRIUi1H7Nrcs06fg1/nRCVMbEy30jsCDWSXAVpe+H11BXIKKEPMdq9cBPc8X3z3MltuxlQK3wA+2gTJSpkUdIqNeqGVs8xRFd6hEw7d0voQBlCiVGIOz3/cCOjfHjruUSAupLTdOt1EfQHrWB2BedmjVCGDzsL0iMsy5XAjDaidxSpRjJPbvUt37HHIYZnJGUo1LVIpxvpWRxGy8WOmS7jzfy8V6vXFRntdWO/B4DY1lC5dYMz11hUeyiuioC5c7jxx0R5LfQioBO1mInCZU1bK7UAxDDW7wcDKQbvW6fjXISRvLWwC4m1YjcQSXwaAY7fSOrKg0bhSVQiMN1xoKmmN2/fmPfCK9mrt4dSUBnLTyWksHT4PdwhBO1F98YtLyPmSRnBJEh23OfWMds25rdPl0kKZJOPZUQFEVavMeUJt37rnNm2wJGKv1xloOwrGv5HbuBKsWMlKrWfTf+JtKlNrRs+i1lmC2cd1im3z69LAezxd4KWeM+lRm0MnQ+Ovl1rz+4fd/hlSzdjcxu/Fn8haPc7LSKugFvN9Rqe8J5uEDLFeBMtZRu5Y3x6zlvWuhzT7M2hPK/liGXAKbOFGJ9MLHzF4LqU0gnzVOzkd+QT77rJl7EB2wOzZTDFG986vEQ9ll3NMnWblZE0VIO4yQdlhnb0e5JLoGzKN7wVpEYdldFBeluKifuGgZZlyUbI2eRlBBhxRkWLUwLi64bh5FM3rhKKoDrJ1lnDdg+p9fplNvlbO6su5nk6VBlz4OTn+kKrsEEIJQx0SY25Ku21I98AIdl6B5t7oByYL7jJwawSS4giw7hiEj2XiDIiUT1t6EfXj8bj497zOox/n2qFbjzZXeugekrCC0PujBQ0Ya8JBcEAuN9SEtm59IxJ/QfSHTeCEOpGWejbdunpE4k9/DzePL4vabxiZSkMpL4breVQ4u1eDx/Z/1gs0BygUVuQack8NTHIlIcbRjXdoQDdMjGtYXotkfGB+5mDx1OverUKJCz1bz5+XOwP7D7/S+iKXmhfZk8LwOUur1MPv+oDFRB/R0HRfruisZJfiCfy7SvsTqwyZJxMxBPPLF7awf3C4PEQmJpZK3XuorhlPpTOD8AYLzFzjg/MLwpK65nCd96HcZpDKQBYfc2vi8l2feGjQryf4m+zs8+7vjWpnLFa5kaSss7fM/2cvQMu26KLH2z7XX9inJx/tcj/PwRPU4HdbjlEkwkn99aVa1bdlL8+yCrG8pc1N5rSzoMCt+uW6cm57x4VF1UBn3iYDKghNQPa3X1iE9eWF2Z7x4kCJKz/nahx5CwK9DBtjyZDwFALAlEQ5F+NZLLzBwHFsjjnC50sh87IBT80EfFSCqU/CnyfxpPPs1FpNf+5uzZRHYNYcBuDYfuXXtcdZWWZqnT3qg07y3wktHXa1lPfJvsaM0YuSLkC9iyMlbdYPfgO+Sdhx7Jt35BO4bSHWYo5Ipyv4dyIQzT8o6rEoQZ1JYcCgLU2vAqSxW3l5TIkNn9ZXxOI1M4UK1ZkI7MQcvmW65Kd3GnulWfnsiuj2q362uqalfPBOSjwS1DJIZ0+xoFmYYyHbaE3G1gOzFL143Qe3hEiFldtKgO13WnmY1bwJ1cV0CVfItjluZRmk4FXGuI+P6447XR57ONUtvrdiW8MlqFJm5xSfrUL76S/HYbFLPLWrdbcU/ytL1xeP25v/5D4dXBtRqJ8O59gAD86en2d0DgBINdgXQHbVGeQ+WkKwGNY3qmbS6xJ48PM92Y53+tlm4gWBjSd2uuHlcLh8/+pisKrzGDyIBd6aidhtGkHuGWSgvPKRZYL9Vl9jIC100pDoWsHsOYgxBNOL5pV8JidvAMUijZJyyyJya/e1YHh7xIFqZyMmsSCP23PC17nW/10XaySwehYvj2z/S8nEUrz3piOlvKVovIBo8JZx6Qm27FfrTdK+k6UjTkaYjLuuppnslTddX7V/5dgn5dgCNJ1MJE+o4g3WcOQ1oVKSdeibt10GS9k0wpP1KpH0g7YxKfnFKfiUx47ivxSRUGDm0wkhbd5Wa4btshhf2fsjKe1jAXeWvHYr1VxLrJNZJrJ+I9ZTM8rDF+uubWOdR5zPGQ0F3ekXtycvTsxyDh8IsUZLB5mF7SVCEDyaiWa/FyuCE2kXiovhk/EpEsjYkFHmE4VU1VFvcLJIkjgxB58LcspPE2RK4XLAbARVwFNnIo37lagPTyc7QltcSGIRXyYiu1dGW4gBBIfZ0qZihxiA81O7/1066/3WWrlCcWntQlRjpvIAImAhYl4DFi9AmYDH9V5I4diWJZTc9GTkc2eA+acedl1rotrDSpJL+TCrZ8lnXk0p6EWNw1gqz6GA0iMppV1nHaUhNXFjZeMac9iL6aVrz3h17TCvyjJpjUZtjedoPglwrqFFzp8nlAHI4DMlqX0zFsLmjaKiamXmTmY3tvCbXuXD+9MA5ZCLPrysmuqfDfZcU1MIki3JEkJbOglpr26DWmoJaRMCIkhQzqBVHnoNaZc+DWrFF4lbN+bIDu0E5MOFSvBxY7DsK+EpRwP5HAeOo+yhgzC+mPCeMKOCrWRQwTkKKAr5SFLDDKOCxCjVOKQqIGgWMk34Q5Kt1FDCOw4kCvg4nCthSExlnFAXUos50GFHAOKcoICZZ5FQZRKVtRMBU2gaPAhYASfxqH9SKc5yg1mtnQa0S3VSZfj+ZL94tnyaLLd9/ni/X7zbbePfLr6+//vCTmr1SO7jdI+PdI+NoHIUamQK0P1jMh7QXP8xloFVzDYVDvnBZeKNubmCyUY4Jtxq71m330SUCDSp7oUKHG7QTTbDgHR+nieWEpo4IPm78JLlsgm8eSDoggk9ku/MQuo3lg94S0aC3/a/SkYBDK30SGyMPbPY6eXjY/f43euNhlE8w8BNcyNOkAkkFhqICZa84I+vmMJbHl8XtN3pMZTahqfGLH+2e/+nPfj66YpKhOqKdzFbz5+WO2/7wOz2WvnAWk5YOPM+Wu4Dzb0WfCGgLzYenT4/PWxL4119wKQ5wDNsZbvJzwIWt9wwpEzd+kuhDykgetnb9E95jeIy08ZPssrVz80DyAWnnTLY7zRhTUvBxUhpWV1WaXl/HFyAdX3Su40uHjFqIvtYTHa9LXLlhzIMshg4sBvOI8D6qG1WWKqv+u3UTzhNbouJBcrXJ1SZXW8PVrrK7yejKKpZFDjk55KReO3DIZQFrdoxzZ43fHQPdeeN3tUi3MbhO0He93IYefvj9n/t107LAy4bnzpuKeD3Df/ey2BnH4+dPk+ns1FwePT2M5IGHu7vt4v/4V3uJXTtx4yIN88RKDH4iAT+Rqqy94JKsgs6KDjKb4v4Om3QicvIgBlF+rK/NlRZHEgpJaKl5De4/0a0A29Q24OpipqhSCGTgJ3LwE0WwbmXW05CoxwMpBuRW5rLdIQvhDCSEs84dxpxYjBzGkB1G3BrdoAnvrTIYUyS8lSG7vKnKAc99TFttSurG38i4oBdDWB8ev5tPz6zDkz6gvWYabzjg1j38hjy9KQLDiDTAMLigVyrWB/CI2vyrwyd0X8g0XogC4JHk2TgpfKWZU5AhkqrUgtDScFqr0MbjdR86eGNCt9MlqXcxPuxMDYMu+zZpqbhURFWbiOajuQVOYXp0w/pCN/sD4yOs/JOIiyu93drruP9h0CbvuQWgaydAAtV1TL7Jp08Pa78tLJ5C190E764UhNdmAcTnJsXxY7ZROQfgx5Rtwi/b0VWxebfwZUPxXS7OKY8l815FdSjCO+27b59Gw7IRKpgLbdQGMgfIHCBzYFjmQJIHNNpCPpueNH84mv+AAdtsx57UoT36quSVs6Men3bf+jsephRO2AoIRMFO5kXu3jt+fplOu2hyU2qyn02WkGOThcAMSK9WUSP6PoAQhKZGhLkt6botg/Xcft6dQtBUd6vrt6bcZ2jYpPDAGer2SjIPevfpSmxlSGJrbSO21iS2SGyR2DoRWzGy2Fr3RmytNcQWpV2o+uFiqh/SJBtvM41DrX7oYQi0KqIAVVtoi/4cUw/1pJKhlzTAdGmAHQMSngoT0tIYu85/xq4xWwu0JtFrz0M6wHKFk1lNu/zEeLeCTlMUWrQnfQO3THLEcvntC8pAlMLgcodAlKWBrU/+ftnhWCr6jkW/Zuw/Rl3lXQth6u9AxPTOcKpXEpzqu7efn4W/v9WKcstA9bPItEBcTzzS7Ig6G7qYIDtUtdrh6CjNJcqnWnR/Jwf25sMKaKy1LOM1BTQooEEBjaEHNDKGaS+uQwlorCmg4TGgkcWXqCGlIX8a8NTxgKfUsACu38mpXnEXIOReXOJltoodFxWL/aIgeQWhTqtCr4iidfyonvtt6fPNfv0yedhos/OIfF3a7v7GvcNnocNE3hVve93RuzJ9IXPkrmXx5FLkI8gs03aAOB2fSDujVhBpS2iFw6aRMhNv5Viw1EctV3lYShDY7lGgdbE02ko18XQZAMxypchTDjD8ydq01VuoU2t8j94nUmx9mrqZEJQkdkg2HQLrafKg4UJz0ELzUITFYUiSzh/m+pELKQbgRRaTpZJismR0deG6Sl7bYq6u1JU1eohEhiX9Z2Hf1GqmN77fClT0lOK80BRnlnjV8R1g1nm1s1NjO5vSlTrpSr+3yYxvs4PEY9aWeGyR/qBexa3CczM9NBRVaB2LtI2lIW0fh1ErGiuGmNzWRgiioH+IQf/cnNHaGsO1vdfoUgLnMlAt1122Q6pe4uIjbGsmzkqqLKLKIqososoiqiyiyiKqLAq1sojciV67EyXVEFnVEBWXdXyOPSE31UIK36O/dUG5buvx2Xv1m4xJYAcpsF0HWpssrisLoxE6+LBeL7GzcMwBBBeaVuciPjuXOm1iruJzVuPz+iOTh+fZbnjj3zYPG+AEsKQeLLh5XC4fP47ni+XTo1uwgMYfLh6Xoj9sNGbvNvzBHlAwMyPT7TKvRv/8ByClKxS3+gyVR6jQh8LV+MMJaD+YiuC5o8yemhl4kxmM1VqTah3AYeR6CXGZyHB88TpJx+q+0yGiRpJb3GcrK09QsmwryrIFmWVbUZbtIHxzQrih8k9CuCGEmwEi3OQZIdwQwo1loWledArZuwZ0uyJjC64Jspcge3sK2dux6CfIXn3I3rVfyN68RILsXRNkbzsbGtraF6lWw4HsXXcC2Wt3JxV7F9GF9mxQgTAVCFOBMFaBcJ5e1mW6jL33vRS4ZSjyZRX9Ug9h/7ObRTS59KpVXTWQU3W0c4hA/Xo7MwF1MPAGUPRbMCr6vUiB7a7o11ZCls6LfteXUfR7wuecin4vtOi3YJdY9FvEVPSrRR18GEW/RYp+3xQA7TgAGkLRbJE4hMfxPbR0XQ82ies3i5Zs5v12959nYD8laOdImvNt/OJHu7f89Gc/H10xSRWdqqBFSGNx3eI9nvAJrY2etuwjkx13dzs8uP8QGxWmV6YlXFCBoTmo8obr4w0aricGrSfWX48Zip9c1Gr+bWwDCxzXCdw2tcXHaZF7KptNQLeYqApbzOTBVVClv1h7UFgsvSwZTXqYhAQg5jaL4OsV0G7yc2EeoEatlwGP7M2nkgUxXEVUY9t4w2w1f17udNAffgdYDQOthqF2IbSXckOnr4ijO/Xw6PPLk9gke3gyNMlqb7SzybiGDZKgW2lwXSRcERpBwueeAKwivcrjTEB6ddlqF2uMDUPiOHR2Z13pi6pcFDW9ADlzJWiD2S23EuPK6OHj0462/q5Pd2thxsymWPygIYU6Tr+fgpV1nO2DkgZKuT/+1X6iitQ+gAWn4FeD0sIhjYBZe0plPT77MFu6aT2Qn/63YOLzUNfPZPX7ov4t+WIrXldGjg11kv8ZQ5pGUqNHZsCtyzSdTilZ2Cjs6XQunRj/I+g0+TMXWJIZtE+5TLCb1VwWS6SSZmTRyLfBi+Oa6WA4fU2WES8zvUYWAFjemvrTzjkvc9CfZnE3jgY+Oq/4MN+yXk+Zzd5VFe84nyCWIpbyVEQFXqacvSx4ttJQObwYeYWd6gIFist6ZG731fHHx4VJ6aM0E2xvpajy0EYvBxxrrUoAQRDcDGTIsaxaR1qVUxZDhLQ0nl1EqGqEqkaoakNBVRuOXE+GDgoaMKxaWQ4c9Zmq1MOsUi9p9JvNwKMym4z8DSBZXzoUxUoKRbFWoqDJB4pkURR2AhWr4LWXGhsl31uXcPv73DtV6H2eyGldrdclGq9LW9KPH0w/xcSfcuJVleXFQhCtIS1fZe7NHTERTYhh4nTUaWPEIJ0jLdin1SGyl0WQPuW1aC2AYr+sXuz3PF989zBbdlXwJyrLUkSqr/Ub0uzEZBZx50i/ivo5/9VzkyMtJsNyoZsVyeRDBwp1SaOJrjSlU+ykH/3iIRpP+gI4WHKm5AKTC0wucOAu8NbCuVg9A/GBkxgXNGpBTjA5wQ3s48VRfyrrWyz6GC8FdsZtS5ejBmpjTBu0BupI3z0KCFaGIzfDwAFSAEEbPWSaRDW6CaGJcpxFWX/qiXB5t8NGe3JIRDpSiRZAOCx2ZCJvBEbkqspqKZ1McgzaRNEZ/xae+XJFSIamSIZkjYdojRv2iKVnPWIegLpFTWI2D9sXl9s3R5PIdk/j2gC9xvMCSIrpKADtxFThHaSK1AmWOulwUiiJTvz7lPfotjglxIlkE/fYJq78cqYsSL+Z31eKia6qH8mEkwlDb7eHlEswJwfUVIJutEij6KOmtIxLvzqZGtBNWgejrKAc+Z1KT0YThQjJHCIdqzaHKJXUm1QSY4ACUp3CT0SrZiCBcWFZJ2uWdSLGxJFLN98qLb0Mid26UUZWDTlYwwnoNYve97U68qpFLMmT9E7yGKiLzjRlGvgqK63IjQssSGVCVCbI+WxZcv0nP5ssLRBNPWerZQhsNg/bK2HDQnwl/ccu6T/uH/3rdkVwB7Pp4dyEmKxjI5KcdhkHLYAzDBFaaUQlXMD3k+fn+avLoAv4oEwrfUEJgrqiOJwBUnrA9EgtwuDmdg13yZ0ciDcsm8QHwiE+U6tv9oS9XuUOQvakdIMyOruKf8KPRB6+bLuqSi0okTtaMcaVRN2BBFw8bln1n/+wHAceyb/gQVOCcG84XFueQKtDNSZPxltbwsyaVbtVjgkJNOHUiJBS+ejzjggp1iek1ISQEnEufCsSa4oVT5rGIwGnCkdy7on8SjAnqmKavfzjavmnMvBgtRX/7nRQsqZMMKJqJqdq3HoUwSaQthApt6APgxaddCfPPk2eJs2KIrUINMJBS2wpynbycjVI7ixQlcvozIwGEsl0ZK3sWKoxYyBvugDOJFUikVS7ZTjXN3u5lynkXgqe6bbhh4/zxcveS/lPc2QxCN1yHEPOmaHIDAMPGT+VJG8na4Vh3XJDEgOoW8kSo95QOlJYKAHaJxUzZp6MkBYCAVgSWFqeOdXyvJ09Z79+mTzMl+szBuX1Xr/d37gfBHRtzrF6GjFuaMQMMsZHR8VmKLkrniIi+7cQfd74SWEvFUsQ4ZbiYb5ojFGKtwhr0+Om3a9G4ovZO1FAL6op/BiyHyX4ggNPikWSjWBtI1JuA3coEpYG2xvemSjZZqxdtaZc9U5PVtaKqEDLpwBkjgUgr8Po7QSuNHpUiLyoKu4eye09Fiue43JjMI7gs0y/WonGd9Mw4Jr6iiO3nTbttyEkZQ0zcCXLhnUy9le8OUXjsOUuVTOz7V5N7EHsYcEelsuDDpuX8F2lM5hrnSGjmskIE+1XuCS3YZvqAJX1wm7kjOxIDWea2i3SyyEngIk14oXSyBrckTVxjM6/Qcys+WrVPnohrqdA6k0Lk4fnbRXgD3/622bVBkYCO8UdeFwuHz/6AEyTiASBsXBqQuw3jGBD8G4kl+bqLBD8W5fh2NbQO4qKrHMMbFFDew3oma9M2u0JvtCQPZkPW01X74y38hdTXKCRWH/cavfcVomUwtC9gIVv4fXAwJx7XT/NF2Nx2t284p9ysZoxZltBlgcZq/Cg+zqwl799+4WoVUm+3kpylO7Ky3Eo+4PV9EJQS4qpGIBVgpuEHMZZXPgt6QYMLUksLy+WlTqDLi82uLwEXH3d1zLqJLlMp8PK0NAIPpGh0aWhkXiIjiFbxL2zEJKU0t0O8nmmswrIRh6e+55kbckt5ysh3iTe9JOSd78L1Mx9ghZaU0FpIGdNNSJkg86aJnkPUklGOdGkpJwoak40ycyTHM5FmW62JikGUSUAt+gM8HhT1mEkxKZcjvKqpiyehpNXTfLxVoZ3UYZxGcXIOxbnVkmNzvMDvcyzQGOwSTzeymLspEbn+YFe5ln6mdTIuAvIxNb4rhXM4UUGVDIXkHwd368uJ0/0rEPJ0wsJSqJjbd7t2ZpPOfR4A8rGJ9BKSFKQpOitpIDsxZSve3J/mJJC/C4SFSQqBicqJKsZtqwQy8dDACOLDZJOMJEh46kpaqxMvCYfvYxZ0j/fUHYnhj283W7SyyWb1CZN7NuqM36DyiaTrtqqs4zGMAnlcKejk0xHYRjXq+Lgd+NNxQ502oII/1gON2oMW4o3CiNLeqk58ELO3GDugrSGthKZ+WXMc5VJxfBdUNm0N4Fbastf2YhGzQSoWGmOmt0N+Z59lhWG/i7qxHuQOcZOZqzsPjtePn4ykGpmdQgCT9+ykMHg6E5mf9nK0thH5MFZ7ebiaCCUyNX8C12b1IySi7JByPOnp9ndg9tqyBYqlJCZhzIF6cXm2JWDwunLy2153g+//7N7SS9a5k5Nfbay/O+w5bIMAP0pvMVCrWaxp39Sif1mOSD5+pimiCv/HyYyahxj3DmLQvnQYXg4JAy9CwRdnRuCkaLQnheWdWYo3NV7PDDF5FuHrzhskXO4id21fqJsd43lmLeeRDJLLsUs6STh3zF5mRcXEhG6CTZVCqql5iHY0yctRVqKBESftVSo94ZbBx8cw/RSSynLynq0I1JbpLZIbfVYbfXpLIatxwI2IN7UlrJQdiM6Jw8Pu7P+DWCEYISX7cOqtjfcCXASqY+dtFYHCEfp3okzpzp/iAHbBE51xeUJEOuBj9BgWHHSK1w2FB2RBBMQCSb6Y9oN1+NsbLwZYQtvQQKIIPzbVJ+8ExVOgr2taVznEqqWwa3XFebKYtxcWaUUsyCUopaNcVZy2GPFpqm3mKC6PjKqb0rqyeqa1YykZNCS+FwXAiYoOZ8gU2wGWk+mr3f01UomIL0Urc4xN+zJ6JG/1z+FIEQhqhVPoIxsMxcOCx2Zeaz+PDsxYMG98L2Q+owmai0/mTw4+fTpYT2eL7qcYqINjaZs2rIpRYvta+PQOwmE4jAS0dVb/xtoffL3yw7Htqi8QC8qRzWQdGEjc465j44jaG6L8K/a9IZ4NAZz4mHo9rWYCmHK4tSZxPHYuaHpb3/VX8Zr1ILy7+xeDlxeAjqCexxcB0WcAVMOHh6/m0/PA8N1Xt67tuMNYeILK5kfLfT0b/Tq7M9kWyyQd5LQpd4nUvEndF/INV6YoCBv54b90YaxDLvYAXbsLQetJg+Ig3OBRZ5BTdYs9QCRg2dJps2JG3vlk4yuSKaLfDR+Uk8dj4CBZtnAnSJSaVOd9d6LFRDZyjXuLCIHtrLN5WgSzz0+Uzg2gy0OBTzJCv904NCl975gGYhviW+9Ny/h70PO4zaSo9KlDN70ed8prMqGwFGhFe/xI7buURkL7tkEkl2FIfCoxQq9HG8G54pVp1xRNiFaPj4uHr2BDWmitDB5haxzICKGlqAv6gn6h9nSWgatgPg9zvIj0vmSR4ybottM90pDcqzcxMlXlOamNHdP09xFhmkzrSjLHXKWexVYkrswTnJ70goUP6hJilBz5CFq/g4T5H6OzTC/rnl+lXgokWpgVlQCQ+w9EPbWXKLb8hdL2bFn75LZxqpWWh2K9zJnbPr9ZL54t3yaLLbM/nm+XL/bcNC7X359/fWHn9TwmmuMsXtkvHtkHI0jp+Uk1+Y+2bUNoCVgdrOlzCkjd1HClSxKqCkOuf8AJqrZr8eeV9JZF0ImEoaAJm8hoJJfRq84Sof1Sre9OtJk1JUiMEH1c5dWP5cGXj8XKqBDgLV3WIAOma7EyfVNg0z2MCR6F3oQ0lWt4EpZKkj68oNeQN1cZarD+ab1idh1VDvTSo1x6s8guTezRu6HW8jfCqEvGSMW6xsiURvSyOET5pZNIrNsbH087tUQgYMSDMxbSI29hRSadCtY2PVWeGr7tL3//k1tC1WD1+tmxtfNTorw+ahTo6FScklbRLBFwcCq1EpTPKW+aFtb0c1ch+c0t/8FsYSvrOMZ1r88eXjeIvv88Ke/bdZgkBlip8OXHpfLx4/j+WL59Og2PSScqPZBlCE6C8XvNoyQODKMNOyXaUrYmhScmFNwyyI89H60HUNF0G7q7jRTqJBrNQzZG3dypGepWg/MKMrV2jxsz52ltY1mSBraPBqNt0IZW4YYE1ufc7tOmK8SMwVqMUbTS50tP84XL/vW2P/UmQj/b1999dWXZq+vSesIL07AZMeb6388x/mzMwkdF+HqKVNVKte++F55g5LImOgOTwYO2pqwvqtawlKb3aWUmayQlEuTx2VYxaCNv5w+PT5viftffwF1ZTgXdaA+A1a3BzbW0+3L9KxNZfT00Ipn+se/Oi681wxynFyJJvK2O9nMgQ0SipaH3jci6Rp/hSfz1DUT+um8si3qkd+YHBsV96B2sj6PlEgdj0+7b/1dWyF6UgC6n7kHYYNBa1Q91WgaudwnGYHHJwuPWyPOtSETb160AzHl5x4vuRFhiLLiIEBZj5pt+2RJkzIKUhlRBNg8BFL2RXf1SE5o+jdbQ9fo8EnqhCB1Bmc89YjDFHYdMUcQKrmyRHngYdt/91s7HTBHGVi3GhvuhOqVodg7k8g4O1HVz7NPk6fJTlHjB8c18mIQouWgz8nj4sI2JKxouSTWbdo2xWRtU7bm8tazHkIfPPncpOCtfW7EpIbIjnOyEUVDFUzZ8UCVHRcrO3kCJ1jOrwzIOPS8/8vSdm7iGWW0DpJxYPvJbaHZr18mD/Pl+rxUoJ5D3v2N+8YrC8gLPbshwu7fZo7aptJ6S+yWAi3L7y2JWDbbWr8b2M7GLUDGZoHjmInnuSp2BFMwheWFpBIAyUS8DbCiKeQzhAEBUN7b6DOEPksQfZaXFjgoA7WlSmngwLHpOxCbQqtB3r8D81ZCfCUtXQ1e+fSHuYtAmbuQMbdoZPcRAjcV9frulKhkYGzuq2iusMXLkxEVAeb1AzAvj3J3HbmCSaqEmCetlEWCzMujkiDzsOUXBABoQaB5BJpHoHkEmtc70LyswETfEfuMQaLmHUxvgs0j2LwWRKGcRc5h84BOFdQiIeC8ywTO23oGBJzn02dIzX0Ggs4LBzpP/8KZ+YWHB56XMwYAzxNqGRBmyla1doee50fp2krwwnm0zj+AXs44fAau2rsQjcWjWpXe1KpsJQ8Gyp6QCbXrDDJvCtXt3F0m83VB/hQHbuCYKT27gIrnYwLNRAXNzEpzwLur0T//ATDWoaJXn+cY9xeBcsh07d15VsdZcVDqA6VTkMPDxxuTJQqpS9sm9eAeCElGHNoqNh9vFYFvoE45uYWD1Ck7WjdQnQoGrIRNhoTV6akKicA6Cazzm52O7BSss3Pt2WE9CxivM2e5674dWG0gAXYSYGdfATu7Dl/oOnyZLyO1t3Cd9xC4ztaKwlDwOhm89NiXkHdWaA6MQMeNCDTUjdWx/6LT2NOWMmuyxq354OikKworO0GEDZb6QjCoCBNWqQwxs3t9p1cP05AGd2aK4FAIzL6XyzzqFGh2wC4gKblAlRxlMcx1Yt5dt/9wRYW2e26YVCbBE4bg6QHc7HCZrAu8WeIPmGKuTFIWeuKBIGcJcpYgZwlyVtNq5tEoTMhZ8r5Jyfv3vgNBnQWeJ8HO9gt2lvPgy1cId5Z6eQh3lnBnCXcWHgvlrL+RaAKeJeBZAp7tEHjW3Ikh5FlCnh0e8izPfIzoqP1zLTOOKbJOkfV+OZJMt+tA5PfF+lFo0xdyR1ia4TmSmm5jU5b31k6vnEb9HXk0rmWIpsKLyjGM7DpOF8CRTEedDjDR0YpDiRQi+j58RMYDGQ93GukZh4wqSnpfXYBr3vBZ7iU+zl3dlRH7OIUvHyfvtNBdW9RTSl3/sPo3r1UtRFoL1I1rjB6esGuMItsaI2ZZ7MOFNUZd9ZTrYQlL04T2NUZZ+GYshDoS0DUll2afJYHaZ4mPvEc0wqZVRYt+sFQkT5HASIkFSkpMTEqVNVeEErEeAggNixKhETGeLzBhtwZjS0DNBdLupN1Ju5N2J+2uqd1LjFhN26RhFTy95nvXXoJuuGhyGKEAQpPrFE2OFz3IWYXbbu8KG25VB9UEY72dInSu397lCwMujuBzP1ZIYz+UwBvZGfAGdpGHHu6GYHSALReXbtsCB6P/OhkEsDKYsNGO9uT77CrWZnDW9rE8EgckDnoiDrxsDSpCVmazSmKO7F6tm1s3x8Vf40wROBk89DZFwFRaIMU0HaDy93K6gbWwjFHna/pgbmdex7qOSA3E+I9jlSSw4lfS7XVy5d50ux9Z7FgH263OxBJvjvapOCTpBLf6wiugSHjUHYM8UPggqmkkjtavaXSsMujiHF2cWxTz/suQg6GQgUeo3DWO4vQG1qqh7YLk30kEafLp08MaT/2ZOZSNv15uEbN/+P2fATU5rvKQsQyGRDSSRTZjXtTeFklwCYUfsx0rijqi967lyqR81/jFj3Yv/unPfj66YuKQYtPg1m7Zi8Nr2TuXm868/bt6XlCYe0zk0QHE+xNHFr49RhYKW3F4DxKHBDYWHthYHht6LtdKnruHDDWOsxHeFB8thY0L8NNsspOUhWnNJj0UsTQk2JWknKFi5rKNmduiMk22nX4/mS/eLZ8mi60//3nDuu82pPbul19ff/3hJ7XS5DrKwPaR8e6RcTSOQmXiaxvj5tpbTXFcuOMMsezW5Nms4B5XtqdPD9F5QRBee5DkfS0imdTrdOqPTB6et1Oyf/jT3zYPGwTQ2EnK7OZxuXz86GPKjST6KwiknRlauw0jBOfxZ963B6m19VeJokKFq/Aw1K31ICqa5qZRdqVvqmFHaC3bBuwRssC1rtFhntERnYF5Mc5QZz92YDXqyoN8vNUADgWWmEIcy4q+cIk8GBqYIDoI1sS41KcD4akf6ozqxuunyfxpPPs1Vp/Dtb8GB8BbubybwI4YIb0O1x6bHJJ45H/+btfJHj+9CbJ59tr9B+IdVCInJVuObLlwbLkkcVA+4Z8aAzLAfJgvOIZWl0xYSUMl7BikvNhXz+VQptI4Uz3N87yHWEu+FJDu5xQZbtNS7/sTMARI2X7Ok41/a4p2IY89IvERoOuY+EhzGJoJH8V++SgG5Nas+Igr+OhoBm21e80MQgXVbUoGUbVBpUD2Ki416C6c2iL+EH4vgf8T+D+B/xP4P4H/m4P/pxFm+eTUAWkTdj/pfsLub/IZQe/3B3o/5UgOAmGtEtaq87rIlDm3CQgqlaBS8VO8UyX8HCGdhoh0mioBODZO/ua0dzW9vx2ubzFUPV9vfnm7yXqF0tODYYXSGV0Y9ilslOTk4WF3NL8RRo4MEywa7UsgBuKy5CVGcUA53pqnDtNNGpmE4aaKgOcQsJ0i0toHPY8Gcz4oN5X1zAgRJbmSY5IrtcEBAhfP2NWeGHX/nMRCZ6sNQd/Obscf57e3DzOAVJRUdkGafFxnOvX6VVbyFqw0hwc07pGgkqnROcBG5zTrvNE5rRPAw2xpHbmAgot21PesNBuhAM6KHujU+cSpe8uilsGYkaCCsSgb59yXBX+PCZxMhGJJKPZiO8cM9d53IjAr6VT6mIdHREd2GdllQLusw1k9pCjQUy5M1FXXbpraFp3TLUoM9Ps3Az1Tzi+arebPy/16fgcuKMJqJ1X1WgzHKJNpyIfH7+bTM/F4guO/vyNMyBm9qexcrH2uZETkTXuV3eIcktBBbbuMR76EzOCb+xR1DqrW9IxbNWPaBOWvOuPS1SUEAkA6p+7175Pg4w0/37p3zKqMu6aiijQUDRfMHIj1XbuorW7p8AndFzKNF6Iox6xIxnlkCBEivwdJEV4KSvKn0MjzF1CphXY3YepREsm2fSdv0xiyPLrMvE0CcY5xtG1T5rgmc82menYRZL6/Xz6yLUBvH1qYxSFEuFeUfjsbumSZeiNj++Kybplhg0X38JWVJEoo0EiBxiEFGrM47EDjiuKMFGcMO864qocZCx+mqtbUtIHbpBc5DzQzrCgIZx7oJfS7YJ3i6/DtOMfQpkTaZorP39TP4dP4bnP+DIJXMgjIICCDgAwCMghIg/XQIFhfgEGwixSUFCnoNHtVTIIbJT3cEKfTtu49Q+WRZ4Z6JYY6ZaibYBjqlRgKgaEYTXMKdZqTBNIod1SRQbNoaBZNz2fR2AZaSrIWe9izKZuE2Jx4WOm8cKdRv3pk2lfSeaTzSOdduM7LI3LoBqvzXo86T1ler6O6KCNXY5p4RDNnUQAX5WkHm52p0vEW7yUeIB6w4wHQ2rR5QwFlmieO5L6MKCYOEZk8hENTwHFhiA7ZMd6gHCNkhV6ONyMrBFECZ4FK4NfBWiGvjqyQV7JCiAe88cCrdyskB8j9V3dqNcNRq6+hqdUCaLWcB12axzj9fjJfvFs+TRZbifJ5vly/22zj3S+/vv76w09qUwXqc4K3j4x3j4yjcRQqBOo1YIad0XdxxtRtLFH/FqDm0nL/XOQqcrauD1U7Ywv5nBMVCFleIsu6Fan9JgmW7tV+h/mx8MyBVas1YLVjlalshRRCTENMg8M0VotDdTBXJ8BJhbIk1gXzyKjrpgPcFw/WdVEvkazfyuThebYb0vi37ZA4g5FcSd18vnlcLh8/YoKWyKQNZFbXVWPD9nKoiLogFE0qTtzFr0MZb1ZwdHdRh9h5k9iNNWuTKh3oy0IPyEomEvxnlhq1FNV9J8hJDfJIBMSSuDeu1pfikazJIyGmIaYJwiNZwz2SNAyPpEiG6pFkfhW67Hgn3kLUK4+Hm1ONAqKEzyk/SzUKxAPEA6HXKBSF10rJIu93pWRRUlQUNyqahhsVLYrhR0XLiKKiWrRQDiMqWjKq03Bu+pSMUs5Up0FRUWKai6/TKLlffSOjrYm34k2PQbsypgrooVVAF5n/8LImE3HvPBR0/XN9OEqZWc1gdo5ZTWgtjs+SX8BgMiuRCgPczMd5mdqhH3XEZrFoVjSxGdJZpsRmgvHjx4Nxa3X+cn8pAqCnK8Gk5ErD7H+VjgRyodKdytSzkmerkefb3/9Gbyyl8gkGfoILJQmpe1L3l63uZa84Y6bmxOzHl8XtN+AJs5azuOWzSsUDbxnxLfLE9S/C4bObr+0SKL8VvXgYuxfs6+nxefuFf/0FRMZ+VmsSsE7PAtaOs9px4yeJ+HwAD9sHtzNHUK4+TIm08ZOMTAm0s8zJlKhISnwwuuHJNBnnmWHMoDJL9A2SAmSQFK4NktIh9xeirw3fINEmO0NASDJvQjNvzLMN+4xBVJnrrPrv1hXSmWJPQQxyhiiIEWwQo6qOSEZXVrFJCnUQd1Oooz+hDlnegh3THVnjd8d8R974XS3hUZiOcxwqISy38aAffv/n0MhAFu/afOjMD+C83ixw97LY+QDj50+T6ezUKxg9PYzk8Z67u+3i//hXey1QO1Pjsifz5FsMfiIBP5Gq7Nbg0v+C6TgdJM41Z/QAUs7IqZ4YRPmxvgmhNHOSUEhCy0DQ4P4T1Qqwd23j3C6aPpVCIAM/kYOfKIJ1kLPLCyd7PMuCHOQDwwgPBln0ZyDRn7l2fXPiW3J9L9H1xS27HypBy/sE5ELorefA8Qp3cYYi4lZNCVadjc4mZ+q2nw1ba0viEg+P382nZzZ5XDfJ95p5vGFl/MZRQFZ9I/X1osFnxThc0HsaS+Si1icS8Sd0X8g0XhhjFBBlRTLOo9hTdUMKMsRSBENMQVza44JTj5JItu07eZSEyiU2vyuiOgr2w87yM5i93KYTFNSHaNwkomnEkiQ/krZtyhzXZK457ZtdBJnv71dkv+FlaCvbLTbNEZExBQsnQRoTtya1mzpeMraD5Xo7y62IWAcIZ3ggE0XUiqO//+FQQzfn5G6LUCLKHdfBxSafPj2s/fY7e8omd5NPu1LQbJt7GJ/7m8eP2SbKDLEFqTokoIJhXZ8nxr9r0uIgLU4hbf2Qdixya/furh4l9SAynrv2ru5BINPkXu21YpSNc87RcV/Eps490DO/IkIJ2s/KrLWsBXGgelwFeVxqRH/g/AVyucjlIpfrolyuvDuXizQ6+Vx2Ptc9xOc6caBCdrqYbkpLN7vb+MWPdg//9Gc/H10xGbtB/JGybiTsvjr++Lh4xMz72OcNFS0PZi8HHGst72ttv7MBVQZEkhAKGzU+XPFGAueNNfHGxfAGQ+aNdSi8sdbgDeVg1cen3f7+jjYtzm7Mg9E4pLQu+marzZHezm7HH+e3tw8zwFVvjsJ2xJdr/FjbeVUFy5CIYY1IDGsiBm/DrE6IoYBrTXDUV3KHs1+/TB7my/V5YKk+23v3N+7rrC2GYoiKmnnb645FzaYvZG6qpAtm6PZrTZe8PDOWibxSWYGrzJ7i0ALIK4kJXfF8ScFx1OC4LJsy3uYh+pKJo3tXjTC2FKrFUBJrPCLZASplJCOIjCAjI6g0XwKJcb9mnbpv6aJu5JBJ19etIlv1/s1W5ZDhl6uG20vzGcObzxiCdOVshDUi0tVcekUOhGvFf2tMlHhAMVhrNlZdlDhca8nCdVu0k0AJBgpKUETReNseRqAE9qAEl2ZnpXp21gnKpLb3MaBsaSLSlsFgDFwa1TJdqj2m/v1BBvCUolsmlgssMM6TThEAyFC1N1QtrR4eu2zoXztv6OcZyQkQ4cij4BSN6ToawynQDMr1XApTA6JpEZEQcrrQRefHxRCuvClDq/HjUohxT4+tRkzb8dk6CZQBDzADzrMJyXRk41dbnaZ09LgOK27mX1+rKCoCNCo8Jc731YVq9cr1VuLOdD8x0qRrTJU5kQa7EBU0ZIzVQvboMLOXrE0Hv2UqT3+W6FsJrC3jZW8lNF+IggeR5XbD4jucboPFpoY7yUE7yfsjcHbHridycv3Yl3TWD8CsyjLUImyxIrS5FEQjJW02gspHMJPO/GBWwQga/sjletOkJYihn2dlXhVWpWIOogZQi6Ql2kClVEMtpeK5V2MEsZiqpz5Dau4zpMdEsmaWKsFU3uuAdTdquRLuhTPzC2fH4AVqLY+NqisBrQVCLQMseykclb2Eo3Stg862gU+sA8AsFokjOMSC2rug9sKeJ1dKlO4TIRNeYoUvk7m7/lEW1m9NNzGrsX1d4Ewenme7ab1/27zXBN4mqV/dzeNy+fhxPF8snx4x2dcO9+aqseEP1sHGrDQvGrwa/fMfAHt9AW590GW7OPIXhHLIdBLcIazjrDgIv/dTh7t4k7uMdWOTDUT8YqlOYr1mRpkM+tIlMFk9tRenAQ1bpto0xZAbiq1RmyK1KVKbYudtijQKmdoUL69NMab2I9R5ohKzOh31YVAxXbfcULV1rJJRr+cOxwTuS4HnE4LO3cEeXXzc+T6MsDOB+xK4L927R3DfeDDgvgmB+2LBGpARREaQYgkE7tsbcN81gfu6AvdNGOkbkL5ZEYoOoegQis4wUXTijEgINwBMIDo+QHRWhKFjgaFDU2QG62gmjDB0kC1fXV2aECIdOnqRVwydlRMInaZfepEYOgknDB1sBa0PBrAiBB1C0CEEHULQ6RuCTsFizEznqjcAOivCzyH8HD1QgSR2jp8DjBhAzZEF4edcZo9Pwgk/x6e/kBr7C1D0nEuCvktAWABeL5wZX3iA6DlJYt6cXWGxgAouk7hD9Bw/Ktc63OwOPaeL4RUVnaWEnkNplRM6T0YOxkfvSeESG08DQs9ZHUvDMkLPIfScBuunhJ6j2ySc5ISeo0VT2TDQc5LSA3oOzU61n51KkTVCzyH0HELP6R49Z0Ct2Kio2YSeM2T0nJS6XI0sF2C8tuwUPYcMVXtD1daxKlyi56ydo+ek1J1I3YnUnUjdidSdSN2J1J1I3YnUnWjmIFAWPcAsekrNiV01J6bUnIjsqw6hN3FNrYlbp5taE6k1kVoTqTWRWhOpNZFaE6k1kVoTsTo20lBaE9dm1siaGhMvs3wqpcbEgTYmFizBVNvr3vQlrqkt0ZGSSxxVvUtEU/hdiXba1jrK3HVP4tpBYUjLWKX77RY/z8BRuqGG+mD1xUAWPIHSP579CamNnraUK2PFu7sdG/6HWO2bXqZWlgk17MBBdgvX1wOG64lB64n112MmPOXlNZp/G9t4hHGdI2yreaJxkWae2gkS0C0mCO0E/e54uLRS7+SyqqYA7lHTIz5r03BQ/zO4sz+v3NHi2b2Zlinrd7dxm+0y/6e+8Fg3dyQiA6P65eOuQdZPdtLNPl+MN/T0+HlmGt+SalSYH6ekA0mAU0QJb+WvomM2uEBIuY92D1AkX7S1ps8iHx1ayGyLK9eaQZMmZMW3b7/go8aaKmHA4TAyYn436IrP68baxEH4uQk3cfoTJogdY/TOZ4bufbDCtxOEB+HWqqCaSPHZ7bHiB2UyyOoLxCHEIcYcYrc6Oc9AOK/iEGUkebaaPy/3GvN3/c6saybOo3MGGXA6lurClHVhWeB1YU2OFpyhIQMHWNulycD5OcEeyrkg+dqMY+drG5flrFRqrSyVIoFe81wNq5akqjTV66Ruy/VhIJQN19JMHViaFnfTVamlcxPV/EzA9unKQZXEFTAKgr4G4lriWv9c62sfcha3kBuVGs1UavTxabfBv2u4z2I4dkdIxcCMBuMnCKLb946fX6ZTzGwGSurgZ5Ml5NgQC7vr9eWC7wMIQeiIRpjbkq7bFs4Ytd9jl85s3q22V5TeXEr3CRN1nzQyNbtPV0KrtLX970G2P4ENBAg2YDp/Rq237mE8OnFdinpOos7Y7l5ZPQ7qhJIAq8hg+fMIUF4tjNITOlhw6GCmowHMhbfu3KqCe1zZnj49VC8IihSudLEn7mv+QM5oRgbmjIzC1Ki0SlrqKrA8QtGhwlX4HWIgPoiKpmMPUwxWBA5riV1Hbbg0xYCmGNAUgwCmGGS5t9iLzxEGKxphQCMMZCMM8oSgyU3MFlhzd+6quZusVF9WqnXccrz1sh06hSvnYwzylGQFsIqIIpIdRyTzhBBykcHmLyJNEl0cwLsooryGBJRX9eBbFnbLg6Ynf2muCkprRj1Du7/pfYgOPeyP3IGh9bpE43VpS6fAB9NPMfGnnMToTDF7yQy8sHjTjgpdArvo1CdcUiRJPsFGXGhR2JZNVVWdVDfV47qpPHdRN7WnjEssnNrtvJvKqSLCZ2hZRRVxdLgcXaJw9L0FR/e8qsoLR1cKXcTS90eWZlQMObzQY+GOOSQmma4mLiKfS+tFOeQJ4FvBqR7ycuohC3YJ9ZBFgtTzd2/T83dPPX/U80c9fydGNMNczH1vWv7u21v+isJCD8vcpnFh6ra0gDW3ykjZDqzVa5E79AURK0iKEo6dCdUYZmYZb5plxrGMpv3kAO6h0PMuZCTXCUbCvVmNYsmo7ugkKKLpywCLFKNsXEQFumRE4mq6d/17txYuZeTNJHGWmaxkByfZAUQ/oMBhx4HDklHpBbJE1G6N7SBmS0WLxvdvX7R4EvYtY6papKpFqlrsb9ViyUl1GhqCuipyCL4BVS2GWbV4rIgolQ0Ezy9PNBrVdDSqn/VAQk9JXaTU7hZp9KoFtQBRPdRzxjqafsqRBxfA53gCpoTrDVBNBIjzMeKstHFR9gieBJ190UgFPnGDfB+Ycs0EnJC6mZ9Hc0GPtPdmvDheYWUM5RjzRy/G8llu/fUffv9nkDjpRKyaD4UnM1b2APkGofsGhoM70rPBHR7KZkWTO2wetjVN87KwDr6QGuiYAXQDbanxXZP8s1Mq2qFQw/mFpKJCV1H+yuNIHHd92fI5Sy2eFfEw2e6XZ7sfYhJKWImb+X2lCekeB5CfOWlafLtapPSMOa2gZmfM27pUqs643NBcvWgVR6LLX4u7wKj7MGyAodgpxU7J/iL7q0f2FyX1BpLUKwHFxjpFwohmVG8SBsJSXtYs5UXMFSCX675V1/pBjTJNIJBDdyERyyYu1r7cSl7PiiV4kgAFj1wlDEpPpsPd4E7ZllFkXEFDmvhUE9uBovQj9y8b1mfzsL3qNgR8VBJw7JKA4xAJWBeWxw9GEF6eUeTrkOw6TV2A56pJhFilVJS4JN9Pnp/nrwiBFNSjQMBYS+rC+LBLpFyA6aFZxLzNlT93yUBcHxeNCWrAI3XoVAHGJtLZtrpra3/hx+dJseFaZo4ji7ibvpJBOFeymVtN/1bSHZ6QAsE2MiOW5igIjUJDviOVJzk6EbEc86vyo4Sovizj463ax8bI8kBuMZTcEiNyS0UfBr0hCY7cYn1yS4XklohaE7cCtKZH8WRvPBIw/JVgMHTFCG8hoCbnVLI0d2Hn1hX5x0/L9eYSduf/3480GZmYp/zET65WN959AsCsHnbllhSqq1NWaW3Rta9G//yHDZDx+S5V97X5s3PgzawO2LF713j/MkuEcF1tJlq+Bx5lIh6trqw0DlX6YEVvRESRQnNvy7AayovQ09yCYZ7SiBpjDZngNlDn4eQVwS9nLHwlN0j2wo5FXkJoL4t9veoPf/hfLYemaedFMpv0R/WDP9rWZmW3J8MMDpbM5PbW2zQDHNcDVIaLwcDqgJ97qpKNNRDTUqxBS8xh8ezW4sAPzvXHFkl0bBFn5RWNz121OXE7yKzDQUj8upqEjU3HvogPbNp2WpAXwcKcALeirCfvDnxaz1A8PLVmKP74V/tOgDYRodkMAL8mCCwy4A0cKR/AOGZydepB50/cgOqc7kIY1ZZICJEhJ194JQxSmmuGOdfMr5uiFbrQ5L8Em/+UC+tk2kjrqoTcNj1qzgw+rAaq1C5jWM1W7vRuWM3UqKy/5Gzw9paKOE+GmT0+WegADWG/OU1PwDslj5wbLIq76AcDyIEUTAV0xVIcSRC7MgkxHRON0ilyTNw5Jtwwud8rwd5nF4Yr4xnK4sLuJEWtHg/9VuvvNrEmT2yzzfl5mHghU/LayTTZC7hM+18JKcVXPo7xccnKkZ/Jen7oOXZIz/EImCzk0bjkvMvzFW8kkYN7dHdz9WIkt0nNIOQtuObfQPBegeuujvF5niDrM7DFZ3rEDCoCYJWbzKg5oWRsvLURzGSB0WnzMAWubGWtMtd58ROXM0osKlCsGCXVm+TZSdpf/efa7mGZnkAXLGeL553NNj+vXTR3E7VnYLbOL9GZUmLEULG1fxirwKZsPcTEp3BJvNB1aiBcEoPXiwyOw+QP01y6P1sC5rQenpNYAJm88rpmHGReyqMUy0ercJr9+mUnx86rtevctPsb81SG+QRhbREoAn+JNcBbpJ6A3gu57IW2siwd4Y27dSWVgH+unQKN/BbJuj+vzLAo8QuqaQcVjjti7qrrSXQcCuwwx6ollRvGmVxJxFHnSuLsDEkH9EkHYI48l7JW/f9rh/WyjiW0Qs90LGSPr8eXoEDOF89glMtQ+Tm1msMx64ukExN0HAVJ0Ey0s26b4JLIccvpt/pdpsp2s+ys3QxbcenNpMKv2EqiMHsCvtVpA0D7zrFe00nSJBr5OiNFbY7Lw9pdjmsmbn6XOJk4eUCcLFi7B3Y+lR+VWmbhqGUZtU86633+thuMh4R7uRR9MSu7mZuOb6a5Ay/XE7flLeULFRQFQs48PunKOTQQv86MyrukHcSYmH0t6uDapAvdVn+yoASKq9LNb4++V2LawXDdYLP68q90sVvUrzEudEyjk+T65rxuZ7fjj/Pb24cZrNLXthPNtW8tMUhazrW6/axdXB2DN6ciFagQLJJP8m14EelFlxA9UnXcLX/RfO5vdrZYeDaO5tJz81ZWAyIbpPNlynCVWEGeCKTbPvOtukxNbFpmhcC0XDwuoEB7vQSo0Uooch2LFo5hbAKCYyvVipBDSE41oTPcl29P8VxONrEXBymDtz2uTP3HoFPz2g2Dokw6b3vdcbaW6QsdDevahg4wLOTWoIKuiZCiNkGvBFrIK8ySZJ6V1mrfdMSV0pdOOQGuGAKu9AYsVpN3mEPeCQRxZWWEuLI6ckuMH3sYGJJKGo23QiVgNBX1NR1uOu3DeAYf6Un1uBp5EFxwwMcHgWVJ+YamklEPhxpwf5fE5S1z0EuKvcGMm3XaZaElFC+ybiPjfXe6kT6mj4v7KxcDcYdY3WF2pB6quYwWRmKDxMaFiQ2zzXVVBLozKmIPRgWq+JDxV7dlTEZb9JEUz5JelKFlfHKRZWhZOuAJ6ItzZfotfHgddF656WxcDeR5l7NxQbnOvo9fPfRwOhikiTcbN0vCE0iuQhALCUDkMWOSGaBui1mX3II6kaUjzwOYg5iO7VIxdJJikSxGbtn3+44OQiFvG2MpqSMAWsunwWSZAFlMli9P6vrHzZ+Mn1+m0/ECv95et6zrIAbdnNd5R3SEowzTehXiAyi5Kz6XXwkPxVkZ/a+OiqzzImEzb9gbe1GZsbk2j/sYg9DcG34dshWZXmZA0BnTV8KRSp2p1DnEUucs4FLn4PW5n2Jp6DHsJU7OBmKOiZliIpBzV1YmMplnZJ4J9paj1oCLyFa7orZfrmK/7D+lQPQngg7Cm3sBfnueLT/OFy97G+U/NQ5ZgKc2ada+/8ooU5llkcDs3BDi4+dZz4zOCBpZQsnQyCGsdev9j5qwG5qDDczgTco7PUpLrZazwZvG/gSbUxwPUV/hRJJ5OwYs8yQccCdqRwywHTGP3QB2UJq8YsrDmch7E/E3czIbRdTMeGxIzlNCsuozklWeXBiSVW5QSzKhDvohqaw0rA56D9GTYDvoJ0Yd9HlOHfTUQb/jncwh7wTSQT8x6qCfHLmlNM5ygEorCWqu+yQDKjuI71mbNePxVlAPCD8OqfrSDhCuiHCrJJT8L1gTvBoQPAxYXFEPq7xkvDwrvdwQxq23GDkwmmxRZsGsyyy4LVlUqwBRBgdThrzXwt4jKB1EsTvSnc5s/WPMp2CAmA9MZswtqgyG2qZRuMixoNySJs3Pu2mWwNiiQo2D9qqCSYC8iBiDGMORHTuH2rEo/FVpFA4PysIYREZBN5gO01ziMLnv5C7irlSy7GAnaHlB8FK9HHgSFHTFfNTvYeuXmoso4i7ZhJLsreNoRScXaCq+SPtTzT73W3E1p2p23EBzkfSkmn3e52r2gnuwTgdWyj4PsZR9ri5lL7I+l7LPqZSdStn7X8pepEMoZQ/EsAqmlH1+NI/z8ODl/Yvo/jZKaVTM/mpkH7lKDZu9w5lPIOgxC2lIgey2jk97AMEXmaqIBNwmivzDAJGkAUkaigsYGlGZ37iAd7LWDiLwYR7Er7BDsMhxA+8E4QBA3b/Aq9RSCUgiimwtYI4w75OlRQrUg6luq31CAmoigoEQzBfE3HwZtckxKKYVWrXE4uXjzezp+dx0rGeBJ7e349mvMeWhRbpdcVjq93HVuWmCz9lKgxIlty6SVE6hYmvhrYrAWtzJkmHTe/sgzen3k/ni3fJpsti6Q5/ny/W7zV29++XX119fvfv6J/v//frDT2oV+bXb2D093j09jsZRqMUm1/rUavZdjqL2ysic0J1LQu1cZ5eVMG4DSy24M1dtMxGg+6mkAu/HOFVh+DCMVN3JELArbMlqOpo1Lcdbkd/b0azCeakuPxnQhYc+5rVMjCPTmw1NHh52v/+NHt8pnxB2lNEQaMsh0OIHzy6iOaDj8WVx+40eb4H79wxu+bJITROYO4SUnqx2Wpv0LugqA7N1TgqNEbRf+5y1/qTa4sZPEv1Um+Rh+6k4aX8LFVJ/OjRt/CQz1aEZzKNN8/HWCTO6pErI6eviHKSLc7AuhgriAvxEGaroLkTH55ZoC9HpQLRwDnvB5V5l6eMqQVozR9bCuUALl6da2Dz+tQ9RRZVu3yr38+S+qE2KXMWeuIpVcUMyIp+RfEbyGclnDMJn3Ecx00YU8xjhzBq/q4U4lW2yhmItQhjKCiZ1BiZ1Hiqps5EEOs4dqSsKDyzTuSZ4dWm9cHa+uH3Ze4m+3HpDsrea0GejzUWoDUnbBzeWTKqPKpFARVcsgDlK5VQs34LALDu+yvndmd+a1aVg1EEkDsr/lPI0Az+RhyqBM3++SjZS+LwwXyV3kNYqQEKt8OSiDI7Uzg4xQJLTDAKC7bZBX2Xu4ypBerlAdlEKgYuSn6e1ENtjUnn0BeIR9NgXSIL3BRKlL1A5npljyLivzrGjWodMXiRsaJmFCfSguD4vn1tgd2O4BAWSH5aDhjy9U1Nh/Dr9MnE3cffAuXvREXeft8iWeXA6XMYGk84Q+uR7+P/b+5odV45jzVcRCAGagZpAZWXWn6H2/m60uoumDS2abEqmTh+21c2WJRsHGFzDc4/vcmB474UB2fBT+FH0JEMWWewqVmZWRmbkTxVzI0BSk6zKjPji74sIF5N5K/3hGvDtKcvNt6dTtVB32d/d0+94R3l52OBhYu+A8zC5Msay/gC3rqDNHp9nYgvy9dd1mPEXl5GEpBaqLxnUpmRQVckYrJ2h7Foxtc5FiKhkrevinWAq2advuwyrCj76XqC/0Q9sS5qNWQDwPUpYMJCGYSC8bKYQPY3YFRz7PR2xgSRJAuAqXA0PJvC5dp++k35cANKPT99sVpcbztvW8nh3872qPdjf0CDmn6vtSxB1TGhX49Oh0sNbX4XaF1KFL8xw2vMzox4AaPnSVidApPuPlO6v3rFSaU5MAZltRG8753rb8pLZNbJGk+AZwET6DcK+9eR842xmHt42ThcJe3BGOIlkuCu01cgz1W7wVGYyj9d5dTOV+TIg4mZPzjuP9qKRAmZW8sURKoxkrMI4AeCIxcFxFAcb7aRxBhWsb8BsCB2wRDiv8XOEg6Soe4oY5U0WMKOIZc4MKxUPg2K8YVCCDqu0ZXelZYun51oCflJPRawuTudXkC00K97vvG6PDTQ/f/znAPothkrsL+vdpRtQtccVNj8FLH3++W/grjHAW4KGVcIvDDJHE/ANSMNf9wJaYuYyFCTMVAD74m9xzuxKOl8Sqjq8CZb1K5zAghC7YHEHBQuO9kfdn47uk8Sx7itYFzeqzA+fLzRz0dJMGphmAg56wXMZdPmwZTuqf3o2mCjWJzzwztXRQp79DafYutC7Xy+kAO6TSCgBVkWu0abMrjYtTOzcr/RXXk9XOZhN5VgEoxwLbeXoS1Aj6zmct4ajbZie2vNj9NS8emqa3IgwsNS9T7cQ+XTtaKuIPt3EzVbuMb5Z2NUFsJ1DkC5Tw3jXNoxpEp3AcWlTZdMJ/FUwTuCvUJzARUfWSXQCoxNoqoBpEp1AbCcwTaMTOG2zlZLoBIbrBDLrhvHOslJFSzpCS0p9WVIv9sBzTc34FRqwyK/IVsd6+ghhJfNcT49g8QYW5Xi5NNfppxexAK+bXqqceNGW2WDRKfZsvcrROMWj4Y3R5Iro39dptqrpcihtppdE0oVKvqHpeGuMMQAcnwmlE84149ZdKIvh2ajsHKWRAqpZ5KBZDM+ibTFWQBbDM/TwLI/h2cTNVhbDs3DDszKq38TVr4icUesid9ImZodkaqNfP/ql0/FLmTdWqhd4n8ioCSbNjEp3TrhAErHMK+oZihBgQoGua0A6rX/7izFwDlSnWovcCdG0auUvYLyvFFzgXgQVfx9jCM685qJij/hyoyoZb0S3aPWmNVXJoB+Q7ppVHMV84FzNa9cnmKtTGPgt+0AFGkvsRsAEc7eFz4noktPZKAwQeLqyX0skmFv3Nu0uF0+7K3jT7o7/qxR/YSX+QpJI5ucxiuynqB0lxkn3ByMCt0tpXTnoA9yFFEPeisiGFvPardQDYq2LZGMwpGrPadeWWh+cycSan4k1PxdDSQ9laAsT2NAsa092wB+iqydUOltW1j/s1tuXOuzY7H7ESqzcqs6hBa6S4GqFHnJkfOAz+gbG0zjNnAp1CaM5ssYUPAeypzEVGEZznQfBcHTFXu15J4fuuGFfHut5qLEvyBL5mYnYBCRiR5OIHc22M5lFw6FoOETApJkjwT5bkUHhDA6HfzHoA0w873yUA8szC5NO+4vm1rv3m+3rcfPkXzk8xt4n/vDpp59+uPjDJUpeRP7NkZw7mUJVls48TzpHFXugJHuqW+FqurhLVPypBtcy7XX3Rr0A26edQoy0ggIQV8bzTh58s53v7/vp+7XuGlThvhkYIElFQJC04l2n/lZ6c7xSu8WhpTXGCMasIxiyZQ6o+WDZ8nE0Z/L21T1ukm+LpybXMljwHUVDgtk7NhpRAtYDcr8L4CnnbU/5ZbP95nG98+Ut8w0NEblYt+qL0Yy1qbAO9hLodg/cbXyuLOPz+rvXOuN9cegdBkj9N/Y3yN/qOyVq+98Tdc6N2hcS0RcaS3ypn1wagidlPkmGuhPn06XNRreeEq3Oe56pwZ7nDoUwEWpprt1crWRPXEVSUvJdRxrWP+yv52H9MH+/eXjYfwWI66pEzT++Isc1s59MFPgoSqfbCATWMEdZ1gPZzXDEHg/XzcipRdD16UTkWUxkm6HfZLuScjYF19q8/W8g1Wrey4SsHmfVLiaVy5Vmi7KLbBE6+18tXWTyYQSFJfaHT6gGCLnmUhkj4bmeTFReIjmR2KYZVIjpzNI7F2IwazAjKHgEWDhCgKIiJrkdlGjyKnrv0Xvna2B5rVVQc48f2yFHiRJkP3GCg8LRbAOfDJ04FGE6XLPC6VCE8Rq2a2elFSGMYfAKeu5HdIY0UUE53SL6AiKqF6lNVLDmpGXpfO+pJQFPVBix1Kvnqsi89p3c3YLRdOwxXWG4Y/zCOibURSdFINMAxoAdHAd3wGiKoLwGEaeN/WS6d0JEkG69V4zwesUaxUJvqfd3Heo0wEC645UjWWl3fIrXHc8lEYKkPBXRVVCCa6fd8XS6WETV5xM3ra66ofmITnCgZtFruWUtGJVP+jfqq1JCCHSkBpXZEshxv/05nxQHdFKSeW3F3EQ64tFJTq6Egiuf0D/nDoVy4KOk4n52yutnP+ldSWNzZ2zuHHdzZ5nG5k4M5kDJYnOnhebOkkbey0gpdWUB1wh+41LspxtTP12ZB9BPV2azseyN47eTWO2nW7XsVpv42k763D++HJijP//P3w/xt0a9s+M4Lp92u6f3LmjkkO62m94LY5isRJ+pfTP7978A3ubSsFBXFuPpOgUZPMHJnGS+SmIjx1U1criwBso6l89r1I3dHPZcz4rEbo7YzRFuN0eVxKjWQU6mckJz9Mh6jdTE8VATywM1sfS67CksSQXE8vPapI+VTojd/RIbe9Roe5Ur2p4nvUKj2pUHql3ln2rn7xzDpMdVcHocLoElUtqmTWmr/FPa/Om8TxqajU4wLepYZUYd08hZS4aK3SBgnBZzDIMKVh6oYBW+f691xMINezhHrMEEGxe1iyQkUrsitWvU1C6SJJHahZBGJEkaqV341K4DxMYk+CjraySh9hoO/BgEDWcV5h5W1bxGEmedAlTjLJn6WWYIEdd5eekYV9aRRJqdeXld7g+7JlD9l8ZNaIxz5uUZ1Gf7JG0q0PnhUfI0F0eh2dAiTdkweYkJtjNbaVMm4BsooktHzQAEDsmZhvDm6sJbaMCIYF+6OHVTzvSDR/uKK4pGJbvMS/Euc8ki23Z4W4Ezy5vtbv38sq7h+eeP/7h4mzuuh9X6L+v3v939eIKBj3+K3nBPsysL3rCji+z9xG/uX142v1/zfv1/7VXhf/P+x83Ag7wTIwXGzy0u/n3rrNzq5pIkIYFUhKZ1lUdpFcCe3VeNaBfRLqKd3cPSBbkxS45PtBP+dkS7iHYR7Ww//RWinRj6z8lpIu3u8uLkCXFhqQcMVl/CbjK2uSRi+5LAtkl4SSt/lyR8CTeXlIabJRLe1r1+97n9t3FzbfpjidY/bF52x9TmH9VSm8vNt6fzNZFz0ZevH59+x1MBHnEPlEXedv/9y/udRlWPtTmujbqD94nzWZQY6CHZhgAmxUglg9qUDKoqGU2tRkiX1SfQneXDPBggJERzYo1wt5UxbxrA0pidJNDgGHh2ZM3G9CQpEqQ2kSANw0b4mWgheBpxDDj2ezqjQ2HXC42lSiiqFEGms3zlJI5G9T++/M/ZTTKemqFZydDSsVnOV3N+Mmp21OygNNvSY4tV2Q2UNLa8tJz2A6i4UAf8JWU5T+8mYzRIB+s9JFbKjnaakE5nOP/9Wmv8iJDeiJNNSTjCBW/y4WiHOXCXQcmsrTaeVs4gTfE3NV9gnPaEk4EpDDqbVRXyiHGzqr3NqiQl1nvpxGd/xxUv981yd4JmubZa5sa9cuoGJc5/DnD+88GZwJj/POhmqM6PIqnN6Z92R0H33ho6FnolgMSbAetaxKnQmlOhOdY9b7f91Vc677VX6Yx9VR1nxPc4VbUnt6g9HK0OoImWnwrrKeeqpS+leYv4nW6mmbC0r1PaFq8v/DYyTalapkkEPUG0Wt+1MxuUjDYekclW2Ybrp2cDqFbA5P0puRrHSWhiEdaOtxWQkBrOVVx0JD1FGq4NDXgw42ntZuYYT6PE01Qzng4CSIOMvCl1MewarLNGsBWnWQc6zZqkZL7/RzXzOM3asSgqB0w0mddG0s+46jvjcdXQcw1pHjX42U0HTndjAOZo4LQt0efY/DudaUckrXXA6XRZ4vigiAgmfI6MJjQDk+VgZ6Sesogzocc4E/oAYr5nQlvUWirQWhdDn4GvNRAISKY6E5qDUeDzdhm/3xjI+S8Ctd++vl+un19kqn//8DDfPKy3u57iw1u0xM/d6BXnvzkA6W5gVx9ZczmFDQ4UJqwP9rPGwmuIhVeaIbY+mnoFyuESSULsgUb11hAsgaDoi8NrS2XzVPpYdtfCsjJELIMatwh2IwS7HBHswM6PejKocItuVtwAy2g4pJ348Id5Su2R/TdDrl9lNDfb9lQXjsfsaq4Ll1yN+WP6Vy4O0JXMCrwBIZ/XhhU7f2xfeog/6SEBSw8xkh7PCUXGYvdtUD16jMUevQuasEy1SOevNx3Nij261g7XQSev1oNFLIlYMkIs8fpygfQOs8xB7zAqqAi1zm+HsdY7OulDZnmwzqbwLr3NGwxl3CCT1rMk+8aActiN74Tlx/vd63PfhLdLI/s/mb+8rlbzLX6juSqvphlXZue8WpkcwTABTX+hzdp9BLUw8Q9mwz0Va/zaTSuuLbWHZHo1Nc4UTNNXzi58ZQe9fUoEW8CHEfQkG6OBV305zZKGLUG9Ttfbmto3+CgtVcDnBKsaxoUG35TmJWeGzPZpW3tEmObd+qok4Mhe5UXTqcroGviMX8CqT4LVOsRKC0mLa7Hp1iYVdBZpQ4/hhDkZmYhPxleLpRJXBeIoRx8t+mjcl8tQu5t5gqvuLo4rZhyXFyjFRHcodAbw1AkdULaCd6G4f3fZn/Wy0doQk+cJx/ncS+LT9+uRuZ4JNMmEsltBowGGiKyhH5mDrX1OufvaETt4MjJ5B9kdtFmdZclr6V8KZgC0cpdZru0nu2oiRoRo6OiPdni42c7PNRVvQzXlVR3QIBCNuw19EkiWWZ+sOVxWsy2/nieGWH29BpQKjyPQpkvRyXILxnykVmDkA7UsH0+jhyXSeC7Up4tKHZU6MKW2/GKok2Wyyq7HvwCTUcTftdRLo3TyhHu//ZhB0dV5PYIONOon4Kjfg1OvXCOUOPkIkFdad/NR9de5xy7LB5xQIE+MXexF9LB7kln5MsZWUDcEJ3kx4CMbvWGjDCS0JBjOxOVYnf3FMZtgfTyzagUztzkqejHhSdE51qRoOC/eVsrY0dzomDKWKiQZT/g8kunROY17m658og7Lg+5kUsWGNIByklWld70hCuP9G5Rhca1UXCt11FM6i2ulhtZK5ZlDqxzIRbloWc3jeruIQyfxjuvtFHCodBbI+2KSTW3BXj7SBXsBisxZCyoXG5YCUBE0WIn7m0Ld35Rl89q99Li/aVKCDvA35rU99bIdSmWO1rig+UM0VEqNYrqCfTJ9ReJos9V4QKGf24UYQBEss3ntZ/jemzWqa1AKB70O0S2Ihblmlgm7WjmkuPNrlDu/imTme+fXqBCHKiCOi41i3g/tRrEiNbCvrEiD24vgFV3H2zrvcei+5RsTdC53pvYLxwNDp4oabg++5g0iQckkYI2ImiC52Vzool+0oNr83QjpjiE90ph1HWvilFPlU8LVZ1OlM78r0WwrTJh7RXzKhoUtJe5hsLFbLICVl+H6ukBPtxiTpxsdiBgT4sWExr4FnQWzvCdqhqZmfMCkNRbSuWBPz/Vr/KQ9KhLW/LIMbCxYW1sa0PAwDEyMV6CuLvhlht7UVaDOAVuGZiss9n0tg5kBVpTIPdnGCBR7shGTGcXM3lBpYE+2gwHXPohFS5Se7KWkBauo4FTuZezJjj3ZQ+BQOuvJtmAUPNtmfk92meipauzJjj3ZQfVkF5V1135aPdlLhz3ZJYm9kLEXstbT0qZTHUgv5FKrF7I1hK+kdmNco6FwyziKM47iHFTz1Lo5HscozqX+KM6SaS69HlTWOJyzI6vUV1hpBYctmzyjh8PMMpVZdCo1nUqRIjD0rcuDItF3HEVZAtrLEkDv5FYhn0YceI0qBzPkIbpfLT8d+hBXgG9m//4XDMgDq/3FwpNRbpl5ZoyOVZvUM3SHcRBljmpiRqScgS6PnQ7ZTT4Kfgrw3tj+ygM7OHA5kZDiANtmkSjHLE0563rvHx5GuKtX0A+OoWTinnVvfF6tJbu664wRAjYbBfEYH0w3Pvhgt4XT6wsOLjrWE4mT0a3g41UGDCgm8VuTJL6Az+pNWBtzTlUbZNNmXgTBvg9Y8ScB3Errz7mGwngI32hIjJISSSJKg1UptlaO160FPnmY6ARv70uS7LLrYr73YJ5WplQmbUER4xTHf0TwTrXaPVyNeeDzEYnlXgFxR4LwQw2i0Igo4LkjA9TryPsMkfdZYc6NGImvq5ysrlJ3hxNdDu8uh20fVsDMjdIiGmOVdgz5cK4hGGFq3IgQJngMM40wU+HRygdp5Wk0ZPierjrdvQqKVnDlVTxcM28qRWK/AKd8x50trXNs+lZ4LOJ1NtuFNq1OOuY7kS2EueZJqrUgJqMaonp65Evd6dDwhqSj9/+XT6/bh1+oLk5Q69P68n4n3AM0JHpRmtGoEiMfDXzJWQCvOIjSonYkyqyR0YAkAQrWeDjMKT9cM/qweaxHq9lYR7ozf8rIAnZEmJEjohylMjLf+76aw9FO4K/u1GQgpyYDOzVQdyYP1EDl/nQi511DYLqR67ozmaI7A5KTa5QQkAuTBejC5OYuTNZ3YfSzTHWapTiUjC46PnhMhuh0x4TDRfMLncXMQ8w8xMxDlJaYeYBnHm5OyxMv/rRo0Y2lXfeaSJuYUOAlSCtVDRKoahB/qkHEvWjBSD7RBdLkUt5FWbbt/e71uZdfy/LOtK6HV86MXIspJk3NSk16EU18GB7ngw794N5/Y+qcFAoF8pQzPomJa6XiV+C4o29fZf3u9G/N6FJQqDiFhW5NKcpngaJ85g/ls4CjwCyUsnMOAs7cUfAXpXkoOd6ktMYj1TKfJTcK/qK0qB2JzGfIAwz+MvPgL+eVnRHn87CZck0hxmEKcRidThxGL0SvSSxUgMRCTHIBU6LbqSREt2rT/h6fvtmsLsIP2g4+jgI132Pbg/1mDDE/gBeREYWIjIpCWd2fyLDbOTJRFGkcQ5ZGJI1QAgEpohWBIlrhD9GKEfj5BZKfD+AtEYY53OTTLVd+EZtGslkPzm+GPMZo9bULoeV0CqFlv97fG3Z1+jPoIiBx+f7onKaJfEeYb6Fb+BK5ReBu5gLByYTN4jnEMWNlIMd4xXK84n7e0NuewzQh2o19U4WoOCpeMwYjmLNh0AVJ3XkmblvTleTSweYN+1cgGUVuV6kbsEvDGj6C4InA/JCDyzpOPyQ6sxadWUPgPzgR+ASOiQoNDpA3gEaDikCVBnz6THyk+EP0Q6/RAUY8fa6QwKcGQXBSzWsbbGSBnIgxC4mdwMSJYXf0mcK7GDNdAg2va7NwHID3yPPJeeRvNuNo5/F/5TMOft2cmuE4inmyCiSx4ea2/vWuzxWMm1PbDhFJZuHsHxm4OF4l94Rr//Nf/VFT3W8LeIGX/LUloSjw/esjFOga7KuiDkUdsqNDwMexmqbhKWNjuEg4hksolffesoOcp7frujTXIk2b4WCc8LiXescNeyo3xzi4QaF317JoA3KQtLO5u1m89/u1Vo1CmE6wNo5AY5AxJ/lsbpFIUKpvqzx414okmFF+SbVZV5DDVP34nXzLxl4Kertx2qTPM1S07nP2+DwTK8LXXx8e7M9/E3A3BcAj3joD5DhR4Lwd4TlS1cwQ4BvS9gZkQ31LnWC/sh41WQj9WF+0xysVKmBhQQFXBtq3Aqme6GKZpSqUW8BxTtxYtQRDOnFB/e6gN1c4vTl8STXGpByTWbuytjawEZPKWEzUXc+46CLARReHsEOblQMJSFT5NQfosqdCd1Y3b/beGsopXgn8pRu5H562EyNtN/H+8WVdOzp/P/gl8PQh6QSGy6fd7um9C/Iad5P0V7w0Yje5eHxhSHaR4/3nbb+yvtJ5LwCQvvDxYbVp5PzYVFF70sSi9nC02m5iUvOpuO50yztKU2Ozt9DNyBOW9lVK2+D1Zd9Grj1Vy2yIkCcEIVm0OzNSOS/mGL//91+8OKI87deSM9ImHe/fCR+31eQSwkcWfQERgj/39lxRmvfu/rx2orEpK16kDGBj5jWGenlrFWINABE+hANO4rKa7pU2cMeQ4Q49YwIBPZEqZvMa2PWEUusMiNkZEEhJwloKifDSkY3gZICS1EI3L9B3wTsrFdY/7Nbbl9rEbXY/XuThnx818/AGGQBp8p0/f09LvFLVdjLANxC89HvKXOoaNdM1qqBrHJ06p/TNk7MLQZaflzOoH5iz0qRRy9wyD+LymYxIEWmnubUpLtc/4bZIOvRWTqr8aWH57hbq1xUTsiEmZNMMJSG7QEvIprk3XsOgyvrZP4+3Z5ZDO+1Zjt7VNVAirfF9cXsx/vT8Q8IR1q/vl+vnl146tA0Hj+v58/rrR4AUfKGi2ol9ltXbwTYH0Rxjpd3iLjljR9Ae+9ENgFaz0CS+dXVILbxB6sIeigpSIOLzssskXoiZxFTaArP+YfOyOy7T/qPaBCkVlJCQGC2+vnCZAWgIIunE44fTwYQMs3mGoutz57BVFjoRQjAtHyxmmZjUwYLqE/OiT6ylTy2iXvMYrf69C5eDEnt92Q5Z1kAuq7BkI8XbFANvUwfyIebv6nZEp3VHNE3cdkTjHAU1FiAmai4HClCGIUCZGwFiQ3syHcRIVMxPZrxe5AbTMoVo9I0iAxqpv5VXhESBa7sY9LibP64xGalf6GesvrhV30Zo5pxkF0fw8rpaQSIdNTQeXJ9ksRtl206rQyWKx67ftkS6cNBvCNaC2E5/aSZpEW4rsN71XknTvdbhxNb8qI9RH8Nu4NdT7MbslmMzu0I98DsMQOsdnVTBaeVtZAAtpjMygCWx/zr2X/vqv6bV1fdfM2kiV9AHdAuH5m4qDbaDulPs3f9JnQSYb/HnewB3r9/YOa/WSgIBu0tT2jupFFA/GP9grG/NSUR5DZZqMx7C8sJtKVhkVRjoSTlGn1fx5ZjmiB9bgnqdaR5rat/gI8VlhyA5yvzRXXnJYVdvn7ZQgnUIVWcCmcgtkYJBniWwhEgx3HYMcGXp5DNr9my6NTrLXTtQgB5DgznZRHwyvlrc8xI3Ro5y9NGij8bHSNTlpvfc3N40Y8ZxeYFSTHSHQmcAz50sj3pZ795vtq9HT+WvCqf8h/3Xf+gdw+XgnPORg5zPPE84zudeEp++X4/M9UygSSYCN4IoPb1EeVm4E5kTHR1H7N7ceXtNySybvIPsDtqsjhDmZdbvBZn4du5Sv1vLZKiKWrC54uIsFFQ7SabN9oSnuvQQvXQ9FAMIGANETjDw+iC8S+WMQWKzbMbQ5xuCLmsBcxIsosAKWHe7f0OBLPE3wG26vC1mo5HJH+qOYbKT0Rs2yqBbhB78hageUT101cPo4QxHoXWGPWbpFGfkM1ubmq9nRn5GvczIz9LZdc/Iz2yOKMafkZ8xuxHnncuIM9ZGBqWTzmyPn1ctH2T4bJNB0QnBab5z4TRneuBvMyEPTRR1BticE0XOEu9hJGQCTGwhgBDzFWrchRxqKKeQ7hRSSLm93gm7CTmbDwNGLHjgUsxr9HUzPFykwb4uhDi4EM9Do7MC0Ntl82I82WqtfibtOdbSfiabI601NDHwgdZZ7jqlQkOCJuoCmizM2LZ6gOLRIpgnMzzyOyvDmxjmnps0YWsC5qQjzqG8oE37EZCFvoBcjraE94TbWjjrvmdCXVkULStGqwRULKlVsRx6cep85Job+5JatpWNqaqcdzJES+Qkoo/Fg8HkhuNVCc4FX712UaAMhxixHgXaleFcZNTntY0ZNE/GLw9isPzUHHoow6IckzsfnRefYTTB0DoyFa0jotBHM6NaBdSNE/XMeipXm2OVE8jw8A1P3SJVuaV4OZlZW0kiv4bRod5mhr7vRL4HSXp+Fkazuj9I2Vzl0bxFBJQIKIEDynhOQoxqSqDYeAmpLS9BKPWaA5xVnsXJhOCcep9KYROMhfe2DDgPi3EgboRH2vnw9Fy/3E/a41ckXW03s3//y+x7dU046XSnrH/YH9vD+mH+fvPwANoftD8dnrkWEGs5Ftt+4RFE0b+XdNjlBXKHzD1i++N9nMkQZzIMGowce2bYSGcy3OvPZMhL8zb0+9iGPiyrhbPeEBc4HEQb+j1OG7rUSLZpMW3q9f3jy7pOCf/9QILV8Fg6tmn5tNs9vXfBvoC4Mje9F8ZQhNJmeyRfJPr8h/V3r/ePm92PF4+XtttI678B38mtwnxk4mD+o8rB8GxGyzYUJGxOGEqMihTJ2PUcIr/LCHLo5PMKyh7zvLZpmAjsTydiolZp6UKAYNYYmNRJnvN1exDuw6P/03n9HvK3wsmiG82+XZamnEm/9w8PIxzzK6C8YIi8uMnR8ojermAaz+fVnYRsbmELMlbK0HX5kLgZKAc9nGqThjetmEVaOrsdkXlQnXrKV8mkM7D2lPhGRn7zPDL2fcDy5wngVlp/zsVR4xglm9nbf7FA3lEoyjInwkwCs7wcegGa1K7gT4kSRKyXIMJOUWtVVQT69fK6VHN1LgJvKqSjKn0hEX2hsZ+hGcmPGfeVg/si9ZzmmFKcZRsta52w2R2t9dZvOD6Syz0bmGyQZAY8EPjiD+GC59f3y/Xzy6W+0ra6foPunH1hYDZk56VQ3Vf5qGRppLErlVqk/9kq4W+6pfqTlA3tVSly7QqNI50IytmLRRQD1ysz0CrrcqbuJLGZryWK2mLrosPF+g1Z6JFBgYQGSQv/LeDhoKtGV/fj0zeb1eWaa9Jh5R7OEBM8ecEoGQpPm2BU2HHsLpjNbXXnXJ1Z/2BxSCqTBmxQPWcB6znrBYKgzdibFqcog3+wAeIKnMC3VN/RyboXvKz78mW93WHGdlolzkR9Vtytm7y7lUR6YcAvxGhg8ZlmLxMHaXZIp1fMogeZRa8Qs+g2wVed1zZ5ht/Y09Ei3poDJkEDjuBpJQgZ4NVv7jfbT3bP99tDcun7PRR+slfdT3792e1nN5989svjPz/76pdvwtxOs9SfntefnpM5sYqPxvliRUKV5qeRvAOa4eSGtzrioQ5n48hgp4IMNpmBz4bn2LTy3GVqluc2VmyXzlTMUuvrd0nwNMeefpeJ1yS0TQcDMEUpwBSyYDDSEYNozBDHDLHTDHGZOprfFLpBjPlda/ldrgeXiejVZR7eRhsEmNRYvUHUAxypbUgxbEMajNTJqT16e14OTYsl/u5BB8JIHQkjE61DAQpjhiGMWUjCyHiP53hRDOXtXbw5rVDj5DkarC21g17pZsAE/Aki2yXovzGwlqrkq2nAeOt1vAE0//0vRKT3/5dPr9uHX6hhoHSfYeu/fHm/E13HoPxdlxJwd2GNXxl6rxW2UkxayED9xfQaPWuZ4+VQTMeTRWa9/5KpZ5EFH0aoEpHZaDdL5sYuUcH7Tg39KzH0r3TjEhW8H+6GCaqyQ+d1mkRLgE62Qd25qkDOVQV2rsD2S8PkBWvzSMI7QT2bRrjfrrP6CMWskZT/ataOknAfwdC/mp60gVyNSt/FwhNHlNXBhGq+u0t5pXxHS782caxHsNPXH3yXy1Iqm8XcTszt4McHx3pXNotJnpjkiUmemOSJSZ6RJnmOVaS8V0Vi5wpT0ft/WavEJG220rQFiUlbksQWwHVK+ok02EAAMotSqmSpesuXVMlQfHzKfy1HTQddsBpOkm7vd6/PvfRolncWyjy8HpM6rjKEmgrJQArJ8JwzHv0uG/rBvWOaq/dhZVDoZpwNH7lUvwSvcHLl+V9l/e70b83oUlBYjaUFVqMU6gvwJ8pQjUNhHBWXvO/UMAoVhlGo3ETF5UySO0NnPBCYB0QSR+Hw5NSAl7+cgj703ytsxZi0mMGmqifaEXFwcqj14l4FFb2VKRdnSCEB6IhDz8xZ6Oko6Mz8B52n5Etle1rHp3cX/7412bE73d2MVTILZ3uF2v1BlHHR/9aAtycpvb+kExR8EPVpCpQQ+mVRr6JeWdYr8ANZbZqWqGhj5UhwVk4orvfe2vLFL2G3P6m5JP35GvDG9+Xm29OxWqhW7i/v6Xe8s+SpqiDJwk/UbEVZGtBGtqy/kK0rabPH55kY67/+uo4P/uIyBNBdMw8vKWFJBlWVjGZgvXA1mv4KubN8INhREiIu2ZojVP8Eb+59rbUNYEmHcYA0OPpsHVmzMXICzuDAQoI0DBth2SeEPY3YIRz7PZ3RgQFoLVdDGdxOkTC49U8XhIw7KlroepSq+R4EHuyPvxV3FvH4AFSBD5CJiBS6P1GI2vnUvpApfGGONJepMmrvgtaTS1A5ucQh1FVIvV8hIGEl7u6DYqGwJQzaN0NQ+mYI/80cdsQRwqvDKbdLVpqTm0EuD2KsUnBjFXmp8AqbE0g6ze4Eks5CaN7hTg5Kz7KYzcybcRpXOgt74JvVVP6NpzGfjhzcgTme8AQ6G+/YBIIULAVNud965T44mLTGSRjyBl0eJP8McLn/sb5h6DtU27OxantINgMnDPApQ0Sk5ZE04Jo00EBaMYYhvQIpMra3SUgtbsSrxQUTIOa1PRzhoF2GRlzNRWOzgQJVYAhU4Za+moso6A5dOCYelpvxhuUKOqDTs4dHkxS8UXKz3a2fX9b1K/788R8DlmBxmQlfv//t7seTiH38UywyXwDN4Ubwbbyji3TiVUl8C7SVda/bY+vyzx//CT2WT985W07u5lYlNXHrxmvEdy/lTts9m4inEU8jnvppy1hotGVMStRGhad2HjYCcATgCMAOAdjS614JYquZrw/nlAG10bTkFomFULXyvCsd5a1dtEXRhNnuXVvg9K7tb3Xpr0dk4bN3jSZZuOk94W1pdhq6eRs31ybdbvb0XD/OT+rM1xW3H1vzwwt5a5/Mye1soH56Nlig0vdmecfkarU2TQpMpib3ury0yayAXdMQCWpkvYJ3q60QTKdYgvf6fnnBHSZu80PtxtTnx8HG1D//DTz7FfCOEoLkDQKCiOvSRt+QIrWBHhBTSwHDwFJEDnYyu/g9cbvoAPuLEukMHkmh+M61enbg9/xgKPoprYcrq4T+sOWv9LusxVOEAd/QYjAZ62g+r+Eem0Khyt6GqaqI9wKWY756N8QMBCVvKTPPJkMf+Ia/l5e1gIFoT8QILD3gHtXGsXpQlB42+TACgNBpZGcUX5dosj2ty3DMArsCiwZw07B4+O/sJaDvUHn4Sd4fKTTnOYij68GRjh6SOq0UqQuHYUgWEwwdsnSKVERgxfJxCQmIoT8hp8neRKV3Z+eZ2vSqGySXFs8uFWTDxd3ILmgrHLWgcGr34ML+bZzV3pXe2e3AzE1rXuaNyzGZm8jkibo2rvnPG4V4RU3FG0vFHM+m3WiW9wldBjMCcuO0uk8y7TzcmDlKQrlxzYiKmTztTF4WNsdDFXpYiMijegcsRFZU7JiaCDie/Yg8SLqoYIGTcFraZhj2+XrWLU43OUgOh8RiClJD7MXFbQ8WX0odcZdxlW70diDJAMLB59CBCMaxYRa7PMIEYmvkom6G9PLQeeyijSjXum2RC4rJkgvGaOxilBP5CqomIB/Z6xqoRaRAjBjSGktTgptjVH5EvWLH1aOKMn688N3remScBdAkM+txAu9Hb9V5FsYOcnGFzIBxejwfUIeu6j3KjZyrkCBSEiowDM5RsFEwiXPer0rxQhsRqG5f3y/38eGlQ8q6HQLz9XeYYHqrH6kLD1gJ2FQ+Suy13ZASMY+vZ1xxw1tEZRWuanv3FuymSdC6t1GRzS20TVugoe3GkPuHhwNN01SilM5KKdMJ0bdETaMlvTYORkkmgsQMEQlxKszYpCR4If717D++/M/ZTSK1HOvvXu8fN7sfLwQzbZuO+m/sb6QysCe89U/p0NftozsK2SeVDhmZty9UNjF8WCjTC8O92X5/SP9iQMMQFZmdJO4sO8qpkDRBtIvjQfwPyNsKmoM/5h/o7CZUdOE5V2JHXe08uats2rCbeoXd3p/0UHX1m/vN9pPd8/32kCX+fo+sn+yR4JNff3b72c0nn/3y+M/PvvplS3FaWlN/el5/ep7Mk1Dh9takD/9WPX9h6qmnZMSI1DHffRDmW47OsPbacjyst7u9FOKbDtp9Rl6d1XKYgngjA5U7MgNfGa/kt2kBGR0CMqiBUk4ZRIgKCaLSQCHq8k/UK2LVSEFXpEEf7Aeg6Uz36eT4hIWODWg5ocfr3lMMc4MNc0XgR/WhAsk8jpv2bLdmo4xAgjjVTmt82q7QczG1QSuLm0rHTy4lLsilKDxPB3xUrVw2lS/nBY8AndcG1umuLS0xFqzW8iPGGW9nlVcxVjie7h4tmyvQFMS4EJ/g+DZ83fB2sh9B42QVaGLZh72U/W4iB4gLaVVxiFH1T7j1QYbeyknvJyW4I4HsnItgjo/o3h+fvtmsLq6dtjMux/fCZBPz3H4yFAg0br9wYo6zsIEm3lzxQTWwtrr6WJmz6mwPyDK7cLzTi2pVA9fNf2qUVlqyOV6x/DmAmMnaOfDT94MHo/73X3gHxnta8cRR+J5n6xRUFPXTrKpIjyP1g8+pg5ahnjg3iuGmSfQP+7/+IBDZk7ISHdek6vSzn+fMbbbfPK53oD5Py69KeK/qwK0lPLe2ufsiDE8GeITjdG3SodB9b1IZyLVJ+Z9HwFbf7UT8+8+4KmRtPN0xBD36OmwWhLTnF84PnbWOYzBWLdp/3UBAqeQXQfA8eEeJaDhKqZf5oijKXFhwlKgH+GfyPKzlMoRM4G/ECaSTmjFw+HEamR+n4LVEmdnYZyk5fMi41QV3X4/tblXxw+sNz+a/hWwGJPTLokRHiZZJNPiBxHIuUY4GlikuLAtvWXOxnvgJnGS6GdNcQ7RAOTTN4ZLQ53JzlFlwRQP5wH9kH/7xOfrwBmaCouOHtQzTXcvrdT9QSCLfW60x+gIrGEfzaMtyHgyFbQsetMOYI5s0uinYW7OtPQupm1YGtYRn624JfNzBE3fwjGgHDwtp0o4rV8BaBWIrmtm4kO2WbTCzMlh3s42Zmp5oVzPnGzjcGZpglt1sHey6WfjadbOIu26ipo1q1c0CfdVNp5Uvs02DBqucUCY9brpZ+Nx0k4XHdpZHSZHhjMVwzpIAZX7M1GaO4HLpzJze7EzUX5jBmQWLSGYOjMycjYnMzJFiFwTmWmwboaf2mmphAinNNREhQQ5U5tIonc5rYHDaxSl4g1Tj3Kj6kBTBr/YsoDV+dSpuG6Q8KmYjwUUkhCHgZuGZPrM59t9+vPjrV9737g5e5c//9/+pLd7m/da3h5f73gy8X/lJTL6OPlv6Rf6m8TDZclJZifePev/SDJzFs46gGkE1gqoeqNq7LV1QhsnatYOq3fePyBqRNSKrLrJaPUE38OpO4AJDVtePE6E2Qm2EWu2uI8cvNDHstW2q3hgDpZOOrawYZ8dWVml3XETAQgWs2CCib7o1uTb2JFi5PyQrVrrPblUjAC/woNvh4lbDri6rdR2ZqtqK5VJa4HLz7UkivcZVfKJMm8jx9qBIXBmcNxewWdT7a3TcCAEbUKA6oD0pOIoB3JmNpBzAu0Axrzbo1dF5DDLa7ZOoXmWtQ9x1oy3aVU7iEIM4xEAbeMpRDjHIqXZI7dpTcdvnHUNcbVXINZn1jgVKOWrM0wBnOtgNEB1fheWWSKGSNyDIHDdqbbXCr7Szs7qZeCCIwywOPQgkULPlFjjYfpTKftQYfqmFEGjixt7enOWFgDD/Nv4AEsM0gJXFtsUrbVvMWTBti9vrbFvcCtoWty39zGPb4ujbFvMsti1C2hbzIpS2RWGWnoCy9In7LD0RG1GLWXqi/uqgPsVUq78zK+Y1gobQ30mBAsZAAkb5S0BsChgTRx4WBYypvzpIwDJnjbBU3AjLxDtJMt7+zBNcFnFpAgITtvA9Yl7szIXZ8Cl5XhnfG+6zRnmM8nj+aZM1BoWbNQbFSNcYFMxBrHk4niXi8SzcHU+BzBlecQ+z9+Ht0+GN/v0v/S++0yoS5GkbgTbb+ct6936zfX3BqvbDKFCtX//5419NiFD6vCwlWgL8vobCJGNTkmMShVfg27E/ELibS1iJEt8LEXmnlREvpJ0TEE2O7kxbBgtndDr3uOqFZL0C+kd479toSgVYe4SAGOoqtv/uSwFM2vLHm+2vkuP+898EdSDxjC5ls7HXrvvHx/o0/o9aslei7EI7kxpnPlNZrtwYJbJ5jcDYGTvh21AsYwb8TcWYqkl56RpFjFcbsKSUV2c7IUSZaLvMknDDC9REGp+BVjP8gE/1p6sZxiIiKyIVYhLFiSo16ED0dmprwTNwMmjSq4i7XggU4nxVUyAoE1c5Ta+WwvKKbW0bLq64l2nsWIkdK9r2fZxrN0sahtBjo1BUlFAVpSSGihJa3hXJPDUKmVuusIAmAKHluUF5qqrsFl32AeP6+YXbH6+gi/yEFazwcn6C+kP/CLjyolNdMVbpzHptRX4Bd3hi6r4g0+mmxkSSwryIEzlSfWHPvRVxfEF3EKWdISqW7VNotEqzNGo1gxM1MWqiXU3EeX4d7RXbtypykSIXaYxcpLKMXCRlLlIlrZ+iKWM0rR0JrSJTSdeI4j2pqbnsVBqrdqWxnVe7f3xZ19Wgvx9IFnAtIN1Bhk+73dN7FzV+7sF/xdOGro4cXxhBSSrNSh6agCgzAMoC2+BYq1YgxIiNwKfG+Y/1+9/ufjwVSz/+STcXQljaVxBtU9GXZBsGoFLL0otwJARp6F/eWTJYhEJNKORk6zsDvepDn8M4IseHhfWdy+9ZHRkrahEZ+08WqF7wnPNVywXPkHJezrL4VwPTbJww7U8yzjItrbNq5Ek8CzwaFujpDmmXAPenh2/11HQNwv8VfQERmk6unDijEJeHxoAqddQYMBl5BvgC89rWuTtfeagxDjz9cI1GxDAzIwlNCmSzpMdo8aDJ/aQ7xDiJIJPNa1Ovp9Jap03GctpKYZT1UUCENwqoUQZprf3W40HrJYn6wXPH2qx/2K23L7V7tdn9iNWZeeu0HVNLZQJvyKwKl/hBx4IfVAE/XLRzujobXpKk99KD/aAskXZ8PT3XX/XTtPm97aTb69Ybq7f56Z8//tOEvwC/s8AJvSxJrBMUxGcfybz9YhZLaGCogdQc3ukGeXo2SBspVEX2x+QqWcOS9JpKrphMBZZkkdgXiX0jJPaxhEVinyqxjyW55SFjoczXSTzM10lEy6mjgEMFvBHXInpg4/LAcpse2CIYD2yB4oF1o40KifAhj/IAEqyTRdBOmcYsAo43pGljw8BSz7kD/pAaRsh4rVDMBI5Ph4nvTOB4NJNeV17/Kn1KErN6DpvtGcm86JSDRKCUTJklHVbA/t4f1g/z95uHh8c1zI8ybRawTQBB6/ZhpLgu+BUC1Lw2RV44jKJDGu/pI1iMfCQWo9Gj6U5ViEOqB4WV2U+Z3ag+S+m7u/YaF1qwNAlwvpFR2VR7b3Msmzoqm5I4bcJ18TUlMVsx+WxFmky6WjuBIWYsZU4qbQFyfGN1zm9mP6Wjqc5FNvAlamQumtfdQIrT0lHsbg+1u50lybwmnnjsbp+kwKsnXA4XkLJwL4BHNQj+ukNyd928MErVEC7ojWnMHTXQBwUWeg8JMpCi5thqXvsjvjvsQ7sOggbfPlvwWVqAW/Ad3IRTomns0Q+/R/8A+7579ENDIIqFQC6a+F0c3o1wXRf0VIa7/Kn+1ueA55q42HG5FYt6IMsF3w1vFoxUg0G/UbO8H652KAfaqear21Q29Yev3D68Ld21HJWHK6aS+Fxqlq4d6s+WXVo5R3tuL1HU590/fCe4LmiSgCTtCVqnI5pzioIWV8nf6qz1FEVhHrwkaS3Q3Spg2pIBH8IPiIw/V4hAKeJm44PPj09jitHAeEyEtQJzq5CMtG2axw/bCubXvWuFtWkAxk+Bv2dsyNbfvdYZvgsl75TH6r9B3/mFmRx8eV2qJfIuYjwqchDUvpCIvtA4y1cgBo3jyFMrB2aUeA7MwvZYP6DWSzAyiLVa2PLcuJl/5cM6mQFfidrG2Eg7qtc/bF52x+/9o1ox1Jt54tRN5Nbn8embzepCwzv6fXx5zMwhD9nJENY3yH4juh1nloGmQaMfpsvywWLllx1dQGRoQlYg1qaaCLiVKqd5/HSm+ekGpKQE7qO0Wp2MxFUI1i6Hnh4CqSvq/EpK1WApShNbeUahi4wW6muSp6XHkQZstFJbUa6xYjR6KKdEG+UOYSIv+GsicmF1MEIq4NB5mIeRARSf96lzpCnoSCnukUrSgw5YWCmPhSUgGpBjRubDh/8Psxi8iw==',
- 'group.kurt': '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',
- 'integer.kurt': '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',
- 'integral.kurt': 'eNptk0FuJDcMRe9SayMRKYqijCAXCbIgRWpSiNPtdFcPMDB899CzTNeuVBT0+Pk/P7a/H7djbq/48vNre90GF+E1A6fD9rLdr4/bjPy/X474dtO3X37ey8Jfio2zEEA1oJYBKsUXEPRFszDS7KWHDV5DeBbKIpZeV5nFVhnK0S1o5lse73Hx+/b6x8e29rcv3G9fmN9/fb9d36/3/divlxN0U/c6u5mCr9JWV3aH0TtEDatDKyM3C6wDFRVirIEdgWVO1zK2z5f/A+Pfh77tx48nFhC2ziBijQ3CwpjRF2EptSD6TJ1qCQx3ocIldGUvy7FT7SAnrLfrt30+gdh8YK0AutY0iRZUUlirFDw1iGwWGV60e8q2PltUXnWtEKM04QR0j+MJUyr7xJpGh3fUnIg11QWDSdLP1qK1ld7OdI5UzEgMmFe31YGLnWAuj38sbvfnhNQJkyVbHUvS+nxYgCTTkA6RxxgOjXJgvLDhUIWmtERSU1Np8wylx+MsjGgmmGGrblJ9GilGujRXr6Yxv6JalKKQAuocPgsK2Jhg1QsBnaA0k/fjvj/L6jJxwKiaEYToHUcrJG3VbJwM0GZFECtVeufqTDxoEHlpsYJxnbDm9XLsl8dZ/nLs6COXx6HXQp4R06gEjulLr9wy+5KHXibltQxRsnXJMIAccz+hedz273rs3+N5s8Qyg5ohEJBpAwuPLg7pGff0xjhXPNtpuQ+pz5suUrUFIDkST21/5mtHvOdSf3x+/gfgXkvg',
- 'lambda.kurt': 'eNodjEkKwzAMAP+icyi2Gku2v1JysCyZQreQ5RTy95rchmGYA177slXIOFwEGRK5SK0aVvUwwPrbl2rdv8tHtNyuqutnwUBdsylhuHOKhTgysfMSREavWislI+Vghj5IkdZwxJjGSMERcdOUpL/UZvvqCvkx9fFmc8fjPP8E2i3r',
- 'logic.kurt': 'eNplz0FOAzEMBdC7ZF1B4iROUiEugljYsQ0jRszQTheomruTdkl31pf1n311X5fT1t0RDvfJHV1DX9G6QpfgDu68XE5dRz4vH1N/ui+N9JMg40iRpUGMIZBZ56pZky+EOSbFTpoSd1+beCpCQbj0rBEtmmnl1AKNLtFVv+Xsjm9XZ9N8s15uzOvzelrW5Txt0/JN8wOdSST2wjyKzWcbrEhopQSNyrFRRMDMCrEBAQVt1qBAwNq7kG9uP/wH9edC87T9PlghQS4YauWMHJSVEUEsgffRA0hvaMQDVJGaPHolG7eYQEmxhOr299G26TrevO77HxIvcEY=',
- 'matrix.kurt': 'eNpljUFOxDAMRe+S9Qhix3GSCnERxCKJbVExwNBpJVDVu5OZLbuvp6/3dve+LWt3E57uy02usM9sXbELuJO7fm1L18E/6rrMPw/318BvFSMPLD0aU6pEPXomA7RakTtlkZIaloTWOghSKBArAaM08wYph5hNhkv0op9yddPL7mw+32JPt8zzo35v9Tyvv/+qQBgTQ84tcgNt2nh4jdD74BGlF7baAqOKZPLstZpAMcFEIUF2x+uwrXoZ1f04/gAMtk1i',
- 'modal.kurt': 'eNrtWM2OmzAQfhdrj2wL/oEkWvXQa1v1sKcqiipjhi6qAwjCqlLUaw899hH6aH2S2rCr0mJ28cohSbVKJGBsDzOf55svzh59bqqdQCvstXdohZahvwhTAVgkAfJQXTSVAGXfFgmXL9pJynrDMQuVdcEFRHFK42SBwyWmPllgiiOeChwLQiNBeAQJXtKYLGPq+xR8TCK8gIj5jKW+8pVACXlSo9V6oxzvoFS3e8QCZdijTwWX+lFFsF6j6w/vXr9/q9aUVXELtbr59f0n2niD8Wxb6sFvP9Rgz3xxIfzHplv6Glg2X002/fFQ1UjQ2aSZvqIrjearl38hK7NcD1GNjOQxqOx1BDITfJcV+eUbjVhWgdBPaJU3UnoIvpSVU5QCu+nY5KBLWmWdFtVWZZFyoRPUl7vNLivYZjV8TCuobzqTKHIhm1rl1rfqNf3nWy4bqNvo2ncZEPfWXWAO9lN/PcTwkQpyWozP9XWk+hoOdeVCXJXLOTS3+TKYyAZHlLIkVTBCqusDkWpOxhHHOx2Y3mm3ccFYkP+L8HS+yHiToafYZOalqBVBWY+gakJTX5ZFDnltwc+W1wpWAwg8T0zmf/bBIGSeY2k18MqM+IOh3a37QySdeo9IUxBn/ZY4y08L4rDUibnBjDUdDfAESMjhIbHIkTr2NbAM8KKOlYQ6CdKuIY06aevAncQ8piNn27e9ewU9i7P7A0LcDdFxjWaHOzea9+dZEE9ZEPHJCeIkzbPQN3pe+javOsyoDTZnDMeN2E4FntZXwxPuq4zNzfJg7C+yY52D23f/Blk3L70=',
- 'natural.kurt': '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',
- 'numbers.kurt': 'eNpt0NFOQyEMBuB34XpRKLSUxfgixosW2jidO3M7uzDL3l30Ur2DP6Qf/a/h7XJae9jC5ucUtqFRZPJu0EcKm3BeLqduMz9c3tVO57ufZzN/EUCaueWeOrHW3pzVI6JzKuwQm+QyrLWRsEQTckBoIgmlOHN2R2Hsc9awox3GOWyfrsF3+2/t4Zt5vD+eluNy3q275SD7PzTKGLlXVUljwl6Fxkit1mTZNE+fgFANcgMBSda8QYVE3PuQ2MJt8xu0j4vsd+vnHysVwEqJWZE0mZoSwfACMeYIMHojF52gjcEl0lzY5198QC25Jv7HWvTV+vpPo7HPxrDOqxImLpgVYS5XxbMOxwKzWZJCzNU4USWSqNSgARbFcHue01Y7zkavt9sXuu6ONg==',
- 'objects.kurt': 'eNodjEEKwzAMBP+icyixbMmOv1J6kG2F0kITEucU8veK3GaHZU74HluvkHG4CTJMPCaeq2JtDgbYl2Oran4pH619f9w3829BYvM6VkeBos3C5FIgXwijcJTZlzZTQPGBJXBKUZPjyCxj4QknpFDIWk1X/bUd8vNl4a6r4XldfxoeLWI=',
- 'propositional.kurt': 'eNrtW02PozgQ/S+W5hZ2sIn5aK1WmmT6tqs9zGnUilYEzDYaEiIgo5Fa+e9jQ1pBwaSN7UAn7VMnEMpVr14927j6BfzYF1UEHtCs/gQeQODavptEBEUxBDNQ5vsiIvT6rsh3eZlWab4Nsz/qH9O7zyHCLr2Lwzh2Im+9DmGc2DjxQjeOYeB5kDhk7QSh4yIXrwlyAhSiEJIgCZCHoOtHURzaAbUVkx3ZxiV4eFpRwxXZ0Y8vIHDohRfwfx5m7Cv15OkJfPv+z+Lfv+kz6WaXpaQEq1nr4qcvZ9+/gtXqMAPFPiPMRpKyv+BPFsNfn7lxZemW/cRz2edwTejYINzGFsnSDXM1LUjEngAP232WzQD5tSsuute5Ra2defkpsjtXYO1551erAw0nyYsNdYuNQW8kYVSVNVTi4VFsT+ENCKvxXSkZgg8vVB5eij2cF294vOjaXR1oCihNdwXZpCX5LylI+dwwN8q3UbYvKYrtqyw97e8/w2xPytqROqVKaLJLNVlmaql6z2g3xgbJwMLIgJGB+5SBxTVl4Mt9ycDSyICRgfuUgeW7lYHFhDIgZ9QoglGEW1IESbduSByGaN6hjg0E80tvC8YThsCJ5UpHzsVTtTMetapdCwUbZPGE72ECJ5SDc4BfY2DoDsdwoQ/DtU4MF1Nh6A3HcKkPw0gnhsupMAzEMFSbIvrXK8IGkKoBR9RAR3d53iOefTb5cMeQ4pcV+KoMU83avHMFDwPdVTXgiRrgZG0u4I7HzRq+fvU9NR5yFuzNsgwDDpOaWy7okvF4ywMcVtaFDm1kTk+utTti4JrtUc/Dj9fbW52PY85ibjp15mDHKJRRKHNMdFcKZc6cjEIZhfoIJ1i3qlCPRqGMQhmFkozxTo/RJlIoPYMY8TLi9XHFS5ObH0XXhmj94fVluqO7uUCPiNEqJ+N1G3R9HuHEEtrzCQ8yKMB30X8AbTxhAwJF8S46EKDtTtiCQFG8ix4EaEs0cjxqRDHWieLjZCiaVg75vgbtvSDdEXV2h1DSWtCevD8E8zos1No7BhrwVQ0EogY4VMAC8fi8ETlUcEdqOcH9LSduf8uJ199y4vNaTppbAeBUQSNWyB8s+VWxJ93Vk2T9IK+3dkDB9th9tZMkl1dwjZfjKD5qK/65T1KowBYqVb7T+A5ENKXHdx7Xew+CfI2zfR8n9e7wz8032Xdsyfm+y+HOrPbKYm5q5OrNYnTVPV/xQoFCocCR9Bby9PaYQE9z+Tpi/6RzNtQYSuVclntRUZVCBeIWKnQoK91WRT7Jekl56Qz5ask18XaVv46vS1qduQUdfMXXI6fJdZhfrsWK7dZlf8YRlCMixyoLhu+jG1KozBGSZek4FpMFjWRpykNljph6RsDD/2et86ttXvGoKZclv70gzAsF6RTgnNBmW6tgYbkJc5wqF87skTuYv5pIwqwkkguKeTv967yq8o3+2VOAGd3ITxNfN1Rt7JA8MW281V2+g2c9Kib6ToLE/ZzicHMAisdi8YzQjiu0FhMohXK68lpLOLu8RVhrU459o8JGhdvue0aF+1TYtQepsAQtpcqtnTFq3GIDqLwh7tmX9BCUFw48kU9PSVlMqHSWlWi1NadlQkGj16C1shmC2TWYdpwXUP/ezoXvkey0BPXI00WSv7GyGH2rfTj8BuAwZvg=',
- 'rational.kurt': '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',
- 'real.kurt': 'eNptkUtuWzEMRfeisdGQIvWhEXQjRQYkRbVGUyd4fh4Z3nuVTO0BIeJCuAcHvKW/1233dMyH7y0dk1TodXpkH5gO6fJx3TxWvoW+//j+s8I/mktdIUmwVGIXpGFZILC68Ryl1XBwDbLanUTMYozCGt0q90IuFkyra8RnnMclHX/d0jy9f6FevzA/X87Xfxbb5QEa5Oi1W3OZ3SaUMjtynxlEiUeIDCwMoXXmkkUVi/LsneYs2oun++EBpft1e+KXzXquDkuu01hmmiOP6bORaTgyBSgHsGJWl+GQO5o4Gg1g5Ceo03mP37E9oLC4maxG4BI01rskOBAqg4/cIlcssoYgqjYWQreSuU5FC+pPUJvup4/zEy2xGVMmtdzBBqhPrFZWI2FQbZp7jAZAAHMCBYN5eO/eqiNyg3R/W217fK6z3e73/5SXqpg=',
- 'sequences.kurt': 'eNptksuOkzEMRt/lX48gvsRJRogXQSxsx4aK0pZeFqNR350MS9pdlEQ+/uzzvv26na++veLLv9P2ug0pXdIDfcL2sl2Ot7PHur/En1scPC6f/n1cLz8Vq6wXAMmSTRBrnebstVjPwdCTWGhkI0tAK5hYqBUAxBRgdMIw81VrxikO87K9fnvfcrf/4H35wHz9fDofT8fL7ro7HnT/gK46J3kzU5hZajaVOWG0BkFhNJQEpVogDVRUiJEDG4J096llbPeX/4Erpu5317fHmIy1CfRuVQzCwkRwJmMpVBCnD0m1BYw5Oxcpobl6yYmNqUF/wtoff+z8ASQ2BxIBaKZbjxpcVrBKHOIazOalj1m0zRXbmtcgScqMbjxAn4AucX3AFJLpSGvTMRvqmohV1YQh3Cmg1qg1A9i9MGs3424gks2ygRR7gjncflucHw0JcnDpq9WR3daianbgvnRYG+IZY0yovAYmiRWHKlTl7H1lqtqrP0Pp9XZ+YgSadRQvNK3TdGPFWFvyDwk1HJiiKEdhBVQf0wt2sOFgNAsDP0HpMu/tsnuM1brjgEG6FIRoDUct3GvSapxtGb8Eh26FemtCU1gGD+ZZamQI5nb/vqpd47TEf7/f/wIGVgs5',
- 'set.kurt': 'eNrtXd2O48h1fpWF0IZtoOWw/slFxsDstdW+MOYiWAwCkiK5cjStjqQ2ZrBuwEiQZJNLI0CucxXkOfIm+yQhJbbEFquo+uWPpmBg4ZFaZLF4zne+OnXqOz/O/uF5u09n38L7w/+bfTuLaBDSPM1gugSz+9lu87xNs/LzXbb/zeFPys9+iCGh5WcBossUovKPsyWDcZimCYnjHEQUhygDhGSE5BnAaRpgHIdJgsMEUJqzJGeABkl5rWX2lD0ud7Nvv/9xlq/W1Z3+trrNb//mabt52uxW+9XmMV63bk3i5RKlLElisMwDkrOYLpcgYgxkKEtQFCMKKUkyiCIYwxhkUR5BBgEtB7mMg2j2cn95w+wfn+P1av+ldS+AIWEUhGFCaAKyJEsohcscwyBAAYTLNKJ5nJQ3zJbLEAc0yOK8HEu+hAwjBkLOvdabYpW2bkSTZQQRAiDO8zQJM5LhoHwwgnBG0zjDOEmDMFoGMVuWj52wlGSI5ijPszDBEYg5N9okf8zS/a51qyxIAcGElf9MKAEhJighsLwZi3OULHOCYYwwjTENQ5aFgDJK4yChEYwgwQmZvXwsr7bPnspX9+MMAHx4g8UmXlf/Lgfw/fezP/zd4rvf/6686+rT03qV7WYf79tfPZb/+fmnn8rvGp/e3aXBxSfx7OPHF4PfJ9XvyyvMts/V/FzOU8O816vH6gsQsOofcZKtK/N/Tso/qQx2tS0ntDTK8sP1tvwg+/y05T1znlcj+/f/5j316Wo//8c/tUYOWp9A/rPnm228Xh+e/y+t3yDubGu8CMQboNKrQPwHOv7v5fAcn8rZrAZXPVVc2isHDzhvCKDGG3r7bh6f12vhu+mY/phnNpWtP22zT6td9vf5Ntv9UF6u/CjdPKbr5115v9On1cPh8hKHp2j+7Z/i9XO2Owzj8Cdta63ue5jcltkfv4Cz1sA+VgMDgHb6HvetpLzHVPCN0t+1Zn5ESGBkeKTx+OtLXOieAan3EauZ3VWDC2YXd6ttBwLHtvMm0NXTh5rAegSxeflQy3m2Xn2yY0zx45L3cY2YfES+ajgtaP7FL2pofvsZ4huo3C0w/xayFwQSF0QWHCDU8/+LkNX6Ptk8Py6/bT0DUQIMwnMmJcggIsiQmBoYaELjIMCAW8BQ/vtgIwrTBbjTdbwQnJlC/StUwdujmCCaVxDcWygFhk8MroXSytgaSGLPTgGPMdWGgboMQ5XrWV0gbNcuFgiBLCPvXCBAWwsEyBugkllB/gOZLxBKzOjNt5ChbyGBb3F86LTKMKeCjQUGaC8wjl+gWZtSvPpe97q/dxOXJRTQhoXbsnER5HAzYNwlSDnR89Xjfrtxyp7Pv2jxyYtPsMD2BRcQUtR7rklJ3t80tzAHgFmHj06rJ61PaKfVy9s7U7J3xhuZor0z/rNI02gQzqvIbnv+NfEiVJq/sPVJpDx/7WuAoGMhKDaqSHghW8sIwXJBB+DrRQOe3STSH8MpESf/6Izzyzo6B+LvIjE5Rsg4wfPQRYsvN01q94XN/ODhb9wnd97pswheJgVeu1xXmJK7IHCRmkGa68mL6VtwjEAKuBF0mxtdWM6AvKW9DxoZkFSwv3HP4duLs2e63jJbmKUzHrqzGbzELgaCxO4yyxW3zoyTt+Ca/50StVLU9XRzmcRkJ/2TGCkRjFQTZoiIHxtDDZxXAcYkEywfyKmSL1COLyh5A+V6g9pOILu+E8gEZMAwBbu4QqZkyctDIwGLiF6ebaFAJ3gLAdDKsh1AZdSptknmISYDBcgkMacOBcgQChRTcgtBRu7hTB2YMalfeFLvSb0CqaduSf2DU1K/cEzqG54ZOib1D2akfuFJvSf111x9DhCbAql/MCX1i2mR+gdLpH7RJPWRHql/UKATntRPldT3CQVGpP7BlNQvHJP6BwGpP+cDcdDlifHBN37+6X/UrH0hxR7U3Fxvw5o196vLp7G/X/02GrZ5vcDJFX5s6E3EdrW6Pp2PbA/lwWGS/vBCTK2+jptgZmz+tbsC99mwTn+iF/5keyku506tvzLzEay5zh0VPN6s3d87Jore3r29Gw9Hx94X4l0PDAfZ9cAg7octuKzcrmcQDbLExCDpheT0MYPTLhXwZ2sneLYWw17wZ7CTtQvBwdpzLh+TSefyvddN0evQuBbmtr3uQeB1jTQYs+p1qUGgS02jHB7ulLydiN7DwT7RyXQcurSDBwM7UMddTAazAzsxZkg7iK6dMBshFkzl5JZ0klx0AcC7pPzJLSd5dsx68jb79iSVvMfhMM9nATMdZ4oUhiLOEim8ryNCkcAaQo1gZY7pvMJcPQtTfFZg9qxgKM7SIUZAOreF3tnMEUbNOJJ93mePu0O8We2/2CqjeNer9sBxJP/2n7eiPkCCftwImbmRfHmzRd2BxdUFYofqAIHaqgPvdDZERrXb4lnnKFknAvOqhMc2M7sFe5VjteX8EftSSOOqm9J5vc5Z8zujIoJx2VodH5Cj+CBmF3amQXx9lYLWq4GCB1/BvAqr2nxFf0KB4wkFGhMKhEg26NoC2zJrFSKv+SIUT2qpbB4FGvYNo3kFC87tm7ueQLZnVvoWnVfp2MXqwdCheM8I8aROah8g3gd0fYBgb/9Tt3/WufTNPq925TCrSf1nrinqi5t+UD85+ObQ6nFoNledZgcERXPXy3FeprvQkTqq+sFy8b2RFvCHxqlZKNjjY02+3swhxutdVuWbNPIdbyprk81+v/nUx5GT1h8+bvbCbEX7Uc3Mimrm7Y9jVEMTYCQ8/EEpN8A0FyadD2B2Su9DL0vzHt5A7YHYWFEi+/S0/1IH25/+RbfM/23dYe232qX+HCyxXMDP5NYU7YGMYSu0/cpezUFT6qeyKj2b8PLaE9zgYsG8Qo7BJLY/mO10cczfudz2B8G+V2ssVzfBWOhJkxXS1Aw4h9cw3ykJ3AjYk2wk5lqhFCtiDhcR7VGNNGDxnKmxsojM+xt9+Gq4TDhhLlMT2uNrDwM9/nJpX/J24PnLFPkLnVcIMRR/4bBjQy7knL8IaAoQkZwO/hKqVMpZXVhA9kbHkCNkNkTB3Ij3GIx8zLrqyXVbkKJPYWB7YNejhzN5Ifl1Re180C8erCweQqsZV2XUk7V1O/KhEp7Xa6mSxPzU5o7GuWvW7U/NMFUazLwyGrU4xSuclLVFnhtZUZWj0bzCH5t+o7OBYSX/b3kPAKjuAVixzlcnkVKZqCr0/6rwDq4yIh6o9boToldMQcN5BSu21w7SswitzyIyPEQ/ePFEbcYaKZ+7z7rLCy+VPjap9DDsi+tIMS+rSdpLO7W+qri+KaFWD/JZQUX98DBHH44Cvzz5qvc2wsil24xkc+P6sPjptc9nP4FGlE2aKAoDhzRdkTAMJfoVsjmIeuycLl1xKj0jSGZGxlqHCoNAuw670+paf/1nBQlx03UAVFYRB3yz4F+lM8Or4IvQTBPgzSAVtrOa+dJd9hRv44OvWaojF44em1oFUbodEfUtvgjZTGQrem8Zy7Z+5jFrcu1y5/H2AilY3P+CzYzeBWpExVazXHhGp6t7S5xB7LPtLkuPAPy/+iHxz7fWhp6DBVFzVXOaOTU00HoLiGfppm/BFCCQ8lsg/MfoyT2ROOLjjogPe4r412xAIW7birjAOOLCa1426kSStNvJRSfUik5UJZEkE+6ocSKpCiLaiSRlo2atT0JzYIuUzD7iDUoR2CL+Y8iu+2EQODiiKGbv5isOxSVHG7uAxqKDcxXryw4QCIZqeI3TQF+s8k1rUeRIU+ns3mKIa8HXRGLVOQ0wKAwBCzD0+kz3/AZ94MSAQt6qok7DBR0yx6jjd7CDVSHPqhyyKl6IgX2GGKTzLjAfM+y9C2k+p3AFMuIVzPErIk4YII3zj3fxxb/f+95GTUdDmifDdEya/ypkf82VW9xXG4M//+tf21d+8+/vbPMZtS0k7oMrq9tamYGu/mDubuv9zftbj/5mY+jK3sl38jpyEY3I5dDvuIaZWN3NtzD6Hrp2QURdcwruXMdW55o7nl5mj2m3Q+481xYo/wIo/0L17JwsAre++9Xd3d2veV/cyy6/3oahyrWu4LjdMUDRGCTEUrsWraJcmGZHd7My6/dOipp7MgZhWl50OouLzul2s6se9P/+Sza8K2AebFZ85s+PB7ib757iNLPV3kxtfS+IRfYW9p3oQ5V/wZR/EY4Q4ahw/0KqcMvZKELxKORQjok3VayiHFWyfCraw1bEOTYWk1BGOoH3C7Guw/9N9yoRGR3Ddpbty0W5vveiTN935zxfqClsZSWq+VzFyV6Zg1yFOidX7zfa+Qs8wqgIheVK/fF+KAwVmrwfieunrEZEs/q8906O4fVkDEPxfsdpPecPoNkpw2OXxy6PXRax65wg7zwP7BNCWgmh8RNZke5766+mRmSx8i+InRTSwMFAnDvrLxhgmcNBKsFAeNrIcjDARoeR9PCKjMMYboDIwpnfybATuDoUDDwie0TWQWT3SFITWRw4EzHTfwOx8Ewib/5Vmgc1idXRNeYldi7dH3+q/dB6x6G3nykcoALXjNRciad9QWx+gAppingMsn31fqKbV7nS+SpEe6gOsrfzc7GPE5+OkWPbQnl2MxMdGKiuodQGgGb9H4bKR93v8vZrfDvYRLHqDDY9PX56Wn/poXuz2vkXYU2GngyIib0gqZRix+l+/lsVCn3wb3Zj280y6IfN2+5ZY0qJCCLcaUTnImGfWLCjnogE3s877VC0046RZPWr2YxKgptgVeJFHach6ggxtHgWXzL+eUjhC0TKupwU0bG58hQXE/PkJpMzVEkJH5vkzXKNk6691tBKNKvRrp1V7DoBNZrVIFvNapDxIWXUVZJuxLk0dW1d56fkweXUh0ZPPaxNQ/ImDTF9kBoLiDkWuAf0fm/fbzU/7rGh5EhwuocT87xaKEO7ePUY2gvRd2GXKlZJXFqlR4wOn9BYLXw9pLz2Qf3Dki4OeCfG7gaaCcWn7Wb5nO4dnOVys/OsciIEyqtJDiUf3KFxbOSkdHxO2iMZVk3exaKU23sBO05E2b5Gji5UP6HO9W1/sOVk1WwiIhyJWwNWUtXgj8WqTAaOdFnq9Wxhtw/4ZLJPJssmk0Ob22pcrxpxKrjbFr6TSOSSwAYN1keAkW5zacZnchGfe2iWxAvQJj82xInIPkOVtSU5vEADU2gjs+yPami/BTkOMqRr18AHNLPWQ0m5QsMSHQty16Zrf14BDuxoLaq6CFe4vnl3H4jwvAqftnOctprhEEX7okr2RUSVllbtS6yZwru504p5hbFxbJeOoJUQT873rPRLxWLcLelvdKaPdDonReXWIq/40P7LQr0J8oiSOYB33LOVzAGmyRxC3R/ulLUjs+7MxnaEpO2oIzQ7VCOVvVcxMulZMPqjfQ6RpqbXcGaHOEzOjrxk9sDZ+jEBvCO9Dln3hdLuCz3AT1Fb3NvsNAC+8ADvAd4D/C0CfOEB/qZs9px/Z6NvwkHoV9mEg2iUOLkMwdw3k1p9M8VE3kzks62qhhL3Kqih2NvW9mQC6ckE/WxIHO2WBr4xjW9M4xvT+MY0vjGNb0zjG9P4xjS+MU0HZ2Uz35hGojENBZ5V9k8kihGwysKzynGwykILawvPKj2r9KzSs0rPKntkleHoMubOWGVhwiqhb3c4hjIEGsx8u0PfMsy3DPPtDn27Q49dHrs8drlqd0iRJuUrPOWzSvmAp3xjgs1iBLBZeNgcB2wOmuodjvIVnvJ57PLYdSPYdaZ8vn+B718w+v4FVFN1z/cvUOlfQIlrLCg8FngsMMUCZB0LioljQeEACyL1s0+pyywQzxK+5m4fGo5jdeM75U2IMwnz9LQtzYJrPUuvWWQnq27j7W7fuiZ37X+ZLkzPcKdSoBW0mxfMn+LVdteDgavUZyi0Pn0ndzPD9yI+Qtd6NW90hEy9KrLtVeNtJJAa9PRkwEmrHwf+6nt9TleenWkWy4wzbkgJOU8rrIPZCCbWgqS8uDdog6rAyUCep+2jpe2s74ZkvYTUlwHbE7qAlNrjkZMmEoLxqfXvkXwa33zNN1+7AkjwBgBpZIssyUeU6OImOwlX2rsxrMtdpMHKl3u9OhSaOe37Nrp4MmD3FtlH1+zeIj0HtZeRa8lMvtiRLFwoYKJKjrIZ4+Onp/WXIRt+BIbtYKCEhqQJ3UBSJTKnjKSs5hWPICBOQxBsnlQZoQ7DvV84We8SmzebvqoREqzKOzTyx7R3qOTvC4t+L4bQ9aZYpRfWiZo+ddzTn5fvcOk+U1wXEHyUy9sGEnlbXv8UJJ9rDq6d/X29hewFgcQFLeSaiebOj2bFIlGKisS2oiKRVlQk50WmDEpj+ygtS/JerPaaUoBMQfbZnbqluFmKojRLDcbMTbNUJcB12kRVO5arBg1BqbRC9z14ycbnh6celJD7Do/j7/BolLIYErXvv3aVD9OEYdFk+pdDFRL0GvrDcW1q2sBbn4o8+TXrORXpQ/5ryB8wKTriadFLw5pa1SvWRco5B0EC2EFuIf0hXj1+s9/GjxVC/Wm1//JN6fbffP/Ld7/8+NvGiYaGQx9+Mj/8ZB7Mg7EWpL2zX2zK/bERUBL9QrPecvpyC3A6oidRdQvHpKozh8lbTSuOX7xrqzaRNV6FwSRrbAtfYzupGtvIImC4ipdy0BdOZYfIBpdyXMUrxsrrtbZuZlFWP/teiP+K016jMNA7Ouch0R87mM6xgzC4sd11BxjZPjpleuzgGmANVPccwjGqiJjtq1A2r6C8t6MKwPCJAf+J3ba14+WKj9sOtWEgAxFp6YCopeOwXbvQcZAOf1a7okjjh/CMrMIVgB0dhxD251vI0LeQwLc4PnQSd7BakQUkN3CO9X6177EJSDiQ4c6CFdM7CxZSl2c9i54kHMLQSzh4CYfxSDiEzEs4yJTghpFPL/tciutcShh+fbmUSYX1W5FwKCQkHKLASzh42m4MaZHPlU5FwiECXsLBSzjcuIRDFHgJh5uXcIigl3Doq246Al7C4euUcIiQ+rnkwks4eAmHfiUcxncc6t4vnKxLOBSjlnCIsJdw8BIOXsLh1iQcIuglHCYn4RARNxIO+Q2c58yNiu1zL+HgJRzGL+EwKGrfT1N2bjwJw9xAwiGiI5NwsIC3PhV58mvSt4SDD/n5rUo42JgWTQmH3IqEQ8TcSTjkXsJhyhIOEbIpfFAMKOEQYS/hYE/CIbcl4aBzeDgKfZs0X2PrusY2YkNIOOQOJBwiOhkJBwtcyks4iDmmSMJBR0gniswlHDwk+mMH4z52EIUz3yChdwmHfJQSDigIXEs4FIYSDur7KiGZV1A+mIRDYVjtm49AwgEFQFPCoVAJiF7CYXoSDhVmDCbhUBhKOOT9SDgUou2YXELCAQVQe5NeWVvF2LU1N2HIxSbM6nG/3fS/C2PyY0PmqZmHVH3DMpywQnvbgylcthQXbJWozk3HJoWyG9SuixRELozljiB7s3CcL7PcVqw0WB/qApTaElR8FSCu1jAKe9DBDusQeN1HLzmOclHtIFhzwdE5jZqVmYGN8iiVyn9pVsc9fhCIq6OcVWRhiUMW7XFbuKPcFqH4MKf8epHQeYXbtjmtC4M1KyW+S6mqwTLpcuK7NBQXFCsMmimZD219EikbbGjnjnIGy3i372m5z2aczPoRr8MZx42OX9EZB/WOX0WCNczLy/8Dtj+Mhw==',
- 'vectorspace.kurt': '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'}
+_EMBEDDED_CERTIFICATES: dict[str, str] = {'analysis.kurt': 'eNptkktumzEMhO/yr4OWEiWSCoJepOiCosjWqBu7fiyCwHcvk2VtQAtBHPAjR/O+/b6eLrY916fP2/a89ZAuI0YRLtvTdj5cT+b5rq+6fzvvzl8+dVn4pbVTFqiYEHtTKzSBPRp37jit8RBF7XUQ1ylk3ClKKmZ3wKi4PCwsey0/+us6b8/f37fY7T9wLx+Yb1+Pp8PxcN5ddofE36EZY5blatI9x0AD4hlroVREICtofeYkjB6waK3GrDixzWIzSttuT/8D/e9V97vL2x1LB6y6KlRjG7WqSOMVmAfWqNTnGNgndXAx6NaDU5XwMnDWqf6AtT/83NkdSFqQI7QG4I2qwmI3mgKB5sJWFHSZAqHOwYyYAJAwdgHIdR+Azn65967GaAHobTAFQ+mkPBhVHUr0dFGISh+hbqv0qeSMQp46sTIfefd6/TP9dEdCppqBKGld/jxhqWQxVIN6yzDElGgwba2ahFGcMyreAzyZI2Q8IunlenoUiIzaNJEx0vqKzHWAp2ORXV3B3KvWMrV4S7+am0wUI8pVreUnbrcf2e3ix8zi++32D+hx6qE=',
+ 'complex.kurt': 'eNptksGKWzEMRf/lrUNrW7ZkhaE/UrqQZImGZpLX5AVaQv69nlk2AS/M5XIPV9J9+XW7bLbsy+7zt+yXFr11Ds6d8rJbrufbxXzqdn5fj/7ny6dt6j+lNJx6gFIVQI1QzMA1k/MICABtJTE24MDMQ8EbZ4HB0FMTLyAjIc6s4aufxnXZf78vcTh+0N4+MN++rpfzer4etsP5JMcnNEFoHi7Wm2M2sISkMQb0ApDQMlhTUCPwSAPHqEQCClWzaeS6PHb/A/33TY6H7e8TSziNMkoqRsalSO+VZsv50uCCTZmhKbbk3VKzFjRdE54ZtKj4C9bVt+dKJbhGAq9MGJRyQyEmEPGUo81yHTE3DnEbuamgE3T06euW9VWl0+1d/fJEAsJCDfJspHN8kAtasEhgq+Qa2qMmtTHKJHB26mjeIvlkcnR+RZLtdnm1J557sd6Z50QKEBVOblliprokcy9Sskr2auTVrSt0Q5xVrc7ZLo8fM23zdZ7I/fH4B2gdy50=',
+ 'continuity.kurt': 'eNptksuOkzEMhd/lX48giRPbGSFeBLGwHRsqhrb0shiN+u64LGmlLKLE8udzfD62X9fTxbbX9vLvtr1uI3jwjFmZ6vaynQ/Xk3m+22F/2e2vu8v7p3+V+fVT2sD7V0ckZbUmuoB00RqtTtbeXbUjN+scSAu9AnWr2guPWqpDUPjKXsuPvl/n7fXbxxa7tzvwyx3z9fPxdDgezrvL7rCXtwc0QWhdLsbDsRpYyUliLeAGUNAq2FBQI/AoC9fqRAIKXatp1L7dXv4H+p+rvD2TKbOstlppRjZbE+ZOKyBPWbPh0DlhKI7ibGXYCMqqhNcJ2lT8Cevt8GNnDyDugQ6l91K8Y5OyyA2VS4A5k1UpskwKgugkAkhA4TByLiXlPgGd/fLoXYvZo4D3SRhU6kChSSDipcZIFxmxjhnitupQQSfg3OFAvu/wCWZ//a1+eiABYaMBNa3T3BPUhhZTJHB0cg3l6EVtrZaEWZ0YzUcUT+YMns9IcrmengViZgCMec60vgFRm8XTsciuLsXcm7SqUr2nX92NFdgQU6r1XOITlGTw3s+78wMrA8eYTcQqaiGPTiNlqnWaLCCj5TBNUwwNjJoVqb5ANFgeFrbdvme3ix8z9x+3219OGAtw',
+ 'derivative.kurt': 'eNptk8GOWyEMRf/lrUctYMBmVPVHqi5sY7dPTZM0eRlpNMq/1+myeRILBFc+3Gvzsfy6XTZdXsvLv93yujSnRsNHJszLy3I93S5qcT7tsr7xtr7Zp3/KuPrJpfW4EikVks+qXfMo2nqa0lIH5wI2OnkoUrHZSs7QKM1ktdYpzk61cdSadrbjvC6v3z4WXw8P4JcH5uvn8+V0Pl3XbT0d+fCERnDJ01ipWc8KmjqKzwlUAFI8B7QJiCKYp9nnrIgMAlWyiue63F/+B9qfGx/W7f2JxSPNMsOIoo5SmKjidIiV5ii9yRjQpLdkpKlpcwxVwPMAKcK2wzqcfqz6BKLq3SDVmiKnXjhNNO1CyUGNUDMnnsoRMMtABAhAIlc0Sins7oCutj1nV3xUT2B1YHdMuXXGgcBsKXuLFKn33Iaz6cxNuBsCdQsdaZa97I6332KXJxJgL9ggR3QSfYJcuvpg9t4qmriQ1yQ6ZwnCyIbU1ZonC+ZwGnsk3m6XvYEYMQBKNEZEXwCxjGSRmEdV46RmhUsWzlYjr2pKAqS9h1Wt0cQdFMfgvV/X6xMrBo56FGHNXRKaV2xhU7TiIAZuJR5TJMxg655DEe4TeIFprq47LD0dt/V42xs/rT2skWhhmYAy8fGfBkmtJlI7Fa3kHWd0CLA+OpSo5ZQNHN3mcv8e1TY7xy/7uN//AkfOK+o=',
+ 'divisibility.kurt': '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',
+ 'equality.kurt': 'eNpljc1qwzAQhN9F59BIu179mJIXCT1odyVqamLXP4di/O5Rci3MYZgZ5jvMz75sYnq4vJ3pDdVIMdXkYnDmYtZpX6S0vPzueRy2v4/3rhXfGci3IieroGBBgiSAHGMXtGKT1QSeOCUk9mRLFEtCNbQVI7uEDJxL+9Iyl4eupr8fpg7jC/f5wtyu8zLN0zpsw/TI4z90wMpOS5ZIxTtBsT5wVcUIiNaLQ6FGkoClWvWqXQgZGTt2wtV15vxqb1uZG/o4zydbzFDw',
+ 'field.kurt': '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',
+ 'finite.kurt': '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',
+ 'group.kurt': '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',
+ 'integral.kurt': 'eNptk0FuJDcMRe9SayOhREmkjCAXCbIgKXJSiNPtdFcPMDB899CzTBdQC6FE8OmT/39sfz9uh22v9eXnaXvdenDnGbMwle1lu18fN/P8v18O/3aTt19+1uXFX1L7yAvQYdFHidW5NKRFWnqZZVUAsRmlGTVrU+q01mkEj3Dulav1UX1lr+Xvfln37fWPjy32ty/cb1+Y3399v13fr/f92K+XEzRhaFkuxt1HMTQYpLEWckWEYQWtK6oResAaazUiQcWmxTQftn2+/B/o/z7kbT9+PLFkwqqpqRrZrFWYG63A/GDNOrrOiV1HB2eDbj0oqxJeJmpV8RPW2/Xbbk8gbjEcoTUAb6MKLHIbyhBozmRFQJYJDBSdRIgJAA4jZ4CUewK6+/E8uxqzBaC3mTshKH0ITUIRhxI9p8hjlD5D3FbpKsMJeXjWsRU9m93l8Y/67YmENCp1LDk6zT1hqWmYKRKjN3IN5WigtlZNwixOPMx7gCdzBs8zkhyPMy/STAMY85w5+opEdYLnxCK7uoC5V6lFpXia0psbK7KNkVKt5RJPUJLG+3Hf70+sNByPbCJWhgJ5NOopU63RZEHpNR9TNcVQH1GyItUDRsXlYWEnLLtejv3yOLOftZHSWK2KLiRdtHotk7U1V20j09Q4Bq3cEGbeckPAvUBxDIpM2TNt+W3/Lsf+3Z9oqrUhxGqWIZpfQYWlPS0XUtHn4MgKyPDmGwp2hpVebW1pSHDrsn3+md0Of89Mf3x+/gcR/Erz',
+ 'interval.kurt': 'eNptksGOUzEMRf/lrStw4sRORiN+BLGIHRsqSlteX5FQ1X/HnSWtlEUUWz7K8b0tP6/rpstb3n3clrelequte0+N07JbLqfrqhbv++Nm659x+PTRF4UfI1eKQvRV8dazcanJ1QW0mxJSI2KSqigS00ixF+GCUGfnNkqZZCYUs6ad7Tgvy9vX2+L7wwP3/sB8+XxeT+fTZb/tT8cXaEaXNG1oq0ZJUYFYfE5sGRFIE2oVFGU0h0lzFuaBgkWSiqey3Hf/A+33dRz2298n1ugw88yQlbXnPForPB3jwOyZqvSOVaiCNYWq1Tm6Ap46SpZhL1iH0/e9PvssToZQCoAVygMmh01p4KjWWNOAMXUA4ZDOjBgAaK5sDSC++wJ0se3ZXfZeHNBKZ3KGVGlwZxzDIHkNi7G+VLsP0xkbHmSMjSz6miZ55e54/SW2PpGQKXPFFOok9oQpk3ofw6kWNnFpXkB0zkgQ9mTcSK06WDB7BOsVaWzX9VUgegRAW+s91Gdkzh0sjHlMtQFqlkdOMpKV8FVMm2BTeiRVSyxxuX+LaZudI4u3+/0fKzXqVQ==',
+ 'lambda.kurt': 'eNodjEkKwzAMAP+icyiWE9uSv1J6kGWZQreQ5RTy95rchmGYA177silkP1wEGUKjQNwYKSEMsP72Ra37t3xKldtVdf0UH2LXakwjR0M/kpBokMahSMKR2SdNk5MoqM6wIhcvDhNOXqLVigHZ9Ve12b51hXx/9PFmc8fjPP/HWi00',
+ 'logic.kurt': 'eNplj0tqAzEQRO+itUlaakktmZCLhCzUHyVDhszEHi+CmbtH9jKGXjSPoh51dV+X0ybuGA73zx1d6iWV2qsv5N3BnZfLSWzwefmY5OkeGvSzhZQHLbFnQ4gRwGIODZRMMhfoKFZIfIOm0iBj40qEWJGhdCErAIlxdKmt9q1nd3y7uj7NN9fLTfP6vJ6WdTlP27R8t/lBTdjZqzUpybIXFMjEXRVLQIQsHmUIWAitg2bVSNSQMbIX7j66/fBfaD+XNk/b74OrVdCgAYKQ1BBaKZG04zjQGnLiWjFxTmBFIEnqNFJD7sfcwM3c/j7aNlvHzOu+/wFTmm8f',
+ 'matrix.kurt': 'eNpljkFOxDAMRe+S9QhSp46dEeIiiIVjJ6JigKHTSqCqd8edLZIXX19f73kL7+u8aDjD6Z7COWBn5NLLwDSEU7h9rbM27z9kmaefh/vK6zcBzF5b4kxs3EYwLbWO0jF3kVSBZHQGSa7SKqJko0ggsSkqsA4l1U7OsnZtn3YL55ct9OlyyJ4OzfNj+17lMi2//6xSooFBBCUtAMI8kvXkF61AxlpKwpoxNtaIip18VVM9nODvhP3VaUu7unXb9z8jZ03f',
+ 'modal.kurt': 'eNrtWN1umzAUfherl3QD/wSIql3sdpt60aspiiZj7BXNAQShqhTtdhe73CPs0fYks6FV6TAtrhySTFUiAcf24ZzP5ztfnB341lRbBpbQa+/AEhARkSgWcRCFAfBAXTQV48q+KVIq37STlPWaQrJQ1ogyHiYCJ2kEFzHEPooghiEVDCYM4ZAhGvIUxjhBcYJ9H3MfohBGPCQ+IcJXvlJe8jytwXK1Vo63vFS3O0ACZdiBrwWV+lFFsFqBq8+f3l9+VGvKqrjhtbr58/M3WHuD8WxT6sEfv9Rgz3x2xvznplv6GljW3002/fFA1UiusxGZvoILjea7t4+QlVmuh7BGRtKEq+x1BDJjdJsV+fkHjVhWcaafwDJvpPQAvy0rpygFdtOhyUGXtMpaFNVGZSEo0wnqy91mlxXfZDX/IipeX3cmVuRMNrXKrW/Va/rPN1Q2vG6ja99lQNxbdYE52E/99QCBByrIaTG+1teB6ms41JULclUup9Dc5stgIhscUcqSVMEIqa72RKo5GYcc73RgeqfdxgVjQf4vwtP5QuNNBh9jk5mXolYEJT2CqglNfV4WOc9rC362vFawGkCgeWoy/7MPBiHzHEurgVdmxJ8M7W7dA5F06j0iTUGc9FviLD8tkMNSR+YGM9Z0NMATIEH7h8QiR+zY18AywAs7VhLsJEi7hjTqpK0DdxLznI6cbN/27hX0JM7uTwhxN4THNZrs79xo3p9XQTxmQYRHJ4iTNM9C3/Bp6du86jCjNticMRw3YjsVeFlfXRxxXyVkbpYHY3+RHeoc3L77L5hIL0E=',
+ 'natural.kurt': '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',
+ 'number.kurt': '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',
+ 'propositional.kurt': 'eNrtW02PozgQ/S+W5hZ2MMZ8tFYrTTJ929Ue5jRqRSs+zDYaEiIgo5Fa+e9jQ1pBwaSNcaCT9qkTCOWqV6+ebVz9An7siyoCD9ai/gQeAE487PmJDz0XggUo830REXp9V+S7vEyrNN8G2R/1j+nd58DCDr3roiSEMQkiDxMHRigyHTdM4hh5FkKmE0EU4RCFkYtIYsZOHNuuG6AQ2SGMwgTa1FZMdmQbl+DhaU0NV2RHP74AH9ELL+D/PMjYV+rJ0xP49v2f5b9/02fSzS5LSQnWi9bFT1/Ovn8F6/VhAYp9RpiNJGV/wZ8shr8+c+PK0i37ieuwz0FI6Ngg2MYGydINczUtSMSeAA/bfZYtAPm1Ky6617lFrZ15+SkyO1dg7XnnV+sDDSfJiw11i41BbyRBVJU1VOLhUWxP4Q0Iq/F9VDIEH16OeXgl9nBevOHxsmt3faApoDTdFWSTluS/pCDlc8PcKN9G2b6kKLavsvS0v/8Msj0pa0fqlI5Ck12qybIYl6r3jHZjbJAMLLUMaBm4TxlYXlMGvtyXDKy0DGgZuE8ZWL1bGVjOKANyRrUiaEW4JUWQdOuGxGGI5h3q2IBvX3pbMJ0w+CiWKx05F0/VznjUqnYlFGyQxTO+h/FRIAfnAL+mwNAZjuFSHYahSgyXc2HoDsdwpQ7DSCWGq7kw9MUwHDdF9K9XhA1YYw0gUQMd3eV5b/Hss8mHO4YUvwzfG8uwsVmzO1fwMNCdsQZcUQOcrNkC7rjcrOHrV99T4yFnwd4syzDgMKm55YAuGY+3XMBhZV3o0LT06cm1dkcMXL096nn48Xp7q/Nx9FnMTadOH+xohdIKpY+J7kqh9JmTViitUB/hBOtWFepRK5RWKK1QkjHe6THaTAqlZhAtXlq8Pq54KXLzo+jaEK0/vL5MR6qbC9SIGK1yMl23QdfnCU4soWnPeJBBAb6L/gNo4hkbECiKd9GBAE1nxhYEiuJd9CBAU6KR41EhirFKFB9nQ1G3csj3NSjvBemOqLI7hJLWgObs/SGY12Exrr1joAFvrAFf1ACHClggHo83IocKzkQtJ7i/5cTpbzlx+1tOPF7LSXPLB5wqaMTK8gZLflXsSXf1JFk/lttbO6Bge+y+2kmSyyu4xstpFN9qK/65T1KowBYqVb5T+A5ENKXHdx7Xew9ieQpn+z5Oqt3hn5tvso9Myfm+y+HOrPbKYm5q5OrNYHRVPV/xQoFCocCJ9Bby9PaYQFdx+SKxf9I5G2oKpUKX5V5UVKVQgbiFCh3KSLdVkc+yXhq9dIZ8teSaeLvKX8dXJa3INiDCV3w9cppch/nlGKzYbl32FxxBOSJyrDJ/+D66IcWYOUKyLBEymCwoJEtTHmPmiLlnBDz8f9Y6v9rmFY+aclny2gvCvBghnQKcE9psKxUsLDdhTlPlwpk9cgfzVxNJkJVEckFht9Mf5lWVb9TPngLM6EZ+mvi6oSpjh+SJaeOt6vIdPOthW+FJkLifcxxuDkDxWCyuFtpphdZgAjWinK681hLOLm8R1tqUY0+rsFbhtvuuVuE+FXbMQSosQUupcmtnjBo32ABj3hD37Et6CMoLB57Ip6akDCZUKstKtNqa0zKhoK3XoJWyGYLFNZh2nBes/r2dA98j2WkJqpGniyR/Y2Ux+Vb7cPgNciVmyA==',
+ 'sequences.kurt': 'eNptk8uOkzEMhd/lX4/AiRM7GSFeBLGwHRsqSlt6WYxGfXc8LGmlLHKx/OWcnLxvv27nq22v9eXfbHvdeow+ZswyuGwv2+V4O5vn/sX/3Pxgfvn0rzBPfkrtlCdUYlk0psK9zT5yOazxYl3a3QVNtNgSK9FL61O1ap0IlSOGNshey09+WJft9dv7Frv9B+/LB+br59P5eDpedtfd8SD7BzRjaFkuNrpTMTQg1lgLR0UEsoLWFdUYPWDRWo1ZULHlhTRK2+4v/wNTpux317cHlkxYdVWoxjZrlTFSY2AOWLNS1zmxK3XwYdCtB2dVwsvEFCz+hLU//tjZA2i0IEdoDcAbVYHFbqQDAs0HWxGQZQKEopMZMQEwwtgHQMp9Arr49dG7GrMFoLfJFAylk/BkFHHIl0oXB1HpM8Rtla5CzjjIs25Y0WfeHW6/1c8PJGSq3LGkdRkIwlLJYooE9cauoSMaqK1VkzCL8yDzHuDJnDHmM5Jcb+dngZgZABtjzrS+InOd4OlYZFcXMPcqtagUb+lXcxuKw4hSqrV8xCcoyeC9XXbPcm+DskkGmxTY8wv0lKmZ/TkEpde8TNUUw52iZEWqB4yKy8PCtvv37Hb1U+b+/X7/CxzWC28=',
+ 'set.kurt': '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',
+ 'vectorspace.kurt': 'eNrtfctuJEl25a80AhK0SMaM28sfhUktZjegNLOYQQJCISF4PNgdIxaZxSQLjGw0oF1rLegf9Ana61P6SxQvviLM3O3tZu4HJQidJMPdwuzavdeO3XPuH2f/9PTwuJz9RK8O/2v200zc1KJubhpSV2R2Nft+//SwXO9+/tt6+Xj/8P1bu1z/t8Of7n73h5aKcve7itysb+pitSyXjC9WNwshWLGo65uiudn9sOaLJafLZrV7crn754qsCnLDF5QvuGCiqnbPWq2/re9W32c//fzH2c3mdv/G/7F/zd/+928P99/uv28eN/d37e3lq9nNgqzW7bIW65Is2bIoq8XNasVqylhRLglbigVbLCu2vilW5WrFq6pli90wyXJxQ/jsT1fnL1z/+tTebh63F+9qm2JFV7Sgy2rZUNrWNa9WN2z3f8WqoaVYNA0Ti1IU63pZiKW4qXZ/tXs5adiCLtq15F2397/fLC9eVPObcs0KzotizUvaFqtqvSwXdXHDluu6WpK2aFfLtihZu2iqirHdC4r6Zlmt66LYfV3Ji76vHy/njt40/KZga95U5U1VEFG2VVOxtl3v1kfsZrEuSyKam3a9XBGxaMt1xepyvfu7ekkWsrm72axvV5cTt5u39c2ibop1QxaElKtl0zIibighhFdFwauSiXXFGVlVywVhnNS0XhWNYA1fVTezP33dPe1x/W1nH3+c8eJgJb+/b2/3/9y9/eefZ//3H/7+f/6fv9u9tL1b7f7/X/7l32dfry5+eTTidrXamdNv691fvPvdX32Zff36J9Vnlrf339crk098X7a37YPsE7vPzB6e9tN2Pn2STXa7udv/ARP7/90u1rcf9+J+62wedv/ebY/db24fdj9YP397kMzM5uZmPzN//jf1zBwf+XHIf7Us5F/TfqaVj+yY657PSGf79Jn9f7spv7l/+GU3RZtfvt3ufnnTLh9l7qZjCZp3S/Bx3u+ebm+V866e2oM17G3728P6l8339T/ePKy//2H36d2Plvd3y9un77vHv//pftTv//1be/u0/n543+HbXjz+6/7xnHTtmF4DVxir1DGf5qoq383VzlDm69vNLwZztl+kze6LfZWb3YdR/vVf75f57CfkMPKLv/JiCDsHZGUIWbgmX+Z4mG/zIe9/dFi+q1jT1zUZp+1DrQPOztTa29vD7/9Z9vvF/dPd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'}
 
 if TYPE_CHECKING:
     from importlib.abc import Traversable       # (what `importlib.resources.files` gives: a packaged directory)
@@ -8449,6 +8691,7 @@ class RunState:
     calc_written_pass: bool = False        # `derive_expr` with `calc on`: the first, computed pass (fails without an explanation)
     calc_view: bool = False                # the search sees the computed form of the formulas written with `calc on`
     multi_rewrite_depth: int = 0           # `multi_rewrite`: how many places are rewritten already (one step each)
+    nested_cond_depth: int = 0             # `nested_conditioned_elim`: how many conditioned `∀`s of a fact are instantiated already (one step each)
     multi_rewrite_tries: int = 0           # ... and how many partial rewrites of this line were followed by a search (`MULTI_REWRITE_TRIES`)
     comment_indent: int = 42   # how much the reason is indented
     new_symbols: list[str] = field(default_factory=lambda: [])
@@ -8517,6 +8760,8 @@ class RunState:
     cancel: Optional[Callable[[], bool]] = None
     line_steps: int = 0           # the steps of the search for the line being checked ...
     line_start: Optional[float] = None   # ... and when it started (`time.monotonic()`; None: no line, the next step starts the clock)
+    profile: bool = False         # note the time and the steps of each line (`RunConfig.profile`, `kurt --profile`) in `line_profile`
+    line_profile: dict[tuple[str, int], tuple[float, int]] = field(default_factory=lambda: {})   # (file, line) -> seconds, steps
 
 run_state = RunState()            # the state of the command line, and of calls without a `Session`
 
@@ -8613,7 +8858,7 @@ def packaged_theory_file(filename: str):
     # be shadowed by a file of the same name elsewhere, since `def` and `--strict` rely on
     # their content (see `load_file`). Remembered: the theories that come with Kurt don't change
     # while it runs, and `is_file` of a packaged path lists the whole directory each time (3 ms,
-    # 280 times for `load rational`, a third of its time; 2026-10-16)
+    # 280 times for `load divisibility`, a third of its time; 2026-10-16)
     if '/' in filename or '\\' in filename:
         return None
     key = (filename, tuple(str(p) for p in packaged_theory_paths))
@@ -8817,6 +9062,7 @@ class KurtException(Exception):
         self.details:  Optional[dict] = details
         self.kb_after: Optional['KnowledgeBase'] = None     # the level reached, if blocks were closed before the error
         self.closing: bool = False                          # the block `kb` didn't close (set by `read_eval_loop`)
+        self.reread: bool = False                           # the error is of the line before: the line being read is read again after it (a term line without its continuation, todo 80)
         self.todos_so_far: Optional[list[str]] = None       # the todos before the error: they count (`Session._check`)
         self.via_load: Optional[int] = None                 # an error of a loaded file: the line of its `load` in the main file
         self.state: Optional[tuple['KnowledgeBase', 'LexerState', int]] = None   # where it stopped, for `kurt -i` to continue there
@@ -8876,9 +9122,9 @@ keywords: dict[str, str] = {
     'tokenize':    'tokenize a string and print its tokens',
     'format':      'choose print representation, i.e. one of "sexpr", "normal", "source"',
     'summary':     'print where the proof is: the open blocks, the claims still to prove, the latest facts, what could come next',
-    'load':        'load file(s), e.g. load propositional, numbers or load foo.kurt',
+    'load':        'load file(s), e.g. load propositional, number or load foo.kurt',
     'list':        'list loaded files, or retained content by category and source, e.g. list natural or list const natural',
-    'save':        'save the lines accepted so far (in the shell: without the ones that failed) as a `.kurt` file, e.g. save "session.kurt" (path is relative to the current working directory)',
+    'save':        'save the lines accepted so far (in the shell: without the ones that failed) as a `.kurt` file, e.g. save session.kurt or save "session.kurt" (path is relative to the current working directory)',
 
     'syntax':      'print the current syntax',
     'info':        'print everything known about one symbol: its declarations, its `def` (if any), and the theory facts that mention it, e.g. info four',
@@ -8887,8 +9133,9 @@ keywords: dict[str, str] = {
     'postfix':     'add postfix operator with left binding power',
     'brackets':    'declare brackets (the delimiter symbols become constants)',
     'arity':       'set arity of a symbol (default is 0)',
-    'bindop':      'declare a constant binding operator',
+    'binder':      'declare a constant binding operator',
     'flat':        'declare a constant infix operator to be flat',
+    'nested':      'declare binders whose variable may be a list, `forall x, y P` is `forall x forall y P`',
     'sym':         'declare a constant infix operator to be symmetric',
     'sort':        'declare optional term sorts, and subsorts as a chain: `sort set real int` (`int ⊂ real ⊂ set`: a `real` fits where a `set` is required); each sort name then declares positional signatures like `prop`; alone: the sorts and subsorts',
     'default':     'the sort of the symbols of this file that get none otherwise, from this line on: `default real` (after `sort real`; not across `load`; alone: the default in force)',
@@ -9646,7 +9893,7 @@ def calculate(e: Expr, kb: 'KnowledgeBase') -> Expr:
                     return number_expr(a / b, kb) or e
                 if 'power' in ops:
                     # only integer exponents, not too big: `2 ^ 0.5` has no exact value, and
-                    # `0 ^ -1` and `0 ^ 0` none at all (numbers.kurt leaves `0 ^ 0` open)
+                    # `0 ^ -1` and `0 ^ 0` none at all (number.kurt leaves `0 ^ 0` open)
                     if b.denominator != 1 or (a == 0 and b <= 0):
                         return e
                     size = max(a.numerator.bit_length(), a.denominator.bit_length())
@@ -9676,7 +9923,9 @@ class ExportBundle:
     inline: dict[str, 'Inline']
     tex: dict[str, str]
     lean: dict[str, dict[int, str]]
-    bindop: set[str]
+    binder: set[str]
+    binder_power: dict[str, int]
+    nested: set[str]
     flat: set[str]
     sym: set[str]
     alias: dict[str, str]
@@ -9708,7 +9957,7 @@ class ExportBundle:
     sort_how: dict[str, tuple[str, str, int]] = field(default_factory=dict)   # how its symbols got their sorts (inferred, default, ...)
 
 # the fields of `ExportBundle` that are symbol-keyed attributes of `KnowledgeBase`, of this level only
-EXPORTED_SYMBOL_ATTRS = ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'arity_shape', 'inline', 'tex', 'lean', 'bindop', 'flat', 'sym', 'alias',
+EXPORTED_SYMBOL_ATTRS = ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'arity_shape', 'inline', 'tex', 'lean', 'binder', 'binder_power', 'nested', 'flat', 'sym', 'alias',
                          'used', 'lbp', 'rbp', 'nud', 'led', 'const', 'prop', 'builtins', 'roles', 'frozen', 'declared_in')
 
 def exported_formulas_and_symbols(child: 'KnowledgeBase') -> tuple[list['Formula'], set[str]]:
@@ -9787,7 +10036,7 @@ def compute_exports(child: 'KnowledgeBase') -> ExportBundle:
     sorts = set(child.sorts) | set(sort_sigs) | schema_sorts
     chains = [list(c) for c in child.chain if all(op in symbols for op in c)]
     origin_keys: dict[str, set[str]] = {}
-    for keyword in ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'bindop', 'flat', 'sym',
+    for keyword in ('infix', 'postfix', 'prefix', 'brackets', 'arity', 'binder', 'nested', 'flat', 'sym',
                     'alias', 'const', 'prop', 'builtins'):
         value = selected[keyword]
         origin_keys[keyword] = set(value)
@@ -9865,9 +10114,9 @@ Nud: TypeAlias = Callable[[PeekableGenerator, "KnowledgeBase", Token], Expr]
 Led: TypeAlias = Callable[[PeekableGenerator, "KnowledgeBase", Expr, Token], Expr]
 Mode: TypeAlias = tuple[str, list[Expr]]  # where the str is one of ['root', 'sandbox', 'proof', 'assume', 'case', 'let', 'pick', 'expect']
 
-# `is_var`, `is_const`, `is_bindop`, `is_flat`, `is_sym` are asked millions of times and look up
+# `is_var`, `is_const`, `is_binder`, `is_flat`, `is_sym` are asked millions of times and look up
 # the levels each time; each level remembers its answers until anything changes what they depend
-# on (`var`, `const`, `bindop`, `flat`, `sym`, the fixed variables of any level, a `load`) -- each
+# on (`var`, `const`, `binder`, `flat`, `sym`, the fixed variables of any level, a `load`) -- each
 # such change counts up this version, which empties the memory
 symbol_version: list[int] = [0]
 
@@ -9918,7 +10167,9 @@ class KnowledgeBase:
         self.vocabulary: set[str]                = set()  # the symbols a top-level declaration of the file names (`const pi`, `infix ++ 50 50`): exported (todo 28)
         self.local_vocabulary: set[str]          = set()  # ... declared with `local` at the end (`const helper local`): not exported, so no exported fact may need them
         self.chain:    list[list[str]]           = []     # for chaining operators, i.e., 18 = 1+17 <= 20 < 21
-        self.bindop:   set[str]                  = set()  # set for variable binding operators
+        self.binder:   set[str]                  = set()  # set for variable binding operators
+        self.nested:   set[str]                  = set()  # `nested forall, exists`: the binders whose variable may be a list (`forall x, y P`)
+        self.binder_power: dict[str, int]        = {}      # `binder forall 17`: the binding power of the body of a binder (none: one tight argument, as `f x`)
         self.flat:     set[str]                  = set()  # set for declaring a flat operator, i.e., ($a + $b) + $c = $a + $b + $c
         self.sym:      set[str]                  = set()  # set for declaring a symmetric operator, i.e., $a + $b = $b + $a
         self.frozen:   set[str]                  = set()  # symbols declared by a trusted theory, see `is_trusted_file`
@@ -9989,7 +10240,7 @@ class KnowledgeBase:
     def bind_builtin(self, symbol: str, operation: str) -> None:
         if operation in ENGINE_ROLES:
             return self.bind_engine_role(symbol, operation)
-        if self.is_bindop(symbol):
+        if self.is_binder(symbol):
             raise KurtException(f'EvalError: binding operator `{symbol}` can not also be a calculator operation')
         if self.is_var(symbol):
             raise KurtException(f'EvalError: variable `{symbol}` can not have a fixed calculator meaning')
@@ -10019,10 +10270,10 @@ class KnowledgeBase:
         if self.is_var(symbol):
             raise KurtException(f'EvalError: variable `{symbol}` can not have a role of the engine')
         needed = ENGINE_ROLES[role]
-        if role in BINDER_ROLES and not (self.is_bindop(symbol) and self.get_arity(symbol) == 2):
-            raise KurtException(f'EvalError: the role `{role}` needs a binder with two arguments (`arity {symbol} 2`, `bindop {symbol}`)')
-        if role == 'setbuilder' and not (self.is_infix(symbol) and self.is_bindop(symbol)):
-            raise KurtException(f'EvalError: the role `setbuilder` needs an infix binder (`infix {symbol} ...`, `bindop {symbol}`)')
+        if role in BINDER_ROLES and not (self.is_binder(symbol) and self.get_arity(symbol) == 2):
+            raise KurtException(f'EvalError: the role `{role}` needs a binder with two arguments (`arity {symbol} 2`, `binder {symbol}`)')
+        if role == 'setbuilder' and not (self.is_infix(symbol) and self.is_binder(symbol)):
+            raise KurtException(f'EvalError: the role `setbuilder` needs an infix binder (`infix {symbol} ...`, `binder {symbol}`)')
         if role == 'setbuilder' and self.role_symbol('setbrackets') is None:
             raise KurtException('EvalError: the role `setbuilder` needs the brackets of sets first (`builtin { } setbrackets`)')
         if self.bool_sig(symbol) != needed:
@@ -10113,8 +10364,9 @@ class KnowledgeBase:
         elif keyword == 'chain':    return f'chain {" ".join(key)}'
         elif keyword == 'arity':    return f'arity {key} {shape_str(self.arity_shape[key]) if key in self.arity_shape else value}'
         elif keyword == 'flat':     return f'flat {key}'
+        elif keyword == 'nested':   return f'nested {key}'
         elif keyword == 'sym':      return f'sym {key}'
-        elif keyword == 'bindop':   return f'bindop {key}'
+        elif keyword == 'binder':   return f'binder {key}'
         elif keyword == 'sort':     return f'sort {key}'
         elif keyword == 'prop':
             assert isinstance(value, list), f'BUG!  Unexpected value for `prop`, got {value}'
@@ -10251,8 +10503,8 @@ class KnowledgeBase:
         sections = []
         for node in reversed(list(self.levels())):
             all_syntax = [node.dict_or_set_str(keyword, key, ambiguous, source) for keyword in
-                          ('prefix', 'infix', 'postfix', 'arity', 'chain', 'bindop', 'brackets',
-                           'flat', 'sym', 'alias', 'var', 'const', 'prop')]
+                          ('prefix', 'infix', 'postfix', 'arity', 'chain', 'binder', 'brackets',
+                           'nested', 'flat', 'sym', 'alias', 'var', 'const', 'prop')]
             if key is None:
                 sort_lines = []
                 for sort in sorted(node.sorts):
@@ -10312,12 +10564,12 @@ class KnowledgeBase:
     def is_postfix(self, s: str) -> bool:
         return s in self.postfix or (self.parent is not None and self.parent.is_postfix(s))
 
-    def is_bindop(self, s: str) -> bool:
+    def is_binder(self, s: str) -> bool:
         memory = self._symbol_memory
         memory = (memory if memory[0] == symbol_version[0] else self._memory())[3]
         answer = memory.get(s)
         if answer is None:
-            answer = memory[s] = s in self.bindop or (self.parent is not None and self.parent.is_bindop(s))
+            answer = memory[s] = s in self.binder or (self.parent is not None and self.parent.is_binder(s))
         return answer
 
     def is_flat(self, s: str) -> bool:
@@ -10341,7 +10593,7 @@ class KnowledgeBase:
         return s in self.all_fixed_vars
 
     def _memory(self) -> tuple:
-        # the answers of `is_var`, `is_const`, `is_bindop`, `is_flat`, `is_sym` (see `symbol_version`), at
+        # the answers of `is_var`, `is_const`, `is_binder`, `is_flat`, `is_sym` (see `symbol_version`), at
         # 1 to 5 (the whole tuple, not a slice of it: these are asked millions of times, todo 50) -- each
         # of them reads `_symbol_memory` itself and calls this only when `symbol_version` has changed
         # (2.4 million calls of `is_var` in 28-self-adjoint.kurt, 2026-10-25)
@@ -10444,7 +10696,7 @@ class KnowledgeBase:
 
     def declared_symbols(self) -> set[str]:
         # every symbol declared on this level (not the parents)
-        symbols = set(self.infix) | set(self.prefix) | set(self.postfix) | set(self.bindop) | set(self.const)
+        symbols = set(self.infix) | set(self.prefix) | set(self.postfix) | set(self.binder) | set(self.const)
         symbols |= set(self.prop) | set(self.arity) | self.flat | self.sym | set(self.alias)
         for signatures in self.sort_sigs.values():
             symbols |= set(signatures)
@@ -10628,7 +10880,7 @@ class KnowledgeBase:
     def is_declared(self, s: str) -> bool:
         # declared in some way before its first use, e.g. by `prop A`, `arity f 1`, `infix + 60 60`
         return (self.is_var(s) or self.is_const(s) or any(self.sort_sig(sort, s) for sort in self.all_sort_names()) or self.is_arity_set(s)
-                or self.is_operator(s) or self.is_bindop(s) or self.is_alias(s))
+                or self.is_operator(s) or self.is_binder(s) or self.is_alias(s))
 
     def is_operator(self, s: str) -> bool:
         return self.is_prefix(s) or self.is_infix(s) or self.is_postfix(s) or self.is_bracket(s)
@@ -10642,7 +10894,7 @@ class KnowledgeBase:
         # happens to be *first used* inside the block (fine, it's not scoped to it)
         # from a genuinely fresh individual like a `let`/`pick`/`const`-introduced
         # constant (not fine, it must not survive past the block it came from)
-        return self.get_arity(s) > 0 or self.is_operator(s) or self.is_bindop(s) or self.is_bool(s)
+        return self.get_arity(s) > 0 or self.is_operator(s) or self.is_binder(s) or self.is_bool(s)
 
     def levels(self) -> Iterator['KnowledgeBase']:
         # this level and the ones above it
@@ -10752,7 +11004,7 @@ class KnowledgeBase:
         elif self.is_infix(op):   return 'infix'
         elif self.is_postfix(op): return 'postfix'
         elif self.is_bracket(op): return 'bracket'
-        elif self.is_bindop(op):  return 'bindop'
+        elif self.is_binder(op):  return 'binder'
         elif self.is_var(op):     return 'var'
         elif self.is_const(op):   return 'const'
         else: assert False, 'BUG: call "_find_symbol" only for existing symbols'
@@ -10770,7 +11022,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{op}` already has explicit arity {self.get_arity(op)} and can not also be prefix')
         if self.is_operator(op) and not self.is_infix(op):    # infix and prefix at the same time is allowed
             raise KurtException(f'EvalError: symbol `{op}` already exist as {self._find_symbol(op)}')
-        if self.is_bindop(op):
+        if self.is_binder(op):
             raise KurtException(f'EvalError: binding operator `{op}` can not also be prefix')
         if self.is_flat(op):
             # A prefix and infix occurrence have the same AST head. Flattening would erase a
@@ -10793,7 +11045,10 @@ class KnowledgeBase:
         self.infix[op] = (lbp, rbp)                           # to nicely list all operators
         self.record_property_origin('infix', op)
         self.declare_origin(op)
-        self.led[op] = lambda ts, kb, left, op_token: chain_relations(kb, left, op_token, parse_expression(ts, kb, rbp))
+        if op == SPACE_SYMBOL:      # (the body of a binder with its own power is read with it, `binder_body_power`)
+            self.led[op] = space_led
+        else:
+            self.led[op] = lambda ts, kb, left, op_token: chain_relations(kb, left, op_token, parse_expression(ts, kb, rbp))
         self.lbp[op] = lbp                                    # for lbp lookup during parsing
 
     def add_postfix(self, op: str, lbp: int) -> None:
@@ -10824,7 +11079,7 @@ class KnowledgeBase:
             self.property_origins.setdefault(keyword, {})[self._property_key(key)] = location
 
     def declare_origin(self, s: str) -> None:
-        # one file declares a symbol (its grammar, `flat`, `sym`, `arity`, ...): numbers.kurt's `+`
+        # one file declares a symbol (its grammar, `flat`, `sym`, `arity`, ...): number.kurt's `+`
         # and the `+` of a structure (field.kurt) are two different things, and loading both would
         # make the laws of one apply to the other -- a second file declaring `+` is an error, here
         # or when the two meet by `load` (`validate_against_loader`)
@@ -10845,7 +11100,7 @@ class KnowledgeBase:
                 raise KurtException(f'EvalError: all operators of a chain must be infix, operator `{op}` is not')
             if self.is_var(op):
                 raise KurtException(f'EvalError: variable operator `{op}` can not be in a chain with fixed transitivity rules')
-            if self.is_bindop(op):
+            if self.is_binder(op):
                 raise KurtException(f'EvalError: binding operator `{op}` can not be in a chain')
         self.check_with_other_chains(c)
         if len(c) < 1:
@@ -10861,7 +11116,18 @@ class KnowledgeBase:
         self.chain.append(c)
         self.record_property_origin('chain', c)
 
-    def add_bindop(self, fun: str) -> None:
+    def get_binder_power(self, fun: str) -> Optional[int]:
+        if fun in self.binder_power:
+            return self.binder_power[fun]
+        return self.parent.get_binder_power(fun) if self.parent is not None else None
+
+    def add_binder(self, fun: str, power: Optional[int] = None) -> None:
+        if power is not None:
+            if not 1 <= power < space_rbp:
+                raise KurtException(f'EvalError: the binding power of the body of `{fun}` is a number from 1 to {space_rbp - 1} (`{space_rbp}` is a tight argument, as `f x`; the default), not {power}')
+            if self.is_infix(fun):
+                raise KurtException(f'EvalError: `{fun}` is an infix binder: its body is the right operand, `infix {fun} ...` gives its power')
+            self.binder_power[fun] = power
         if self.is_flat(fun) or self.is_sym(fun) or self.is_chainable(fun):
             # Flattening/sorting a binder changes which token is bound and what its scope is;
             # chain rules treat the two operands as ordinary relation arguments.
@@ -10879,9 +11145,9 @@ class KnowledgeBase:
             # the condition with the bound variable, its right operand the body
             if not self.is_const(fun):
                 self.add_const(fun)
-            self.bindop.add(fun)
+            self.binder.add(fun)
             symbols_changed()
-            self.record_property_origin('bindop', fun)
+            self.record_property_origin('binder', fun)
             self.declare_origin(fun)
             return
         if self.is_operator(fun):
@@ -10892,11 +11158,11 @@ class KnowledgeBase:
             raise KurtException('EvalError: arity of binding operators must be at least 2')
         if not self.is_const(fun):
             self.add_const(fun)
-        self.bindop.add(fun)
+        self.binder.add(fun)
         symbols_changed()
-        self.record_property_origin('bindop', fun)
+        self.record_property_origin('binder', fun)
         self.declare_origin(fun)
-        self.nud[fun] = lambda ts, kb, t: bindop_nud(ts, kb, t)   # (defined further below)
+        self.nud[fun] = lambda ts, kb, t: binder_nud(ts, kb, t)   # (defined further below)
 
     def check_bool_sig_sym_flat(self, op: str) -> None:    # might raise exceptions, though
         # A flat/symmetric infix applies one argument declaration to every operand. Therefore
@@ -10909,12 +11175,25 @@ class KnowledgeBase:
                 if max(signature) > 2:
                     raise KurtException(f'EvalError: existing `{sort}` signature contains info for more than two args')
 
+    def is_nested(self, s: str) -> bool:
+        return s in self.nested or (self.parent is not None and self.parent.is_nested(s))
+
+    def add_nested(self, op: str) -> None:
+        if not self.is_binder(op) or self.is_infix(op):
+            raise KurtException(f'EvalError: `{op}` is not a binding operator with a prefix form: only `binder` operators can be `nested`')
+        if self.get_arity(op) != 2:
+            raise KurtException(f'EvalError: `{op}` has {self.get_arity(op)} arguments: only a binder of two (the variable and its body) can be `nested`')
+        self.nested.add(op)
+        self.record_property_origin('nested', op)
+        self.declare_origin(op)
+        symbols_changed()
+
     def add_flat(self, op: str) -> None:
         if not self.is_infix(op):
             raise KurtException(f'EvalError: operator `{op}` must be infix operator to declare flatness')
         if self.is_prefix(op):
             raise KurtException(f'EvalError: prefix/infix operator `{op}` can not be `flat` -- flattening would confuse its unary and binary forms')
-        if self.is_bindop(op):
+        if self.is_binder(op):
             raise KurtException(f'EvalError: binding operator `{op}` can not be `flat`')
         if self.is_var(op):
             raise KurtException(f'EvalError: variable operator `{op}` can not be declared `flat`; flatness belongs to the concrete operator it matches')
@@ -10933,7 +11212,7 @@ class KnowledgeBase:
     def add_sym(self, op) -> None:
         if not self.is_infix(op):
             raise KurtException(f'EvalError: operator `{op}` must be infix operator to declare symmetry')
-        if self.is_bindop(op):
+        if self.is_binder(op):
             raise KurtException(f'EvalError: binding operator `{op}` can not be `sym` -- swapping its arguments changes the bound variable and scope')
         if self.is_var(op):
             raise KurtException(f'EvalError: variable operator `{op}` can not be declared `sym`; symmetry belongs to the concrete operator it matches')
@@ -10952,7 +11231,7 @@ class KnowledgeBase:
     def get_infix_rbp(self, op: str) -> int:
         # `self.infix[op]` is written once by `add_infix` and never read back during ordinary
         # parsing (the right binding power is baked directly into the `led` closure it
-        # creates) -- `bindop_nud` needs it back for a condition's right-hand side, searching
+        # creates) -- `binder_nud` needs it back for a condition's right-hand side, searching
         # the parent levels the same way `get_led`/`get_lbp` do
         if op in self.infix:
             return self.infix[op][1]
@@ -11018,7 +11297,7 @@ class KnowledgeBase:
             raise KurtException(f'EvalError: symbol `{s}` is already used as a constant')
         if self.get_builtins(s):
             raise KurtException(f'EvalError: calculator symbol `{s}` has a fixed meaning and can not be a variable')
-        if self.is_flat(s) or self.is_sym(s) or self.is_chainable(s) or self.is_bindop(s):
+        if self.is_flat(s) or self.is_sym(s) or self.is_chainable(s) or self.is_binder(s):
             raise KurtException(f'EvalError: symbol `{s}` has a fixed semantic property and can not be a variable')
         self.var.add(s)
         self.record_property_origin('var', s)
@@ -11092,7 +11371,7 @@ class KnowledgeBase:
             max_args = None
         if max_args is not None and any(position < 0 or position > max_args for position in v):
             raise KurtException(f'EvalError: `prop` position of `{s}` must be between 0 and its arity {max_args}')
-        if self.is_bindop(s) and 1 in v:
+        if self.is_binder(s) and 1 in v:
             raise KurtException(f'EvalError: first position of binding operator `{s}` can not be a statement place')
         self.prop[s] = v          # add a key and set the value to the list of statement places
         self.record_property_origin('prop', s)
@@ -11120,7 +11399,7 @@ class KnowledgeBase:
             match e:
                 case Token(label='SYMBOL', value=v):
                     return v == symbol and v not in bound
-                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and self.is_bindop(op):
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and self.is_binder(op):
                     try:
                         bv, _ = unpack_condition(cond, self)
                     except KurtException:
@@ -11267,7 +11546,7 @@ class KnowledgeBase:
             return end_lbp           # this is to finish the while loop in 'expression'
         # the default value
         if run_state.space_suspended[0]:
-            return 0                 # inside a quantifier's condition, see `bindop_nud`
+            return 0                 # inside a quantifier's condition, see `binder_nud`
         return space_lbp             # this is used for 'f x y'
 
     def all_flat(self) -> Iterator[str]:
@@ -11378,7 +11657,7 @@ class KnowledgeBase:
                         self.used.add(s)      # 2. add it to the used symbols
             case [*children]:
                 match children:
-                    case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and self.is_bindop(op):
+                    case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and self.is_binder(op):
                         bound_v, _ = unpack_condition(cond, self)
                         middle, body = binder_scope(tail)
                         for child in middle:                    # outside the scope of `bound_v`
@@ -11449,7 +11728,7 @@ class KnowledgeBase:
                             else:
                                 # just a normal operator
                                 for i in range(len(args)):
-                                    if i == 0 and self.is_bindop(op):
+                                    if i == 0 and self.is_binder(op):
                                         bool_sigs |= _get_new_bool_sigs(args[i], False)   # a binder's variable, or its condition
                                     elif op != COMMA_SYMBOL and bool_expr(args[i], self):
                                         # (not the comma of a tuple: its places are terms -- `reflexive((R), $A)`
@@ -11790,7 +12069,7 @@ def equal_expr_alpha(t1: Expr, t2: Expr, kb: 'KnowledgeBase', bmap1: dict, bmap2
             return v1 == v2
         case ([Token(label='SYMBOL', value=op1), cond1, *tail1], [Token(label='SYMBOL', value=op2), cond2, *tail2]) \
                 if isinstance(op1, str) and isinstance(op2, str) and op1 == op2 \
-                and kb.is_bindop(op1) and len(tail1) == len(tail2):
+                and kb.is_binder(op1) and len(tail1) == len(tail2):
             bv1, c1 = unpack_condition(cond1, kb)
             bv2, c2 = unpack_condition(cond2, kb)
             if (c1 is None) != (c2 is None):
@@ -11843,6 +12122,7 @@ GREEK_VARIABLE_LETTERS = ''.join(c for c in SPECIAL_SYMBOLS if c.isalpha() and n
 # note that the ordering of the expressions here is important
 scanner: re.Pattern = re.compile(fr'''
   (?P<LOAD>(?i:load)\s+(?P<LOAD_BODY>[^\n;]*))    | # captures everything after `load` up to ';' or EOL
+  (?P<SAVE>(?i:save)\s+(?P<SAVE_BODY>[^\n;]*))    | # `save` takes one file name, with or without quotes (like `load`)
   (?P<LIST>(?i:list)\s+(?P<LIST_BODY>[^\n;]*))    | # `list` arguments are categories/file names, not expressions
   (?P<TEX>tex\s+(?P<TEX_SYMBOL>\S+)\s+(?P<TEX_BODY>[^\n;]*[^\s;])) | # `tex sum \sum_{{$1=$2}}^{{$3}} $4`: the LaTeX of a symbol, raw
   (?P<LEANPROOF>lean\s+"(?P<LEANPROOF_LABEL>[^"\n]+)"[^\S\n](?P<LEANPROOF_BODY>[^\n]*[^\s])) | # `lean "add-eq" intro a b c h; rw [h]`: a line of a fact's proof in Lean, raw to the end of the line (`;` too; more spaces: indented)
@@ -11958,7 +12238,7 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             names = split_filenames(body)
             covered = re.sub(r'\s', '', ''.join(m.group(0) for m in filenames_pattern.finditer(body)))
             if covered != re.sub(r'\s', '', body):
-                # `load propositional numbers` read `numbers` only, `propositional` was lost silently (2026-10-15)
+                # `load propositional number` read `number` only, `propositional` was lost silently (2026-10-15)
                 words = [w for w in re.split(r'[\s,]+', body.strip()) if w]
                 raise KurtException(f'ScanError: `load {body.strip()}` -- the files are separated by commas: `load {", ".join(words)}` (a name with spaces in quotes)', column)
             for i, name in enumerate(names):
@@ -11977,6 +12257,15 @@ def scan_string(input_line: str, kb: KnowledgeBase) -> Iterator[Token]:
             yield Token('SYMBOL', 'lean', column)
             yield Token('STRING', match.group('LEAN_SYMBOL'), column + 5)
             yield Token('STRING', match.group('LEAN_BODY'), match.start('LEAN_BODY'))
+        elif label == 'SAVE':
+            body = match.group('SAVE_BODY').strip()
+            yield Token('SYMBOL', 'save', column)
+            if body.startswith('"') or not body:
+                for part in re.findall(r'"[^"]*"|[^\s"]+', body):     # (quoted names, and what is wrong with `save a b`, as before)
+                    yield Token('STRING', part[1:-1] if part.startswith('"') else part, column + 5)
+            else:
+                for part in body.split():
+                    yield Token('STRING', part, column + 5)
         elif label == 'LIST':
             body = match.group('LIST_BODY')
             yield Token('SYMBOL', 'list', column)
@@ -12013,13 +12302,13 @@ def is_led_token(token: Token, kb: KnowledgeBase) -> bool:
     else:
         return False
 
-# starting tokens: prefix, opening brackets, bindop, numbers, strings (labels), etc
+# starting tokens: prefix, opening brackets, binder, numbers, strings (labels), etc
 def is_nud_token(token: Token, kb: KnowledgeBase) -> bool:
     if token.label == 'SYMBOL':
         op = token.value
         assert isinstance(op, str)
         # these checks are necessary, since, e.g., `-` can be both prefix and infix
-        if kb.is_prefix(op) or kb.is_lbracket(op) or kb.is_bindop(op):
+        if kb.is_prefix(op) or kb.is_lbracket(op) or kb.is_binder(op):
             return True
         else:
             return not is_led_token(token, kb)  # if not infix/postfix, then it is a number or string
@@ -12052,7 +12341,7 @@ def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str]
                 if (v not in bound and v[0] not in '$%' and '$$$' not in v and v not in found
                         and not kb.is_used(v) and not kb.is_declared(v)):
                     found.append(v)
-            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
                 bv, _ = unpack_condition(cond, kb)
                 middle, body = binder_scope(tail)
                 for child in middle:
@@ -12065,9 +12354,9 @@ def undeclared_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str]
     walk(expr, bound_vars)
     return found
 
-# whether function application is switched off while parsing, see `bindop_nud`
+# whether function application is switched off while parsing, see `binder_nud`
 
-def bindop_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
+def binder_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
     # a binding operator with a condition, e.g. `∀ $n ∈ Nat P $n` or `∃ $d > 0 ...`: since
     # function application binds most tightly, the condition `$n ∈ Nat` is read here, with the
     # right-hand side extending over infix operators but not over an application -- so the body
@@ -12076,6 +12365,22 @@ def bindop_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
     if not (isinstance(v, Token) and v.label == 'SYMBOL' and isinstance(v.value, str) and not kb.is_operator(v.value)):
         return t
     next(ts)
+    if kb.is_nested(str(t.value)):
+        # `∃ x, y, z P`: the binder once for each name, `∃ x ∃ y ∃ z P`
+        names = [v]
+        while isinstance(ts.peek, Token) and ts.peek.label == 'SYMBOL' and ts.peek.value == COMMA_SYMBOL:
+            next(ts)
+            n = ts.peek
+            if not (isinstance(n, Token) and n.label == 'SYMBOL' and isinstance(n.value, str) and not kb.is_operator(n.value)):
+                raise KurtException(f'ParseError: `{t.value} {", ".join(str(x.value) for x in names)},` is followed by another name', n.column if isinstance(n, Token) else t.column)
+            next(ts)
+            names.append(n)
+        cond = ts.peek
+        if len(names) > 1 and isinstance(cond, Token) and cond.label == 'SYMBOL' and isinstance(cond.value, str) and is_relation(cond.value, kb):
+            raise KurtException(f'ParseError: a condition (`{cond.value} ...`) belongs to one variable: give each name its own, `{t.value} x > 0, y > 0 ...`', cond.column)
+        for name in reversed(names[1:]):
+            ts.prepend(name)
+            ts.prepend(Token(t.label, t.value, t.column, t.origin))
     op = ts.peek
     if not (isinstance(op, Token) and op.label == 'SYMBOL' and isinstance(op.value, str) and is_relation(op.value, kb)):
         ts.prepend(v)
@@ -12087,7 +12392,38 @@ def bindop_nud(ts: PeekableGenerator, kb: KnowledgeBase, t: Token) -> Expr:
         rhs = parse_expression(ts, kb, kb.get_infix_rbp(op.value))
     finally:
         run_state.space_suspended[0] = suspended
+    if kb.is_nested(str(t.value)) \
+            and isinstance(ts.peek, Token) and ts.peek.label == 'SYMBOL' and ts.peek.value == COMMA_SYMBOL:
+        # `∀ x > 0, y > 0 P`: the next variable (with its condition) is a binder of its own, the body of this one
+        next(ts)
+        ts.prepend(Token(t.label, t.value, t.column, t.origin))
     return [space_token, t, [op, v, rhs]]
+
+def space_led(ts: PeekableGenerator, kb: KnowledgeBase, left: Expr, op_token: Token) -> Expr:
+    # application, `f x`: the operand binds with `space_rbp` -- except the body of a binder with a power (`binder_body_power`),
+    # which is the operand as the brackets of the user would have made it (the flattening of applications would take it apart)
+    power = binder_body_power(left, kb)
+    if power is None:
+        return chain_relations(kb, left, op_token, parse_expression(ts, kb, space_rbp))
+    body = parse_expression(ts, kb, power)
+    if isinstance(body, list):
+        body = [Token('SYMBOL', '($$$)', column=op_token.column), body]
+    return [op_token, left, body]
+
+def binder_body_power(left: Expr, kb: KnowledgeBase) -> Optional[int]:
+    # `∀ x ...`: when the next operand of an application is the body of a binder that has a power (`binder forall 17`),
+    # it is read with that power, so the operators that bind tighter are inside it -- `∀ x x > 0 and x < 5` is
+    # `(∀ x. x > 0) and x < 5` -- and not as one tight argument. `left` is the binder with the arguments before the body
+    # (its variable, or its condition; the middle ones of `sum i (1, n) ...`)
+    arguments, node = 0, left
+    while isinstance(node, list) and len(node) == 3 and isinstance(node[0], Token) and node[0].value == SPACE_SYMBOL:
+        arguments += 1
+        node = node[1]
+    if isinstance(node, Token) and node.label == 'SYMBOL' and isinstance(node.value, str) and kb.is_binder(node.value):
+        power = kb.get_binder_power(node.value)
+        if power is not None and arguments == kb.get_arity(node.value) - 1:
+            return power
+    return None
 
 def chain_relations(kb: KnowledgeBase, left: Expr, op_token: Token, right: Expr) -> Expr:
     # mathematicians write `a = b <= c` for `a = b and b <= c`: an infix relation whose (not
@@ -12399,7 +12735,7 @@ def merge_applications(expr: Expr, kb: KnowledgeBase) -> Expr:
     if (len(e) >= 2 and isinstance(head, list) and len(head) >= 2 and isinstance(head[0], Token)
             and head[0].label == 'SYMBOL' and isinstance(head[0].value, str) and kb.get_arity(head[0].value) == 0
             and not kb.is_operator(head[0].value) and not kb.is_bracket_placeholder(head[0].value)
-            and not kb.is_bindop(head[0].value) and head[0].value not in (SPACE_SYMBOL, SUB_SYMBOL)):
+            and not kb.is_binder(head[0].value) and head[0].value not in (SPACE_SYMBOL, SUB_SYMBOL)):
         return head + e[1:]
     return e
 
@@ -12466,7 +12802,7 @@ def mark_bound_variables(expr: Expr, kb: KnowledgeBase, outer: frozenset[str] = 
     match expr:
         case Token():
             return expr
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op) and op != SUB_SYMBOL:
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op) and op != SUB_SYMBOL:
             if isinstance(cond, Token) or is_sub(cond):
                 v_name = cond.value if isinstance(cond, Token) else None
                 inner = outer | {v_name} if isinstance(v_name, str) else outer
@@ -12701,7 +13037,7 @@ def bare_bool_schema_axiom_warning(expr: Expr, kb: KnowledgeBase, filename: Opti
     # of Kurt (modal.kurt's `⊢ (A → ◇ A)` with `var A, B, C` is a schema over formulas, as meant)
     if isinstance(expr, list) and len(expr) == 3 and isinstance(expr[0], Token) and is_relation(expr[0].value, kb) \
             and not (filename is not None and is_trusted_file(filename)):
-        leaves = [t for t in get_token_set(expr) if not (t.label == 'SYMBOL' and isinstance(t.value, str) and (kb.is_infix(t.value) or kb.is_prefix(t.value) or kb.is_postfix(t.value) or kb.is_bindop(t.value) or '$$$' in t.value or t.value == BOUND_SYMBOL))]
+        leaves = [t for t in get_token_set(expr) if not (t.label == 'SYMBOL' and isinstance(t.value, str) and (kb.is_infix(t.value) or kb.is_prefix(t.value) or kb.is_postfix(t.value) or kb.is_binder(t.value) or '$$$' in t.value or t.value == BOUND_SYMBOL))]
         if leaves and all(t.label == 'SYMBOL' and isinstance(t.value, str) and kb.is_var(t.value) and not kb.is_bool(t.value)
                           and t.value[0] not in '$%' for t in leaves):
             names = sorted({str(t.value) for t in leaves})
@@ -12857,7 +13193,7 @@ def operator_meaning(op: str, kb: KnowledgeBase) -> Optional[str]:
     # a `sym`/`flat` operator is caught earlier, by the "got none" error with its own hint)
     if kb.is_chainable(op):
         return 'is in a `chain`'
-    if kb.is_bindop(op):
+    if kb.is_binder(op):
         return 'is a binder'
     if op in core_kb.declared_symbols():
         return 'belongs to the core'
@@ -12877,7 +13213,7 @@ def contains(expr: Expr, symbols: set[str], kb: KnowledgeBase) -> bool:
             assert isinstance(s, str)
             return s in symbols
         # binding operator
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             bound_v, condition = unpack_condition(cond, kb)
             symbols_wo_bound_v = symbols - {bound_v}  # set difference creating a new set
             cond_check = False if condition is None else contains(condition, symbols_wo_bound_v, kb)
@@ -12899,7 +13235,7 @@ def free_symbols(expr: Expr, kb: KnowledgeBase, bound_vars: frozenset[str] = fro
             return {s}
         case Token():
             return set()
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             bound_v, condition = unpack_condition(cond, kb)
             new_bound_vars = bound_vars | {bound_v}
             found = set() if op in bound_vars else {op}
@@ -12984,6 +13320,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
             # level (the witness itself, or any bystander `const` declared alongside it) --
             # vocabulary symbols first used here are fine, see `is_vocabulary_symbol`
             witness = kb.mode_args[0].value if isinstance(kb.mode_args[0], Token) else None
+            no_defined_symbol(kb, expr)
             pick_not_allowed = set(filter(lambda s: not kb.is_vocabulary_symbol(s), kb.const)) | ({witness} if isinstance(witness, str) else set())
             if contains(expr, pick_not_allowed, kb):
                 raise KurtException(f'ProofError: the line (its conclusion) of the `pick` block may not contain constant symbols from the current level, got `{expr_str(expr, kb)}`')
@@ -13007,6 +13344,7 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
     # wrongly treated as if it were as scoped as a `let`/`pick`/`const`-introduced individual.
     assert kb.parent is not None, 'BUG: we should be one-level up in `eval_done`'
     kb_parent = kb.parent
+    no_defined_symbol(kb, expr)
     not_allowed = set(filter(lambda s: not kb_parent.is_var(s) and not kb.is_vocabulary_symbol(s), kb.const))
     if contains(expr, not_allowed, kb_parent):
         raise KurtException(f'ProofError: there are constant symbols on the current level appearing in the conclusion of the previous one, got `{expr_str(expr, kb_parent)}`, not allowed are {not_allowed}')
@@ -13025,6 +13363,15 @@ def eval_done(kb: KnowledgeBase, filename: str, line: int) -> KnowledgeBase:
         return close_block_with(kb, mode_str, expr, last_expr, filename)
     finally:
         run_state.generalized_sorts = saved_sorts
+
+def no_defined_symbol(block: KnowledgeBase, expr: Expr) -> None:
+    # the result of a closing block must not mention a symbol that a `def` of the block defined --
+    # whatever it is, also an operator or a statement (todo 77): it and its defining fact are gone
+    # when the block closes, so `let x` / `def k iff P x` must not give `∀ x (k iff P x)`
+    for f in block.theory:
+        if f.def_symbol is not None and contains(expr, {f.def_symbol}, block):
+            raise KurtException(f'ProofError: `{written_name(f.def_symbol, f.expr)}` is defined in this block (line {f.line}), so the '
+                                f'result of the block can\'t mention it -- its definition is gone when the block closes: got `{expr_str(expr, block)}`')
 
 def block_result_sorts(block: KnowledgeBase) -> dict[str, frozenset[str]]:
     # the sort of each constant of `block` that becomes a variable of its result: the names of a
@@ -13078,7 +13425,7 @@ def binder_reading(e: Expr, kb: KnowledgeBase) -> Optional[list[str]]:
     match e:
         case Token():
             return []
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             try:
                 bv, _ = unpack_condition(cond, kb)
             except KurtException:
@@ -13186,7 +13533,7 @@ def eval_qed(kb: KnowledgeBase, filename: str, line: 'int | str', implicit: bool
 def is_new_symbol_or_existing_variable(s: str, kb: KnowledgeBase) -> bool:
     # a variable, or a symbol without any declaration (a predicate declared with `prop`/`arity`
     # but not used yet is not a new symbol)
-    return kb.is_var(s) or not (kb.is_const(s) or kb.is_operator(s) or kb.is_arity_set(s) or len(kb.bool_sig(s)) > 0 or kb.is_bindop(s))
+    return kb.is_var(s) or not (kb.is_const(s) or kb.is_operator(s) or kb.is_arity_set(s) or len(kb.bool_sig(s)) > 0 or kb.is_binder(s))
 
 def extract_by_condition(e: Expr, c: Callable[[str], bool], kb: KnowledgeBase, bound_vars: frozenset[str] = frozenset()) -> list[str]:
     # bound-variable-aware: a symbol only bound by an enclosing binder (e.g. the `x` in
@@ -13196,7 +13543,7 @@ def extract_by_condition(e: Expr, c: Callable[[str], bool], kb: KnowledgeBase, b
     match e:
         case Token(label='SYMBOL', value=s) if isinstance(s, str) and s not in bound_vars and c(s):
             return [s]        # new string fulfilling the condition
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             bound_v, condition = unpack_condition(cond, kb)
             new_bound_vars = bound_vars | {bound_v}
             found = [] if condition is None else extract_by_condition(condition, c, kb, new_bound_vars)
@@ -13251,7 +13598,7 @@ def unpack_condition(expr: Expr, kb: KnowledgeBase) -> tuple[str, Optional[Expr]
             new_consts = [s for s in new_consts if not kb.is_fixed_var(s)] or new_consts
         if len(new_consts) > 1:
             # several, e.g. `$a ∈ $G` in a rule: the one on the left of the relation is bound, as
-            # in the unbracketed `∀ $a ∈ $G ...` (see `bindop_nud`)
+            # in the unbracketed `∀ $a ∈ $G ...` (see `binder_nud`)
             match expr:
                 case [Token(label='SYMBOL', value=rel), Token(label='SYMBOL', value=v), _] if isinstance(rel, str) and isinstance(v, str) and is_relation(rel, kb) and v in new_consts:
                     new_consts = [v]
@@ -13272,6 +13619,10 @@ def eval_let(kb: KnowledgeBase, expr: Expr, input_line: str, filename: str, line
     new_const, condition = unpack_condition(expr, kb)
     if new_const.startswith('%') or kb.is_bool(new_const):
         raise KurtException(LET_STATEMENT_MESSAGE.format(new_const))
+    if new_const.startswith('$'):
+        # a `$` name is a variable by its name (`const $x` is refused too), `let` makes a constant
+        raise KurtException(f'TypeError: `let` fixes a constant, but `{new_const}` starts with `$`, so it is always a variable -- '
+                            f'a claim with free `$`-variables needs no `let`, or use a plain name: `let {new_const[1:]}`')
     if kb.is_fixed_var(new_const):
         # `assume P $x` / `let $x` would turn the fixed `$x` of the assumption into "for all x"
         raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `let` needs a new name')
@@ -13300,6 +13651,39 @@ def pick_instance(existential: Expr, witness: Expr, kb: KnowledgeBase) -> Option
             assert condition is not None
             return normalize_expr([Token('SYMBOL', AND_SYMBOL), k_replace(condition, x, witness, kb), k_replace(body, x, witness, kb)], kb)
     return None
+
+def multi_pick_steps(args: list[Expr], kb: KnowledgeBase) -> list[Expr]:
+    # `pick x, y, z with F` as the `pick`s it stands for: `x with ∃ y ∃ z F`, `y with ∃ z F`, `z with F`
+    names: list[Token] = []
+    for a in args[:-1]:
+        if not (isinstance(a, list) and len(a) == 1 and isinstance(a[0], Token) and a[0].label == 'SYMBOL'):
+            raise KurtException('EvalError: several witnesses are picked as `pick x, y, z with F` (one `with`, at the end), e.g. `pick x, y with R x y`')
+        names.append(a[0])
+    last = args[-1]
+    if not (isinstance(last, list) and len(last) > 2 and isinstance(last[0], Token) and last[0].label == 'SYMBOL' and is_helper_keyword(last[1])):
+        raise KurtException('EvalError: several witnesses are picked as `pick x, y, z with F`, e.g. `pick x, y with R x y`')
+    names.append(last[0])
+    if len({t.value for t in names}) < len(names):
+        raise KurtException('EvalError: `pick` takes distinct names for its witnesses', get_column(names[-1]))
+    exists = kb.role_symbol('existential')
+    assert exists is not None
+    steps: list[Expr] = []
+    for i, name in enumerate(names):
+        fact: list[Expr] = list(last[2:])
+        for later in reversed(names[i + 1:]):
+            fact = [later.clone(exists), later, later.clone('('), *fact, later.clone(')')]
+        steps.append([name, last[1], *fact])
+    return steps
+
+def pick_input_line(step: Expr) -> str:
+    # the text `eval_pick` keeps of the line: of a step of `pick x, y with F` the `pick` it stands for
+    assert isinstance(step, list)
+    return 'pick ' + ' '.join(str(t.value) if isinstance(t, Token) else '' for t in step)
+
+def log_pick(kb: KnowledgeBase, new_const: str, fact: Expr, line: int) -> None:
+    if printing():
+        reason = Reason(str(line), f'open local scope with new constant `{new_const}`', 'open')
+        log(kb, f'pick {new_const} with {expr_str(fact, kb)}', reason, kb.level-1)  # log the new constants
 
 def eval_pick(kb: KnowledgeBase, new_const_expr: Expr, fact_expr: Expr, input_line, filename: str, line: int) -> tuple[KnowledgeBase, Expr]:
     assert isinstance(new_const_expr, Token) and new_const_expr.label=='SYMBOL'
@@ -13441,8 +13825,8 @@ def generate_chain_transitivity(kb: KnowledgeBase, chain: list[str]) -> Knowledg
     # the operator with the larger index" rule `get_chain_op` already uses to combine
     # operators within one manually-*written* chain expression (`a = b <= c` concludes
     # `a <= c`), now applied as a real inference rule spanning two separately-proven facts,
-    # rather than leaving every theory to hand-write its own (as numbers.kurt used to for its
-    # `<`/`<=`/`=` chain -- see doc/kurt-soundness.md for the writeup and numbers.kurt's own
+    # rather than leaving every theory to hand-write its own (as number.kurt used to for its
+    # `<`/`<=`/`=` chain -- see doc/kurt-soundness.md for the writeup and number.kurt's own
     # trimmed-down transitivity section for the before/after).
     # a chain's operators relate either two statements (e.g. `iff`/`implies`, where
     # `prop iff 0 1 2` makes positions 1 and 2 statement places too, not just the result) or two
@@ -13578,13 +13962,15 @@ def inside_sandbox_or_expect(kb: KnowledgeBase) -> bool:
     return False
 
 def block_forbidding_declaration(kb: KnowledgeBase) -> Optional[str]:
-    # `use`/`load`/`def`/`chain`/`inline`, and a grammar declaration (`infix`, `prefix`, `postfix`,
-    # `brackets`, `arity`, `bindop`, `flat`, `sym`, `alias`, `sort`) inside a proof-like block would
-    # either leak an unproven axiom into a seemingly proven result (e.g. `assume A` + `use B` gives
-    # `A implies B`) or make the block's notation permanently stick once a surviving formula uses it
-    # (doc/kurt-ref.md §11.2) -- the kind of the innermost such block, or `None` if it's fine here:
-    # at the top level of a file, or anywhere inside a `sandbox` or `expect`, whose content is
-    # discarded
+    # what is refused inside a proof-like block (doc/kurt-spec.md §6.6): `use` and `chain` postulate
+    # facts, which would leak into a seemingly proven result (`assume A` + `use B` gives `A implies
+    # B`); `load` and a grammar declaration (`infix`, `prefix`, `postfix`, `brackets`, `arity`,
+    # `binder`, `flat`, `sym`, `alias`, `sort`, `default`) change what the file contains and how it
+    # is read, and a notation would stick once a surviving formula uses it (doc/kurt-ref.md §11.2);
+    # `inline` stays refused for now (a notation read away while parsing, todo 18). Not `def`: it
+    # postulates nothing, and inside a block it is local to it (todo 77, `no_defined_symbol`) --
+    # the kind of the innermost such block, or `None` if it's fine here: at the top level of a
+    # file, or anywhere inside a `sandbox` or `expect`, whose content is discarded
     innermost: Optional[str] = None
     node: Optional[KnowledgeBase] = kb
     while node is not None:
@@ -13600,20 +13986,20 @@ def block_forbidding_declaration(kb: KnowledgeBase) -> Optional[str]:
 # the input lines of each file or shell session that were accepted, for `save` (see `read_eval_loop`)
 
 # the declarations that make a file's vocabulary (exported, todo 28; `const helper local` not)
-VOCABULARY_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'prop', 'chain', 'const',
+VOCABULARY_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'binder', 'nested', 'flat', 'sym', 'prop', 'chain', 'const',
                        'alias', 'tex', 'lean')
 
 # the statements that declare how symbols are read (`sub` may appear in them, e.g. `arity sub 3`)
-DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'bindop', 'flat', 'sym', 'prop',
+DECLARATION_KEYWORDS = ('infix', 'prefix', 'postfix', 'brackets', 'arity', 'binder', 'nested', 'flat', 'sym', 'prop',
                         'chain', 'var', 'const', 'alias', 'sort')
 
 # statements that only show something: not saved
 SHOWING_KEYWORDS = {'save', 'cert', 'help', 'hint', 'theory', 'syntax', 'info', 'list', 'summary',
                     'tokenize', 'parse', 'breakpoint', 'format'}
 # ... and those that only list something when they come without arguments
-LISTING_KEYWORDS = {'load', 'use', 'def', 'show', 'prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop',
-                    'flat', 'sym', 'sort', 'default', 'prop', 'chain', 'var', 'const', 'alias', 'builtin'}
-LIST_PROPERTY_KEYWORDS = ('prefix', 'infix', 'postfix', 'brackets', 'arity', 'bindop', 'flat',
+LISTING_KEYWORDS = {'load', 'use', 'def', 'show', 'prefix', 'infix', 'postfix', 'brackets', 'arity', 'binder',
+                    'nested', 'flat', 'sym', 'sort', 'default', 'prop', 'chain', 'var', 'const', 'alias', 'builtin'}
+LIST_PROPERTY_KEYWORDS = ('prefix', 'infix', 'postfix', 'brackets', 'arity', 'binder', 'nested', 'flat',
                           'sym', 'sort', 'prop', 'chain', 'var', 'const', 'alias')
 LIST_CATEGORIES = {'files', 'theory', 'use', 'def', 'syntax', 'symbols', 'declarations',
                    *LIST_PROPERTY_KEYWORDS}
@@ -13664,7 +14050,7 @@ def apply_declaration_batch(kb: KnowledgeBase, apply: Callable[[KnowledgeBase], 
 # the declarations about a symbol: one written with an alias is about its symbol (`tex ∪ \sqcup` is
 # `tex union \sqcup`, `chain ≠` is `chain neq`, todo 61) -- the scanner reads a formula's `∪` as
 # `union` anyway, so a declaration of `∪` itself would never apply
-ALIAS_RESOLVING_KEYWORDS = ('infix', 'prefix', 'postfix', 'prop', 'arity', 'bindop', 'flat', 'sym', 'chain',
+ALIAS_RESOLVING_KEYWORDS = ('infix', 'prefix', 'postfix', 'prop', 'arity', 'binder', 'nested', 'flat', 'sym', 'chain',
                             'var', 'const', 'builtin', 'tex', 'lean')
 
 def written_name(symbol: str, expr: Expr) -> str:
@@ -13684,7 +14070,7 @@ def written_symbol(token: Expr, shown: str) -> str:
 def declared_symbols_unaliased(keyword: str, args: list[Expr], kb: KnowledgeBase) -> list[Expr]:
     if not (keyword in ALIAS_RESOLVING_KEYWORDS or (kb.is_sort_name(keyword) and keyword != 'prop')):
         return args
-    every = keyword in ('flat', 'sym', 'chain')      # (a list of symbols; the others: the symbol, then its details)
+    every = keyword in ('nested', 'flat', 'sym', 'chain')      # (a list of symbols; the others: the symbol, then its details)
     def unaliased(t: Expr) -> Expr:
         if isinstance(t, Token) and t.label in ('STRING', 'SYMBOL') and isinstance(t.value, str):
             target = kb.get_alias(t.value)
@@ -13703,7 +14089,14 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     assert isinstance(args, list)
     args = declared_symbols_unaliased(keyword, args, kb)
 
-    if keyword in ('infix', 'prefix', 'postfix', 'prop', 'arity', 'bindop', 'brackets', 'alias') or (
+    if keyword in ('var', 'const') and args and isinstance(args[0], list) and len(args[0]) == 2 and isinstance(args[0][0], Token) \
+            and isinstance(args[0][0].value, str) and kb.is_sort_name(args[0][0].value) and args[0][0].value != 'prop':
+        # `var real x, y, z` is `var x, y, z` and `real x, y, z` (`const` too): the sort in front of the names, once
+        sort_token, plain = args[0][0], [[args[0][1]]] + list(args[1:])
+        kb = eval_keyword_expression(keyword_token, plain, input_line, label, kb, line, filename, local)
+        return eval_keyword_expression(sort_token, plain, input_line, label, kb, line, filename, local)
+
+    if keyword in ('infix', 'prefix', 'postfix', 'prop', 'arity', 'binder', 'brackets', 'alias') or (
             kb.is_sort_name(keyword) and keyword != 'prop'):
         # a declaration changes how a symbol is read: not for the symbols of a theory of Kurt
         # (`infix Nat 50 50`, `prop Nat`, found in the soundness review of 2026-09-29)
@@ -13724,7 +14117,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
     # a variable), not with `local` at its end (`const helper local`)
     if keyword in VOCABULARY_KEYWORDS or (kb.is_sort_name(keyword) and keyword != 'prop'):
         if kb.is_load_boundary or kb.mode_str == 'root':
-            count = 2 if keyword == 'brackets' else (None if keyword in ('chain', 'flat', 'sym') else 1)
+            count = 2 if keyword == 'brackets' else (None if keyword in ('chain', 'nested', 'flat', 'sym') else 1)
             names = {t.value for a in args for t in (a if isinstance(a, list) else [a])[:count]
                      if isinstance(t, Token) and isinstance(t.value, str) and t.label in ('SYMBOL', 'STRING')
                      and t.value[:1] not in ('$', '%')
@@ -13891,7 +14284,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             raise KurtException('EvalError: `save` expects exactly one filename, e.g. `save "state.kurt"`', keyword_token.column)
         arg = args[0]
         if not (isinstance(arg, list) and len(arg) == 1 and isinstance(arg[0], Token) and arg[0].label == 'STRING'):
-            raise KurtException('EvalError: `save` expects a file name in quotes, e.g. `save "state.kurt"`', keyword_token.column)
+            raise KurtException('EvalError: `save` expects a file name, e.g. `save state.kurt`', keyword_token.column)
         match arg[0]:
             case Token(label='STRING', value=fname):
                 assert isinstance(fname, str)
@@ -14077,21 +14470,24 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                     raise KurtException(f'EvalError: wrong arguments (their number or kind), possible is:\n{msg}', keyword_token.column)
         bracket_symbols = tuple(symbol for pair in new_stuff for symbol in pair)
         apply_declaration_batch(kb, lambda target: [target.add_brackets(left, right) for left, right in new_stuff], bracket_symbols)
-    elif keyword == 'bindop':
+    elif keyword == 'binder':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
         proof_block = block_forbidding_declaration(kb) if args else None
         if proof_block is not None:
-            raise KurtException(f'EvalError: `bindop` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
-        new_stuff = []
+            raise KurtException(f'EvalError: `binder` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
+        new_binders: list[tuple[str, Optional[int]]] = []
         for arg in args:
             match arg:
                 case [Token(label='STRING'|'SYMBOL', value=op)]:
                     assert isinstance(op, str)
-                    new_stuff.append(op)    # first collect
+                    new_binders.append((op, None))    # first collect
+                case [Token(label='STRING'|'SYMBOL', value=op), Token(label='INT', value=power)]:
+                    assert isinstance(op, str) and isinstance(power, int)
+                    new_binders.append((op, power))
                 case _:
                     raise_declaration_usage(keyword, arg, keyword_token)
-        apply_declaration_batch(kb, lambda target: [target.add_bindop(op) for op in new_stuff], tuple(new_stuff))
+        apply_declaration_batch(kb, lambda target: [target.add_binder(op, power) for op, power in new_binders], tuple(op for op, _ in new_binders))
     elif keyword == 'chain':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -14146,6 +14542,22 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         run_state.implicit_constants[:] = chain_implicit_constants
         run_state.implicit_bool_signatures[:] = chain_implicit_bool_signatures
 
+    elif keyword == 'nested':
+        if len(args) == 0:
+            log(kb, kb.dict_or_set_str_all_levels(keyword))
+        proof_block = block_forbidding_declaration(kb) if args else None
+        if proof_block is not None:
+            raise KurtException(f'EvalError: `nested` is not allowed inside `{proof_block}` -- declare it before the proof', keyword_token.column)
+        new_stuff = []
+        for arg in args:
+            match arg:
+                case [Token(label='STRING'|'SYMBOL', value=op)]:
+                    assert isinstance(op, str)
+                    new_stuff.append(op)    # first collect
+                case _:
+                    raise_declaration_usage(keyword, arg, keyword_token)
+        check_not_frozen(new_stuff, keyword, filename, kb)
+        apply_declaration_batch(kb, lambda target: [target.add_nested(op) for op in new_stuff], tuple(new_stuff))
     elif keyword == 'flat':
         if len(args) == 0:
             log(kb, kb.dict_or_set_str_all_levels(keyword))
@@ -14559,7 +14971,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             extra = sorted(free_bound_vars(rhs, kb)[0] - set(names))
             if extra:
                 raise KurtException(f'EvalError: the variables {", ".join(f"`{v}`" for v in extra)} of the right-hand side of `inline` must occur on the left-hand side too', keyword_token.column)
-            if any(isinstance(t, Token) and (t.value == BOUND_SYMBOL or (isinstance(t.value, str) and kb.is_bindop(t.value))) for t in get_token_set(rhs)):
+            if any(isinstance(t, Token) and (t.value == BOUND_SYMBOL or (isinstance(t.value, str) and kb.is_binder(t.value))) for t in get_token_set(rhs)):
                 raise KurtException('EvalError: the right-hand side of `inline` may not contain a binder (`∀`, `∃`, ...) -- an argument could be captured by it; use `def`', keyword_token.column)
             # its symbols are used now (no `infix plus` after `inline g $x = $x plus 1`; 2026-10-15)
             kb.add_new_symbols(rhs, formula=kb.has_role(expr[0].value, 'equivalence'))
@@ -14573,11 +14985,10 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
         if len(args) == 0:
             log(kb, kb.theory_str(keyword=keyword).strip())
         else:
-            proof_block = block_forbidding_declaration(kb)
-            if proof_block is not None:
-                # like `use`: a symbol defined inside a block would leave it with a meaning that
-                # depends on the block's constants (`let x` / `def k iff P x` gives `∀ x (k iff P x)`)
-                raise KurtException(f'EvalError: `def` is not allowed inside `{proof_block}` -- define it before the proof (or use `let` with a condition)', keyword_token.column)
+            # (inside a block, too, todo 77: the symbol and its fact belong to the level of the
+            # block and are gone when it closes -- `pop_level` doesn't merge symbol tables -- and
+            # the block's result must not mention it, `no_defined_symbol`; so `let x` / `def k iff
+            # P x` can't give `∀ x (k iff P x)`, doc/kurt-soundness.md §8.51)
             # Validate left to right in a disposable declaration scope. Later entries see all
             # earlier names (including names on their RHS), so duplicates and forward cycles
             # cannot masquerade as fresh definitions. No facts or declarations escape a failure.
@@ -14611,7 +15022,7 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
                                                 if declaration[0] != lc]
                 if printing():
                     reason = Reason(str(line), f'defining `{written_name(lc, f.expr)}`')
-                    log(kb, f'def {expr_str(f.expr, kb)}', reason, kb.level-1)  # log the new constant
+                    log(kb, f'def {expr_str(f.expr, kb)}', reason, kb.level if kb.level > 0 else -1)  # (in a block: indented as its lines)
 
     elif keyword == 'todo':
         check_strict(keyword, filename)
@@ -14740,10 +15151,10 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             raise KurtException(msg)
         if kb.role_symbol('existential') is None:
             raise KurtException('EvalError: `pick` takes its witness from an existential quantifier, and there is none -- `load logic` first')
-        if len(args) > 1:
-            # each `pick` opens a block of its own, but the next line can only indent once
-            raise KurtException('EvalError: one `pick` per line -- write the next `pick` inside the block of the first')
-        expr = args[0]        # (exactly one: the checks above)
+        # `pick x, y, z with F` is `pick x with ∃ y ∃ z F`, `pick y with ∃ z F`, `pick z with F`: the blocks
+        # are nested, but the next line indents once (`LexerState.extra_blocks`)
+        picks = multi_pick_steps(args, kb) if len(args) > 1 else [args[0]]
+        original_input_line = input_line
         # unlike `let`/`assume`/`case`, `eval_pick` pushes its own level *internally*,
         # only after checking that a matching existential exists -- so it can raise
         # (e.g. "can not find an existential formula that matches the `pick`") before
@@ -14757,59 +15168,63 @@ def eval_keyword_expression(keyword_token: Token, args: Expr, input_line, label:
             # `keywords_with_parsing`, see `parse_tokenstream`) -- `expr` here is still a
             # flat list of raw tokens, split only on top-level commas, not a parsed
             # expression tree; `with` is where the new constant ends and the fact begins.
-            match expr:
-                case [*tail] if sum(1 for t in tail if is_helper_keyword(t)) == 1:
-                    with_index = next(i for i, t in enumerate(tail) if is_helper_keyword(t))
-                    pre_with, fact_expr = tail[:with_index], tail[with_index+1:]
-                    if not fact_expr:
-                        raise KurtException(msg)                  # `pick x with` without a fact
-                    if len(pre_with) != 1:
-                        raise KurtException(f'EvalError: `pick` does not support an extra condition on the new constant (only `pick x with FACT`), got `{" ".join(str(t) for t in pre_with)}`' if len(pre_with) > 1 else msg)
-                    new_const_expr = pre_with[0]
-                    # reuse `let`'s own "extract the one new-or-existing symbol" parsing
-                    # (`unpack_condition`) for consistency -- but unlike `let x>0`, which
-                    # quantifies its condition away as an assumption when the block closes
-                    # (§9.2), a `pick`ed witness is existential, so it can never carry an
-                    # inline condition of its own: an extra condition here would be an
-                    # unproven fact asserted about a specific value with no justification --
-                    # a soundness hole, not a convenience. The witness's only property comes
-                    # from matching the existential's own body (below). In practice this
-                    # branch of `unpack_condition` is unreachable today: `pre_with` is
-                    # always exactly one raw token (nothing upstream parses it into a
-                    # compound expression), so `condition` is always `None` here already --
-                    # the check stays as a clear, deliberate guard, not dead code, in case
-                    # that ever changes.
-                    new_const, condition = unpack_condition(new_const_expr, kb)
-                    if condition is not None:
-                        raise KurtException(f'EvalError: `pick` does not support an extra condition on the new constant (only `pick x with FACT`), got `{expr_str(new_const_expr, kb)}`', get_column(new_const_expr))
-                    if kb.is_const(new_const):
-                        raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
-                    if kb.is_fixed_var(new_const):
-                        raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
-                    kb, fact = eval_pick(kb, new_const_expr, fact_expr, input_line, filename, line)
-                case [*tail] if tail and not any(is_helper_keyword(t) for t in tail):
-                    # `pick C`, like `let C`: the new constant is the one `C` is about
-                    # (`unpack_condition`), and then it is `pick x with C`
-                    # (a copy: parsing changes tokens, e.g. the `)` of `P(c)`, and `eval_pick`
-                    # parses the tokens again)
-                    ts = PeekableGenerator(t for t in copy.deepcopy(tail) + [end_token])
-                    condition, _, _ = post_process(kb, parse_expression(ts, kb, begin_rbp))
-                    new_const, _ = unpack_condition(condition, kb)
-                    if kb.is_const(new_const):
-                        raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
-                    if kb.is_fixed_var(new_const):
-                        raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
-                    new_const_expr = next(t for t in tail if isinstance(t, Token) and t.value == new_const)
-                    kb, fact = eval_pick(kb, new_const_expr, tail, input_line, filename, line)
-                case _:
-                    raise KurtException(msg)
+            for expr in picks:
+                match expr:
+                    case [*tail] if sum(1 for t in tail if is_helper_keyword(t)) == 1:
+                        with_index = next(i for i, t in enumerate(tail) if is_helper_keyword(t))
+                        pre_with, fact_expr = tail[:with_index], tail[with_index+1:]
+                        if not fact_expr:
+                            raise KurtException(msg)                  # `pick x with` without a fact
+                        if len(pre_with) != 1:
+                            raise KurtException(f'EvalError: `pick` does not support an extra condition on the new constant (only `pick x with FACT`), got `{" ".join(str(t) for t in pre_with)}`' if len(pre_with) > 1 else msg)
+                        new_const_expr = pre_with[0]
+                        # reuse `let`'s own "extract the one new-or-existing symbol" parsing
+                        # (`unpack_condition`) for consistency -- but unlike `let x>0`, which
+                        # quantifies its condition away as an assumption when the block closes
+                        # (§9.2), a `pick`ed witness is existential, so it can never carry an
+                        # inline condition of its own: an extra condition here would be an
+                        # unproven fact asserted about a specific value with no justification --
+                        # a soundness hole, not a convenience. The witness's only property comes
+                        # from matching the existential's own body (below). In practice this
+                        # branch of `unpack_condition` is unreachable today: `pre_with` is
+                        # always exactly one raw token (nothing upstream parses it into a
+                        # compound expression), so `condition` is always `None` here already --
+                        # the check stays as a clear, deliberate guard, not dead code, in case
+                        # that ever changes.
+                        new_const, condition = unpack_condition(new_const_expr, kb)
+                        if condition is not None:
+                            raise KurtException(f'EvalError: `pick` does not support an extra condition on the new constant (only `pick x with FACT`), got `{expr_str(new_const_expr, kb)}`', get_column(new_const_expr))
+                        if kb.is_const(new_const):
+                            raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
+                        if new_const.startswith(('$', '%')):
+                            raise KurtException(f'TypeError: `pick` fixes a constant, but `{new_const}` starts with `{new_const[0]}`, so it is always a variable -- use a plain name: `pick {new_const[1:]}`')
+                        if kb.is_fixed_var(new_const):
+                            raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
+                        kb, fact = eval_pick(kb, new_const_expr, fact_expr, (pick_input_line(expr) if len(picks) > 1 else original_input_line), filename, line)
+                        log_pick(kb, new_const, fact, line)
+                    case [*tail] if tail and not any(is_helper_keyword(t) for t in tail):
+                        # `pick C`, like `let C`: the new constant is the one `C` is about
+                        # (`unpack_condition`), and then it is `pick x with C`
+                        # (a copy: parsing changes tokens, e.g. the `)` of `P(c)`, and `eval_pick`
+                        # parses the tokens again)
+                        ts = PeekableGenerator(t for t in copy.deepcopy(tail) + [end_token])
+                        condition, _, _ = post_process(kb, parse_expression(ts, kb, begin_rbp))
+                        new_const, _ = unpack_condition(condition, kb)
+                        if kb.is_const(new_const):
+                            raise KurtException(f'EvalError: `pick` requires a new constant or existing variable, got already-declared constant `{new_const}`')
+                        if new_const.startswith(('$', '%')):
+                            raise KurtException(f'TypeError: `pick` fixes a constant, but `{new_const}` starts with `{new_const[0]}`, so it is always a variable -- use a plain name: `pick {new_const[1:]}`')
+                        if kb.is_fixed_var(new_const):
+                            raise KurtException(f'EvalError: `{new_const}` is fixed by the assumption of an enclosing block -- `pick` needs a new name')
+                        new_const_expr = next(t for t in tail if isinstance(t, Token) and t.value == new_const)
+                        kb, fact = eval_pick(kb, new_const_expr, tail, (pick_input_line(expr) if len(picks) > 1 else original_input_line), filename, line)
+                        log_pick(kb, new_const, fact, line)
+                    case _:
+                        raise KurtException(msg)
         except KurtException:
-            if kb.level > level_before:
+            while kb.level > level_before:
                 kb = kb.pop_level()
             raise
-        if printing():
-            reason = Reason(str(line), f'open local scope with new constant `{new_const}`', 'open')
-            log(kb, f'{keyword} {new_const} with {expr_str(fact, kb)}', reason, kb.level-1)  # log the new constants
         if kb.theory:
             add_assumption_parts(kb, kb.theory[-1], input_line, filename, line)
     elif keyword == LOCAL_SYMBOL:
@@ -15189,7 +15604,7 @@ def statement_variable_bound(name: str, expr: Expr, kb: KnowledgeBase) -> bool:
         if isinstance(head, Token) and isinstance(head.value, str):
             signature = kb.bool_sig(head.value)
             for i, arg in enumerate(e[1:], 1):
-                if isinstance(arg, Token) and arg.value == name and i in signature and not (kb.is_bindop(head.value) and i == 1):
+                if isinstance(arg, Token) and arg.value == name and i in signature and not (kb.is_binder(head.value) and i == 1):
                     return True
         return any(at_statement_place(c) for c in e)
     assert isinstance(expr, list)                   # (a binder)
@@ -15285,7 +15700,7 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                         raise KurtException(f'TypeError: first arg of `sub` has sort `{sort}`, but its replacement does not', column=expr_column(a))
             type_check_expression(A, kb, bound_sorts)
 
-        # most expressions: prefix, postfix, infix, bindop (but not `sub`, see above), ...
+        # most expressions: prefix, postfix, infix, binder (but not `sub`, see above), ...
         case [Token(label='SYMBOL', value=op), *tail]:
             assert isinstance(op, str)
             if kb.is_sort_name(op):
@@ -15293,7 +15708,7 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
             # (1) do the args fit the declared sparse sort signatures?
             inner_bound_sorts = {name: set(sorts) for name, sorts in (bound_sorts or {}).items()}
             binder_name: Optional[str] = None
-            if kb.is_bindop(op) and tail:
+            if kb.is_binder(op) and tail:
                 try:
                     binder_name, _ = unpack_condition(tail[0], kb)
                 except KurtException:
@@ -15313,13 +15728,13 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                 ei = expr[idx]
                 position = 1 if flat else idx
                 if bare_operator_as_value(ei, kb) and id(ei) not in run_state.allowed_bare_operators \
-                        and op != SUB_SYMBOL and not (kb.is_bindop(op) and idx == 1) and position not in bool_signature:
+                        and op != SUB_SYMBOL and not (kb.is_binder(op) and idx == 1) and position not in bool_signature:
                     # (an operator is no object, decided 2026-10-20: only an operator variable of a defined
                     # predicate takes one, `group(R, (+), 0, (-))`; a function as a value is a mapping)
                     raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` is an operator without its arguments '
                                         f'-- an operator is no object; a function as a value is a mapping of set.kurt (`f ∈ A → B`, applied `f a`)',
                                         column=expr_column(ei))
-                if position not in bool_signature and op not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_bindop(op) \
+                if position not in bool_signature and op not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_binder(op) \
                         and ei != LHS_token and id(ei) not in run_state.allowed_bare_operators \
                         and not (isinstance(ei, Token) and ei.value in run_state.applied_variables) \
                         and places_settled(op, kb) and bool_expr(ei, kb, strict=True):
@@ -15333,10 +15748,10 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                                  ([user] if (user := kb.pos_sort(op, position)) is not None else [])
                 for sort in required_sorts:
                     required = True
-                    binds_this_position = kb.is_bindop(op) and idx == 1 and binder_name is not None \
+                    binds_this_position = kb.is_binder(op) and idx == 1 and binder_name is not None \
                                           and isinstance(ei, Token) and ei.value == binder_name
-                    sort_environment = inner_bound_sorts if kb.is_bindop(op) and idx in (1, len(expr) - 1) else bound_sorts
-                    if required and (binds_this_position or (kb.is_bindop(op) and idx == 1 and sort != 'prop')):
+                    sort_environment = inner_bound_sorts if kb.is_binder(op) and idx in (1, len(expr) - 1) else bound_sorts
+                    if required and (binds_this_position or (kb.is_binder(op) and idx == 1 and sort != 'prop')):
                         # (the sort of a binder's variable -- also with a condition, `max ($v ∈ A) ...`)
                         inner_bound_sorts.setdefault(binder_name, set()).add(sort) if binder_name is not None else None
                     elif required and sort == 'prop' and isinstance(ei, Token) and isinstance(ei.value, str) \
@@ -15359,7 +15774,7 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                             hint = membership_hint(ei.value, sort, kb)
                         raise KurtException(f'TypeError: arg number {idx} of `{op}`, i.e., `{expr_str(ei, kb)}` must have sort `{sort}`{hint}', column=expr_column(ei))
             # (2) additional checks for binding operators
-            if kb.is_bindop(op):
+            if kb.is_binder(op):
                 # check that the first argument is either a variable or a statement
                 match tail[0]:
                     case Token(label='SYMBOL', value=v):
@@ -15382,7 +15797,7 @@ def type_check_expression(expr: Expr, kb: KnowledgeBase,
                     case _:     # e.g. a number, `∀ 1 (P 1)`
                         raise KurtException(f'TypeError: first arg of binding operator must be a variable or a condition, got `{expr_str(tail[0], kb)}`', column=expr_column(tail[0]))
             # (3) recursively go deep and check
-            if kb.is_bindop(op) and tail:
+            if kb.is_binder(op) and tail:
                 middle, body = binder_scope(tail[1:])
                 type_check_expression(tail[0], kb, inner_bound_sorts)
                 for e in middle:
@@ -15606,7 +16021,7 @@ def analyse_sorts(e: Expr, kb: KnowledgeBase, statement: bool) -> SortUses:
                     return
                 if len(kb.pos_sorts(op, 0)) <= 1:
                     walk(head, required, bound, element)   # the sort of its result is the operator's (of an overloaded one the arguments', see `overload_result_sort`)
-                if kb.is_bindop(op) and args:
+                if kb.is_binder(op) and args:
                     try:
                         bv, condition = unpack_condition(args[0], kb)
                     except KurtException:
@@ -15773,7 +16188,7 @@ def sort_reading(e: Expr, kb: KnowledgeBase) -> tuple:
             if isinstance(x.value, str) and x.value in free and x.value not in order:
                 order.append(x.value)
             return
-        if x and isinstance(x[0], Token) and isinstance(x[0].value, str) and kb.is_bindop(x[0].value) and x[0].value != SUB_SYMBOL and len(x) > 1:
+        if x and isinstance(x[0], Token) and isinstance(x[0].value, str) and kb.is_binder(x[0].value) and x[0].value != SUB_SYMBOL and len(x) > 1:
             try:
                 binders.append(bounded_sorts(x, binder_node_sorts(x, kb), kb))
             except KurtException:
@@ -15786,7 +16201,7 @@ def sort_reading(e: Expr, kb: KnowledgeBase) -> tuple:
 def has_raw_variables(e: Expr, kb: KnowledgeBase) -> bool:
     # whether `e` has a variable that is not a renamed one (`$$07`): only then is there a sort to infer
     if isinstance(e, Token):
-        return e.label == 'SYMBOL' and isinstance(e.value, str) and not is_internal_name(e.value) and (kb.is_var(e.value) or kb.is_bindop(e.value))
+        return e.label == 'SYMBOL' and isinstance(e.value, str) and not is_internal_name(e.value) and (kb.is_var(e.value) or kb.is_binder(e.value))
     return any(has_raw_variables(c, kb) for c in e)
 
 def infer_line_sorts(expr_list: list[Expr], keyword: str, kb: KnowledgeBase) -> None:
@@ -15821,7 +16236,7 @@ def infer_line_sorts(expr_list: list[Expr], keyword: str, kb: KnowledgeBase) -> 
                         continue
                     if (kb.is_flat(op) or kb.is_bracket_placeholder(op)) and position > 2:
                         continue
-                    slot = kb.is_bindop(op) and position == 1      # (a binder's variable: `sum i (0, n) i`, its `i` a number)
+                    slot = kb.is_binder(op) and position == 1      # (a binder's variable: `sum i (0, n) i`, its `i` a number)
                     if not slot and position <= len(args) and bool_expr(args[position - 1], kb, strict=True):
                         continue
                     if not slot and position <= len(args) and any(not kb.sort_fits(found, default) for found in top_sorts(args[position - 1], kb)):
@@ -16183,7 +16598,7 @@ def apply_subst(expr: Expr, s: State, kb: KnowledgeBase) -> Expr:
             return expr
 
         # binding operator: recurse into body with extended blocked
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             bound_v, _ = unpack_condition(cond, kb)
             middle, body = binder_scope(tail)
             new_s = s.block_always(bound_v)
@@ -16215,7 +16630,7 @@ def free_bound_vars(expr: Expr, kb: KnowledgeBase) -> tuple[set[str], set[str]]:
             return set(), set()
         
         # binding operators "bind" free variables
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             bound_v, opt_condition = unpack_condition(cond, kb)
             middle, body = binder_scope(tail)
             fv, bv = free_bound_vars(body, kb)
@@ -16276,7 +16691,7 @@ def new_bool_var_name(origin: Optional[str] = None) -> str:
 
 def replace_token_value(expr: Expr, old_value: str, new_token: Token) -> Expr:
     # pure structural replacement of every occurrence of a specific token value -- unlike
-    # `apply_subst`, this does NOT respect binder scoping (it will happily rewrite a bindop's
+    # `apply_subst`, this does NOT respect binder scoping (it will happily rewrite a binder's
     # own binder slot too). Only safe to use when `old_value` is a synthetic, globally-unique
     # name that cannot collide with some other, unrelated variable of the same name in a
     # different scope -- see `strip_premise_with_synced_conclusion`, its one caller.
@@ -16302,7 +16717,7 @@ def remove_outer_forall_quantifiers(expr: Expr, kb: KnowledgeBase) -> tuple[Expr
     # vars -- a quantifier with a condition, `∀ $x > 0 ...`, stays: what it means is said by the
     # rules of logic.kurt ("forall-cond-elim", "forall-cond-def"), not by the engine
     while is_forall(expr, kb):
-        # `is_forall` checks the role and the three parts, not that it's really a bindop-shaped
+        # `is_forall` checks the role and the three parts, not that it's really a binder-shaped
         # `[forall, bound-var, body]` triple -- the role needs a binder (`bind_engine_role`),
         # but this runs on every stored formula, so fail cleanly rather than crash
         # it can parse as a plain, flatly space-applied symbol instead, with a different shape.
@@ -16348,9 +16763,9 @@ def strip_premise_with_synced_conclusion(premise_raw: Expr, conclusion_raw: Expr
         fresh_vars.append(free_var)
         fresh_token = Token(label='SYMBOL', value=free_var)
         # a pure structural (non-capture-avoiding) rename, not `apply_subst`: `apply_subst`
-        # deliberately protects a bindop's own binder slot from substitution (correct for
+        # deliberately protects a binder's own binder slot from substitution (correct for
         # ordinary substitution, since you must never substitute into a variable's own
-        # binding declaration) -- but `sub` is itself a bindop, so it would refuse to rename
+        # binding declaration) -- but `sub` is itself a binder, so it would refuse to rename
         # `bound_var` inside the conclusion's own `sub $x $a %A` binder position, leaving
         # premise and conclusion referring to two different names for what must be the same
         # variable. Safe here specifically because `bound_var` is always a synthetic,
@@ -16387,7 +16802,7 @@ def binder_variables(e: Expr, kb: KnowledgeBase) -> set[str]:
     def walk(e: Expr) -> None:
         if isinstance(e, list) and e:
             head = e[0]
-            if isinstance(head, Token) and isinstance(head.value, str) and kb.is_bindop(head.value) and len(e) > 1:
+            if isinstance(head, Token) and isinstance(head.value, str) and kb.is_binder(head.value) and len(e) > 1:
                 try:
                     found.add(unpack_condition(e[1], kb)[0])
                 except KurtException:
@@ -16541,7 +16956,7 @@ def rename_all_vars_rec(expr: Expr, kb: KnowledgeBase, s: Optional[State] = None
             return expr, s
 
         # binding operator expression
-        case [Token(label='SYMBOL', value=bind_op), cond, *body] if isinstance(bind_op, str) and kb.is_bindop(bind_op):
+        case [Token(label='SYMBOL', value=bind_op), cond, *body] if isinstance(bind_op, str) and kb.is_binder(bind_op):
             bind_var, opt_condition = unpack_condition(cond, kb)
 
             # operator gets processed with current scope (actually nothing to do)
@@ -16600,7 +17015,7 @@ def bound_var_safe(expr: Expr, token_x: Token, expr_a: Optional[Expr], expr_A: E
         return free_a.isdisjoint(bound_A)
 
 
-def valid_bindop_conditions(expr: Expr, kb: KnowledgeBase) -> bool:
+def valid_binder_conditions(expr: Expr, kb: KnowledgeBase) -> bool:
     # whether every binding operator in `expr` still has a proper condition (bound variable): the
     # walk of `free_bound_vars`, which raises if some condition is not of the right shape, without
     # building its sets (1.4 s of 25.6 in 28-self-adjoint.kurt under the profiler, todo 50)
@@ -16608,7 +17023,7 @@ def valid_bindop_conditions(expr: Expr, kb: KnowledgeBase) -> bool:
         match e:
             case Token():
                 return True
-            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
                 try:
                     _, opt_condition = unpack_condition(cond, kb)
                 except KurtException:
@@ -16634,7 +17049,7 @@ def generate_all_combinations(expr: Expr, token_x: Token, expr_a: Optional[Expr]
     ### allow only one subterm to be replaced, much more efficient
     for (cand_expr_a, cand_expr_A) in all_single_hole_decompositions(expr, token_x, kb):
         if expr_a is None  or  equal_expr(expr_a, cand_expr_a, kb):
-            if not valid_bindop_conditions(cand_expr_A, kb):
+            if not valid_binder_conditions(cand_expr_A, kb):
                 continue    # e.g. the hole replaced the `∈` of `∀ $k ∈ Nat ...`, not a real subterm
             if bound_var_safe(expr, token_x, cand_expr_a, cand_expr_A, kb):     # requirement (2)
                 yield (cand_expr_a, cand_expr_A)
@@ -16664,7 +17079,7 @@ def all_single_hole_decompositions(expr: Expr, token_x: Token, kb: KnowledgeBase
     # `n` in `sum x (0, n) x = n * (n + 1) / 2`
     # (not for a bound variable, which would also replace its own binder slot)
     seen: list[Expr] = []
-    bound_vars = free_bound_vars(expr, kb)[1] if valid_bindop_conditions(expr, kb) else set()
+    bound_vars = free_bound_vars(expr, kb)[1] if valid_binder_conditions(expr, kb) else set()
     for path, node in hole_nodes(expr, kb):
         if len(path) == 0 or any(node == other for other in seen):
             continue
@@ -16763,7 +17178,7 @@ def term_operator(e: Expr, kb: KnowledgeBase) -> bool:
     # operator with a statement as its result (`=`, `∧`, `prop P` with `arity P 1`: on its own neither a term nor a formula), not
     # a binder (`∀`), not `sub` or a condition's marker, not a compound head (`(¬¬P) c`)
     return (isinstance(e, Token) and e.label == 'SYMBOL' and isinstance(e.value, str)
-            and e.value not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_bool(e.value) and not kb.is_bindop(e.value))
+            and e.value not in (SUB_SYMBOL, BOUND_SYMBOL) and not kb.is_bool(e.value) and not kb.is_binder(e.value))
 
 def hole_nodes(expr: Expr, kb: KnowledgeBase) -> Iterator[tuple[list[int], Expr]]:
     """Yield (path, subexpression) for every node where the hole of a `sub` may be cut: every node
@@ -16946,7 +17361,7 @@ def check_condition_holes(expr: Expr, kb: KnowledgeBase) -> None:
     holes: dict[str, str] = {}
     def binder_slots(e: Expr) -> None:
         match e:
-            case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and op != SUB_SYMBOL and kb.is_bindop(op) and is_sub(cond):
+            case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and op != SUB_SYMBOL and kb.is_binder(op) and is_sub(cond):
                 assert isinstance(cond, list)
                 x, C = cond[1], cond[3]
                 if isinstance(x, Token) and isinstance(C, Token) and is_bool_var_token(C, kb):
@@ -16982,7 +17397,7 @@ def contains_unbound_var(expr: Expr, s: State, kb: KnowledgeBase, except_var: Op
             # (a free variable of the goal itself is blocked as domain: it is fixed, not unknown)
             return (is_var_token(e, kb) and isinstance(e.value, str) and e.value != except_var and e.value not in bound
                     and not s.is_blocked_as_domain(e.value))
-        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
             try:
                 bv, _ = unpack_condition(cond, kb)
             except KurtException:
@@ -17028,7 +17443,7 @@ def find_dependent_vars(expr: Expr, kb: KnowledgeBase) -> dict[str, str]:
                 walk(a, scopes)
                 if not note(A, scopes | {bv}, None):
                     walk(A, scopes | {bv})
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                 try:
                     bv, _ = unpack_condition(cond, kb)
                 except KurtException:
@@ -17360,14 +17775,14 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                             yield from unify_exprs_with_patterns([(expr, [bound_head, *args_p])] + tail, s_head, kb)
 
                 # binding operator matching (rename bound variable before!)
-                case [Token(label='SYMBOL', value=op_p), cond_p, *args_p] if isinstance(op_p, str) and kb.is_bindop(op_p):
+                case [Token(label='SYMBOL', value=op_p), cond_p, *args_p] if isinstance(op_p, str) and kb.is_binder(op_p):
                     v_p, opt_condition_p = unpack_condition(cond_p, kb)
                     if op_p == SUB_SYMBOL and not is_sub(expr):   
                             # asymmetric:  don't match a `sub` expr to a `sub` pattern (an infinite loop!)
                             yield from match_against_sub(expr, pattern, tail, s, kb)
                     # in any case: additionally binding ops match against their matching binding ops
                     match expr:
-                        case [Token(label='SYMBOL', value=op_e), cond_e, *args_e] if isinstance(op_e, str) and kb.is_bindop(op_e):
+                        case [Token(label='SYMBOL', value=op_e), cond_e, *args_e] if isinstance(op_e, str) and kb.is_binder(op_e):
                             v_e, opt_condition_e = unpack_condition(cond_e, kb)
                             if op_p==op_e and len(args_p)==len(args_e) and is_sub(cond_p) and opt_condition_e is not None and not is_sub(cond_e):
                                 # a rule's binder with any condition, e.g. `∀ (sub $x $v %C) %P`
@@ -17397,7 +17812,15 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                                                           bounded_sorts(expr, binder_node_sorts(expr, kb), kb, s), s, kb)
                                 if target is None:
                                     return
-                                args_e = alpha_rename_binder_body(args_e, v_e, target, kb)
+                                if (target == v_p != v_e and is_internal_name(v_p) and is_internal_name(v_e) and s.lookup(v_p) is None
+                                        and has_open_variables(args_e, v_e, s, kb) and not has_open_variables(args_p, v_p, s, kb)):
+                                    # the variables to give values are on the expression's side (a stored fact with `%X`, matched
+                                    # with a part of a premise): its binder stays, the pattern's body is renamed to it, so that
+                                    # the values stand in terms of the binder the kernel sees in the stored fact (todo 76)
+                                    args_p = alpha_rename_binder_body(args_p, v_p, v_e, kb)
+                                    target = v_e
+                                else:
+                                    args_e = alpha_rename_binder_body(args_e, v_e, target, kb)
                                 for s_middle in unify_exprs_with_patterns(list(zip(middle_e, middle_p)), s, kb):
                                     # Block the pattern binder (domain+range) during descent
                                     s_local = s_middle.block_always(target)
@@ -17461,7 +17884,7 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                 # list matching (same length, no special operators) -- not of a binder (its bound
                 # variable is no argument), which an operator variable `∘` could otherwise match
                 case [*_] if isinstance(expr, list) and len(expr)==len(pattern) and not (
-                        isinstance(expr[0], Token) and isinstance(expr[0].value, str) and kb.is_bindop(expr[0].value)):
+                        isinstance(expr[0], Token) and isinstance(expr[0].value, str) and kb.is_binder(expr[0].value)):
                     yield from unify_exprs_with_patterns(list(zip(expr, pattern)) + tail, s, kb)
 
                 case _:
@@ -17469,6 +17892,10 @@ def unify_exprs_with_patterns(exprs_patterns: list[tuple[Expr, Expr]], s: State,
                     pass
 
         
+def has_open_variables(args: list[Expr], bound: str, s: State, kb: KnowledgeBase) -> bool:
+    # a variable (`%X`, `$x`) other than the binder's own (`bound`) with no value yet in `s`, free in `args`
+    return any(v != bound and kb.is_var(v) and s.lookup(v) is None for a in args for v in free_vars_only(a, kb))
+
 def free_vars_only(e: Expr, kb: KnowledgeBase) -> set[str]:
     return free_bound_vars(e, kb)[0]
 
@@ -17486,7 +17913,7 @@ def check_poly_marks(expr: Expr, kb: KnowledgeBase) -> None:
             if e.label == 'SYMBOL' and isinstance(e.value, str) and is_poly_name(e.value):
                 seen.add(e.value)
             return
-        if e and isinstance(e[0], Token) and isinstance(e[0].value, str) and kb.is_bindop(e[0].value) and len(e) > 1:
+        if e and isinstance(e[0], Token) and isinstance(e[0].value, str) and kb.is_binder(e[0].value) and len(e) > 1:
             try:
                 bv, _ = unpack_condition(e[1], kb)
                 bound.add(bv)
@@ -17535,7 +17962,7 @@ def parametric_binders(rule: Expr, kb: KnowledgeBase) -> set[str]:
                 if not isinstance(side, Token):
                     walk(side, allowed)   # (a variable as a side of `=`: the identity, the same in every sort)
             return
-        if isinstance(head, Token) and isinstance(head.value, str) and kb.is_bindop(head.value) and len(e) > 1:
+        if isinstance(head, Token) and isinstance(head.value, str) and kb.is_binder(head.value) and len(e) > 1:
             try:
                 bv, _ = unpack_condition(e[1], kb)
             except KurtException:
@@ -17686,7 +18113,7 @@ def alpha_rename_binder_body(body: list[Expr], old: str, new: str, kb: Knowledge
             case Token(label='SYMBOL', value=s) if isinstance(s, str) and s == old:
                 # This occurrence is bound by the current binder thus rename
                 return Token(label='SYMBOL', value=new)
-            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
                 bv, opt_condition = unpack_condition(cond, kb)
                 middle, body = binder_scope(tail)
                 if bv == old:
@@ -17726,7 +18153,7 @@ def capture_avoiding_replace(A: Expr, x: str, t: Expr, s: State, kb: KnowledgeBa
             case Token():
                 return e
 
-            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
                 bv, opt_condition = unpack_condition(cond, kb)
                 # the middle arguments are outside the scope of `bv` (`binder_scope`)
                 middle, body = binder_scope(tail)
@@ -17764,7 +18191,7 @@ def capture_avoiding_replace(A: Expr, x: str, t: Expr, s: State, kb: KnowledgeBa
     # $T) $T`), which the occurs check of `bind` would take for a cycle (found 2026-10-02)
     def rename_bound_x(e: Expr) -> Expr:
         match e:
-            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *tail] if isinstance(op, str) and kb.is_binder(op):
                 bv, _ = unpack_condition(cond, kb)
                 middle, body = binder_scope(tail)        # the middle arguments are outside the scope
                 if bv == x:
@@ -17858,7 +18285,7 @@ def trigger_sub(expr: Expr, s: State, kb: KnowledgeBase) -> tuple[Expr, State]:
                     return [e[0], e[1], t_s, A_s], s_after
 
             # binding operator: [op, bv, *body]
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                 bv, opt_condition = unpack_condition(cond, kb)
 
                 # enter binder scope
@@ -18652,7 +19079,7 @@ def k_equal(t1: Expr, t2: Expr, kb: KbReader, bmap1: Optional[dict] = None, bmap
                 return bmap1.get(v1) == v2 and bmap2.get(v2) == v1
             return v1 == v2
         case ([Token(label='SYMBOL', value=op1), cond1, *body1], [Token(label='SYMBOL', value=op2), cond2, *body2]) \
-                if isinstance(op1, str) and op1 == op2 and kb.is_bindop(op1) and len(body1) == len(body2):
+                if isinstance(op1, str) and op1 == op2 and kb.is_binder(op1) and len(body1) == len(body2):
             b1, b2 = k_bound(cond1, kb), k_bound(cond2, kb)
             if k_binder_sorts(t1, kb) != k_binder_sorts(t2, kb):
                 return False    # the bound variables range over the same sort (todo 34)
@@ -18708,7 +19135,7 @@ def k_free(e: Expr, kb: KbReader, bound: frozenset[str] = frozenset()) -> set[st
             return set() if v in bound else {v}
         case Token():
             return set()
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             bv = k_bound(cond, kb)
             return (set().union(*(k_free(c, kb, bound) for c in body[:-1]))          # outside the scope
                     | set().union(*(k_free(c, kb, bound | {bv}) for c in [cond, *body[-1:]])))
@@ -18740,7 +19167,7 @@ def k_dependencies(e: Expr, kb: KbReader) -> dict[str, str]:
                 walk(a, scopes)
                 if not note(A, scopes | {x}, None):
                     walk(A, scopes | {x})
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                 bv = k_bound(cond, kb)
                 walk(cond, scopes)
                 for c in body[:-1]:
@@ -18781,7 +19208,7 @@ def k_instantiate(e: Expr, values: dict[str, Expr], deps: dict[str, str], kb: Kb
             return deepcopy_expr(value)
         case Token():
             return e
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             bv = k_bound(cond, kb)
             return [e[0], k_instantiate(cond, values, deps, kb, bound | {bv}),
                     *(k_instantiate(c, values, deps, kb, bound) for c in body[:-1]),          # outside the scope
@@ -18797,7 +19224,7 @@ def k_replace(A: Expr, x: str, t: Expr, kb: KbReader) -> Expr:
             return deepcopy_expr(t)
         case Token():
             return A
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             bv = k_bound(cond, kb)
             middle = [k_replace(c, x, t, kb) for c in body[:-1]]       # outside the scope of `bv`
             if bv == x:
@@ -18826,7 +19253,7 @@ def k_evaluate(e: Expr, kb: KbReader) -> Expr:
                     if not k_has_sort(t, sort, kb):
                         raise KernelReject(f'`{expr_str(t, kb)}` does not have the sort `{sort}` of `{x}`, which it replaces')
             return k_replace(A, x, t, kb)
-        case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and kb.is_bindop(op) and is_sub(cond):
+        case [Token(label='SYMBOL', value=op), cond, *_] if isinstance(op, str) and kb.is_binder(op) and is_sub(cond):
             # a binder with any condition, `∀ (sub $x $v C)`: `C` must not contain `$v` itself
             assert isinstance(cond, list)
             v = cond[2]
@@ -18844,7 +19271,7 @@ def k_evaluate(e: Expr, kb: KbReader) -> Expr:
 def k_binder_variables(e: Expr, kb: KbReader) -> set[str]:
     # the variables that a binder of `e` binds
     match e:
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             return {k_bound(cond, kb)} | set().union(*(k_binder_variables(c, kb) for c in [cond, *body]))
         case [*children]:
             return set().union(*(k_binder_variables(c, kb) for c in children)) if children else set()
@@ -18877,7 +19304,7 @@ def k_parametric_binders(rule: Expr, kb: KbReader) -> set[str]:
                 if not isinstance(a, Token):
                     walk(a, where_ok)     # (a variable as the value: `k_evaluate` checks its sort)
                 walk(A, where_ok)
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                 bv = k_bound(cond, kb)
                 bound.add(bv)
                 walk(cond, where_ok | {bv})
@@ -18917,7 +19344,7 @@ def k_poly_sorts(rule: Expr, values: dict[str, Expr], kb: KbReader,
         match e:
             case [Token(label='SYMBOL', value=op), _, _, body] if op == SUB_SYMBOL:
                 return binders(body)
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                 return {k_bound(cond, kb)} | set().union(*(binders(c) for c in [cond, *body]))
             case [*children]:
                 return set().union(*(binders(c) for c in children)) if children else set()
@@ -19114,7 +19541,7 @@ def k_constants(e: Expr, kb: KbReader, bound: frozenset[str] = frozenset()) -> s
             return set() if v in bound or kb.is_var(v) else {v}
         case Token():
             return set()
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             bv = k_bound(cond, kb)
             return ({op} | set().union(*(k_constants(c, kb, bound) for c in body[:-1]))      # outside the scope
                     | set().union(*(k_constants(c, kb, bound | {bv}) for c in [cond, *body[-1:]])))
@@ -19139,7 +19566,7 @@ class KbReader(Protocol):
     def all_subsorts(self) -> frozenset[tuple[str, str]]: ...
     def generalized_sorts(self, symbol: str) -> frozenset[str]: ...
     def binder_sorts(self, node: Expr) -> frozenset[str]: ...
-    def is_bindop(self, s: str) -> bool: ...
+    def is_binder(self, s: str) -> bool: ...
     def is_const(self, s: str) -> bool: ...
     def is_known(self, s: str) -> bool: ...
     def is_used(self, s: str) -> bool: ...
@@ -19263,8 +19690,8 @@ class KernelEnv:
         return self._call('generalized_sorts', self._kb.generalized_sorts, symbol)
     def binder_sorts(self, node: Expr) -> frozenset[str]:
         return self._call('binder_sorts', self._kb.binder_sorts, node)
-    def is_bindop(self, s: str) -> bool:
-        return self._call('is_bindop', self._kb.is_bindop, s)
+    def is_binder(self, s: str) -> bool:
+        return self._call('is_binder', self._kb.is_binder, s)
     def is_const(self, s: str) -> bool:
         return self._call('is_const', self._kb.is_const, s)
     def is_known(self, s: str) -> bool:
@@ -19345,7 +19772,7 @@ def k_reading(e: Expr, kb: KbReader) -> Optional[list[str]]:
     match e:
         case Token():
             return []
-        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+        case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
             try:
                 bv = k_bound(cond, kb)
             except KernelReject:
@@ -19405,8 +19832,11 @@ def kernel_verify_block(cert: Certificate) -> Optional[str]:
     def no_escape(e: Expr) -> Optional[str]:
         # an individual constant of the block must not occur in what the block gives -- and the
         # witness of a `pick` never, even if it is also a "vocabulary" symbol (`prop`, `arity`)
-        leaked = {c for c in k_constants(e, parent) if c in block.const and not parent.is_var(c)
-                  and (not block.is_vocabulary_symbol(c) or c == witness)}
+        # -- nor a symbol defined by a `def` of the block (todo 77), whatever it is: its meaning is
+        # a fact of the block only
+        defined = {f.def_symbol for f in block.theory if f.def_symbol is not None}
+        leaked = {c for c in k_constants(e, parent) if (c in block.const and not parent.is_var(c)
+                  and (not block.is_vocabulary_symbol(c) or c == witness)) or c in defined}
         if leaked:
             return f'the constants {sorted(leaked)} of the block occur in `{expr_str(e, parent)}`'
         return k_reading_changes(block, parent, e, last.expr)
@@ -19736,7 +20166,7 @@ def cannot_unify(e: Expr, p: Expr, kb: 'KnowledgeBase') -> bool:
         if kb.is_sym(op_e):
             return no_partner(es, ps, kb)
         return any(cannot_unify(a, b, kb) for a, b in zip(es, ps))
-    if len(e) != len(p) or kb.is_bindop(op_e):
+    if len(e) != len(p) or kb.is_binder(op_e):
         return False
     if kb.is_sym(op_e):
         return no_partner(e[1:], p[1:], kb)
@@ -19788,7 +20218,7 @@ def cannot_conclude(formula: Expr, goal: Expr, kb: 'KnowledgeBase') -> bool:
         return False
     def no(conclusion: Expr) -> bool:
         if isinstance(conclusion, list) and conclusion and isinstance(conclusion[0], Token) \
-                and isinstance(conclusion[0].value, str) and kb.is_bindop(conclusion[0].value):
+                and isinstance(conclusion[0].value, str) and kb.is_binder(conclusion[0].value):
             return False
         return cannot_unify(conclusion, goal, kb)
     if is_implication(formula):
@@ -19952,7 +20382,7 @@ def rigid_head(h: tuple, kb: KnowledgeBase) -> Optional[tuple]:
         return None
     if kind == 'T':
         return ('T', value)
-    if kind == 'L' and value != SUB_SYMBOL and not kb.is_bindop(value):
+    if kind == 'L' and value != SUB_SYMBOL and not kb.is_binder(value):
         return ('L', value)
     return None
 
@@ -19968,7 +20398,7 @@ class HeadsFilter:
         self.op: Optional[str] = None
         self.sym = False
         self.pattern: list[Optional[tuple]] = []
-        if heads is not None and not kb.is_bindop(heads[0]) and not kb.is_flat(heads[0]):
+        if heads is not None and not kb.is_binder(heads[0]) and not kb.is_flat(heads[0]):
             self.op = heads[0]
             self.sym = kb.is_sym(heads[0])
             self.pattern = [rigid_head(h, kb) for h in heads[1]]
@@ -20046,7 +20476,7 @@ def match_all_theory(exprs: list[Expr], s: State, kb: KnowledgeBase) -> tuple[bo
                             tail_local.append(e_local)
                     except BinderMisread:
                         continue
-                    if not all(valid_bindop_conditions(e, kb) for e in tail_local):
+                    if not all(valid_binder_conditions(e, kb) for e in tail_local):
                         continue    # see the same check in `impl_elim`
                     success, found_formulas, s_final, strips = match_all_theory(tail_local, s_local, kb)
                     if success:
@@ -20192,7 +20622,7 @@ def impl_elim(expr: Expr, expr_free_vars: frozenset[str], proven_formula: Formul
                 premise_local, s_local = trigger_sub(premise, s_matched, kb)
             except BinderMisread:
                 continue
-            if not valid_bindop_conditions(premise_local, kb):
+            if not valid_binder_conditions(premise_local, kb):
                 continue        # e.g. `∀ (sub $x $v %C) %P` with a `%C` that doesn't mention `$x`
 
             # block the premise's own freshly-introduced eigenvariables (from stripping this
@@ -20448,7 +20878,7 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
                 premise_local, state = trigger_sub(premise, matched, kb)
             except BinderMisread:
                 continue
-            if not valid_bindop_conditions(premise_local, kb):
+            if not valid_binder_conditions(premise_local, kb):
                 continue
             for fresh in premise_fresh:
                 state = state.unblock(fresh).block_eigen(fresh)
@@ -20555,7 +20985,51 @@ def failure_explanation(goal: Expr, goal_free_vars: frozenset[str], filename: st
     hint = restriction_hint(goal, kb) or (premise_hints[0] if premise_hints else None)
     if hint is not None:
         result['restriction'] = hint
+    nested = nested_conditioned_hint(goal, kb)
+    if nested is not None:
+        result['nested'] = nested
     return result
+
+def nested_conditioned_hint(goal: Expr, kb: KnowledgeBase) -> Optional[str]:
+    # a fact `∀ x ∈ V ∀ y ∈ V P` whose body fits the goal, `P` for `a`, `b`, but whose conditions (`a ∈ V`, `b ∈ V`) are not all
+    # known: it takes one "forall-cond-elim" per `∀`, so say which conditions are missing (todo 82; the search finds the steps itself)
+    for f in reversed(list(kb.all_theory())):
+        layers, inner = peel_conditioned(f.simplified_expr, kb)
+        if len(layers) < 2:
+            continue
+        fresh = {v: new_var_name(v) for v, _ in layers}
+        pattern = inner
+        for v, _ in layers:
+            pattern = alpha_rename_binder_body([pattern], v, fresh[v], kb)[0]
+        try:
+            solution = next(iter(unify_exprs_with_patterns([(goal, pattern)], State.empty(), kb)), None)
+        except KurtException:
+            continue
+        if solution is None:
+            continue
+        state = State.empty()
+        for v, _ in layers:
+            value = solution.walk(Token('SYMBOL', fresh[v]))
+            if isinstance(value, Token) and value.value == fresh[v]:
+                break
+            state = state.bind(v, value)
+        else:
+            known = [g.simplified_expr for g in kb.all_theory()]
+            missing = []
+            for _, node in layers:
+                condition = unpack_condition(node[1], kb)[1]
+                if condition is not None:
+                    instance = apply_subst(condition, state, kb)
+                    if not any(equal_expr(instance, g, kb) for g in known):
+                        missing.append(f'`{expr_str(instance, kb)}`')
+            name = f.label or f'the fact of line {f.line}'
+            steps = 'steps' if len(layers) > 1 else 'step'
+            where = f' (line {f.line})' if f.label and f.line else ''
+            text = f'`{name}`{where} has {len(layers)} quantifiers with conditions: it gives this line by {len(layers)} "forall-cond-elim" {steps}'
+            if missing:
+                return text + f', but {", ".join(missing)} {"is" if len(missing) == 1 else "are"} not known'
+            return text + ' -- all its conditions are known'
+    return None
 
 def restriction_hint(goal: Expr, kb: KnowledgeBase) -> Optional[str]:
     # the goal `∀ n:real P n` is a fact `∀ x P x` but for the sort of its binder, a bigger one
@@ -20621,6 +21095,8 @@ def failure_explanation_text(explanation: dict) -> str:
         lines.append(f'- `{name}`{where}: {"; ".join(item["violations"])}')
     if explanation.get('restriction'):
         lines.append(explanation['restriction'])
+    if explanation.get('nested'):
+        lines.append(explanation['nested'])
     counterexample = explanation.get('counterexample')
     if counterexample is not None:
         lines.append(counterexample_text(counterexample))
@@ -20692,7 +21168,7 @@ def propositional_counterexample(goal: Expr, kb: KnowledgeBase) -> Optional[dict
         if isinstance(e, Token):
             if e.label == 'SYMBOL':
                 v = e.value
-                if not isinstance(v, str) or kb.is_var(v) or kb.is_bool(v) or kb.is_bindop(v) or v in (SUB_SYMBOL, BOUND_SYMBOL):
+                if not isinstance(v, str) or kb.is_var(v) or kb.is_bool(v) or kb.is_binder(v) or v in (SUB_SYMBOL, BOUND_SYMBOL):
                     raise NotPropositional()
             return
         for c in e:
@@ -20714,7 +21190,7 @@ def propositional_counterexample(goal: Expr, kb: KnowledgeBase) -> Optional[dict
                     raise NotPropositional()
                 variables.add(v)
                 return ('var', v)
-            if kb.all_roles.get(v) or kb.is_bindop(v) or v in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL):
+            if kb.all_roles.get(v) or kb.is_binder(v) or v in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL):
                 raise NotPropositional()
             atoms.setdefault(key(e), e)
             return ('atom', key(e))
@@ -20726,7 +21202,7 @@ def propositional_counterexample(goal: Expr, kb: KnowledgeBase) -> Optional[dict
         if connective is not None:
             return (connective, tuple(compile(c, variables) for c in e[1:]))
         # an opaque atom: a statement about objects (`P a`, `x ∈ B`)
-        if kb.all_roles.get(h) or kb.is_bindop(h) or kb.is_var(h) or h in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL) \
+        if kb.all_roles.get(h) or kb.is_binder(h) or kb.is_var(h) or h in (SUB_SYMBOL, BOUND_SYMBOL, COMMA_SYMBOL) \
                 or any(i != 0 for i in kb.bool_sig(h)):
             raise NotPropositional()
         for c in e[1:]:
@@ -20832,7 +21308,7 @@ def statement_schema(e: Expr, kb: KnowledgeBase) -> bool:
         return not (e.label == 'SYMBOL' and isinstance(e.value, str) and kb.is_var(e.value) and not kb.is_bool(e.value))
     head = e[0]
     if isinstance(head, Token) and isinstance(head.value, str) and head.value != SUB_SYMBOL \
-            and (kb.is_bindop(head.value) or head.value == BOUND_SYMBOL):
+            and (kb.is_binder(head.value) or head.value == BOUND_SYMBOL):
         return False                    # (`sub` substitutes, it quantifies over nothing)
     return all(statement_schema(c, kb) for c in e)
 
@@ -20992,6 +21468,11 @@ def derive_expr_as_given(expr: Expr, filename: str, s: State, kb: KnowledgeBase)
         if found is not None:
             return found
 
+    # a fact with several conditioned quantifiers, one step per `∀` (todo 81)
+    nested = nested_conditioned_elim(expr, filename, s, kb)
+    if nested is not None:
+        return nested
+
     # A case block closes to `alternative implies goal`. Once every alternative of a stored flat
     # disjunction has such an implication, eliminate all of them in one bounded, exact scan.
     case_cert = nary_case_elim(written, kb)
@@ -21100,7 +21581,7 @@ def differing_subterms(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> list[Expr
     found: list[Expr] = []
     if isinstance(fact, list) and isinstance(goal, list) and fact and goal and isinstance(fact[0], Token) and fact[0] == goal[0]:
         op = fact[0].value
-        if isinstance(op, str) and not kb.is_bindop(op):
+        if isinstance(op, str) and not kb.is_binder(op):
             if len(fact) == len(goal) and not (kb.is_flat(op) or kb.is_sym(op)):
                 for a, b in zip(fact[1:], goal[1:]):
                     found += differing_subterms(a, b, kb)
@@ -21164,7 +21645,7 @@ def differing_pairs(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> list[tuple[E
     found: list[tuple[Expr, Expr]] = []
     if isinstance(fact, list) and isinstance(goal, list) and fact and goal and isinstance(fact[0], Token) and fact[0] == goal[0]:
         op = fact[0].value
-        if isinstance(op, str) and not kb.is_bindop(op):
+        if isinstance(op, str) and not kb.is_binder(op):
             if len(fact) == len(goal) and not (kb.is_flat(op) or kb.is_sym(op)):
                 for a, b in zip(fact[1:], goal[1:]):
                     found += differing_pairs(a, b, kb)
@@ -21198,7 +21679,7 @@ def differing_places(a: Expr, b: Expr, kb: 'KnowledgeBase', path: tuple[int, ...
     if equal_expr(a, b, kb):
         return []
     if (isinstance(a, list) and isinstance(b, list) and len(a) == len(b) and len(a) > 1 and isinstance(a[0], Token)
-            and isinstance(b[0], Token) and a[0].value == b[0].value and isinstance(a[0].value, str) and not kb.is_bindop(a[0].value)):
+            and isinstance(b[0], Token) and a[0].value == b[0].value and isinstance(a[0].value, str) and not kb.is_binder(a[0].value)):
         return [place for i, (x, y) in enumerate(zip(a[1:], b[1:]), 1) for place in differing_places(x, y, kb, path + (i,))]
     return [(path, a, b)]
 
@@ -21224,6 +21705,80 @@ def next_sub_line(kb: 'KnowledgeBase') -> str:
     line = key[1] if key is not None else 0
     used = {g.line for g in kb.all_theory()}
     return next(f'{line}{x}' for x in letter_generator() if f'{line}{x}' not in used)
+
+NESTED_CONDITIONED = 3      # `nested_conditioned_elim`: the conditioned `∀`s of one fact that a line may instantiate (one step each)
+
+def peel_conditioned(e: Expr, kb: 'KnowledgeBase') -> tuple[list[tuple[str, list[Expr]]], Expr]:
+    # `∀ x ∈ V ∀ y ∈ V P`: its layers, (the bound variable, the `∀` node) from the outside, and the body `P` under all of them
+    layers: list[tuple[str, list[Expr]]] = []
+    node = e
+    while is_forall(node, kb) and isinstance(node[1], list) and is_bound_condition(node[1]):
+        layers.append((unpack_condition(node[1], kb)[0], node))
+        node = node[2]
+    return layers, node
+
+def nested_conditioned_elim(expr: Expr, filename: str, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
+    # a fact with two or three conditioned quantifiers, `∀ x ∈ V ∀ y ∈ V P`, takes one step per `∀` ("forall-cond-elim": the
+    # condition is a premise, as for `∀ x > 0 P`): the line `P` for known `a ∈ V`, `b ∈ V` is found with the first `∀`
+    # instantiated -- the instance for `a` is derived (one step) and added as a step of its own (`17a`), and the line again from it
+    # (todo 81; as `multi_rewrite` does). Each step has its certificate; nothing changes in the kernel.
+    if run_state.nested_cond_depth >= NESTED_CONDITIONED - 1:
+        return None
+    for f in list(kb.all_theory()):
+        e = f.simplified_expr
+        if not (is_forall(e, kb) and isinstance(e[1], list) and is_bound_condition(e[1])):
+            continue
+        layers, inner = peel_conditioned(e, kb)
+        if len(layers) < 2:
+            continue
+        # the values of the bound variables, from the body against the line (the variables as pattern variables)
+        fresh = {v: new_var_name(v) for v, _ in layers}
+        pattern = inner
+        for v, _ in layers:
+            pattern = alpha_rename_binder_body([pattern], v, fresh[v], kb)[0]
+        try:
+            matches = unify_exprs_with_patterns([(expr, pattern)], State.empty(), kb)
+            solution = next(iter(matches), None)
+        except KurtException:
+            continue
+        if solution is None:
+            continue
+        first = layers[0][0]
+        value = solution.walk(Token('SYMBOL', fresh[first]))
+        if is_var_token(value, kb) and isinstance(value, Token) and value.value == fresh[first]:
+            continue
+        instance = apply_subst(layers[0][1][2], State.empty().bind(first, value), kb)
+        if any(equal_expr(instance, g.simplified_expr, kb) for g in kb.all_theory()):
+            continue
+        before = len(kb.theory)
+        run_state.nested_cond_depth += 1
+        try:
+            try:
+                with quietly():
+                    certs, _ = derive_expr(instance, filename, State.empty(), kb)       # (the one step from `f`, the condition known)
+            except ResourceError:
+                raise
+            except KurtException:
+                del kb.theory[before:]
+                continue
+            line_str = next_sub_line(kb)
+            step = Formula(kb, instance, expr_str(instance, kb), line_str, filename, '', step_reason(certs, filename, line_str), keyword='')
+            kb.theory_append(step)
+            try:
+                with quietly():
+                    found = derive_expr(expr, filename, s, kb)
+            except ResourceError:
+                raise
+            except KurtException:
+                del kb.theory[before:]
+                continue
+        finally:
+            run_state.nested_cond_depth -= 1
+        if printing():
+            for g in kb.theory[before:]:
+                log(kb, g.formula_str(kb), g.reason, kb.level)
+        return found
+    return None
 
 def multi_rewrite(expr: Expr, filename: str, s: State, kb: 'KnowledgeBase') -> Optional[tuple[list[Certificate], State]]:
     # a line that rewrites several places at once, `x + y = 0 + 0` from `x = 0` and `y = 0`: it
@@ -21307,7 +21862,7 @@ def schema_renamed(fact: Expr, goal: Expr, kb: 'KnowledgeBase') -> Expr:
                 and isinstance(f[0], Token) and isinstance(g[0], Token) and f[0].value == g[0].value):
             return
         op = f[0].value
-        if not isinstance(op, str) or kb.is_bindop(op):
+        if not isinstance(op, str) or kb.is_binder(op):
             return
         fs, gs = f[1:], g[1:]
         if len(fs) == 2 and kb.is_sym(op) and head_of(fs[0]) != head_of(gs[0]) and head_of(fs[0]) == head_of(gs[1]):
@@ -21466,6 +22021,10 @@ class LexerState:
     # for good diagnostics
     line: int = 0                                                # current line number
     col: int = 0                                                 # current column number
+    extra_blocks: int = 0                                        # blocks the requester opened beyond the first (`pick x, y with F`): they share its indentation
+    # a line that is a term, `(a+b)*(c+d)`, waits for the next line to start with a relation, `= a*c + ...` (todo 80): the term, its source, its line
+    pending_term: Optional[tuple[Expr, str, int]] = None
+    lookahead: bool = False                                      # a term line waits for the next line (also in the shell, where a file may be pasted): it is not an error yet
 
 def count_leading_spaces(s: str) -> int:
     # (tabs are already converted to spaces by `read_eval_loop`)
@@ -21485,10 +22044,13 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
     # the indentation and chain state before the line: a line that fails (or needs more input)
     # leaves it as it was -- unless it closed blocks before failing, then it matches those
     saved = LexerState(lexer_state.initial_LHS, list(lexer_state.chained_ops), list(lexer_state.indent_stack),
-                       lexer_state.indent_requester, lexer_state.line, lexer_state.col)
+                       lexer_state.indent_requester, lexer_state.line, lexer_state.col, lexer_state.extra_blocks,
+                       pending_term=lexer_state.pending_term)
     def restore() -> None:
         lexer_state.initial_LHS, lexer_state.chained_ops = saved.initial_LHS, saved.chained_ops
+        lexer_state.pending_term = saved.pending_term
         lexer_state.indent_stack, lexer_state.indent_requester = saved.indent_stack, saved.indent_requester
+        lexer_state.extra_blocks = saved.extra_blocks
     try:
         if run_state.cancel is not None and run_state.cancel():
             raise cancelled_error()
@@ -21503,19 +22065,35 @@ def scan_parse_check_eval(input_line: str, lexer_state: LexerState, kb: Knowledg
     except KurtException as e:
         run_state.certificates_by_line.pop(key, None)
         restore()
+        if e.reread:
+            lexer_state.pending_term = None         # (its error is raised, the term is done with)
         indent = count_leading_spaces(input_line)
         if saved.indent_requester and indent > saved.indent_stack[-1]:
             # the failed line was the first of a block: the block is open, with this indentation
-            lexer_state.indent_stack = saved.indent_stack + [indent]
+            lexer_state.indent_stack = saved.indent_stack + [indent] * (1 + saved.extra_blocks)
             lexer_state.indent_requester = ''
+            lexer_state.extra_blocks = 0
         if e.kb_after is not None:
             # the blocks closed by the line stay closed, and so does their indentation (and a chain)
             del lexer_state.indent_stack[open_block_depth(e.kb_after) + 1:]
             lexer_state.initial_LHS, lexer_state.chained_ops, lexer_state.indent_requester = None, [], ''
         raise
     finally:
+        if run_state.profile and run_state.line_start is not None:
+            run_state.line_profile[key] = (time.monotonic() - run_state.line_start, run_state.line_steps)
         run_state.current_line[0] = outer
         run_state.line_steps, run_state.line_start = outer_budget
+
+def term_without_continuation(pending: tuple[Expr, str, int], filename: str, kb: KnowledgeBase) -> KurtException:
+    # the error of a term line that no relation continued (todo 80): at the line of the term, as if it were read alone; the line that
+    # showed it (or the end of the file) is read again after it
+    term, text, term_line = pending
+    column = count_leading_spaces(text)
+    e = KurtException(f'EvalError: must be a statement, got `{expr_str(term, kb)}`', column=column, line=term_line, filename=filename)
+    where = '\n' if filename in ('<stdin>', '<shell>') else f'\nFile `{filename}`, line {term_line}:\n'
+    e.msg = f'{where}{text}\n{" " * column}^\n' + e.msg
+    e.reread = True
+    return e
 
 def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: KnowledgeBase, line: int, filename: str) -> tuple[KnowledgeBase, LexerState]:
     run_state.current_lexer_state[0] = lexer_state      # (for `summary`: what could come next)
@@ -21531,6 +22109,16 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
     # scan the input line and prepare for the parsing
     ts = PeekableGenerator(scan_string(input_line, kb))    # runs the lexer
 
+    # the line before was a term, `(a+b)*(c+d)`: this line must continue it, indented, with a relation of a chain (`= a*c + ...`)
+    term_before = lexer_state.pending_term
+    if term_before is not None:
+        lexer_state.pending_term = None
+        first_here = ts.peek
+        if not (first_here is not None and first_here.label == 'SYMBOL' and isinstance(first_here.value, str)
+                and first_here.value not in keywords and kb.is_chainable(first_here.value)
+                and leading_spaces > lexer_state.indent_stack[-1] and not lexer_state.indent_requester):
+            raise term_without_continuation(term_before, filename, kb)
+
     # indentation handling before parsing
     # three cases:
     # 1. increased indentation, check that we expected it or that we are starting a chain
@@ -21541,13 +22129,16 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         if len(lexer_state.indent_requester) > 0:
             requested = True
             lexer_state.indent_requester = ''       # reset expectation
-        elif len(ops) == 1:
+        elif len(ops) == 1 or term_before is not None:
             # we are starting a chain, once allow increased indentation
             pass 
         else:
             raise KurtException(f'ParseError: unexpected increased indentation at line {line} in {filename}', leading_spaces)
-        # no error, so push the new indentation level
+        # no error, so push the new indentation level (once more for each further block the line opened)
         lexer_state.indent_stack.append(leading_spaces)
+        if requested:
+            lexer_state.indent_stack.extend([leading_spaces] * lexer_state.extra_blocks)
+            lexer_state.extra_blocks = 0
         indents = 1   # a single indent, this is required for starting a chain
         dedents = 0   # the pushing of a new level is handled during evaluation (or we have a chain)
     else:
@@ -21581,7 +22172,16 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         first_value = first_token.value
         if first_label == 'SYMBOL' and isinstance(first_value, str):
             if first_value not in keywords and kb.is_chainable(first_value):
-                if lhs is not None and ops != []:         # did we start a chain before?
+                if term_before is not None:
+                    # the chain starts with the term of the line before: `T`, then `= U` is `T = U`; the operator counts twice,
+                    # as if the chain had a line already, so that the next lines `  = V` go on as every chain does
+                    lhs, ops = term_before[0], [first_token, first_token]
+                    resulting_op = kb.get_chain_op([first_token])
+                    if resulting_op is None:
+                        raise KurtException(f'ParseError: `{first_value}` does not continue the term above at line {line} in {filename}')
+                    chained = True
+                    ts.prepend(LHS_token)
+                elif lhs is not None and ops != []:         # did we start a chain before?
                     if len(ops) == 1  and  indents != 1:
                         raise KurtException(f'ParseError: expected indentation to start the chain at line {line} in {filename}')
                     if len(ops) > 1  and  (indents != 0 or dedents != 0):
@@ -21694,7 +22294,13 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
         else:
             was_proof = kb.mode_str == 'proof'
             kb = kb.pop_level()             # just pop one level, discarding it, no proof step
-            lexer_state.indent_stack.pop()  # pop one indentation level
+            indent = lexer_state.indent_stack.pop()  # pop one indentation level
+            discarded = 1
+            while (len(lexer_state.indent_stack) > 1 and lexer_state.indent_stack[-1] == indent
+                   and kb.parent is not None and not kb.is_load_boundary and kb.mode_str == 'pick'):
+                kb = kb.pop_level()         # `pick x, y with F` opened a block for each name, all with this indentation: `break` gives up all
+                lexer_state.indent_stack.pop()
+                discarded += 1
             if was_proof:
                 assert len(kb.show) > 0, 'BUG: breaking a `proof` block with no pending `show` on its parent'
                 kb.claim_last = True        # (a `break` now withdraws the claim)
@@ -21702,7 +22308,7 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
                     log(kb, 'break', Reason(str(line), f'closed the proof -- the claim `{expr_str(kb.show[-1].expr, kb)}` is still open: '
                                                        f'a new `proof`, or `break` to withdraw it'), kb.level + 1)   # (where it is written)
             elif printing():
-                log(kb, 'break', Reason(str(line), 'discarded the last block'), kb.level + 1)
+                log(kb, 'break', Reason(str(line), 'discarded the last block' if discarded == 1 else f'discarded the {discarded} blocks of the `pick`'), kb.level + 1)
     elif keyword == 'qed':
         # dry run to check the block modes and that we are not closing too many levels
         dedents_check = dedents
@@ -21746,6 +22352,15 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
             e.closing = True                 # (the block `kb` didn't close)
             raise e
 
+        if (lexer_state.lookahead and not chained and keyword_token is None and len(expr_list) == 1
+                and not bool_expr(expr_list[0], kb, strict=False)):
+            # a term on its own: it may be the left side of an equation in two lines, `(a+b)*(c+d)` and, indented, `= ...`
+            # (todo 80) -- the next line decides: it continues it, or this is the error it was
+            lexer_state.pending_term = (expr_list[0], input_line, line)
+            lexer_state.indent_requester, lexer_state.extra_blocks = '', 0
+            lexer_state.initial_LHS, lexer_state.chained_ops = None, []
+            return kb, lexer_state
+
         # evaluate the expression
         run_state.new_symbols.clear()
         run_state.used_symbols.clear()
@@ -21787,8 +22402,10 @@ def scan_parse_check_eval_line(input_line: str, lexer_state: LexerState, kb: Kno
     # update lexer state for indentation handling
     if keyword_token is not None and isinstance(keyword_token.value, str) and keyword_token.value in keywords_opening_blocks:
         lexer_state.indent_requester = keyword_token.value  # next line should be indented
+        lexer_state.extra_blocks = max(0, kb.level - kb_predecessor.level - 1) if keyword_token.value == 'pick' else 0   # (`pick x, y with F`)
     else:
         lexer_state.indent_requester = ''
+        lexer_state.extra_blocks = 0
 
     # update lexer state for chaining
     lexer_state.initial_LHS = lhs
@@ -21942,6 +22559,15 @@ def error_line_of(e: KurtException) -> Optional[int]:
         return e.via_load
     at = re.search(r'line (\d+):', e.msg)
     return int(at.group(1)) if at else e.line
+
+SLOW_LINE_SECONDS = 2.0     # the editors mark a line that took longer (Information, and its time in the hint at its end)
+
+def slow_lines(profile: list[dict], name: str, threshold: float = SLOW_LINE_SECONDS) -> dict[int, tuple[float, int]]:
+    # the lines of the file `name` that took at least `threshold` seconds: line -> seconds, search steps
+    return {p['line']: (p['seconds'], p['steps']) for p in profile if p['file'] == name and p['seconds'] >= threshold}
+
+def slow_note(seconds: float, steps: int) -> str:
+    return f'slow line: {seconds:.1f} s, {steps} search steps'
 
 UNUSED_NOTE = 'not used: no later line, block or `qed` cites it'     # (the editors, `kurt --unused`)
 UNUSED_IN_BLOCKS = ('proof', 'show', 'assume', 'let', 'pick', 'case')     # the blocks whose lines `unused_lines` reports
@@ -22111,7 +22737,7 @@ def builtin_origin(symbol: str, kb: KnowledgeBase) -> Optional[str]:
 def calculator_bindings(cert: 'Certificate', kb: Optional[KnowledgeBase]) -> tuple[str, list[str]]:
     # what a `calc` step computes with: the symbols of its goal (and of the fact that computes to
     # it) that are bound to the calculator, with the files that bound them -- `computed by the
-    # calculator (`+` add, `=` equal of numbers.kurt)`, and those files
+    # calculator (`+` add, `=` equal of number.kurt)`, and those files
     if kb is None:
         return 'computed by the calculator', []
     exprs = [cert.goal] + ([cert.rule.expr] if cert.rule is not None else [])
@@ -22414,7 +23040,7 @@ def checked_exports_now(fname: str, f: IO[str], candidate, loader: KnowledgeBase
     if main:
         run_state.main_kb = (getattr(f, 'name', fname), kb)     # (its top-level facts, for `CheckResult.proves`)
         for sort, where_declared in ([] if is_trusted_file(fname) else uninhabited_sorts(kb)):
-            # (not for a theory of Kurt: objects.kurt declares `real`, numbers.kurt names its objects)
+            # (not for a theory of Kurt: set.kurt declares `real`, number.kurt names its objects)
             print(f'Warning: the sort `{sort}` ({where_declared}) has no constant in this file -- a model needs at least one object of '
                   f'`{sort}` (all sorts are inhabited, doc/kurt-spec.md §2.2), so the file assumes one: declare it, e.g. `{sort} c`', file=sys.stderr)
     run_state.file_theories[fname] = kb.theory     # (also its unlabelled and `local` facts, see `file_foundations`)
@@ -22449,13 +23075,13 @@ def symbol_declarations(kb: 'KnowledgeBase | ExportBundle', s: str) -> tuple:
         custom_sorts = tuple(sorted((sort, tuple(signatures.get(s, [])))
                                     for sort, signatures in kb.sort_sigs.items() if signatures.get(s)))
         return (kb.infix.get(s), kb.prefix.get(s), kb.postfix.get(s), kb.arity.get(s, 0), kb.arity_shape.get(s), inline_text(kb.inline.get(s)), tuple(kb.prop.get(s, [])),
-                custom_sorts, s in kb.bindop, s in kb.flat, s in kb.sym, kb.alias.get(s),
-                tuple(kb.builtins.get(s, [])), tuple(kb.roles.get(s, [])), kb.brackets.get(s))
+                custom_sorts, s in kb.binder, s in kb.flat, s in kb.sym, kb.alias.get(s),
+                tuple(kb.builtins.get(s, [])), tuple(kb.roles.get(s, [])), kb.brackets.get(s), kb.binder_power.get(s))
     custom_sorts = tuple(sorted((sort, tuple(kb.sort_sig(sort, s)))
                                 for sort in kb.all_sort_names() if sort != 'prop' and kb.sort_sig(sort, s)))
     return (kb.get_infix(s), kb.get_prefix(s), kb.get_postfix(s), kb.get_arity(s), kb.get_arity_shape(s), inline_text(kb.all_inlines().get(s)), tuple(kb.bool_sig(s)),
-            custom_sorts, kb.is_bindop(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s),
-            tuple(kb.get_builtins(s)), tuple(kb.all_roles.get(s, [])), kb.get_lbracket(s))
+            custom_sorts, kb.is_binder(s), kb.is_flat(s), kb.is_sym(s), kb.get_alias(s),
+            tuple(kb.get_builtins(s)), tuple(kb.all_roles.get(s, [])), kb.get_lbracket(s), kb.get_binder_power(s))
 
 def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname: str) -> None:
     # the file was checked on its own: a symbol it shares with its loader must mean the same on
@@ -22498,7 +23124,7 @@ def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname
     def key(f: 'Formula') -> tuple[str, str, str]:
         return (f.filename, f.line, f.label)
     # a symbol is declared by one file only (`declare_origin`): two theories with their own `+`
-    # (numbers.kurt and field.kurt) can't be loaded together, the same theory twice can
+    # (number.kurt and field.kurt) can't be loaded together, the same theory twice can
     for sym, origin in sorted(bundle.declared_in.items()):
         there = loader.get_declared_in(sym)
         if there is not None and there != origin:
@@ -22537,7 +23163,7 @@ def validate_against_loader(bundle: ExportBundle, loader: 'KnowledgeBase', fname
     for sym in sorted(bundle.symbols - core):
         if sym[0] in '$%' or not loader.is_known(sym):
             continue
-        # a later file may add to a symbol (numbers.kurt binds `=` of equality.kurt to the
+        # a later file may add to a symbol (number.kurt binds `=` of equality.kurt to the
         # calculator), so a declaration may be missing on one side -- but not be another one
         if any(a and b and a != b for i, (a, b) in enumerate(zip(symbol_declarations(loader, sym), symbol_declarations(bundle, sym))) if i != 7):   # (7: the sorts, an overload may add profiles: checked above)
             raise KurtException(f'EvalError: `{sym}` is declared differently here and in `{fname}` -- rename it in one of them')
@@ -22679,6 +23305,8 @@ class RunConfig:
     # called at each step and each line: True stops the check with a `ResourceError` at that line
     # (`CheckResult.cancelled`; e.g. `threading.Event().is_set`, or "the document changed")
     cancel: Optional[Callable[[], bool]] = None
+    # note the time and the search steps of each line (`CheckResult.profile`; `kurt --profile` prints the slowest)
+    profile: bool = False
 
 @dataclasses.dataclass
 class CheckResult:
@@ -22699,6 +23327,7 @@ class CheckResult:
     _kb: 'Optional[KnowledgeBase]' = dataclasses.field(default=None, repr=False, compare=False)
     _name: str = dataclasses.field(default='', repr=False, compare=False)
     _session: 'Optional[Session]' = dataclasses.field(default=None, repr=False, compare=False)
+    profile: list[dict] = dataclasses.field(default_factory=list)   # with `RunConfig.profile`: each line (of this and the loaded files) with its `seconds` and search `steps`
     foundations: list[dict] = dataclasses.field(default_factory=list)   # the file's top-level facts, each with its class and what it rests on (`foundation=True`; `file_foundations`)
 
     def foundation(self, label: str) -> Optional[dict]:
@@ -22780,7 +23409,7 @@ def _fresh_run_state(config: RunConfig) -> RunState:
                     trusted_paths=list(paths), untrusted_names=untrusted_names, source_overlays=overlays,
                     kurtc_enabled=config.kurtc, comment_indent=config.comment_indent,
                     line_numbers=config.line_numbers, all_errors=config.all_errors, progress=config.progress,
-                    time_limit=config.time_limit, step_limit=config.step_limit, cancel=config.cancel)
+                    time_limit=config.time_limit, step_limit=config.step_limit, cancel=config.cancel, profile=config.profile)
 
 # a session's run state is `run_state` while it is active: one session at a time (several threads
 # take turns -- the checks are Python work, which wouldn't run in parallel anyway)
@@ -22815,6 +23444,7 @@ class Session:
             run_state.errors = []
             run_state.progress_files = []
             run_state.main_kb = None
+            run_state.line_profile = {}
             printed_before, run_state.print_errors = run_state.print_errors, 'stdout'   # (all errors: in the output, at their places)
             stopped: Optional[KurtException] = None
             shown: dict[int, str] = {}
@@ -22839,7 +23469,9 @@ class Session:
                 run_state.print_errors = printed_before
                 main_name, main_kb = run_state.main_kb or ('', None)     # (for `proves`: the file's own facts, in its context)
                 run_state.main_kb = None
-        own = {'loaded': main_kb.loaded_files() if main_kb is not None else [], '_kb': main_kb, '_name': main_name, '_session': self}
+        own = {'loaded': main_kb.loaded_files() if main_kb is not None else [], '_kb': main_kb, '_name': main_name, '_session': self,
+               'profile': [{'file': f, 'line': n, 'seconds': round(sec, 4), 'steps': steps}
+                           for (f, n), (sec, steps) in sorted(self._state.line_profile.items())]}
         if not errors:
             return CheckResult(True, out.getvalue(), None, None, list(kb.todos()), None, events, certificates=shown, foundations=rests, **own)
         if stopped is not None:
@@ -23058,6 +23690,7 @@ class LanguageServer:
         # time and so can't read a message meanwhile: a flag in a SharedArrayBuffer (todo 51)
         self.cancel: Optional[Callable[[], bool]] = None
         self.client_refreshes_hints = False
+        self.heat_notifications = False        # send `kurt/progress` and `kurt/profile` (option `heat` of an editor that tints the lines)
         self.timers: dict[str, threading.Timer] = {}
         # the files checked so far (`_checked_exports`), shared by all checks: a theory is checked
         # once, not on each change of the document (only again when it, or what it loads, changes)
@@ -23069,6 +23702,8 @@ class LanguageServer:
         self.shutdown_requested = False
         self.running = True
         self.cancelled_ids: set = set()               # the requests the client cancelled (`$/cancelRequest`), see `serve`
+        self.checking: set[str] = set()               # the documents being checked now
+        self.cancelled_checks: set[str] = set()       # ... and those the editor asked to stop (`kurt/cancel`, its status menu)
 
     def send(self, message: dict) -> None:
         body = json.dumps(message, ensure_ascii=False).encode('utf-8')
@@ -23109,9 +23744,46 @@ class LanguageServer:
                              if open_uri.startswith('file:') and open_uri != uri and not lsp_same_as_file(lsp_uri_path(open_uri), text))
         session = Session(RunConfig(paths=self.extra_paths, untrusted_paths=(folder,),
                                     overlays=overlays, strict=self.strict, all_errors=self.all_errors,
-                                    progress=self.progress, time_limit=self.budget or None, cancel=cancel))
+                                    progress=self.progress or (self.progress_notifier(uri) if self.heat_notifications else None), time_limit=self.budget or None, cancel=cancel, profile=True))
         session._state._checked_exports = self.checked     # (used under `work_lock` only)
         return session
+
+    def progress_notifier(self, uri: str) -> Callable[[dict], None]:
+        # the editor is told which line of the document is checked (`kurt/progress`, at most ten times a second, the last
+        # state always follows): it can tint the lines done and the line at work
+        name = lsp_uri_path(uri) or 'proof.kurt'
+        state: dict = {'last': 0.0, 'waiting': None, 'timer': None}
+        lock = threading.Lock()
+        def send_now(event: dict) -> None:
+            state['last'] = time.monotonic()
+            self.send({'jsonrpc': '2.0', 'method': 'kurt/progress',
+                       'params': {'uri': uri, 'line': event['line'], 'lines': event['lines'], 'done': bool(event.get('done'))}})
+        def flush() -> None:
+            with lock:
+                event, state['waiting'], state['timer'] = state['waiting'], None, None
+                if event is not None:
+                    send_now(event)
+        def notify(event: dict) -> None:
+            if event.get('file') != name:
+                return
+            with lock:
+                wait = 0.1 - (time.monotonic() - state['last'])
+                if event.get('done') or wait <= 0:
+                    send_now(event)
+                    state['waiting'] = None
+                    return
+                state['waiting'] = event
+                if state['timer'] is None:
+                    state['timer'] = threading.Timer(wait, flush)
+                    state['timer'].daemon = True
+                    state['timer'].start()
+        return notify
+
+    def publish_profile(self, uri: str, profile: list[dict]) -> None:
+        # the time and the search steps of each line of the document (`kurt/profile`), for the editor's heat map
+        name = lsp_uri_path(uri) or 'proof.kurt'
+        lines = [{'line': p['line'], 'seconds': p['seconds'], 'steps': p['steps']} for p in profile if p['file'] == name]
+        self.send({'jsonrpc': '2.0', 'method': 'kurt/profile', 'params': {'uri': uri, 'lines': lines}})
 
     def publish_diagnostics(self, uri: str, diagnostics: list[dict], version: Optional[int]) -> None:
         params: dict[str, object] = {'uri': uri, 'diagnostics': diagnostics}
@@ -23136,15 +23808,23 @@ class LanguageServer:
             # discarded below; before, the check of the new text waited for it) -- read without the
             # lock, at every step of the search
             stale = lambda: (self.texts.get(uri) is not text or self.versions.get(uri) != version
-                             or (request_id is not None and request_id in self.cancelled_ids)      # (or the client cancelled the request,
+                             or uri in self.cancelled_checks                                       # (the editor's `kurt/cancel`,
+                             or (request_id is not None and request_id in self.cancelled_ids)      # or the client cancelled the request,
                              or (self.cancel is not None and self.cancel()))                       # or the embedder, `cancel`)
+            self.cancelled_checks.discard(uri)
+            self.checking.add(uri)
             session = self.session_for(uri, cancel=stale)
         # Keep the source directory: sibling loads must precede the server's launch directory.
         # check_text treats this name as untrusted even if it happens to name a trusted file.
-        with self.work_lock:
-            result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt', certificates=True, links=True, foundation=True)
+        try:
+            with self.work_lock:
+                result = session.check_text(text, lsp_uri_path(uri) or 'proof.kurt', certificates=True, links=True, foundation=True)
+        finally:
+            self.checking.discard(uri)
         with self.state_lock:
             if result.cancelled or uri not in self.texts or self.texts[uri] != text or self.versions.get(uri) != version:
+                if self.heat_notifications and uri in self.cancelled_checks:
+                    self.send({'jsonrpc': '2.0', 'method': 'kurt/progress', 'params': {'uri': uri, 'line': 0, 'lines': 0, 'done': True, 'cancelled': True}})
                 return                          # a newer edit superseded this check
             self.results[uri] = result
             # (only of a file without errors: after an error, the lines that would use a line are missing)
@@ -23170,6 +23850,11 @@ class LanguageServer:
             end = lsp_python_to_utf16(lines[line], len(lines[line])) if line < len(lines) else 0
             diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
                                 'severity': 2, 'source': 'kurt', 'message': f'todo: {todo}'})
+        for n, (seconds, steps) in sorted(slow_lines(result.profile, lsp_uri_path(uri) or 'proof.kurt').items()):
+            line = n - 1
+            end = lsp_python_to_utf16(lines[line], len(lines[line])) if line < len(lines) else 0
+            diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
+                                'severity': 3, 'source': 'kurt', 'message': slow_note(seconds, steps)})
         for n in sorted(self.unused[uri][0]):
             # a hint with the tag "unnecessary": the editors grey the line out (VS Code; Neovim's
             # `DiagnosticUnnecessary`, Eglot a face), like an unused import
@@ -23178,6 +23863,8 @@ class LanguageServer:
             diagnostics.append({'range': {'start': {'line': line, 'character': 0}, 'end': {'line': line, 'character': end}},
                                 'severity': 4, 'tags': [1], 'source': 'kurt', 'message': UNUSED_NOTE})
         self.publish_diagnostics(uri, diagnostics, version)
+        if self.heat_notifications:
+            self.publish_profile(uri, result.profile)
         self.refresh_inlay_hints()
 
     def schedule_check(self, uri: str) -> None:
@@ -23243,7 +23930,7 @@ class LanguageServer:
         certificate = result.certificates.get(n + 1, '') if result else ''
         details = '  \n'.join(re.sub(r'^; (\w[\w ]*:)\s+', r'**\1** ', line) for line in certificate.splitlines() if line.strip())
         if not details and all(str(e.get('text', '')).startswith('load ') for e in events):
-            # `load propositional, numbers`: the files, as links (todo 51, 2026-10-15)
+            # `load propositional, number`: the files, as links (todo 51, 2026-10-15)
             links = []
             for e in events:
                 name = str(e['text'])[5:].strip()
@@ -23294,9 +23981,14 @@ class LanguageServer:
         'expect': '**expect:** an error of this kind must happen inside; then the block is discarded',
         'builtin': '**built in:** a meaning that Kurt itself implements for the symbol',
     }
+    LOCAL_DEFINITION = ('**definition, local to its block:** a new symbol, a name for its right-hand side (conservative: '
+                        'nothing new follows); it and its defining fact are gone when the block closes, and the block\'s '
+                        'last line must not mention it')
 
     def what_it_is(self, event: dict) -> str:
         words = event.get('text', '').split()
+        if words and words[0] == 'def' and (event.get('level') or 0) > 0:
+            return self.LOCAL_DEFINITION         # (a `def` inside a block, todo 77)
         return self.WHAT_IT_IS.get(words[0], '') if words else ''
 
     @staticmethod
@@ -23334,9 +24026,10 @@ class LanguageServer:
                         f'gets it (a `$` variable, a new constant, a position of a new operator, a bound variable); not across `load`'
                         if rest else '**default:** names the default sort in force here'),
             'alias': lambda: f'**alias:** `{number(0)}` is another name for `{number(1)}`, with all its properties',
+            'nested': lambda: f'**nested:** the variable of {listed} may be a list, `{number(0)} x, y P` is `{number(0)} x {number(0)} y P`',
             'flat': lambda: f'**flat:** a run of {listed} is one term, `a {number(0)} b {number(0)} c` -- grouping doesn\'t matter (associative)',
             'sym': lambda: f'**symmetric:** the order of the arguments of {listed} doesn\'t matter when Kurt matches (commutative)',
-            'bindop': lambda: f'**binding operator{"s" if len(names) > 1 else ""}:** {listed} bind{"" if len(names) > 1 else "s"} '
+            'binder': lambda: f'**binding operator{"s" if len(names) > 1 else ""}:** {listed} bind{"" if len(names) > 1 else "s"} '
                       f'the variable of {"their" if len(names) > 1 else "its"} first argument in its condition and its last '
                       f'argument, as `∀ x P(x)` does (the arguments in between are outside: `sum i (a, b) T`); with a '
                       f'condition (`∀ x > 0 ...`), its first new symbol or variable',
@@ -23380,11 +24073,14 @@ class LanguageServer:
         lines = self.texts.get(uri, '').split('\n')
         first, last = params['range']['start']['line'], params['range']['end']['line']
         hints = []
+        slow = slow_lines(self.results[uri].profile, lsp_uri_path(uri) or 'proof.kurt') if uri in self.results else {}
         for n, events in sorted(self.line_events(uri).items()):
             if first <= n <= last and n < len(lines):
                 # (a `qed` that isn't written -- the proof closed by a dedent -- says so)
                 reason = '; '.join(('qed ' if e['text'] == 'qed' and lines[n].strip() != 'qed' else '') + self.reason_here(e) for e in events)
                 character = lsp_python_to_utf16(lines[n], len(lines[n]))
+                if n + 1 in slow:
+                    reason += f' [{slow[n + 1][0]:.1f} s, {slow[n + 1][1]} steps]'
                 hints.append({'position': {'line': n, 'character': character}, 'label': f'  ; {reason}',
                               'paddingLeft': True})
         return hints
@@ -23419,6 +24115,7 @@ class LanguageServer:
             self.extra_paths = tuple(os.path.abspath(os.path.expanduser(path)) for path in options.get('theoryPaths', []))
             self.strict = bool(options.get('strict', False))
             self.all_errors = bool(options.get('allErrors', True))
+            self.heat_notifications = bool(options.get('heat', False))   # the editor wants `kurt/progress` and `kurt/profile` (it tints the lines)
             self.budget = max(0.0, float(options.get('budget', self.DEFAULT_BUDGET) or 0))   # (0, null: none)
             self.check_on_change = bool(options.get('checkOnChange', options.get('checkOnType', False)))
             self.check_delay = max(0.05, float(options.get('checkOnChangeDelay', 0.3)))
@@ -23507,6 +24204,9 @@ class LanguageServer:
                 try:
                     if method == '$/cancelRequest':
                         self.cancelled_ids.add(params.get('id'))
+                        continue
+                    if method == 'kurt/cancel':          # (the editor's status menu: stop the check that runs)
+                        self.cancelled_checks.update([params['uri']] if params.get('uri') else self.checking)
                         continue
                     if method == 'textDocument/didChange':
                         self.apply_change(params)
@@ -24148,6 +24848,7 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
     statement_start = first_line              # the first line of a statement that continues on the next ones
     continued  = False
     lexer_state = lexer_state or LexerState()   # lexer state for indentation management (the one of a breakpoint)
+    lexer_state.lookahead = True                # (a term line waits for the next line to continue it -- a file pasted into the shell too)
     input_line = ''
     skip_deeper_than: Optional[int] = None   # skip the rest of an `expect` block after its error
     skip_proof_at: Optional[int] = None      # ... and the `proof` of a `show` that failed (all errors)
@@ -24160,6 +24861,7 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
             shell_terminal.append(Terminal.open(shell_history))   # (None: not a terminal, then `input()`)
         terminal = shell_terminal[0]
     while True:
+        flush = False
         try:
             if replay is not None:
                 new_line, replay = replay, None
@@ -24173,7 +24875,7 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
                     steps = next_steps(kb, lexer_state)
                     if steps:
                         print(f'; hint: next, e.g. {"  or  ".join(step.rstrip() for step in steps)}  (Tab writes it)')
-                prompt_text = kurt_prompt(kb.level, line, continued, show_level=terminal is None)
+                prompt_text = kurt_prompt(kb.level, line, continued or lexer_state.pending_term is not None, show_level=terminal is None)
                 if terminal is not None:
                     complete = lambda text, word: completions(text, word, kb, lexer_state)
                     new_line = terminal.read_line(prompt_text, ' ' * next_indentation(lexer_state), complete).rstrip()
@@ -24183,7 +24885,9 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
             else:
                 # here indentation matters, we read exactly what is in the file
                 new_line = input_stream.readline()
-                if not new_line:
+                if not new_line and lexer_state.pending_term is not None and not continued:
+                    flush = True       # the file ends after a term line: an empty line is read, which raises its error (inside the `try` below)
+                if not new_line and not flush:
                     if continued:
                         # still mid-parse (e.g. an unclosed bracket) when the file ran out --
                         # raise instead of silently breaking, otherwise this looks exactly
@@ -24203,7 +24907,7 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
                 if line == 1:
                     new_line = new_line.removeprefix('\ufeff')   # a byte order mark, invisible in editors
             new_line = new_line.expandtabs(tab_indent)     # tabs are ok, but are converted
-            if not continued and (new_line.strip() == '' or new_line.lstrip().startswith(';')):
+            if not continued and not flush and (new_line.strip() == '' or new_line.lstrip().startswith(';')):
                 # a blank line (or a line with only a comment) never carries anything to parse -- skip it outright rather
                 # than feeding it through the indentation logic below, where its own leading-
                 # space count (0, whether truly empty or just whitespace) would otherwise be
@@ -24329,6 +25033,9 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
                     statement, one_line = input_line, len(pending) == 1
                     pending = []                   # (the statement is not saved)
                     input_line, continued = '', False
+                    if e.reread:                   # (the error of the line before: this one is read now)
+                        replay = new_line
+                        continue
                     if e.closing and kb.parent is not None and not kb.is_load_boundary:
                         # a block didn't close: it closes anyway, and the line is read again
                         # (it may close more blocks, and it has its own content) -- not a `qed`,
@@ -24357,10 +25064,16 @@ def read_eval_loop(input_stream: IO[str], kb: KnowledgeBase,
                 else:
                     print(e.msg, file=sys.stderr)  # show the error and go on
                     pending = []                   # the statement is not saved
+                    if e.reread:                   # (the error of the line before: this one is read now)
+                        replay = new_line
+                        input_line, continued = '', False
+                        continue
             input_line = ''  # Reset input
             continued = False
             line += 1
         except EOFError:
+            if lexer_state.pending_term is not None:      # (a term line that nothing continued)
+                print(term_without_continuation(lexer_state.pending_term, input_stream.name, kb).msg, file=sys.stderr)
             log(kb, "\nBye!")      # this only happens when Ctrl-d is pressed in the interactive session
             break
     if is_file and len(run_state._loading_in_progress) <= 1 and run_state.shell_start[0] is None:
@@ -24379,6 +25092,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-d', '--debug',        action='store_true', help='show debugging information')
     parser.add_argument('-a', '--all-errors',   action='store_true', help='go on checking after an error, and show all errors (by default only the first one; the editors show all)')
     parser.add_argument('--budget', metavar='SECONDS', type=float, help='the budget of the search for one line: a line that takes longer fails with a `ResourceError` (neither proved nor refuted); by default none (the editors: 30 s)')
+    parser.add_argument('--profile',            action='store_true', help='after the check, print the slowest lines of the file: the time and the search steps of each')
     parser.add_argument('--no-line-numbers',    action='store_true', help='print the output without the numbers of the source lines in front (the reasons then start with them, `; 5 by 3(4)`)')
     parser.add_argument('--no-kurtc',           action='store_true', help='neither write nor use `.kurtc` files (the certificates of a checked file, see doc/kurt-ref.md)')
     parser.add_argument('--json',               action='store_true', help='check the file and print the result as JSON: each line as an event (its id, kind, rule, the lines it uses), the error, the todos -- for graders and editors')
@@ -24391,6 +25105,8 @@ def parse_args() -> argparse.Namespace:
                         help='check the file, then show for each fact at its top level what it rests on: the axioms, definitions, `todo`s and calculator steps behind its proof, by file -- and for each of these, the facts resting on it; '
                              '`--foundation LABEL FILE`: only the fact with this label (or at this line)')
     parser.add_argument('-o', '--output', metavar='FILE', help='with --latex, --markdown or --lean: write to FILE instead of next to the file; `-o -` to standard output (for a pipe, e.g. `kurt --lean p.kurt -o - | lean --stdin`)')
+    parser.add_argument('--share',              action='store_true', help='print the playground link of the proof in `filename` (`https://www.kurt-lang.org/#proof=...`: its text, UTF-8, in base64 with the URL-safe alphabet, no padding); the file is not checked')
+    parser.add_argument('--unshare',            metavar='LINK',      help='print the proof of a playground link (or of the code after `#proof=`), e.g. `kurt --unshare LINK > proof.kurt`')
     parser.add_argument('--deps',               action='store_true', help='show the files that `filename` loads, with the state of their certificates (then checks it quietly, for the symbols used without loading their theory)')
     args = parser.parse_args()
     # `--foundation FILE` (the whole file), `--foundation LABEL FILE` and `FILE --foundation LABEL`
@@ -24403,6 +25119,38 @@ def parse_args() -> argparse.Namespace:
             args.foundation_label = args.foundation
         args.foundation = True
     return args
+
+#############################################################
+## share: a proof as a link of the playground (`kurt --share`) ##
+#############################################################
+
+PLAYGROUND_URL = 'https://www.kurt-lang.org/'
+
+def share_link(text: str) -> str:
+    # what the playground's Share button makes (kurt-web, `encodeShare`): the UTF-8 bytes of the proof, base64 with
+    # `-` and `_` for `+` and `/`, without the `=` padding, after `#proof=`
+    code = base64.urlsafe_b64encode(text.encode('utf-8')).decode('ascii').rstrip('=')
+    return f'{PLAYGROUND_URL}#proof={code}'
+
+def unshare_text(link: str) -> tuple[str, Optional[str]]:
+    # the proof of a link (or of the bare code), and the `&folder=` it names, if any (where its `load`s find files);
+    # a `ValueError` says what is wrong
+    fragment = link.split('#', 1)[1] if '#' in link else link if link.startswith(('proof=', 'file=')) else 'proof=' + link
+    parts: dict[str, str] = {}
+    for piece in fragment.split('&'):
+        if piece:
+            key, _, value = piece.partition('=') if '=' in piece else ('proof', '', piece)
+            parts[key] = value
+    if 'proof' not in parts:
+        if 'file' in parts:
+            raise ValueError(f'the link names the file `{parts["file"]}` of the playground, it has no proof text')
+        raise ValueError('no `#proof=` in the link')
+    code = parts['proof']
+    try:
+        text = base64.b64decode(code.replace('-', '+').replace('_', '/') + '=' * (-len(code) % 4), validate=True).decode('utf-8')
+    except ValueError:          # (`binascii.Error` and `UnicodeDecodeError` are ValueErrors)
+        raise ValueError('the code of the link is not base64 of UTF-8 text') from None
+    return text, parts.get('folder')
 
 #############################################################
 ## export: a checked file as LaTeX or Markdown (`kurt --latex`) ##
@@ -24528,7 +25276,7 @@ def tex_expr(e: Expr, kb: KnowledgeBase, outer: int = 0) -> str:
         return l + ', '.join(tex_expr(a, kb) for a in items) + r
     if kb.has_role(op, 'setbuilder') and len(args) == 2:
         return r'\left\{' + tex_expr(args[0], kb) + r' \;\middle|\; ' + tex_expr(args[1], kb) + r'\right\}'
-    if kb.is_bindop(op) and args:
+    if kb.is_binder(op) and args:
         variable = tex_expr(args[0], kb)
         body = tex_expr(args[-1], kb, 100)
         middle = ', '.join(tex_expr(a, kb) for a in args[1:-1])
@@ -24690,7 +25438,7 @@ def document_and_result(path: str, fmt: str, config: Optional[RunConfig] = None)
 #   associativity/commutativity as an axiom (what the declaration asserts), and `a · b · c` is
 #   nested. A symbol that is applied and also an object (`f a`, `f ∈ (A → B)`) is an `Obj`, applied
 #   with `k_apply` (`find_mixed`).
-# - With objects.kurt's `lean Obj ZFSet` (set.kurt, every theory of numbers), `Obj` is Mathlib's
+# - With set.kurt's `lean Obj ZFSet` (set.kurt, every theory of numbers), `Obj` is Mathlib's
 #   `ZFSet` and a sort with a `lean` type (`lean real ℝ`) that type, embedded into the sets by the
 #   injective `k_emb` (a definition, `LeanWriter.zfset_preamble`): the types follow Kurt's sorts
 #   (`LeanTranslator.term` returns each term's type, `coerce` embeds a number where a set is
@@ -24719,7 +25467,7 @@ LEAN_NATIVE_INFIX = {'implies': '→', 'and': '∧', 'or': '∨', 'iff': '↔', 
 LEAN_NATIVE_CONST = {'true': 'True', 'false': 'False'}
 LEAN_BINDERS = {'forall': '∀', 'exists': '∃'}
 LEAN_CARRIER = 'Obj'       # `lean Obj ZFSet`: the Lean type of Kurt's objects (with Mathlib), see `LeanTranslator`
-LEAN_ZFSET = 'ZFSet'       # `lean Obj ZFSet` (objects.kurt): the objects are Mathlib's ZF sets, the numbers embedded (`k_emb`)
+LEAN_ZFSET = 'ZFSet'       # `lean Obj ZFSet` (set.kurt): the objects are Mathlib's ZF sets, the numbers embedded (`k_emb`)
 LEAN_SORT_PREFIX = 'sort '   # `lean real ℝ`: the Lean type of the sort `real`, stored as `sort real` (a sort is no symbol)
 LEAN_PROFILE = ' @'         # `lean complex ^ k_cpow $1 $2`: the `complex` profile of `^`, stored as `^ @complex` (decision 19 of dev/todo-sorts.md)
 LEAN_COMPLEX = 'ℂ'          # `lean complex ℂ` (complex.kurt): a type above the numbers' `ℝ`, embedded into the sets by `k_embC` (`LeanWriter.complex_preamble`)
@@ -24833,13 +25581,13 @@ class LeanTranslator:
         self.infos: dict[int, tuple] = {}           # id of a formula -> its free variables, schema, the types of its variables, generic or not (`statement`)
         self.generic = False                        # while a statement is read with its unsorted variables of one type `α` (`statement`)
         # with Mathlib: the theories' `lean` declarations (`lean + $1 + $2`), and the type of the
-        # objects (`lean Obj ZFSet`, objects.kurt; `lean Obj ℝ` of a file of its own; None: an
+        # objects (`lean Obj ZFSet`, set.kurt; `lean Obj ℝ` of a file of its own; None: an
         # opaque `Obj`, no Mathlib, numbers not translated)
         self.maps: dict[str, dict[int, str]] = kb.all_lean()
         carrier = self.maps.get(LEAN_CARRIER, {}).get(0)
         self.carrier: Optional[str] = carrier.strip() if carrier is not None else None
         # the objects are Mathlib's ZF sets, and a sort with a `lean` type of its own (`lean real ℝ`,
-        # numbers.kurt) is that type, embedded into the sets (`k_emb`): two types, `ℝ` for the numbers
+        # number.kurt) is that type, embedded into the sets (`k_emb`): two types, `ℝ` for the numbers
         # (their rules and tactics are those of Mathlib's reals) and `Obj` for every object
         self.zfset = self.carrier == LEAN_ZFSET
         number_sort = kb.pos_sort(NUMBERS_KEY, 0) if self.zfset else None
@@ -24938,7 +25686,7 @@ class LeanTranslator:
                 return v in LEAN_NATIVE_CONST or v.startswith(('$', '%')) or kb.is_var(v) or self.mapped(v, 0) is not None
             case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and (op in LEAN_NATIVE_INFIX or op in LEAN_BINDERS or op == 'not'):
                 return all(self.all_mapped(a, kb) for a in args)
-            case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and not kb.is_bindop(op):
+            case [Token(label='SYMBOL', value=op), *args] if isinstance(op, str) and not kb.is_binder(op):
                 return self.mapped(op, len(args)) is not None and all(self.all_mapped(a, kb) for a in args)
         return False
 
@@ -25065,7 +25813,7 @@ class LeanTranslator:
                 case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
                     walk(a)
                     walk(A)
-                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op):
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op):
                     if is_bound_condition(cond):
                         walk(cond[2])
                     elif isinstance(cond, list):
@@ -25095,6 +25843,12 @@ class LeanTranslator:
         if not self.zfset:
             self.symbols.setdefault('<apply>', ('k_apply', 'Obj → Obj → Obj'))
         return 'k_apply'
+
+    def grind(self) -> str:
+        # `grind` as the last resort of a step; with numbers (Mathlib) it is told that a power with the exponent 1 is
+        # its base (`Real.rpow_one`): `x ^ (1 : ℝ)` comes out of a rule like "complex-pow-identity" and `grind` doesn't
+        # unfold it by itself
+        return 'grind [Real.rpow_one]' if self.num is not None else 'grind'
 
     def ac(self) -> str:
         # the simp set for Kurt's normal forms: Lean's own for `and`/`or`/`=`, and what the
@@ -25251,7 +26005,7 @@ class LeanTranslator:
                     types.setdefault(x, self.binder_var_type(t, x, kb))
                     walk(a)
                     walk(A)
-                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op) and body:
                     with contextlib.suppress(LeanUnsupported):
                         x, _ = self.binder(cond, kb)
                         types.setdefault(x, self.binder_var_type(t, x, kb))
@@ -25368,7 +26122,7 @@ class LeanTranslator:
                             raise LeanGeneric()
                     parts = [(ta, ha), (tb, hb)]
                 return '(' + f' {LEAN_NATIVE_INFIX[op]} '.join(p[0] for p in parts) + ')', 'Prop'
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op) and body:
                 # any other binder: a higher-order constant applied to `fun x => ...` (the middle
                 # arguments are outside the scope of the variable, see `binder_scope`)
                 x, condition = self.binder(cond, kb)
@@ -25540,7 +26294,7 @@ class LeanTranslator:
                 case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
                     walk(a, bound)
                     walk(A, bound + (x,))
-                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+                case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op) and body:
                     x, condition = self.binder(cond, kb)
                     if condition is not None:
                         walk(condition, bound + (x,))
@@ -25682,7 +26436,7 @@ class LeanTranslator:
                 return e
             case [Token(label='SYMBOL', value=op), Token(label='SYMBOL', value=x), a, A] if op == SUB_SYMBOL and isinstance(x, str):
                 return [e[0], e[1], self.holes(a, kb, known, bound), self.holes(A, kb, known, bound | {x})]
-            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_bindop(op) and body:
+            case [Token(label='SYMBOL', value=op), cond, *body] if isinstance(op, str) and kb.is_binder(op) and body:
                 x, condition = self.binder(cond, kb)
                 inner = bound | {x}
                 if condition is not None:
@@ -25762,7 +26516,7 @@ class LeanWriter:
         ac = self.t.ac()
         cast = f' | (have r := {term}; exact_mod_cast r)' if self.t.casts else ''
         return (f'first | exact {term} | (have r := {term}; simp only [{ac}] at r ⊢; exact r){cast}'
-                f' | (have r := {term}; (try simp only [{ac}] at r ⊢); first | done | grind)')
+                f' | (have r := {term}; (try simp only [{ac}] at r ⊢); first | done | {self.t.grind()})')
 
     def instance(self, f, name: str, values: dict, kb) -> str:
         # a fact with the certificate's values for its variables (and those introduced in the
@@ -25809,7 +26563,7 @@ class LeanWriter:
         filled = [f'have h{k} := {self.instance(f, n, cert.values, kb)}' for k, (f, n) in enumerate(zip(cert.facts, names), start=1)]
         hs = [f'h{k}' for k in range(1, len(filled) + 1)]
         targets = ' '.join(['r'] + hs)
-        grind = '(' + '; '.join([f'have r := {term}'] + filled + [f'(try simp only [{ac}] at {targets} ⊢)', 'first | done | grind']) + ')'
+        grind = '(' + '; '.join([f'have r := {term}'] + filled + [f'(try simp only [{ac}] at {targets} ⊢)', f'first | done | {self.t.grind()}']) + ')'
         # a rule about complex numbers for reals (`complex-add-identity` for `x + 0 = x`, `x` a real): the
         # rule's instance is about their casts, `(x : ℂ) + 0 = x`, which Mathlib's casts bring back (`norm_cast`)
         # -- or, for a goal about reals, the goal cast into `ℂ` (`Complex.ofReal_injective`) and the casts pushed
@@ -25984,7 +26738,7 @@ class LeanWriter:
 
     def block_lines(self, cert, block, block_id: int, intros: list[str], indent: str) -> list[str]:
         lines = [f"{indent}intro {' '.join(intros)}"] if intros else []
-        hyps = [g for g in self.formulas[block_id] if g.id not in self.justification]
+        hyps = [g for g in self.formulas[block_id] if g.id not in self.justification and g.keyword != 'def']   # (a `def` of the block: see `body`)
         match cert.kind:
             case 'impl-intro' | 'not-intro':
                 assumption = hyps[0] if hyps else None
@@ -26031,6 +26785,15 @@ class LeanWriter:
         lines = []
         kb = self.r.levels[kb_id]
         for g in self.formulas.get(kb_id, []):
+            if g.id not in self.justification and g.keyword == 'def' and g.def_symbol is not None:
+                # a `def` of the block (todo 77): a local constant with its equation
+                try:
+                    lines += self.local_definition(g, kb, indent)
+                except LeanUnsupported as e:
+                    self.untranslated.add(self.name(g))
+                    self.t.missing.append(f'line {g.line} `{g.input_line}` as a `def` in a block ({e})')
+                    lines.append(f'{indent}-- line {g.line}: {g.input_line} -- not translated: {e}')
+                continue
             if g.id not in self.justification:
                 continue                         # an assumption, a `pick` fact: from `intro`/`obtain`
             name = self.name(g)
@@ -26052,12 +26815,29 @@ class LeanWriter:
             lines += proof
         return lines
 
-    def definition(self, f, kb) -> None:
-        # a `def`: a Lean `def` of the new symbol, and its defining equation as a theorem by `rfl`
-        # (so Lean sees that the definition is conservative) -- the symbol applied to variables on
-        # one side, the other side a term in them (`eval_def` checks that); a direction of it that
-        # a step used (`L ⇒ R` of the `iff`) is the `def` itself
+    def local_definition(self, f, kb, indent: str) -> list[str]:
+        # a `def` inside a block (todo 77): its symbol is a constant of the proof there, with its
+        # defining equation as the hypothesis -- `obtain ⟨t, f12⟩ : ∃ (t : ℝ), t = 3 := ⟨3, ...⟩`,
+        # which holds only in the block (Lean's scope of the `obtain` is the block's, as Kurt's)
         e = f.simplified_expr if f.direction_of is None else f.direction_of
+        lhs, rhs, params, param_names, is_prop = self.definition_sides(f, e, kb)
+        order, _ = self.t.schema_of(e, kb)
+        types = self.t.formula_types(e, kb, order)
+        param_types = [self.t.var_type(p, kb, types) for p in param_names]
+        value, result = self.t.term(rhs, kb, bound=tuple(param_names), types=types)
+        result = 'Prop' if is_prop else (result if result is not None and (result == 'Obj' or self.t.is_number_type(result)) else 'Obj')
+        lean = self.t.symbol(f.def_symbol, kb, len(params) if params else None, list(params) if params else None, param_types or None)
+        self.t.signatures[lean] = (param_types, result)
+        stmt, _, _ = self.t.statement(e, kb)
+        binders = ' '.join(f'({lean_ident(p)} : {t})' for p, t in zip(param_names, param_types))
+        witness = f'(fun {binders} => {value})' if binders else value
+        where = f'{os.path.basename(f.filename)}:{f.line}' + (f' "{f.label}"' if f.label else '')
+        return [f'{indent}obtain ⟨{lean}, {self.name(f)}⟩ : ∃ ({lean} : {" → ".join(param_types + [result])}), {stmt} :=   -- def {where}, in a block',
+                f'{indent}  ⟨{witness}, by intros; first | rfl | exact Iff.rfl⟩']
+
+    def definition_sides(self, f, e, kb):
+        # the sides of a `def` (`e`, or one direction of it): the symbol applied to its parameters,
+        # the right side, the parameters, their names (variables), and whether it is an `iff`
         if not (isinstance(e, list) and len(e) == 3 and isinstance(e[0], Token) and e[0].value in ('=', 'iff')):
             raise LeanUnsupported('a `def` not with `=` or `iff`')
         is_prop = e[0].value == 'iff'
@@ -26076,6 +26856,15 @@ class LeanWriter:
         param_names = [p.value for p in params if isinstance(p, Token) and isinstance(p.value, str) and kb.is_var(p.value)]
         if len(param_names) != len(params):
             raise LeanUnsupported('a `def` of a symbol applied to more than variables')
+        return lhs, rhs, params, param_names, is_prop
+
+    def definition(self, f, kb) -> None:
+        # a `def`: a Lean `def` of the new symbol, and its defining equation as a theorem by `rfl`
+        # (so Lean sees that the definition is conservative) -- the symbol applied to variables on
+        # one side, the other side a term in them (`eval_def` checks that); a direction of it that
+        # a step used (`L ⇒ R` of the `iff`) is the `def` itself
+        e = f.simplified_expr if f.direction_of is None else f.direction_of
+        lhs, rhs, params, param_names, is_prop = self.definition_sides(f, e, kb)
         lean = lean_ident(f.def_symbol)
         # the types of the parameters by their sorts (`def even $m`: a number), of the result the
         # right side's (`def $a ∩ $b = {...}`: a set)
@@ -26192,7 +26981,7 @@ class LeanWriter:
                     if f is not None and f.filename != self.r.path:
                         wanted += sorted(symbols_in(f.simplified_expr))
             elif kind == 'formula' and getattr(x, 'lean_proof', None) is not None:
-                wanted += sorted(symbols_in(x.simplified_expr))      # (its proof in Lean may unfold them: integer.kurt's "int-sub-real")
+                wanted += sorted(symbols_in(x.simplified_expr))      # (its proof in Lean may unfold them: number.kurt's "int-sub-real")
         seen: set[str] = set()
         while wanted:
             s = wanted.pop()
@@ -26309,8 +27098,8 @@ class LeanWriter:
                 '  simpa using k_cpow_natCast z (OfNat.ofNat n)']
 
     def zfset_preamble(self) -> list[str]:
-        # `lean Obj ZFSet` (objects.kurt): Kurt's objects are Mathlib's ZF sets (`ZFSet`, a model of
-        # ZFC), and the numbers (`lean real ℝ`, numbers.kurt) are embedded into them -- every number
+        # `lean Obj ZFSet` (set.kurt): Kurt's objects are Mathlib's ZF sets (`ZFSet`, a model of
+        # ZFC), and the numbers (`lean real ℝ`, number.kurt) are embedded into them -- every number
         # is a set, as `real ⊂ set` says. The embedding is a definition (an ordinal for each real, by
         # a well-ordering, and its von Neumann level), injective by Mathlib's theorems, so nothing is
         # assumed: a number at the place of a set is `k_emb x`, two embedded numbers are equal only
@@ -26399,7 +27188,7 @@ def main() -> None:
     config = RunConfig(strict=args.strict, paths=(args.path,) if args.path else (),
                        kurtc=not args.no_kurtc, comment_indent=args.comment_indent,
                        line_numbers=not args.no_line_numbers, all_errors=args.all_errors,
-                       time_limit=args.budget if args.budget else None)
+                       time_limit=args.budget if args.budget else None, profile=args.profile)
     if args.lsp:
         # a language server for editors: its own sessions, one per check (not inside this one,
         # whose lock would hold back the checks of its other threads)
@@ -26411,9 +27200,53 @@ def main() -> None:
         os._exit(code)
     session = Session(config)
     with session._active():
-        run_command_line(args, session, copy.deepcopy(kb))
+        try:
+            run_command_line(args, session, copy.deepcopy(kb))
+        finally:
+            if args.profile and args.filename is not None:
+                print(profile_report(run_state.line_profile, args.filename), file=sys.stderr)
+
+PROFILE_LINES = 10          # `kurt --profile`: how many lines it lists
+
+def profile_report(line_profile: dict[tuple[str, int], tuple[float, int]], filename: str, count: int = PROFILE_LINES) -> str:
+    # the slowest lines of a file: seconds and search steps of each (a `load` line has the time of the file it loads)
+    fname = filename if filename.endswith('.kurt') or os.path.isfile(filename) else filename + '.kurt'
+    try:
+        source = Path(fname).read_text(encoding='utf-8').splitlines()
+    except OSError:
+        source = []
+    mine = {n: v for (f, n), v in line_profile.items() if os.path.abspath(f) == os.path.abspath(fname)}
+    total = sum(sec for sec, _ in mine.values())
+    rows = sorted(mine.items(), key=lambda item: -item[1][0])[:count]
+    lines = [f'the slowest lines of {fname} ({total:.2f} s in all, seconds and search steps):']
+    for n, (sec, steps) in rows:
+        text = source[n - 1].strip() if 0 < n <= len(source) else ''
+        lines.append(f'{sec:8.2f} s {steps:8d} steps  {n:>5}  {text[:70]}')
+    return '\n'.join(lines)
 
 def run_command_line(args: argparse.Namespace, session: 'Session', kb: KnowledgeBase) -> None:
+    # a proof as a link of the playground, and back (no check)
+    if args.share or args.unshare is not None:
+        if args.share and args.unshare is not None:
+            sys.exit('--share and --unshare are two ways: use one')
+        if args.share:
+            if args.filename is None:
+                sys.exit('--share needs a file')
+            fname = args.filename if args.filename.endswith('.kurt') or os.path.isfile(args.filename) else args.filename + '.kurt'
+            if not os.path.isfile(fname):
+                sys.exit(f'no file `{fname}`')
+            print(share_link(Path(fname).read_text(encoding='utf-8')))
+        else:
+            assert isinstance(args.unshare, str)
+            try:
+                text, folder = unshare_text(args.unshare)
+            except ValueError as e:
+                sys.exit(f'--unshare: {e}')
+            if folder:
+                print(f'(the link names the folder `{folder}` of the playground: its `load`s find their files there)', file=sys.stderr)
+            sys.stdout.write(text)
+        sys.exit(0)
+
     # only the files and their certificates?
     if args.deps:
         if args.filename is None:

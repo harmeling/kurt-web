@@ -1,5 +1,5 @@
 {
-  "kurtVersion": "0.11.0",
+  "kurtVersion": "0.12.0",
   "declarations": [
     "var",
     "const",
@@ -8,7 +8,8 @@
     "prefix",
     "brackets",
     "arity",
-    "bindop",
+    "binder",
+    "nested",
     "chain",
     "flat",
     "sym",

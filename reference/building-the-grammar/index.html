@@ -27,7 +27,7 @@
     
     
       
-        <title>4. Building the grammar - Kurt 0.11.0 Reference</title>
+        <title>4. Building the grammar - Kurt 0.12.0 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -487,7 +487,7 @@
   <a href="#sec-4-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.4 bindop
+        4.4 binder
       
     </span>
   </a>
@@ -836,7 +836,7 @@
   <a href="#sec-4-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.4 bindop
+        4.4 binder
       
     </span>
   </a>
@@ -930,7 +930,7 @@ means throughout <code>CLAUDE.md</code>.</p>
 line (e.g. <code>infix "+" 20 20, "-" 20 20</code>). Binding powers control precedence
 and associativity: for <code>infix</code>, <code>lbp &gt; rbp</code> makes the operator <em>right</em>-
 associative (as <code>implies</code> is: <code>infix implies 13 12</code>, so <code>A implies B
-implies C</code> parses as <code>A implies (B implies C)</code>; and numbers.kurt's <code>infix ^
+implies C</code> parses as <code>A implies (B implies C)</code>; and number.kurt's <code>infix ^
 75 74</code>, so <code>2 ^ 3 ^ 2</code> is <code>2 ^ 9</code>); <code>lbp == rbp</code> (as with <code>+</code> above) makes
 it left-associative (<code>a - b - c</code> is <code>(a - b) - c</code>), and a <code>flat</code> operator
 (<a href="#sec-4-5">§4.5</a>) collects all its arguments anyway. Declaring the same symbol both <code>infix</code> and <code>prefix</code> is
@@ -939,7 +939,7 @@ than one of <code>infix</code>/<code>prefix</code>/<code>postfix</code>/a bracke
 Fixity alone does not classify a symbol as constant or variable.</p>
 <p>Called with no arguments (<code>infix</code>, <code>prefix</code>, <code>postfix</code>), each prints every
 currently-declared operator of that kind, across all open levels. The other
-property keywords (<code>const</code>, <code>var</code>, <code>sort</code>, <code>prop</code>, <code>arity</code>, <code>brackets</code>, <code>bindop</code>,
+property keywords (<code>const</code>, <code>var</code>, <code>sort</code>, <code>prop</code>, <code>arity</code>, <code>brackets</code>, <code>binder</code>,
 <code>chain</code>, <code>flat</code>, <code>sym</code>, and <code>alias</code>) work the same way. Every listed entry's
 comment gives both its scope level and the source location that established
 that exact property, for example <code>; level 1, natural.kurt:20</code>. A basename is
@@ -996,7 +996,7 @@ is still <code>- x</code>. An operator is no object (<a href="../statements-term
 is a type error. An operator can also be a variable -- <code>var ∘</code> and
 <code>infix ∘ 70 70</code> -- then <code>$a ∘ $b</code> in a rule matches <code>x + y</code> as well as <code>a ∘ b</code>
 (by the rules of the operator it stands for, e.g. <code>flat</code>, <code>sym</code>). See
-<code>group.kurt</code>.</p>
+<a href="../statements-terms-and-sorts/#sec-5-4">§5.4</a> and <code>group.kurt</code>.</p>
 <p>A relation as a parameter works the same way: a variable with a statement as its result,
 <code>var R</code> and <code>prop R 0</code>, then <code>R(x, y)</code> -- or with <code>infix R 20 20</code> also <code>x R y</code>,
 which matches <code>x &lt; y</code> or <code>x ∈ y</code> -- e.g. <code>def reflexive((R), $A) ⇔ ∀ x ∈ $A (x
@@ -1012,22 +1012,38 @@ after a symbol with a declared arity of 1 or more, <code>f()</code> is instead a
 clear, specific <code>EvalError</code> ("empty brackets <code>()</code> cannot supply an
 argument for <code>f</code>, which needs N argument(s)"), not a confusing parse —
 empty parens can never actually supply a real argument.</p>
-<h2 id="sec-4-4">4.4 <code>bindop</code><a class="headerlink" href="#sec-4-4" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kd">bindop</span> SYMBOL     <span class="c1">; e.g. bindop forall</span>
+<h2 id="sec-4-4">4.4 <code>binder</code><a class="headerlink" href="#sec-4-4" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">binder</span> SYMBOL            <span class="c1">; e.g. binder forall</span>
+<span class="kd">binder</span> SYMBOL POWER      <span class="c1">; e.g. binder sum 65: the binding power of the body (below)</span>
+<span class="k">nested</span> SYMBOL<span class="p">,</span> <span class="o">...</span>       <span class="c1">; e.g. nested forall, exists: the variable may be a list (below)</span>
 </code></pre></div>
 <p>Declares <code>SYMBOL</code> a <em>variable-binding operator</em>: its first argument is
 treated as a bound variable (or, with the sugar below, a condition, a statement
 whose free variable is the one being bound) for the rest of the
 expression. <code>forall</code>/<code>exists</code> are declared exactly this way, in
-<code>logic.kurt</code> (<code>arity forall 2, exists 2</code>, <code>bindop forall, exists</code>), together
+<code>logic.kurt</code> (<code>arity forall 2, exists 2</code>, <code>binder forall, exists</code>), together
 with their roles (<code>builtin forall universal, ...</code>, <a href="../building-the-theory/#sec-8-1">§8.1</a>) and their axioms
 (<code>forall-elim</code>, <code>exists-intro</code>).
 For a plain space-applied binder, the symbol must already have an <code>arity</code> of at least 2 (the
 bound variable plus at least one more argument). An infix operator may instead be a binder, as
 set-builder <code>|</code> is: its left operand contains the condition and its right operand is the body.
 A binder cannot also be prefix, <code>flat</code>, <code>sym</code>, chained, calculator-bound, variable, or already
-used in a formula. <code>bindop</code> gives a fixed scope rule, so it makes the symbol a constant and
+used in a formula. <code>binder</code> gives a fixed scope rule, so it makes the symbol a constant and
 reports <code>const SYMBOL ; added constant</code> when that role was not already explicit.</p>
+<p><strong>The body of a binder, and its power.</strong> Without a power, the body is one tight argument, as <code>f x</code> takes its argument:
+<code>sum i (1, n) i * 2</code> is <code>(sum i (1, n) i) * 2</code>, and <code>P x &gt; 0</code> is <code>(P x) &gt; 0</code>. With one, <code>binder sum 65</code>, the body is read with
+that binding power (a number from 1 to 89; the operators that bind tighter than it are inside the body, the others
+outside): <code>sum i (1, n) i * 2</code> is <code>sum i (1, n) (i * 2)</code> (<code>*</code> is 70, <code>+</code> is 60: <code>sum i (1, n) i + 1</code> is
+<code>(sum i (1, n) i) + 1</code>). A body that is an application is whole, <code>∀ x P x ∧ Q</code> is <code>(∀ x (P x)) ∧ Q</code>. Parenthesized
+bodies read the same either way, and what Kurt prints is parenthesized. The power belongs to the binder and goes with
+it through <code>load</code> (two files must declare the same one). It is for a binder with a space, not for an infix one. The theories use it: logic.kurt gives <code>forall</code>, <code>exists</code>, <code>existsunique</code> the
+power 17 (comparisons, arithmetic and <code>not</code> inside the body, <code>and</code>, <code>or</code>, <code>implies</code>, <code>iff</code> outside: <code>∀ x x &gt; 0 ∧ x &lt; 5</code> is <code>(∀ x (x &gt; 0)) ∧ x &lt; 5</code>),
+and analysis.kurt and integral.kurt give <code>sum</code>, <code>max</code>, <code>min</code>, <code>argmax</code>, <code>argmin</code>, <code>sup</code>, <code>inf</code>, <code>lim</code>, <code>integral</code>, <code>integrable</code> the power 65
+(<code>*</code> and <code>/</code> inside, <code>+</code> and <code>-</code> outside: <code>sum i (1, n) i * 2 + 1</code> is <code>(sum i (1, n) (i * 2)) + 1</code>).</p>
+<p><strong>Several variables.</strong> <code>nested forall, exists</code> (logic.kurt) says that the variable of these binders may be a list:
+<code>∀ x, y P</code> is <code>∀ x ∀ y P</code>, and each name can have its own condition, <code>∀ x &gt; 0, y &gt; 0 P</code> (<code>∀ x &gt; 0 ∀ y &gt; 0 P</code>); a
+condition after a list of plain names, <code>∃ x, y &gt; 0 P</code>, is a <code>ParseError</code>. Only a binder of two arguments (the variable
+and the body) can be nested, not <code>sum</code> or <code>lim</code>.</p>
 <p>The scope of the bound variable is the condition and the <em>last</em> argument,
 the body; arguments in between are outside of it, as in mathematics: in
 <code>sum i (a, b) T</code> the range <code>(a, b)</code>, in <code>lim v a T</code> the point <code>a</code>. So in
@@ -1096,6 +1112,17 @@ for both kinds are written separately (see <code>lim</code> in <code>analysis.ku
 own ("forall-cond-def") — e.g. to close <code>∀ $c ($c ∈ A ⇒ $c ∈ B)</code> (the
 definition of <code>A ⊂ B</code>) after a <code>let x ∈ A</code> block, which gives
 <code>∀ x ∈ A (x ∈ B)</code>.</p>
+<p><strong>Several quantifiers with conditions.</strong> A step is one application of one rule, and a fact with conditions on two quantifiers,
+<code>∀ x ∈ V ∀ y ∈ V ((x - y) = (2 * x - (x + y)))</code>, takes one "forall-cond-elim" per <code>∀</code>. Kurt does it for you when the line doesn't
+follow in one step: with <code>a ∈ V</code> and <code>b ∈ V</code> known, the line <code>a - b = 2 * a - (a + b)</code> is checked with an extra step of its own, the
+instance for the first <code>∀</code>, shown before it:</p>
+<div class="highlight"><pre><span></span><code>   <span class="o">∀</span> <span class="p">(</span>y <span class="o">∈</span> V<span class="p">)</span> <span class="p">((</span>a <span class="o">-</span> y<span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="m">2</span> <span class="o">*</span> a <span class="o">-</span> <span class="p">(</span>a <span class="o">+</span> y<span class="p">)))</span>   <span class="c1">; 9a by forall-cond-elim(V2, 7)</span>
+<span class="m">9</span>  <span class="p">(</span>a <span class="o">-</span> b<span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="m">2</span> <span class="o">*</span> a <span class="o">-</span> <span class="p">(</span>a <span class="o">+</span> b<span class="p">))</span>               <span class="c1">; by forall-cond-elim(9a, 8)</span>
+</code></pre></div>
+<p>Two or three conditioned quantifiers are handled, and a condition may mention the variable before it (<code>∀ x ∈ V ∀ y &gt; x ...</code>). If a
+condition is not known, the line fails as before, and the message names it: "<code>V2</code> (line 4) has 2 quantifiers with conditions: it gives
+this line by 2 "forall-cond-elim" steps, but <code>b ∈ V</code> is not known". The same fact without conditions, <code>∀ x ∀ y ...</code>, is stripped into
+variables and is one step. (Each step has its certificate, the kernel is unchanged; <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §8.52.)</p>
 <p><strong>Unique existence.</strong> <code>logic.kurt</code> declares the binder <code>existsunique</code>, written
 <code>∃! x P(x)</code> (<code>∃!</code> is one symbol; in the shell <code>\exists!</code>). Its meaning is its
 definition, "existsunique-def": <code>∃! x P(x)</code> iff <code>∃ x (P(x) ∧ ∀ y (P(y) ⇒ y =
@@ -1154,7 +1181,7 @@ operator.</p>
 <p>Chains of relations, in one place: <code>a &lt; b &lt; c</code> on one line is read as <code>a &lt; b and b &lt; c</code> (below, for
 every relation between terms, <code>prop OP 0</code>, declared in a <code>chain</code> or not), and the <code>chain</code> line, by the order of its
 relations, gives the transitivity facts, so <code>a &lt; c</code> follows from it in one step (with
-numbers.kurt's <code>chain = &lt;= &lt;</code>: "chain-trans-2-2"); a chain can also go on over indented
+number.kurt's <code>chain = &lt;= &lt;</code>: "chain-trans-2-2"); a chain can also go on over indented
 continuation lines. <code>chain</code> declares that the listed infix operators may be written one after another
 across indented continuation lines, mimicking how mathematicians chain
 (in)equalities: after a chain is declared, writing</p>
@@ -1166,6 +1193,17 @@ line's left-hand side is filled in from the previous line's right-hand
 side, and the operator used is the <em>strongest</em> one seen so far in the
 chain, by index in the declared list — this is why <code>chain = &lt;</code> lets <code>= ,
 &lt;</code>-chains resolve to <code>&lt;</code> once a <code>&lt;</code> has appeared).</p>
+<p><strong>A term on a line of its own.</strong> The usual way to write an equation in two lines starts with the left side alone:</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span>a <span class="o">+</span> b<span class="p">)</span> <span class="o">*</span> c
+  <span class="o">=</span> a <span class="o">*</span> c <span class="o">+</span> b <span class="o">*</span> c
+</code></pre></div>
+<p>A line that is a term (no statement) waits for the next line: if that is indented deeper and starts with a relation of a
+<code>chain</code>, the two are the statement <code>(a + b) * c = a * c + b * c</code>, checked as one line (its output is at the line of the
+relation), and further lines <code>= ...</code> go on as above. Only the relations of a <code>chain</code> continue a term, so <code>- x</code> after a
+term is no continuation. Otherwise (the next line is not indented, starts with anything else, a block keyword, or the file
+ends) the term line is the error it always was, "must be a statement", at the line of the term. The shell waits the same way,
+so a file can be pasted into it; typing a term and then something else shows the error at that next line. Blank lines and
+comments between the two lines don't matter.</p>
 <p>Declaring a chain also generates real, directly usable transitivity
 axioms — one for every ordered pair of the chain's operators, using the
 same "pick the operator with the larger index" rule as the parsing sugar
@@ -1177,7 +1215,7 @@ positions of the two relations in the chain (counted from 0): <code>&lt;</code> 
 two separately-proven facts (not written as one continuation-line chain),
 <code>x &lt; z</code> really is now a single derivation step, citing the
 auto-generated fact (the line's reason lists the facts in the order the search used them, not in the order of the chain) — you don't need to hand-write these per theory
-(<code>numbers.kurt</code> used to; it no longer does). This only combines <em>two</em>
+(<code>number.kurt</code> used to; it no longer does). This only combines <em>two</em>
 facts in one hop, the same as every other inference rule — three or more
 links in a chain of relations still need an explicit intermediate step,
 same as any other multi-hop reasoning (<a href="../the-theory/#sec-6-1">§6.1</a>'s single-hop limitation still
@@ -1364,18 +1402,27 @@ can't declare a <code>union</code> of its own (a symbol is declared by one file 
 <td><code>forall</code>, <code>exists</code>, <code>existsunique</code></td>
 <td><code>∀</code>, <code>∃</code>, <code>∃!</code></td>
 <td></td>
-<td>numbers.kurt</td>
+<td>number.kurt</td>
 <td><code>&lt;=</code>, <code>&gt;=</code></td>
 <td><code>≤</code>, <code>≥</code></td>
 </tr>
 <tr>
 <td>natural.kurt</td>
-<td><code>Nat</code>, <code>Real</code></td>
-<td><code>ℕ</code>, <code>ℝ</code></td>
+<td><code>Nat</code></td>
+<td><code>ℕ</code></td>
 <td></td>
-<td>integer.kurt, rational.kurt, complex.kurt</td>
-<td><code>Int</code>, <code>Rat</code>, <code>Complex</code></td>
-<td><code>ℤ</code>, <code>ℚ</code>, <code>ℂ</code></td>
+<td>number.kurt</td>
+<td><code>Real</code>, <code>Int</code>, <code>Rat</code></td>
+<td><code>ℝ</code>, <code>ℤ</code>, <code>ℚ</code></td>
+</tr>
+<tr>
+<td>complex.kurt</td>
+<td><code>Complex</code></td>
+<td><code>ℂ</code></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td>finite.kurt</td>
@@ -1402,7 +1449,7 @@ s-expression form -- in the normal form Kurt stores and matches (<code>flat</cod
 operators flattened, the arguments of <code>sym</code> ones sorted: <code>parse c + 1 + c</code>
 gives <code>(+ 1 c c)</code>; the exception is <code>=</code> and <code>iff</code>, which are <code>sym</code> for the search but keep their written order: <code>parse b = a</code> gives <code>(= b a)</code>) -- and the same per-symbol syntax info as <code>syntax</code>.
 <code>tokenize EXPR</code> shows the raw token stream before parsing. Each of
-<code>infix</code>/<code>prefix</code>/<code>postfix</code>/<code>brackets</code>/<code>arity</code>/<code>bindop</code>/<code>flat</code>/<code>sym</code>/
+<code>infix</code>/<code>prefix</code>/<code>postfix</code>/<code>brackets</code>/<code>arity</code>/<code>binder</code>/<code>flat</code>/<code>sym</code>/
 <code>chain</code>/<code>sort</code>/<code>prop</code>/<code>var</code>/<code>const</code>/<code>alias</code>, called with no
 arguments, also prints its own currently-declared table.</p>
 <h2 id="sec-4-9">4.9 Inspecting loaded theories<a class="headerlink" href="#sec-4-9" title="Permanent link">&para;</a></h2>
@@ -1423,7 +1470,7 @@ from that source:</p>
 <span class="k">list</span> <span class="k">def</span> natural           <span class="c1">; retained definitions originating there</span>
 <span class="k">list</span> <span class="k">syntax</span> natural        <span class="c1">; every retained declaration originating there</span>
 </code></pre></div>
-<p>The declaration categories are <code>prefix</code>, <code>infix</code>, <code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>bindop</code>,
+<p>The declaration categories are <code>prefix</code>, <code>infix</code>, <code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>binder</code>,
 <code>flat</code>, <code>sym</code>, <code>sort</code>, <code>prop</code>, <code>chain</code>, <code>var</code>, <code>const</code>, and <code>alias</code>. A declared sort name is also
 a category, so <code>list term lambda</code> shows the retained <code>term</code> signatures. After <code>list</code>, <code>symbols</code> and
 <code>declarations</code> are synonyms for <code>syntax</code> (<code>list symbols natural</code>). Locations in a source-filtered result refer to the original file and line.</p>
@@ -1438,7 +1485,7 @@ or intermediate proof lines that were discarded during loading.</p>
 <p><code>list</code>'s SOURCE is always a <em>file</em>. To ask about one <em>symbol</em> instead -- its declarations
 (<code>syntax SYMBOL</code>), its <code>def</code> if it has one, and every retained fact that mentions it, wherever it
 came from -- use <code>info SYMBOL</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">load</span> numbers
+<div class="highlight"><pre><span></span><code><span class="k">load</span> number
 <span class="kd">calc</span> on
 <span class="k">def</span> four <span class="o">=</span> <span class="m">2</span> <span class="o">+</span> <span class="m">2</span>
 four <span class="o">=</span> <span class="m">4</span>

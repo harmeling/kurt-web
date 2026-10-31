@@ -25,7 +25,7 @@
     
     
       
-        <title>11. Known gaps (so you don't mistake them for bugs in your proof) - Kurt 0.11.0 Reference</title>
+        <title>11. Known gaps (so you don't mistake them for bugs in your proof) - Kurt 0.12.0 Reference</title>
       
     
     
@@ -86,7 +86,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -100,7 +100,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.11.0 Reference
+            Kurt 0.12.0 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -224,13 +224,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.11.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.11.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.11.0 Reference
+    Kurt 0.12.0 Reference
   </label>
   
     <div class="md-nav__source">
@@ -789,7 +789,7 @@
   <code>def f (s $n) = f (s $n) + 1</code> gives <code>0 = 1</code>), and <code>constructors</code> is itself
   a claim about <code>Nat</code> (to be proven, or allowed only in trusted theories).
   Until then, recursive definitions are <code>use</code> axioms with a label (like
-  "factorial-step" in numbers.kurt).</li>
+  "factorial-step" in number.kurt).</li>
 <li><strong>A normalizer for ring expressions</strong> (like Lean's <code>ring</code>): a line "by
   ring" holding if both sides are equal as polynomials, e.g. the <code>ad - bc</code>
   computations of 2×2 determinants in one line. It would need a declaration
@@ -801,7 +801,7 @@
 <li>
 <p><strong><code>calc</code>/<code>eval</code> that unfolds a user's own recursive function</strong>: print the
   value of e.g. <code>fact(3)</code> by repeatedly applying a function's own axioms
-  (<code>fact-zero</code>, <code>fact-step</code> in numbers.kurt) until none apply, instead of
+  (<code>fact-zero</code>, <code>fact-step</code> in number.kurt) until none apply, instead of
   only folding the small set of built-in arithmetic operations <code>calc on</code>
   already folds. On purpose, for now: those built-ins are hand-coded,
   trusted, and provably terminating; a user's recursive axioms carry no
@@ -843,7 +843,7 @@
 </ul>
 <h2 id="sec-11-2">11.2 Why no namespaces (yet)<a class="headerlink" href="#sec-11-2" title="Permanent link">&para;</a></h2>
 <p>Two theories loading symbols with the same name can't collide the way <code>import</code> does in most
-languages: "a symbol is declared by one file only" (<a href="../building-the-theory/#sec-8-2">§8.2</a>) -- <code>load numbers, field</code> simply can't
+languages: "a symbol is declared by one file only" (<a href="../building-the-theory/#sec-8-2">§8.2</a>) -- <code>load number, field</code> simply can't
 both declare <code>+</code>. Where you would expect to need a namespace -- <code>group.kurt</code>, <code>field.kurt</code>,
 <code>vectorspace.kurt</code> each wanting their own <code>+</code>/<code>∘</code> -- Kurt uses an <strong>operator variable</strong> instead:
 their theorems are stated over a schematic <code>$op</code> (<code>var ∘</code>, <code>infix ∘</code>), instantiated at a concrete
@@ -854,8 +854,8 @@ operator as an argument (<code>group(R, (+), 0, (-))</code>, <code>tutorial/24</
 a glyph, and only matter if one file loads both. A general lexically-scoped namespace ("open a
 block, use a theory's notation inside it, close it, the notation is gone") sounds like the fix,
 and the <em>infrastructure</em> for it already exists: <code>KnowledgeBase</code> is a stack of levels, and a
-declaration (<code>infix</code>, <code>bindop</code>, <code>arity</code>, ...) is visible only from the level that made it and its
-descendants -- a lookup (<code>is_infix</code>, <code>is_bindop</code>, ...) walks up <code>parent</code>, never sideways or down.</p>
+declaration (<code>infix</code>, <code>binder</code>, <code>arity</code>, ...) is visible only from the level that made it and its
+descendants -- a lookup (<code>is_infix</code>, <code>is_binder</code>, ...) walks up <code>parent</code>, never sideways or down.</p>
 <p>But there's a catch that makes this harder than it looks. When a block closes and one of its
 formulas escapes to the surviving level (<code>assume</code>'s "impl-intro", <code>let</code>'s "forall-intro", ...),
 any notation that formula needs travels with it -- the declaration is promoted to the surviving
@@ -874,8 +874,10 @@ rename for the rare real collision, so the common case stays exactly as readable
 only the colliding pair needs one explicit line -- see <code>dev/todo.md</code> #21.</p>
 <p>Since a grammar declaration inside <code>assume</code>/<code>case</code>/<code>let</code>/<code>pick</code>/<code>proof</code> was never actually scoped
 to the block for the reason above, it is now rejected there outright (<a href="../building-the-grammar/#sec-4-1">§4.1</a>, <a href="../the-theory/#sec-6-2">§6.2</a>), the same way
-<code>use</code>/<code>load</code>/<code>def</code>/<code>chain</code>/<code>inline</code> already were: <code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>,
-<code>arity</code>, <code>bindop</code>, <code>flat</code>, <code>sym</code>, <code>alias</code> and <code>sort</code> must be declared at the top level, or inside a
+<code>use</code>/<code>load</code>/<code>chain</code>/<code>inline</code> already were (a <code>def</code> is allowed in a block since 2026-10-27: its
+symbol is a constant of the block, gone when it closes, and no result may mention it -- so nothing
+of it escapes, <a href="../the-theory/#sec-6-2">§6.2</a>): <code>infix</code>, <code>prefix</code>, <code>postfix</code>, <code>brackets</code>,
+<code>arity</code>, <code>binder</code>, <code>flat</code>, <code>sym</code>, <code>alias</code> and <code>sort</code> must be declared at the top level, or inside a
 <code>sandbox</code>/<code>expect</code> whose content is discarded anyway. This closes the one case that used to look
 like it worked (nothing escaped the block in the test files that tried it) but was never actually
 safe in general.</p>
