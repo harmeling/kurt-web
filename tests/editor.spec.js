@@ -222,7 +222,7 @@ test('scrolls a long menu that does not fit into the window', async ({ page }) =
   const box = await menu.boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(500);
   expect(await menu.evaluate(m => m.scrollHeight > m.clientHeight)).toBeTruthy();
-  const last = menu.locator('.item').last();
+  const last = menu.locator('.item', { hasText: /\d\d-\w+\.kurt/ }).last();
   await last.scrollIntoViewIfNeeded();
   await last.click();
   await expect(page.locator('#editor')).toHaveValue(/lean/);
