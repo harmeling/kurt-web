@@ -27,7 +27,7 @@
     
     
       
-        <title>3. Terms, symbols, and their roles - Kurt 0.12.0 Reference</title>
+        <title>3. Terms, symbols, and their roles - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -831,7 +831,9 @@ difference: a bracket written directly after a symbol, without a space, makes
 one term that binds more tightly still. So <code>inv det(A)</code> is <code>inv (det A)</code> (while
 <code>inv det (A)</code> is <code>inv det A</code>, <code>inv</code> with the two arguments <code>det</code> and <code>A</code>), and in the
 condition of a binder,
-<code>∀ $x ∈ Perp(M) Q($x)</code> reads <code>Perp(M)</code> as one term.</p>
+<code>∀ $x ∈ Perp(M) Q($x)</code> reads <code>Perp(M)</code> as one term. A trap: <code>f(a)(b)</code> is <code>f (a b)</code>, not <code>(f a) b</code>; for a mapping that
+returns a mapping write <code>(F f) a</code> (or <code>(F(f)) a</code>). <code>f(a, b)</code> is <code>f</code> applied to the pair <code>(a, b)</code> (a mapping on <code>A × B</code>),
+while <code>f a b</code> is a symbol with two arguments (<code>arity f 2</code>).</p>
 <h2 id="sec-3-2">3.2 Constants vs. variables<a class="headerlink" href="#sec-3-2" title="Permanent link">&para;</a></h2>
 <p>Every symbol in a formula is exactly one of (before its first use, a symbol with only a shape
 or type declaration, <code>infix</code>, <code>arity</code>, <code>prop</code>, is neither yet, <a href="#sec-3-4">§3.4</a>):</p>
@@ -844,7 +846,9 @@ or type declaration, <code>infix</code>, <code>arity</code>, <code>prop</code>, 
   first use is shown as an ordinary declaration in the output (<code>const P ;
   added constant</code>), including when the symbol already had a syntax or
   type declaration such as <code>infix P ...</code> or <code>prop P</code>. A wholly undeclared
-  symbol is often a typo; with <code>--strict</code> (<a href="../running-kurt/">§1</a>), it is an error instead. Or</li>
+  symbol is often a typo; with <code>--strict</code> (<a href="../running-kurt/">§1</a>), it is an error instead. For the usual slips -- a notation of another language
+  (<code>!=</code>, <code>-&gt;</code>, <code>&lt;=&gt;</code>, <code>:=</code>, <code>by</code>) or a symbol that a theory of Kurt declares (<code>≤</code>: <code>load number</code>) -- a warning at the line says the
+  Kurt spelling or the theory (with <code>--strict</code> it is part of the error). Or</li>
 <li>a <strong>variable</strong> — may stand for arbitrary objects, declared with <code>var x</code>.</li>
 </ul>
 <p>Once a symbol's role is fixed <em>on a given level</em> (see <a href="../blocks-and-natural-deduction/">§9</a> on blocks/levels),
@@ -947,7 +951,7 @@ fixed in its block (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>).
 <h2 id="sec-3-3">3.3 What "new" means<a class="headerlink" href="#sec-3-3" title="Permanent link">&para;</a></h2>
 <p>Because there's no separate declaration step for most symbols, <code>const</code>/
 <code>var</code>/<code>prop</code> mostly exist to be explicit, to catch typos (redeclaring the
-same symbol raises an error), and to control what "new" means for keywords
+same symbol raises an error -- a repeated <code>var x</code> is accepted and changes nothing), and to control what "new" means for keywords
 that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code>pick</code>, <code>brackets</code>).</p>
 <h2 id="sec-3-4">3.4 Who declares what: the rules in one place<a class="headerlink" href="#sec-3-4" title="Permanent link">&para;</a></h2>
 <p>Most symbols are declared by using them. What each kind of line does to a symbol:</p>
@@ -1047,7 +1051,7 @@ that require a genuinely fresh symbol (<code>def</code>, <code>let</code>, <code
 <li><strong><code>--strict</code></strong> (<a href="../running-kurt/">§1</a>) keeps all these rules but one: the first use of a symbol that wasn't
   declared at all (neither by a line of the table nor by an earlier use) is an error, not a new
   constant. A declaration like <code>prop Q</code> or <code>infix ∘ 50 50</code> counts. (It also refuses <code>use</code>,
-  <code>todo</code> and <code>chain</code> outside the trusted theories.)</li>
+  <code>todo</code>, <code>flat</code>, <code>sym</code> and <code>builtin</code> outside the trusted theories, and a <code>chain</code> there needs its rules proved, <a href="../building-the-grammar/#sec-4-6">§4.6</a>.)</li>
 </ul>
 <p><strong>Variables, constants and binders in one place</strong> (the four rules, checked 2026-10-30):</p>
 <ol>

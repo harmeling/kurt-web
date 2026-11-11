@@ -27,7 +27,7 @@
     
     
       
-        <title>4. Building the grammar - Kurt 0.12.0 Reference</title>
+        <title>4. Building the grammar - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -940,7 +940,7 @@ Fixity alone does not classify a symbol as constant or variable.</p>
 <p>Called with no arguments (<code>infix</code>, <code>prefix</code>, <code>postfix</code>), each prints every
 currently-declared operator of that kind, across all open levels. The other
 property keywords (<code>const</code>, <code>var</code>, <code>sort</code>, <code>prop</code>, <code>arity</code>, <code>brackets</code>, <code>binder</code>,
-<code>chain</code>, <code>flat</code>, <code>sym</code>, and <code>alias</code>) work the same way. Every listed entry's
+<code>nested</code>, <code>chain</code>, <code>flat</code>, <code>sym</code>, and <code>alias</code>) work the same way. Every listed entry's
 comment gives both its scope level and the source location that established
 that exact property, for example <code>; level 1, natural.kurt:20</code>. A basename is
 shown normally; if two loaded files have the same basename, Kurt shows their
@@ -973,11 +973,16 @@ parses as one call <code>(f a b)</code>. The shape says more, written as the sym
 used: <code>_</code> for an argument, <code>(_, _)</code> for a tuple of two (also nested, <code>((_, _),
 _)</code>); Kurt checks each use, so <code>g(a)</code> or <code>g(a, b, c)</code> with <code>arity g (_, _)</code> is
 an error ("<code>g</code> takes <code>g (_, _)</code>"), and a variable may stand for a tuple
-(<code>g($p)</code>). A symbol with no declared arity defaults to arity 0: it takes all
+(<code>g($p)</code>). A symbol with no declared arity is <em>unchecked</em> (its arity is 0): it takes all
 the arguments that follow it, curried, and nothing checks them (<a href="../terms-symbols-and-their-roles/#sec-3-1">§3.1</a>). You
 cannot set an <code>arity</code> on a symbol that's already <code>infix</code>/<code>prefix</code>/<code>postfix</code>
 or a bracket (their arities — 2, 1, 1 — are implicit and fixed), and you
 cannot re-set an arity once declared.</p>
+<p><strong>A convention of the theories</strong> (not a rule of the language): a function of numbers takes its arguments one after the other,
+<code>max a b</code>, <code>Icc a b</code>, <code>lim v a T</code> (<code>arity max 2</code>); a structure or a relation between objects takes a tuple,
+<code>coprime(a, b)</code>, <code>group(G, (∘), e, inv)</code>, <code>hassize(A, n)</code>, <code>injective(f, A)</code> (<code>arity coprime (_, _)</code>). A theory's arity is fixed by that theory --
+a file that loads it can not declare another -- so a use in the other form is an error that says the right form
+(<code>write coprime(a, b)</code>, <code>write max a b</code>).</p>
 <p>Round brackets group, so <code>f(x)</code> is <code>f x</code>, <code>((a))</code> is <code>a</code>, and <code>f(x) = x * x</code>
 reads as usual. Round brackets around a list are a tuple, a term of its own
 (since 0.9): <code>(a, b)</code> is a pair, <code>(a, b, c)</code> a triple, and <code>(a, (b, c))</code> a pair
@@ -993,10 +998,19 @@ conservative (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt
 <p>An operator alone in round brackets is the operator itself -- as the argument of
 an operator parameter, <code>group(G, (∘), e, inv)</code>, <code>group(R, (+), 0, (-))</code>; <code>(- x)</code>
 is still <code>- x</code>. An operator is no object (<a href="../statements-terms-and-sorts/#sec-5-3">§5.3</a>): elsewhere, <code>(+)</code> or a bare <code>f</code>
-is a type error. An operator can also be a variable -- <code>var ∘</code> and
+is a type error.</p>
+<p><strong>An operator with its holes</strong> (new, unreleased): <code>_+_</code> (infix), <code>-_</code> (prefix) and <code>_!</code> (postfix) write the operator with
+a <code>_</code> for each argument, also <code>_∧_</code> and <code>_implies_</code>. Alone it is the operator itself, like <code>(+)</code>, but it says its
+shape: the <code>-</code> of <code>-_</code> is the prefix one, that of <code>_-_</code> the infix one, so <code>group(R, _+_, 0, -_)</code> has no <code>(-)</code> to
+confuse with <code>(- x)</code>. Applied to its arguments it is the same term as the operator between them: <code>_+_(a, b)</code> and <code>_+_ a b</code> are
+<code>a + b</code>, <code>-_(a)</code> and <code>-_ a</code> are <code>- a</code> (the printed line shows <code>a + b</code>). The shape must be declared: <code>_not_</code> is an error
+(<code>not</code> is prefix: write <code>not_</code>), <code>_+_(a)</code> lacks an argument, and an operator that no loaded theory declares is no operator (<code>_&lt;+&gt;_</code>: a ParseError that says to <code>load</code> its theory or declare it). Only the written form is new, the stored term is
+the same, and the symbol keeps its name <code>+</code>; an <code>_</code> in other places (<code>arity g (_, _)</code>) is what it was. An operator can also be a variable -- <code>var ∘</code> and
 <code>infix ∘ 70 70</code> -- then <code>$a ∘ $b</code> in a rule matches <code>x + y</code> as well as <code>a ∘ b</code>
 (by the rules of the operator it stands for, e.g. <code>flat</code>, <code>sym</code>). See
 <a href="../statements-terms-and-sorts/#sec-5-4">§5.4</a> and <code>group.kurt</code>.</p>
+<p>Both forms stay valid: <code>(+)</code> is not deprecated, and the many files that use it keep working. In new text prefer the
+hole form, because it says the shape (<code>(-)</code> does not: unary inverse or subtraction?).</p>
 <p>A relation as a parameter works the same way: a variable with a statement as its result,
 <code>var R</code> and <code>prop R 0</code>, then <code>R(x, y)</code> -- or with <code>infix R 20 20</code> also <code>x R y</code>,
 which matches <code>x &lt; y</code> or <code>x ∈ y</code> -- e.g. <code>def reflexive((R), $A) ⇔ ∀ x ∈ $A (x
@@ -1013,15 +1027,15 @@ clear, specific <code>EvalError</code> ("empty brackets <code>()</code> cannot s
 argument for <code>f</code>, which needs N argument(s)"), not a confusing parse —
 empty parens can never actually supply a real argument.</p>
 <h2 id="sec-4-4">4.4 <code>binder</code><a class="headerlink" href="#sec-4-4" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kd">binder</span> SYMBOL            <span class="c1">; e.g. binder forall</span>
-<span class="kd">binder</span> SYMBOL POWER      <span class="c1">; e.g. binder sum 65: the binding power of the body (below)</span>
+<div class="highlight"><pre><span></span><code><span class="kd">binder</span> SYMBOL POWER      <span class="c1">; e.g. binder sum 65: the binding power of the body (below), always given</span>
+<span class="kd">binder</span> SYMBOL            <span class="c1">; only for an infix operator (set.kurt's `|`): its power is the one of `infix`</span>
 <span class="k">nested</span> SYMBOL<span class="p">,</span> <span class="o">...</span>       <span class="c1">; e.g. nested forall, exists: the variable may be a list (below)</span>
 </code></pre></div>
 <p>Declares <code>SYMBOL</code> a <em>variable-binding operator</em>: its first argument is
 treated as a bound variable (or, with the sugar below, a condition, a statement
 whose free variable is the one being bound) for the rest of the
 expression. <code>forall</code>/<code>exists</code> are declared exactly this way, in
-<code>logic.kurt</code> (<code>arity forall 2, exists 2</code>, <code>binder forall, exists</code>), together
+<code>logic.kurt</code> (<code>arity forall 2, exists 2</code>, <code>binder forall 17, exists 17</code>), together
 with their roles (<code>builtin forall universal, ...</code>, <a href="../building-the-theory/#sec-8-1">§8.1</a>) and their axioms
 (<code>forall-elim</code>, <code>exists-intro</code>).
 For a plain space-applied binder, the symbol must already have an <code>arity</code> of at least 2 (the
@@ -1030,11 +1044,12 @@ set-builder <code>|</code> is: its left operand contains the condition and its r
 A binder cannot also be prefix, <code>flat</code>, <code>sym</code>, chained, calculator-bound, variable, or already
 used in a formula. <code>binder</code> gives a fixed scope rule, so it makes the symbol a constant and
 reports <code>const SYMBOL ; added constant</code> when that role was not already explicit.</p>
-<p><strong>The body of a binder, and its power.</strong> Without a power, the body is one tight argument, as <code>f x</code> takes its argument:
-<code>sum i (1, n) i * 2</code> is <code>(sum i (1, n) i) * 2</code>, and <code>P x &gt; 0</code> is <code>(P x) &gt; 0</code>. With one, <code>binder sum 65</code>, the body is read with
-that binding power (a number from 1 to 89; the operators that bind tighter than it are inside the body, the others
-outside): <code>sum i (1, n) i * 2</code> is <code>sum i (1, n) (i * 2)</code> (<code>*</code> is 70, <code>+</code> is 60: <code>sum i (1, n) i + 1</code> is
-<code>(sum i (1, n) i) + 1</code>). A body that is an application is whole, <code>∀ x P x ∧ Q</code> is <code>(∀ x (P x)) ∧ Q</code>. Parenthesized
+<p><strong>The body of a binder, and its power.</strong> Every binder with a space says how far its body reaches, <code>binder sum 65</code>, as <code>infix</code>
+says its powers (<code>binder sum</code> alone is an error). The body is read with that binding power: the operators that bind tighter than
+it are inside the body, the others outside. <code>sum i (1, n) i * 2</code> is <code>sum i (1, n) (i * 2)</code> (<code>*</code> is 70, <code>+</code> is 60: <code>sum i (1, n) i + 1</code> is
+<code>(sum i (1, n) i) + 1</code>). A power of 90, the power of an application (<code>f x</code>), makes the body one tight argument:
+with <code>binder sum 90</code>, <code>sum i (1, n) i * 2</code> is <code>(sum i (1, n) i) * 2</code>, and <code>P x &gt; 0</code> is <code>(P x) &gt; 0</code>. The binders of
+minimal.kurt, lambda.kurt, sequences.kurt, continuity.kurt and set.kurt's <code>|</code> are of this kind. A body that is an application is whole, <code>∀ x P x ∧ Q</code> is <code>(∀ x (P x)) ∧ Q</code>. Parenthesized
 bodies read the same either way, and what Kurt prints is parenthesized. The power belongs to the binder and goes with
 it through <code>load</code> (two files must declare the same one). It is for a binder with a space, not for an infix one. The theories use it: logic.kurt gives <code>forall</code>, <code>exists</code>, <code>existsunique</code> the
 power 17 (comparisons, arithmetic and <code>not</code> inside the body, <code>and</code>, <code>or</code>, <code>implies</code>, <code>iff</code> outside: <code>∀ x x &gt; 0 ∧ x &lt; 5</code> is <code>(∀ x (x &gt; 0)) ∧ x &lt; 5</code>),
@@ -1055,7 +1070,7 @@ is one fixed term. A statement variable <code>%A</code> may depend on it (that's
 occurs as the <em>whole</em> body of a binder over the same variable, and
 otherwise only inside binders over it or as the body of a <code>sub</code> for it, as
 in the sum axioms <code>(sum $i ($a, $a) $T) = sub $i $a $T</code> and
-<code>(sum $i ($a, $b+1) $T) = (sub $i ($b+1) $T) + (sum $i ($a, $b) $T)</code> (see
+<code>$a &lt;= $b + 1 ⇒ (sum $i ($a, $b+1) $T) = (sub $i ($b+1) $T) + (sum $i ($a, $b) $T)</code> (see
 <code>analysis.kurt</code>) — such a <code>$T</code> stands for any summand, which the axioms
 only ever use for the bound <code>$i</code> or with something substituted for it —
 or in the sum rule of derivatives, <code>(diff $v $a $S) ∧ (diff $v $a $T) ⇒
@@ -1094,10 +1109,10 @@ condition without such a symbol is an error ("has no variable to bind").</p>
 formula as <code>∀ $x ($x &gt; 0 ⇒ P($x))</code>, and the engine doesn't treat it as an
 implication. What a condition means is said by rules, like for any other
 operator — for <code>∀</code> and <code>∃</code> in <code>logic.kurt</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span>  <span class="o">⇒</span>  sub <span class="nv">$v</span> <span class="nv">$a</span> <span class="nv">%P</span>                     <span class="s">"forall-cond-elim"</span>
-<span class="k">use</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$a</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇒</span>  <span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span>                     <span class="s">"exists-cond-intro"</span>
-<span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∀</span> <span class="nv">$w</span> <span class="p">((</span>sub <span class="nv">$x</span> <span class="nv">$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">⇒</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$w</span> <span class="nv">%P</span><span class="p">))</span>           <span class="s">"forall-cond-def"</span>
-<span class="k">use</span> <span class="p">(</span><span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$x</span> <span class="nv">$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∃</span> <span class="nv">$w</span> <span class="p">((</span>sub <span class="nv">$x</span> <span class="nv">$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$v</span> <span class="nv">$w</span> <span class="nv">%P</span><span class="p">))</span>           <span class="s">"exists-cond-def"</span>
+<div class="highlight"><pre><span></span><code><span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span>  <span class="o">⇒</span>  sub <span class="nv">$$v</span> <span class="nv">$a</span> <span class="nv">%P</span>                 <span class="s">"forall-cond-elim"</span>
+<span class="k">use</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$a</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$$v</span> <span class="nv">$a</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇒</span>  <span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span>                 <span class="s">"exists-cond-intro"</span>
+<span class="k">use</span> <span class="p">(</span><span class="o">∀</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∀</span> <span class="nv">$$w</span> <span class="p">((</span>sub <span class="nv">$$x</span> <span class="nv">$$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">⇒</span> <span class="p">(</span>sub <span class="nv">$$v</span> <span class="nv">$$w</span> <span class="nv">%P</span><span class="p">))</span>     <span class="s">"forall-cond-def"</span>
+<span class="k">use</span> <span class="p">(</span><span class="o">∃</span> <span class="p">(</span>sub <span class="nv">$$x</span> <span class="nv">$$v</span> <span class="nv">%C</span><span class="p">)</span> <span class="nv">%P</span><span class="p">)</span>  <span class="o">⇔</span>  <span class="o">∃</span> <span class="nv">$$w</span> <span class="p">((</span>sub <span class="nv">$$x</span> <span class="nv">$$w</span> <span class="nv">%C</span><span class="p">)</span> <span class="o">∧</span> <span class="p">(</span>sub <span class="nv">$$v</span> <span class="nv">$$w</span> <span class="nv">%P</span><span class="p">))</span>     <span class="s">"exists-cond-def"</span>
 </code></pre></div>
 <p>In a rule (<code>use</code>/<code>def</code>), a binder <code>sub $x $v %C</code> stands for <em>any</em>
 condition: <code>$v</code> is the bound variable, and <code>%C</code> the condition with the
@@ -1148,7 +1163,8 @@ parses to a single <code>(+ a b c)</code> rather than <code>(+ (+ a b) c)</code>
 a + b + c</code> before and after declaring <code>flat</code>), and so do <code>(a + b) + c</code> and
 <code>a + (b + c)</code>: they are the same term, and the order of the arguments stays
 as written. <code>sym OP</code> means <code>OP</code>'s
-arguments may be reordered when Kurt searches the theory for a match — an
+arguments may be reordered when Kurt searches the theory for a match (the printed line keeps your order: <code>b + a</code> is shown as <code>b + a</code>, and
+<code>A ∧ B</code> stays <code>A ∧ B</code>, also written <code>_∧_(A, B)</code>; the stored formula is the sorted one) — an
 axiom about <code>a + b</code> also matches a goal written as <code>b + a</code>. An operator
 that is <em>both</em> <code>flat</code> and <code>sym</code> (like <code>and</code>/<code>or</code>) gets its arguments
 canonically sorted before matching, which means Kurt effectively does
@@ -1181,7 +1197,7 @@ operator.</p>
 <p>Chains of relations, in one place: <code>a &lt; b &lt; c</code> on one line is read as <code>a &lt; b and b &lt; c</code> (below, for
 every relation between terms, <code>prop OP 0</code>, declared in a <code>chain</code> or not), and the <code>chain</code> line, by the order of its
 relations, gives the transitivity facts, so <code>a &lt; c</code> follows from it in one step (with
-number.kurt's <code>chain = &lt;= &lt;</code>: "chain-trans-2-2"); a chain can also go on over indented
+number.kurt's <code>chain = &lt;= &lt;</code>: "chain-trans-&lt;/&lt;"); a chain can also go on over indented
 continuation lines. <code>chain</code> declares that the listed infix operators may be written one after another
 across indented continuation lines, mimicking how mathematicians chain
 (in)equalities: after a chain is declared, writing</p>
@@ -1209,9 +1225,9 @@ axioms — one for every ordered pair of the chain's operators, using the
 same "pick the operator with the larger index" rule as the parsing sugar
 above. For <code>chain = &lt;= &lt;</code>, that includes the familiar <code>$a &lt; $b and
 $b &lt; $c implies $a &lt; $c</code>, but also every <em>mixed</em> pair like
-<code>$a &lt;= $b and $b &lt; $c implies $a &lt; $c</code>. They are named "chain-trans-I-J", by the
-positions of the two relations in the chain (counted from 0): <code>&lt;</code> with <code>&lt;</code> is
-"chain-trans-2-2", <code>=</code> with <code>&lt;</code> is "chain-trans-0-2". So given <code>x = y</code> and <code>y &lt; z</code> as
+<code>$a &lt;= $b and $b &lt; $c implies $a &lt; $c</code>. They are named "chain-trans-R/S", by the
+two relations: <code>&lt;</code> with <code>&lt;</code> is "chain-trans-&lt;/&lt;", <code>=</code> with <code>&lt;</code> is "chain-trans-=/&lt;" (a pair that two chains
+share, like <code>=</code> with <code>=</code>, is generated once). So given <code>x = y</code> and <code>y &lt; z</code> as
 two separately-proven facts (not written as one continuation-line chain),
 <code>x &lt; z</code> really is now a single derivation step, citing the
 auto-generated fact (the line's reason lists the facts in the order the search used them, not in the order of the chain) — you don't need to hand-write these per theory
@@ -1303,7 +1319,7 @@ can't declare a <code>union</code> of its own (a symbol is declared by one file 
 <td><code>subset</code></td>
 <td><code>⊂</code></td>
 <td></td>
-<td>natural.kurt</td>
+<td>divisibility.kurt</td>
 <td><code>divides</code></td>
 <td><code>∣</code></td>
 </tr>
@@ -1449,7 +1465,7 @@ s-expression form -- in the normal form Kurt stores and matches (<code>flat</cod
 operators flattened, the arguments of <code>sym</code> ones sorted: <code>parse c + 1 + c</code>
 gives <code>(+ 1 c c)</code>; the exception is <code>=</code> and <code>iff</code>, which are <code>sym</code> for the search but keep their written order: <code>parse b = a</code> gives <code>(= b a)</code>) -- and the same per-symbol syntax info as <code>syntax</code>.
 <code>tokenize EXPR</code> shows the raw token stream before parsing. Each of
-<code>infix</code>/<code>prefix</code>/<code>postfix</code>/<code>brackets</code>/<code>arity</code>/<code>binder</code>/<code>flat</code>/<code>sym</code>/
+<code>infix</code>/<code>prefix</code>/<code>postfix</code>/<code>brackets</code>/<code>arity</code>/<code>binder</code>/<code>nested</code>/<code>flat</code>/<code>sym</code>/
 <code>chain</code>/<code>sort</code>/<code>prop</code>/<code>var</code>/<code>const</code>/<code>alias</code>, called with no
 arguments, also prints its own currently-declared table.</p>
 <h2 id="sec-4-9">4.9 Inspecting loaded theories<a class="headerlink" href="#sec-4-9" title="Permanent link">&para;</a></h2>
@@ -1471,7 +1487,7 @@ from that source:</p>
 <span class="k">list</span> <span class="k">syntax</span> natural        <span class="c1">; every retained declaration originating there</span>
 </code></pre></div>
 <p>The declaration categories are <code>prefix</code>, <code>infix</code>, <code>postfix</code>, <code>brackets</code>, <code>arity</code>, <code>binder</code>,
-<code>flat</code>, <code>sym</code>, <code>sort</code>, <code>prop</code>, <code>chain</code>, <code>var</code>, <code>const</code>, and <code>alias</code>. A declared sort name is also
+<code>nested</code>, <code>flat</code>, <code>sym</code>, <code>sort</code>, <code>prop</code>, <code>chain</code>, <code>var</code>, <code>const</code>, and <code>alias</code>. A declared sort name is also
 a category, so <code>list term lambda</code> shows the retained <code>term</code> signatures. After <code>list</code>, <code>symbols</code> and
 <code>declarations</code> are synonyms for <code>syntax</code> (<code>list symbols natural</code>). Locations in a source-filtered result refer to the original file and line.</p>
 <p>A source without <code>.kurt</code> matches the stem of a loaded file; a name ending in <code>.kurt</code> matches its

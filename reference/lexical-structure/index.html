@@ -27,7 +27,7 @@
     
     
       
-        <title>2. Lexical structure - Kurt 0.12.0 Reference</title>
+        <title>2. Lexical structure - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -794,15 +794,19 @@ more physical lines (see <a href="#sec-2-1">§2.1</a> on indentation/continuatio
   swallows the closing brace). A run of characters from <code>.:=+-*/#&amp;^'∈!&lt;&gt;|_~</code>
   (note: no brackets in this class) glues together into <em>one</em> symbol
   instead (so declaring <code>!=</code> gives you a single two-character operator, but
-  writing <code>!!</code> without spaces is one symbol <code>!!</code>, not two <code>!</code> tokens). A
-  fixed set of additional Unicode symbols is recognised one character at a
-  time — exactly the symbols that appear as <em>values</em> in Kurt's LaTeX-input
-  table (<a href="#sec-2-2">§2.2</a>): the common logic/set-theory symbols (<code>∀ ∃ ∧ ∨ ⇒ ⇐ ⇔ ¬ ⊤ ⊥ ∈
-  ∉ ∋ ⊂ ⊆ ⊃ ⊇ ∩ ∪ ∖ ∁ ∅ ≡ ∘ ↦ ⇝ → ⊢ ∞ ≤ ≥ ≠ × · ∣ ⟨ ⟩ ⟂ ∼ ≈ ≺ ≼</code>), modal-logic
-  symbols (<code>□ ◇</code>), and the Greek alphabet; <code>∃!</code> and <code>⁻¹</code> are one symbol each. <strong>Any other non-ASCII character is a lexing error</strong> — you
-  cannot declare an operator using an arbitrary Unicode symbol that isn't
-  already on this list.</li>
-<li><strong><code>load</code> (and <code>list</code>, <code>tex</code>, <code>lean</code>) are special in the lexer.</strong> A line starting with <code>load</code> (case
+  writing <code>!!</code> without spaces is one symbol <code>!!</code>, not two <code>!</code> tokens). Other characters are symbols
+  one character at a time (decided 2026-11-11): every character of the Unicode categories <code>Sm</code> (mathematical symbols: <code>⋈ ⊗ ∮ ∈ ≤</code>),
+  <code>So</code> (other symbols: arrows, <code>⊕ ↪ ⊢</code>, also emoji), <code>Sc</code> and <code>Sk</code> (currency and modifier symbols), and the letters of the blocks of
+  the mathematics, the Letterlike Symbols (<code>ℝ ℂ ℓ</code>) and the Mathematical Alphanumeric Symbols (<code>𝒜 𝔸 𝐀</code>). Such a character means nothing until it is
+  declared: <code>infix ⋈ 50 50</code>, <code>alias</code>, <code>tex ⋈ \bowtie</code> (otherwise a first use makes it a constant, as any new name). The common ones have
+  a typing shortcut (<a href="#sec-2-2">§2.2</a>: <code>\bowtie</code>, <code>\otimes</code>, <code>\oplus</code>, ...); any other is typed or pasted. <strong>Letters of other scripts, digits, combining marks and
+  invisible characters are a lexing error</strong>: a Cyrillic <code>а</code> must not be a second <code>a</code>, so names stay ASCII and Greek. Before a line is scanned
+  it is normalised to Unicode form NFC (a symbol typed as a base character and a combining mark is one character, <code>=</code> and U+0338 are <code>≠</code>);
+  not NFKC, which would turn <code>ℝ</code> into <code>R</code>. A character that looks like an ASCII one, <code>−</code> (U+2212, the minus sign), <code>∕</code>, <code>∶</code>, <code>∗</code> and the fullwidth
+  <code>＋ ＝ ＜ ＞ ｜ ～</code>, is a symbol of its own, and its first use as a new symbol gives a warning that says the ASCII spelling (an error with <code>--strict</code>,
+  as for the notations of other languages). In a LaTeX export a symbol without a <code>tex</code> declaration is written as the character itself, which needs
+  a Unicode engine (<code>xelatex</code>, <code>lualatex</code>): declare <code>tex</code>.</li>
+<li><strong><code>load</code> (and <code>save</code>, <code>list</code>, <code>tex</code>, <code>lean</code>) are special in the lexer.</strong> A line starting with <code>load</code> (case
   insensitive) is scanned specially: everything after it up to a <code>;</code> or end
   of line is taken as a comma-separated list of filenames (quoted or bare),
   not parsed as an expression. This is why <code>load propositional, equality</code> and <code>load
@@ -851,9 +855,10 @@ The rule:</p>
 interactive shell</strong>, before a line is scanned, Kurt rewrites LaTeX-style
 commands to their Unicode equivalent: <code>\forall</code> → <code>∀</code>, <code>\exists</code> → <code>∃</code>,
 <code>\implies</code> → <code>⇒</code>, <code>\invimplies</code> → <code>⇐</code>, <code>\and</code>/<code>\or</code>/<code>\not</code> (or <code>\neg</code>)/<code>\iff</code>/<code>\equiv</code>/
-<code>\top</code>/<code>\bottom</code> → <code>∧</code>/<code>∨</code>/<code>¬</code>/<code>⇔</code>/<code>≡</code>/<code>⊤</code>/<code>⊥</code>, <code>\in</code>/<code>\notin</code>/<code>\subset</code>/<code>\subseteq</code>/
-<code>\supset</code>/<code>\supseteq</code>/<code>\cup</code>/<code>\cap</code>/<code>\emptyset</code>/<code>\to</code>/<code>\mapsto</code>/<code>\leadsto</code>/<code>\circ</code>,
-<code>\times</code>/<code>\cdot</code>/<code>\mid</code>/<code>\langle</code>/<code>\rangle</code>/<code>\infty</code>, <code>\leq</code>/<code>\geq</code>/<code>\neq</code>,
+<code>\top</code>/<code>\bottom</code> → <code>∧</code>/<code>∨</code>/<code>¬</code>/<code>⇔</code>/<code>≡</code>/<code>⊤</code>/<code>⊥</code>, <code>\in</code>/<code>\notin</code>/<code>\ni</code>/<code>\subset</code>/<code>\subseteq</code>/
+<code>\supset</code>/<code>\supseteq</code>/<code>\cup</code>/<code>\cap</code>/<code>\setminus</code>/<code>\complement</code>/<code>\emptyset</code>/<code>\to</code>/<code>\mapsto</code>/<code>\leadsto</code>/<code>\circ</code>,
+<code>\times</code>/<code>\cdot</code>/<code>\mid</code>/<code>\langle</code>/<code>\rangle</code>/<code>\perp</code>/<code>\infty</code>, <code>\leq</code>/<code>\geq</code>/<code>\neq</code>, <code>\sim</code>/<code>\approx</code>/<code>\prec</code>/<code>\preceq</code>,
+<code>\inv</code> → <code>⁻¹</code>, <code>\N</code>/<code>\Z</code>/<code>\Q</code>/<code>\R</code>/<code>\C</code> → <code>ℕ</code>/<code>ℤ</code>/<code>ℚ</code>/<code>ℝ</code>/<code>ℂ</code>,
 <code>\box</code>/<code>\b</code>/<code>\diamond</code>/<code>\d</code> (modal logic), <code>\vdash</code> → <code>⊢</code>, and the full Greek alphabet
 (<code>\alpha</code>, <code>\Gamma</code>, ...). The standard LaTeX names work too: <code>\le</code>/<code>\ge</code>/<code>\ne</code>,
 <code>\lnot</code>, <code>\land</code>/<code>\wedge</code>, <code>\lor</code>/<code>\vee</code>, <code>\Rightarrow</code>, <code>\Leftrightarrow</code>, <code>\bot</code>. <strong>This replacement only happens for lines typed

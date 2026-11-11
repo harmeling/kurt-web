@@ -27,7 +27,7 @@
     
     
       
-        <title>10. Session toggles and output - Kurt 0.12.0 Reference</title>
+        <title>10. Session toggles and output - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -679,7 +679,7 @@
 </code></pre></div>
 <p>Each, called with no argument, reports its current setting instead of
 changing it (<code>format</code> also names the other options).</p>
-<p><code>format normal</code> is the default readable form and reflects Kurt's stored normal form;
+<p><code>format normal</code> is the default readable form (the line echoed as written, with its stored form in the facts it prints later);
 <code>format sexpr</code> exposes the exact expression tree. <code>format source</code> replays the input spelling
 saved on a stored formula (aliases, parentheses and operand order included); an expression that
 was generated internally and has no independent source spelling uses normal formatting. Editors
@@ -859,7 +859,7 @@ the one that works into the file (Ctrl-D ends the shell). Without a terminal
 (the playground, Kurt from Python), it shows that state and checking goes on.
 In a file that another one loads, it is skipped. After an error, <code>kurt -i
 FILE</code> likewise continues in the shell at the failing line, with the state
-there (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/42-breakpoint.kurt"><code>keywords/42-breakpoint.kurt</code></a>).</p>
+there (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/43-breakpoint.kurt"><code>keywords/43-breakpoint.kurt</code></a>).</p>
 <p><strong>Tab in the shell</strong> (at a terminal) completes: on an empty line the next step (as <code>hint</code>); after <code>=</code> with <code>calc
 on</code> the value (<code>17*42=</code> and Tab gives <code>17*42=714</code>); a LaTeX shortcut its
 symbol (<code>\forall</code> and Tab gives <code>∀</code>); after <code>load</code> a theory or a <code>.kurt</code> file

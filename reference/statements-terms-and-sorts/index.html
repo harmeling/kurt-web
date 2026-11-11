@@ -27,7 +27,7 @@
     
     
       
-        <title>5. Statements, terms and sorts - Kurt 0.12.0 Reference</title>
+        <title>5. Statements, terms and sorts - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -937,7 +937,7 @@ statement bound inside a formula (<a href="https://github.com/harmeling/kurt-lan
 introduction of <code>∀</code>, fixes a term only: a proof about <code>%A</code> needs no <code>let</code> -- the claim's <code>%A</code> is one
 statement throughout the proof, an <code>assume</code> holds it fixed (<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/soundness/let-fixes-a-term.kurt">proofs/soundness/let-fixes-a-term.kurt</a>).</p>
 <p><strong>First use.</strong> A new operator applied to statements gets those places at its first use, and that is
-final, like the first sorted use of <a href="#sec-5-2">§5.2</a> (<code>infix xor 20 20</code>, then <code>A xor B</code>: <code>xor</code> takes two
+final, like the first sorted use of <a href="#sec-5-2">§5.2</a> (<code>infix xor 20 20</code>, then <code>A xor B</code> with statements <code>A</code>, <code>B</code>: <code>xor</code> takes two
 statements, <code>c xor d</code> with terms is then a type error); a new constant used as a statement becomes
 one. Kurt prints the declaration it inferred, for example <code>prop P 0 ; added statement places</code>,
 next to <code>const P ; added constant</code>. Use explicit <code>prop</code> declarations where stable vocabulary and
@@ -967,7 +967,8 @@ Kurt computes exactly with the rationals among them), the sets of numbers are <c
 <code>Real</code> (<code>ℕ</code>, <code>ℤ</code>, <code>ℚ</code>, <code>ℝ</code>).</p>
 <p>All sorts are inhabited (a model has at least one object of each, <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-spec.md">doc/kurt-spec.md</a> §2.2): a file that
 declares a sort and names no object of it -- no constant of the sort or of a smaller one, no numeral --
-gets a warning at its end ("the sort <code>vec</code> ... has no constant in this file"), since it assumes one.</p>
+gets a warning at its end ("the sort <code>vec</code> ... has no constant in this file"), since it assumes one.
+A sort that a theory of Kurt declares (<code>real</code> of set.kurt, <code>typing</code> of lambda.kurt) is not warned about: the file does not declare it.</p>
 <p>Position <code>0</code> is the result; positions <code>1</code>, <code>2</code>, ... are arguments. A symbol without positions is
 short for result position 0, so <code>nat a</code> means <code>nat a 0</code>. Unmentioned positions remain
 unconstrained. Different sorts may describe different positions of one operator, but one position
@@ -999,9 +1000,9 @@ sets (<code>set ∈ 2</code>, <code>set ⊂ 1 2</code>, <code>set ∪ 0 1 2</cod
 semantics). <code>∀ x ∈ Nat</code> ranges over the numbers where <code>x</code> is a number by its places (<code>x + 1</code>) or by
 <code>default real</code>; natural.kurt's induction applies to it only then, so a proof about numbers
 writes <code>default real</code>. There, <code>∀ n (n ∈ A ⇔ n ∈ B)</code> is about the numbers only and doesn't meet
-"extensionality"; for sets of numbers natural.kurt has "ext-real": <code>(∀ n (n ∈ A ⇔ n ∈ B)) ∧ A ⊂ Real ∧
-B ⊂ Real ⇒ A = B</code>, with the set <code>Real</code> of all numbers ("real-all": every number is in it) and <code>Nat ⊂
-Real</code>, <code>Int ⊂ Real</code>, <code>Rat ⊂ Real</code> -- rules with proofs in Lean, not a link between sorts and sets
+"extensionality"; for sets of numbers number.kurt has "ext-real": <code>(∀ n (n ∈ A ⇔ n ∈ B)) ∧ A ⊂ Real ∧
+B ⊂ Real ⇒ A = B</code>, with the set <code>Real</code> of all numbers ("real-all": every number is in it) and <code>Int ⊂
+Real</code>, <code>Rat ⊂ Real</code> (natural.kurt adds <code>Nat ⊂ Real</code>) -- rules with proofs in Lean, not a link between sorts and sets
 (<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/natural-numbers/sets-of-numbers-are-equal.kurt">proofs/natural-numbers/sets-of-numbers-are-equal.kurt</a>). <code>ℕ</code>, <code>ℤ</code>, <code>ℚ</code>, <code>ℝ</code> (typed <code>\N</code>, <code>\Z</code>, <code>\Q</code>,
 <code>\R</code>) are aliases of <code>Nat</code>, <code>Int</code>, <code>Rat</code>, <code>Real</code>. The elements of a set written by its elements (<code>{1, 2}</code>, <code>{0, 2, ...}</code>) have
 the sort of the elements. A polymorphic rule writes its bound variable <code>$$x</code> (logic.kurt: <code>∀ $$x %A
@@ -1037,10 +1038,10 @@ from this line on, every <code>$</code> variable, operator position, bound varia
 file without a declared or inferred sort gets SORT -- an operator's positions at its first use
 after the line, except a statement place, and a binder's variable with the binder (<code>sum i (0, n) i</code>:
 <code>i</code> a number). The last <code>default</code> counts, from its line on. It doesn't cross <code>load</code>, but the sorts
-it gave to the file's symbols do, as sorts do. <code>default</code> alone names the one in force. <code>default any</code>
+it gave to the file's symbols do, as sorts do. <code>default</code> alone names the one in force (<code>default any</code> when there is none). <code>default any</code>
 is the same as none: a symbol without a sort is any object anyway, and a constant gets its sort at
 its first sorted use. number.kurt,
-natural.kurt, divisibility.kurt and the analysis theories have <code>default real</code>; set.kurt,
+natural.kurt, divisibility.kurt, interval.kurt and the analysis theories have <code>default real</code>; set.kurt,
 group.kurt, field.kurt and vectorspace.kurt have none (their symbols are over all objects). A student's file has none, unless it wants one: after <code>default real</code>, every
 symbol that has no other sort is a number. "No other sort" includes what the line itself says: in
 <code>use A = {n ∈ Nat | n &gt; 2}</code> the other side of <code>=</code> is a set, so a new <code>A</code> is a set there, not a
@@ -1085,7 +1086,7 @@ if no exported fact uses it yet; so do the subsorts. Sort
 signatures cross with the symbols that exported facts need (not those of <code>$</code> variables: their
 sorts are in the facts), and all declarations retain their source locations. A sort is declared by
 one file only (set.kurt declares <code>set</code> and <code>real</code>, and number.kurt loads set.kurt). Inspect them with:</p>
-<div class="highlight"><pre><span></span><code><span class="kd">sort</span>                     <span class="c1">; prop plus every user sort, and the subsorts</span>
+<div class="highlight"><pre><span></span><code><span class="kd">sort</span>                     <span class="c1">; `any` plus every user sort, and the subsorts</span>
 nat                      <span class="c1">; every nat signature</span>
 <span class="k">list</span> <span class="kd">sort</span> lambda         <span class="c1">; sorts retained from lambda.kurt</span>
 <span class="k">list</span> term lambda         <span class="c1">; term signatures retained from lambda.kurt</span>
@@ -1121,15 +1122,15 @@ defines <code>group($G, (∘), $e, (ι))</code> with the operator variables <cod
 passes <code>+</code> and <code>-</code> there -- a schema, which the definition unfolds into first-order formulas about <code>+</code>
 and <code>-</code>.</p>
 <p>A function that is a value is a <em>mapping</em> of set.kurt: a set of pairs, <code>f ∈ A → B</code>, applied by
-juxtaposition, <code>f a</code>. Mappings are objects: they are compared (two mappings from <code>A</code> that agree on
+<code>f(a)</code> (<code>f a</code> is the same term). Mappings are objects: they are compared (two mappings from <code>A</code> that agree on
 <code>A</code> are equal, "function-extensionality"), they are elements of sets, a quantifier ranges over them.
 Like every fact, <code>f ∈ A → B</code> gives <code>f</code> no sort; declare <code>set f</code>
 (<a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/set-theory/function-extensionality.kurt">proofs/set-theory/function-extensionality.kurt</a>):</p>
 <div class="highlight"><pre><span></span><code>set f<span class="p">,</span> g
 <span class="k">use</span> f <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span>
 <span class="k">use</span> g <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span>
-<span class="k">use</span> <span class="o">∀</span> a <span class="o">∈</span> A <span class="p">(</span>f a <span class="o">=</span> g a<span class="p">)</span>
-f <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span> <span class="o">∧</span> g <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span> <span class="o">∧</span> <span class="o">∀</span> a <span class="o">∈</span> A <span class="p">(</span>f a <span class="o">=</span> g a<span class="p">)</span>
+<span class="k">use</span> <span class="o">∀</span> a <span class="o">∈</span> A <span class="p">(</span>f<span class="p">(</span>a<span class="p">)</span> <span class="o">=</span> g<span class="p">(</span>a<span class="p">))</span>
+f <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span> <span class="o">∧</span> g <span class="o">∈</span> <span class="p">(</span>A <span class="o">→</span> B<span class="p">)</span> <span class="o">∧</span> <span class="o">∀</span> a <span class="o">∈</span> A <span class="p">(</span>f<span class="p">(</span>a<span class="p">)</span> <span class="o">=</span> g<span class="p">(</span>a<span class="p">))</span>
 f <span class="o">=</span> g                                 <span class="c1">; by "function-extensionality"</span>
 </code></pre></div>
 <p><em>Why</em> (decided 2026-10-20). Until then an operator was also a value: <code>f = g</code> was accepted and
@@ -1159,14 +1160,17 @@ standard name, the symbol its alias.) Its rules:</p>
    The properties of the operator it stands for (<code>flat</code>, <code>sym</code>) apply as usual.</li>
 <li><strong>An operator parameter is a place where a defined predicate takes an operator.</strong> In the
    definition it is written in round brackets, <code>def selfinverse($A, (∘), $e) ⇔ ...</code>, and at a
-   use, <code>selfinverse(R, (mix), e)</code>, <code>group(R, (+), 0, (-))</code>. This is the only place where a bare
+   use, <code>selfinverse(R, (mix), e)</code>, <code>group(R, (+), 0, (-))</code>, or with its holes (<a href="../building-the-grammar/#sec-4-3">§4.3</a>),
+   <code>selfinverse(R, _mix_, e)</code>, <code>group(R, _+_, 0, -_)</code>. This is the only place where a bare
    operator is allowed. <code>(- x)</code> is still <code>- x</code>.</li>
 <li><strong>A definition with an operator parameter is a schema.</strong> <code>use selfinverse(R, (mix), e)</code> unfolds
    into the first-order formula <code>e ∈ R ∧ ∀ a ∈ R (a mix a = e)</code> about the actual <code>mix</code>: no
    operator is ever a value, so the soundness argument stays first-order.</li>
-<li><strong>Everything else with an operator is refused.</strong> An operator without brackets at an argument
-   is a parse error (<code>token + cannot start an expression</code>), <code>(mix) = (mix)</code> is a type error (an
-   operator is no object), and so is quantifying over it (<code>∀ ∘ (x ∘ x = x)</code>).</li>
+<li><strong>Everything else with an operator is refused.</strong> An infix operator without brackets at an
+   argument is a parse error (<code>token + cannot start an expression</code>); a prefix function with an
+   arity (<code>inv</code>) is a symbol with a meaning of its own, so it is accepted bare at an operator
+   parameter, <code>group(R, (+), 0, inv)</code>. <code>(mix) = (mix)</code> is a type error (an operator is no
+   object), and so is quantifying over it (<code>∀ ∘ (x ∘ x = x)</code>).</li>
 <li><strong>The <code>var</code> stays in its file.</strong> Only the <code>infix ∘</code> is exported by <code>load</code>, not the <code>var</code>: a
    file that loads <code>group.kurt</code> can use <code>∘</code> as an operation of its own (tutorial 24).</li>
 <li><strong>It replaces namespaces</strong> (<a href="../known-gaps/#sec-11-2">§11.2</a>): "which <code>+</code>" is something you pass in, not something you look up.</li>

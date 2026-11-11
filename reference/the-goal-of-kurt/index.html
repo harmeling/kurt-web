@@ -27,7 +27,7 @@
     
     
       
-        <title>0. The goal of Kurt - Kurt 0.12.0 Reference</title>
+        <title>0. The goal of Kurt - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -292,6 +292,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0. The goal of Kurt
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -308,6 +326,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-0-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1 Where Kurt goes beyond many-sorted first-order logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -657,6 +705,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sec-0-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1 Where Kurt goes beyond many-sorted first-order logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -706,6 +773,111 @@ found the proof. That trade was made for the teaching goal above, not as a
 stage on the way to becoming a system like those. Whether the same
 readability also matters for proofs a language model produces, which a
 person still has to understand, is a separate, open question.</p>
+<h2 id="sec-0-1">0.1 Where Kurt goes beyond many-sorted first-order logic<a class="headerlink" href="#sec-0-1" title="Permanent link">&para;</a></h2>
+<p>The logic under Kurt is classical first-order logic with equality and sorts (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-spec.md"><code>doc/kurt-spec.md</code></a>; the
+soundness argument is in <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-kernel.md"><code>doc/kurt-kernel.md</code></a> §8). Everything below is <em>added</em> to that core, or changes
+how it is used. For each: what it is for, what it buys, what it costs, and what a plain many-sorted logic
+would do instead. The paper (<code>dev/marketing/arxiv/kurt-intro.tex</code>, Section "What Kind of Logic Is This?") has
+the same list as a table.</p>
+<p><strong>Schematic variables (<code>%A</code>, <code>$x</code>, <code>$$x</code>; <a href="../terms-symbols-and-their-roles/#sec-3-2">§3.2</a>, <a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>).</strong> A fact's free variables stand for all its
+instances; <code>%A</code> ranges over statements, <code>$x</code> over terms of a sort, <code>$$x</code> over terms of any sort.
+<em>Use:</em> modus ponens, induction, the rules of <code>∀</code> and <code>∃</code> are one line of Kurt each, not meta-theorems.
+<em>Pro:</em> the rules of logic are readable and are data, like the rest of a theory. <em>Con:</em> no model
+interprets <code>%A</code>: a fact with <code>%A</code> is read as the set of its instances, so the soundness argument is about
+instances, and a wrong rule that a user adds with <code>use</code> can make a theory inconsistent (the kernel checks
+steps, not axioms; <code>--foundation</code> lists what a fact rests on). <em>Instead:</em> rules are meta-level objects of
+a Hilbert- or natural-deduction system written outside the language.</p>
+<p><strong>Sorts, their order and overloading (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>).</strong> <code>sort real complex</code>, <code>real + 0 1 2</code>: a subsort is a subset;
+an operator may have several signatures along one chain of sorts; a symbol's sort is that of its first
+sorted use, and then final; a file may set a <code>default</code>. <em>Use:</em> type errors without proofs, and <code>+</code> for
+<code>real</code> and <code>complex</code> alike. <em>Pro:</em> a rule written once holds at every sort (<code>$$x</code>). <em>Con:</em> the user must know
+that a sort is final once used; only chains, no retracts and no subsorts defined by a property (<code>Pos ⊂ real</code>
+is a set, not a sort); the checker needs the sorts of every symbol (inferred, but sometimes a <code>set A</code> is
+needed before the first use). <em>Instead:</em> a single sort, with the sorts as unary predicates (<code>Real x</code>), or
+a type theory.</p>
+<p><strong>Variables that nobody declared (<a href="../terms-symbols-and-their-roles/#sec-3-2">§3.2</a>, <a href="../terms-symbols-and-their-roles/#sec-3-4">§3.4</a>).</strong> A name in a claim that no <code>var</code>/<code>const</code>/<code>prop</code>/<code>sort</code>
+declaration covers is added as a constant (or, in a statement place, a statement) at its first use, and
+<code>let</code>/<code>pick</code> introduce constants in blocks. <em>Use:</em> a proof reads like the proof on paper. <em>Pro:</em> no
+declaration boilerplate. <em>Con:</em> a typo is a new constant (<code>--strict</code> makes it an error; the replay output
+lists what was added). <em>Instead:</em> every symbol declared with its sort before use.</p>
+<p><strong>Binders with conditions, lists and a binding power (<a href="../building-the-grammar/#sec-4-4">§4.4</a>).</strong> <code>∀ x &gt; 0 P</code>, <code>∃ x ∈ A, y ∈ B P</code>,
+<code>∑ k ∈ A f(k)</code>; <code>binder SYMBOL POWER</code> says how far the body reaches, <code>nested</code> that a list of variables
+nests. <em>Use:</em> the notation of the lecture, and the same for <code>∑</code>, <code>lim</code>, <code>∫</code>, <code>{x ∈ A | P}</code>. <em>Pro:</em>
+conditioned quantifiers have rules of their own (<code>∀ x &gt; 0</code>), so a step is not "unfold the condition, then
+instantiate". <em>Con:</em> each binder's rules are axioms of its theory (the audit lists them); the condition
+syntax is a convention the parser must agree on with the kernel (it does, one implementation). <em>Instead:</em>
+<code>∀ x (x &gt; 0 ⇒ P)</code> everywhere.</p>
+<p><strong>Substitution in rules (<code>sub</code>, <a href="../the-theory/#sec-6-2">§6.2</a>).</strong> Capture-avoiding substitution may be written in a rule schema,
+<code>sub x t P</code>. <em>Use:</em> induction, the quantifier rules and <code>∃</code>-introduction as single lines. <em>Pro:</em> these
+rules are stated exactly once, in the language. <em>Con:</em> <code>sub</code> is only allowed in <code>use</code> and <code>def</code> (in a claim
+it would only stand for its own result), and capture-avoidance is a part of the kernel to trust
+(<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md"><code>doc/kurt-soundness.md</code></a> §3). <em>Instead:</em> substitution as a meta-operation in the implementation.</p>
+<p><strong>Equality modulo <code>flat</code> and <code>sym</code> (<a href="../building-the-grammar/#sec-4-5">§4.5</a>).</strong> An operator may be declared associative and commutative;
+two terms are the same step if their normal forms are. <em>Use:</em> <code>a + (b + c)</code> and <code>(c + b) + a</code> need no proof.
+<em>Pro:</em> no step blocked by bracketing or order. <em>Con:</em> the parser and the kernel share these normal forms:
+a bug there would fool both (<a href="#">§0</a> above); the declarations must be true of the operator (a <code>sym</code> on <code>-</code>
+would make a theory inconsistent: the loaded theories declare only laws they prove or audit). <em>Instead:</em>
+rewrite with the laws of associativity and commutativity, one line each.</p>
+<p><strong>Exact computation (<code>calc on</code>).</strong> Numerals are computed exactly (integers, fractions, powers), a fact that
+computes to the goal closes it, and <code>2 + 3 &lt; 6</code> needs no proof. <em>Use:</em> the arithmetic of a proof stays
+out of sight, as on paper. <em>Pro:</em> readable proofs. <em>Con:</em> the kernel recomputes every such step, so it
+contains a calculator (its own part of the trusted code); only the operations of the calculator count
+(<code>CALCULATOR_OPERATIONS</code>), so a computation is never a surprise but the list is a boundary the user meets.
+<em>Instead:</em> a theory of numerals with axioms for every sum and product, or a decision procedure.</p>
+<p><strong>Operator variables (<a href="../statements-terms-and-sorts/#sec-5-4">§5.4</a>).</strong> <code>var ∘</code>, with <code>infix ∘ 70 70</code>, stands for an operator; a definition
+with an operator parameter, <code>group(G, (∘), e, inv)</code>, unfolds into first-order formulas about the operator
+it is given. <em>Use:</em> algebraic structures without namespaces and without type classes. <em>Pro:</em> the definition
+of a group is one definition for all groups. <em>Con:</em> an operator is no object, so the structure itself
+cannot be quantified over (no "for every group"; one writes a rule per theory); a schema, not a formula.
+<em>Instead:</em> second-order quantification, or modules.</p>
+<p><strong>Statements are not terms (<a href="../statements-terms-and-sorts/#sec-5-1">§5.1</a>).</strong> Statement places are declared (<code>prop</code>); a statement is not an
+object; binders range over terms; there is no choice or description operator. <em>Use:</em> the logic stays
+first-order. <em>Pro:</em> every step is a fact about objects, and the soundness argument stays short. <em>Con:</em>
+no <code>Prop</code>-valued functions, no <code>if P then a else b</code>, no <code>ε</code>; some proofs of the lecture need a theory
+(the characteristic function by cases). <em>Instead:</em> the higher-order encodings (<a href="https://github.com/harmeling/kurt-lang/tree/main/proofs/logic-encodings"><code>proofs/logic-encodings/</code></a>).</p>
+<p><strong>Partial functions are total (<code>a / 0</code>).</strong> <code>a / 0</code> is some object, and the rules carry the conditions:
+<code>b ≠ 0 ⇒ (a / b) * b = a</code>. <em>Pro:</em> no sort of the nonzero numbers, no hidden assumption (as in Lean).
+<em>Con:</em> <code>1 / 0</code> is some number that nothing is known about, and a student who forgets the condition finds the rule does not
+apply -- the failure explanation says which condition is missing. <em>Instead:</em> a sort of nonzero numbers, or
+a guard in every term.</p>
+<p><strong>Definitions (<a href="../the-theory/#sec-6-2">§6.2</a>).</strong> <code>def</code> is a conservative extension and is checked (a new symbol, no recursion
+through itself, the body's free variables are the parameters); <code>def</code> in a block is local to it. <em>Pro:</em>
+a definition can not make a theory inconsistent. <em>Con:</em> no recursive definitions yet (<a href="../known-gaps/#sec-11-1">§11.1</a>: a recursive function is
+introduced by its equations as <code>use</code> axioms in a theory, with a Lean proof or as an <code>axiom</code> in the audit).
+<em>Instead:</em> an inductive-definition principle in the logic.</p>
+<p><strong>Natural-deduction blocks and chains (<a href="../blocks-and-natural-deduction/">§9</a>, <a href="../building-the-grammar/#sec-4-6">§4.6</a>).</strong> <code>assume</code>, <code>case</code>, <code>let</code>, <code>pick</code>, <code>proof</code>/<code>qed</code>
+mirror the rules of natural deduction; a chain <code>a = b</code>, <code>&lt; c</code> is a calculation. <em>Use:</em> a proof is
+laid out the way a person writes it. <em>Pro:</em> the indentation is the structure; a block closed wrongly is a
+layout error. <em>Con:</em> the layout is part of the syntax (a student must learn it), and a statement that
+runs over several lines needs an open bracket or an operator at the end of the line (<a href="../lexical-structure/#sec-2-1">§2.1</a>). <em>Instead:</em>
+a linear list of formulas with line numbers and justifications.</p>
+<p><strong>Search with a certificate for each step (<code>derive_expr</code>, <code>kernel_verify</code>; <a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-kernel.md"><code>doc/kurt-kernel.md</code></a>).</strong> The
+search finds <em>one</em> step per line and the kernel checks it again without search; a step it rejects stops
+the file. <em>Use:</em> immediate feedback for a student without trusting the search. <em>Pro:</em> the trusted part
+is small (kernel plus parser), and the failure explanation can use the search freely. <em>Con:</em> a second
+implementation of unification, substitution and alpha-equivalence has to be kept in step with the
+search (the differential run and the fuzzer exist for that), and a single step is all the search
+offers (no tactics; deliberate, <a href="#">§0</a>). <em>Instead:</em> tactics and a proof term, as in Lean or Coq.</p>
+<p><strong>Theories are files (<code>load</code>, <code>local</code>, <a href="../building-the-theory/">§8</a>).</strong> Rules, grammar, sorts and notation live in <code>.kurt</code> files
+that a proof loads; only labelled facts and the symbols they need cross a file boundary. <em>Pro:</em> the logic
+is data, a student can read and change it, and no theory is built into the program. <em>Con:</em> no
+namespaces (<a href="../known-gaps/#sec-11-2">§11.2</a>), so a symbol is declared by one file only; the load time of a theory is a cost for
+every file that uses it (<code>load number</code> takes 1.4 s). <em>Instead:</em> a built-in library with fixed names.</p>
+<p><strong>Visible gaps and errors as tests (<code>todo</code>, <code>expect</code>, <code>--foundation</code>, <a href="../the-theory/#sec-6-3">§6.3</a>, <a href="../blocks-and-natural-deduction/#sec-9-6">§9.6</a>).</strong> An unfinished step is
+admitted visibly and every report lists it; an <code>expect "ProofError"</code> checks that an error happens; each
+fact reports what it rests on. <em>Pro:</em> an unfinished proof can not pass for a finished one; a rule of
+the checker has a regression test written in Kurt. <em>Con:</em> a <code>todo</code> is a hole the whole file depends on
+until it is filled; nothing prevents a student from leaving one (the grader counts them). <em>Instead:</em>
+<code>sorry</code> that only a warning shows.</p>
+<p><strong>Budgets (<a href="../running-kurt/">§1</a>).</strong> The search for a line has a time budget (60 s on the command line, 30 s in the editors);
+a line that runs out of it fails with a <code>ResourceError</code>, neither proved nor refuted. <em>Pro:</em> a check always
+ends; a garbled statement can not hang an editor. <em>Con:</em> a proof that needs more time fails on a slow
+machine until the budget is raised (<code>--budget</code>); a <code>ResourceError</code> is no verdict. <em>Instead:</em> no limit.</p>
+<p><strong>Export to Lean (<code>--lean</code>).</strong> A checked proof is exported as Lean, step by step from its certificates;
+the rules of a theory with a <code>lean</code> line are theorems, the others axioms. <em>Use:</em> a second, independent
+check, and the audit of the theories. <em>Con:</em> not every file exports (finite sets, some linear algebra,
+<code>sorry</code>); the export is checked by Lean 4 with Mathlib, a toolchain the user may not have. <em>Instead:</em> the
+checker alone.</p>
 
 
 

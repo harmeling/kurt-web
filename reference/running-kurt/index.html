@@ -27,7 +27,7 @@
     
     
       
-        <title>1. Running Kurt - Kurt 0.12.0 Reference</title>
+        <title>1. Running Kurt - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -681,7 +681,7 @@ kurt -v                     # show the version (also `-V`, `--version`)
 kurt -p DIR path/to/proof.kurt   # also search DIR for `load`ed theories
 kurt -s path/to/proof.kurt       # strict, for grading (see below)
 kurt -a path/to/proof.kurt       # all errors, not only the first (also `--all-errors`, see below)
-kurt --budget 10 path/to/proof.kurt  # at most 10 s of search per line (see below; by default no limit)
+kurt --budget 10 path/to/proof.kurt  # at most 10 s of search per line (see below; by default 60 s, 0: no limit)
 kurt --profile path/to/proof.kurt    # after the check: the slowest lines, with their time and search steps
 kurt -r N path/to/proof.kurt     # set the comment/reason column to N (default 42)
 kurt --no-kurtc path/to/proof.kurt   # neither write nor use `.kurtc` files (see below)
@@ -740,17 +740,18 @@ result; <a href="../blocks-and-natural-deduction/#sec-9-6">§9.6</a>), and a <co
 by default; from Python, <code>kurt.RunConfig(all_errors=True)</code>, and <code>CheckResult.errors</code> lists them
 (<code>error</code> is the first one).</p>
 <p><strong>Where a proof is slow (<code>--profile</code>):</strong> <code>kurt --profile proof.kurt</code> checks the file as usual and then prints, on
-stderr, its ten slowest lines with the time and the search steps of each (the <code>load</code> line has the time of the files it
-loads, cached files cost nothing):</p>
-<div class="highlight"><pre><span></span><code>the slowest lines of <span class="k">proof</span><span class="o">.</span>kurt <span class="p">(</span><span class="m">1.37</span> s in all<span class="p">,</span> seconds and search steps<span class="p">)</span><span class="o">:</span>
-    <span class="m">0.85</span> s        <span class="m">0</span> steps      <span class="m">1</span>  <span class="k">load</span> logic<span class="p">,</span> number
-    <span class="m">0.40</span> s     <span class="m">1200</span> steps     <span class="m">14</span>  x <span class="o">+</span> y <span class="o">=</span> y <span class="o">+</span> x
+stderr, its ten slowest lines with the time, the search steps and the kernel's part of the time of each (the <code>load</code> line has
+the time of the files it loads, cached files cost nothing; the search of a failed line, which explains the failure, counts
+on that line):</p>
+<div class="highlight"><pre><span></span><code>the slowest lines of <span class="k">proof</span><span class="o">.</span>kurt <span class="p">(</span><span class="m">1.37</span> s in all<span class="c1">; seconds, search steps, and the seconds of the kernel in them):</span>
+    <span class="m">0.85</span> s        <span class="m">0</span> steps   <span class="m">0.00</span> s kernel      <span class="m">1</span>  <span class="k">load</span> logic<span class="p">,</span> number
+    <span class="m">0.40</span> s     <span class="m">1200</span> steps   <span class="m">0.02</span> s kernel     <span class="m">14</span>  x <span class="o">+</span> y <span class="o">=</span> y <span class="o">+</span> x
 </code></pre></div>
 <p>From Python, <code>kurt.RunConfig(profile=True)</code> fills <code>CheckResult.profile</code> (also in <code>--json</code>): a record <code>file</code>, <code>line</code>,
-<code>seconds</code>, <code>steps</code> for each line. The editors (<code>kurt --lsp</code>) mark a line that took 2 s or more with an Information
+<code>seconds</code>, <code>steps</code>, <code>kernel</code> (seconds) for each line. The editors (<code>kurt --lsp</code>) mark a line that took 2 s or more with an Information
 diagnostic (<code>slow line: 2.4 s, 5300 search steps</code>) and write the time into the hint at its end. An editor that asks for it
 (the initialization option <code>heat</code>: VS Code's <code>kurt.heat.enabled</code>) also gets two notifications: <code>kurt/progress</code> (the line being checked,
-at most ten times a second, for tinting the lines done and the line at work) and <code>kurt/profile</code> (time and steps of each line, after the
+at most ten times a second, for tinting the lines done and the line at work) and <code>kurt/profile</code> (time, steps and kernel seconds of each line, after the
 check, for a heat map of the lines). <code>kurt/cancel</code> (with <code>uri</code>) from the editor stops the check that runs, at its next step (the editor is told
 by <code>kurt/progress</code> with <code>done</code> and <code>cancelled</code>); VS Code's status item shows <code>Kurt: checking 12/84</code> and a menu with the cancel.</p>
 <p><strong>Budgets (<code>--budget SECONDS</code>), and cancelling a check:</strong> the search for one line normally takes
@@ -766,11 +767,11 @@ it only stops the search early -- and the kernel isn't involved. With <code>--al
 goes on after it as after a <code>ProofError</code> (the line is admitted, see above); <code>expect</code> can't name
 <code>ResourceError</code> (as it can't name <code>KernelError</code>), so a proof file can't depend on a budget, and an
 <code>expect "ProofError"</code> whose line runs out of budget is an error, not confirmed. The command line
-has no budget unless <code>--budget</code> says so; the editors (<code>kurt --lsp</code>) allow 30 s per line (the
+allows 60 s per line unless <code>--budget</code> says otherwise (<code>--budget 0</code>: no limit); the editors (<code>kurt --lsp</code>) allow 30 s per line (the
 initialization option <code>budget</code>, 0 for none), the playground the same, and
 <a href="https://github.com/harmeling/kurt-lang/blob/main/scripts/grade_exercise.py"><code>scripts/grade_exercise.py</code></a> too (<code>--budget SECONDS</code>). The budget applies to every line checked,
 also in the files a proof loads.</p>
-<p>From Python: <code>kurt.RunConfig(time_limit=10)</code> (seconds), <code>kurt.RunConfig(step_limit=5000)</code> (steps
+<p>From Python: <code>kurt.RunConfig(time_limit=10)</code> (seconds; the default is the command line's 60 s, <code>time_limit=None</code> for no budget), <code>kurt.RunConfig(step_limit=5000)</code> (steps
 of the search: a goal against one fact, or a premise against the facts -- about 1000 to 4000 a
 second, the same on every machine), or both; <code>CheckResult.exhausted</code> says that a line's budget was
 used up (its <code>errors</code> entry has the kind <code>ResourceError</code>), and so does the JSON of <code>--json</code>.
@@ -787,8 +788,8 @@ at each of its statements and when it is done: <code>file</code>, <code>line</co
 (the files checked so far -- a theory that the session has checked before and that didn't change is not
 checked again) and <code>done</code>. The playground shows it as a progress bar.</p>
 <p><strong>Strict mode (<code>-s</code>/<code>--strict</code>), for grading:</strong> the checked file (and any
-file it loads that isn't trusted) may not contain <code>use</code> or <code>todo</code>, a <code>chain</code>
-there needs its rules proved before it (<a href="../building-the-grammar/#sec-4-6">§4.6</a>), and every symbol must be declared before its use (<a href="../terms-symbols-and-their-roles/#sec-3-2">§3.2</a>), and <code>calc</code> may not bind symbols to the calculator — everything has to be proven from the theories that come with Kurt, or
+file it loads that isn't trusted) may not contain <code>use</code> or <code>todo</code>, nor the claims <code>flat</code>, <code>sym</code> and <code>builtin</code> (nor <code>save</code>), a <code>chain</code>
+there needs its rules proved before it (<a href="../building-the-grammar/#sec-4-6">§4.6</a>), and every symbol must be declared before its use (<a href="../terms-symbols-and-their-roles/#sec-3-2">§3.2</a>) — everything has to be proven from the theories that come with Kurt, or
 from the ones found in a <code>-p DIR</code> directory (e.g. an exercise's axioms, as
 given by the teacher). Those are the <em>trusted</em> theory files; <code>use</code> inside a
 <code>sandbox</code> or <code>expect</code> stays allowed, since their content is discarded. It
@@ -910,7 +911,7 @@ each postulate, and the facts above that rest on it:
     ...
 </code></pre></div>
 <p>The rules a <code>chain</code> declaration stands for appear as <code>the rules of `chain = &lt; &lt;=`</code>. From Python,
-<code>check_file(path, foundation=True)</code> (and <code>check_text</code>) fills <code>CheckResult.foundations</code>, one record
+<code>kurt.Session().check_file(path, foundation=True)</code> (and its <code>check_text</code>) fills <code>CheckResult.foundations</code>, one record
 per fact -- <code>label</code>, <code>line</code>, <code>file</code>, <code>text</code>, <code>class</code>, <code>status</code> (<code>established</code>/<code>accepted</code>, or the class
 of an axiom, definition or <code>todo</code>) and <code>rests_on</code>, each postulate with its <code>kind</code> (<code>use</code>, <code>def</code>, <code>todo</code>,
 <code>calc</code>, <code>admitted</code>), <code>file</code>, <code>line</code>, <code>label</code> and <code>text</code> (and for <code>calc</code>, <code>bound_in</code>: the files of its
@@ -1091,10 +1092,10 @@ Mathlib's <code>cpow</code> otherwise. A rule about complex numbers used for rea
 comment after it; more lines for the same label are the next lines of the proof, an indentation
 after one space is kept) of the fact "label" of the file, at its top level and after the fact --
 only output, as <code>tex</code>: Kurt doesn't read the tactic. <code>kurt --lean</code> writes such a rule as a
-<code>theorem</code> with this proof instead of an <code>axiom</code> (with a comment <code>-- number.kurt:70 "add-eq":
+<code>theorem</code> with this proof instead of an <code>axiom</code> (with a comment <code>-- number.kurt:76 "add-eq":
 proved in Lean</code>), so Lean checks the theory's rules, not only the steps of the proof; a tactic that
 doesn't prove the rule is an error in Lean. The rules a <code>chain</code> of Mathlib's relations generates
-(<code>chain = &lt;= &lt;</code>: "chain-trans-1-2") are theorems by <code>linarith</code>, as <code>flat</code>/<code>sym</code> of <code>+</code> are by <code>ring</code>,
+(<code>chain = &lt;= &lt;</code>: "chain-trans-&lt;=/&lt;") are theorems by <code>linarith</code>, as <code>flat</code>/<code>sym</code> of <code>+</code> are by <code>ring</code>,
 and what the calculator knows of <code>Nat</code> (<code>6 ∈ Nat</code>, <code>k_calc_Nat</code>) is one of <code>k_mem_Nat</code>; a <code>def</code> of a
 loaded file that a step uses is a Lean <code>def</code>, as the file's own. Every rule of the theories of
 numbers (number, natural, divisibility, analysis, continuity, sequences, derivative,

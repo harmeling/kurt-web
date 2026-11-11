@@ -27,7 +27,7 @@
     
     
       
-        <title>8. Building the theory: hard-coded core vs. loaded theories - Kurt 0.12.0 Reference</title>
+        <title>8. Building the theory: hard-coded core vs. loaded theories - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -848,7 +848,7 @@ could remove):</p>
 <li><strong>"case-elim"</strong> — closing the <code>case</code> blocks of a disjunction (<a href="../blocks-and-natural-deduction/#sec-9-1">§9.1</a>) gives
   the goal; it is justified by propositional.kurt's "or-elim", for any number of
   alternatives.</li>
-<li><strong>"chain-trans-I-J"</strong> — the transitivity rules a <code>chain</code> declaration
+<li><strong>"chain-trans-R/S"</strong> — the transitivity rules a <code>chain</code> declaration
   generates (<a href="../building-the-grammar/#sec-4-6">§4.6</a>).</li>
 <li><strong>"by calc"</strong> — with <code>calc on</code>, a claim that computes to <code>true</code>, or to a
   fact, follows by the built-in calculator (<a href="../session-toggles-and-output/">§10</a>).</li>
@@ -868,19 +868,19 @@ could remove):</p>
 </ul>
 <p><strong>Where the hole of <code>sub</code> may be.</strong> A rule like "equal-elim", <code>($a = $b) ∧ (sub $x $a %A) ⇒
 (sub $x $b %A)</code>, rewrites a formula by cutting a hole <code>$x</code> into it. The hole is a part of the
-formula that is a term or a statement -- and an operator counts only when it is a term on its own.
-A function symbol is: <code>f</code> with <code>arity f 1</code> is an object, which an equation can name. So <code>f = g</code>
-rewrites <code>f a</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">load</span> equality
+formula that is a term or a statement, never an operator on its own. An operator is no object
+(<a href="../statements-terms-and-sorts/#sec-5-3">§5.3</a>), so no equation names one: <code>use f = g</code> for two function symbols (<code>arity f 1, g 1</code>) is a type
+error, and an equation of their values rewrites <code>f a</code>, the hole being the term <code>f a</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">load</span> equality<span class="p">,</span> logic
 <span class="kd">const</span> f<span class="p">,</span> g<span class="p">,</span> a
 <span class="kd">arity</span> f <span class="m">1</span><span class="p">,</span> g <span class="m">1</span>
 <span class="kd">prop</span> R
 <span class="kd">arity</span> R <span class="m">1</span>
-<span class="k">use</span> f <span class="o">=</span> g
+<span class="k">use</span> <span class="o">∀</span> x <span class="p">(</span>f x <span class="o">=</span> g x<span class="p">)</span>
 <span class="k">use</span> R <span class="p">(</span>f a<span class="p">)</span>
-R <span class="p">(</span>g a<span class="p">)</span>                     <span class="c1">; by equal-elim(6, 7) -- the hole is the operator `f`</span>
+R <span class="p">(</span>g a<span class="p">)</span>                     <span class="c1">; by equal-elim(6, 7)</span>
 </code></pre></div>
-<p>An operator with a statement as its result is not: <code>=</code>, <code>∧</code>, or a predicate <code>P</code> with <code>prop P</code> and <code>arity P 1</code> is, on its
+<p>An operator with a statement as its result (<code>=</code>, <code>∧</code>, or a predicate <code>P</code> with <code>prop P</code> and <code>arity P 1</code>) is, on its
 own, neither a term nor a statement -- it becomes a statement only applied to its arguments. So
 the hole is never the <code>=</code> of <code>c = c</code> (<a href="https://github.com/harmeling/kurt-lang/blob/main/doc/kurt-soundness.md">doc/kurt-soundness.md</a> §8.40: cut there, "iff-subst" had
 turned <code>R ((¬¬(=)) c c)</code> into <code>R (c = c)</code>), and a bare such operator where a statement is
@@ -1028,7 +1028,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 <tr>
 <td><code>set.kurt</code></td>
 <td>the sorts of the objects (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>): <code>sort set real</code> (every number is a set; an object of no sort is any object); Zermelo-Fraenkel-style (the words of its symbols: <a href="../building-the-grammar/#sec-4-7">§4.7</a>): <code>in</code>/<code>∈</code>, <code>⊂</code> (<code>A ⊃ B</code> read as <code>B ⊂ A</code>, <code>x ∉ A</code> as <code>¬(x ∈ A)</code>: <code>inline</code>), <code>∪</code>, <code>∩</code>, separation <code>{ x ∈ A \| ... }</code> (no unrestricted <code>{ x \| ... }</code>, which would allow Russell's paradox; "separation-in": an element of a part of <code>A</code> is in <code>A</code>), sets by their elements <code>{a, b}</code> ("singleton", and generated rules, <a href="../session-toggles-and-output/">§10</a>), <code>∅</code> (also <code>{}</code>), <code>Pow</code>, ordered pairs and tuples (<code>(a, b)</code>, "pair-eq", <code>fst</code>, <code>snd</code>), Cartesian products <code>A × B</code>, mappings as sets of pairs (<code>f ∈ (A → B)</code>: <code>f ⊂ A × B</code> with one pair <code>(a, f a)</code> for each <code>a ∈ A</code>), "apply", "apply-in", "function-extensionality"</td>
-<td><code>equality</code>, <code>logic</code>, <code>objects</code></td>
+<td><code>propositional</code>, <code>equality</code>, <code>logic</code></td>
 </tr>
 <tr>
 <td><code>number.kurt</code></td>
@@ -1037,7 +1037,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 </tr>
 <tr>
 <td><code>natural.kurt</code></td>
-<td>natural numbers (<code>set Nat</code>, <code>ℕ</code>), induction (for a variable that is a number: <code>default real</code>); <code>0 &lt;= n</code>, the predecessor, no number between n and n + 1, the well-ordering principle (proven from induction); <code>Nat ⊂ Real</code>, an integer is a natural number or the negative of one, a positive integer is a natural number, the rational numbers as fractions m / n ("rat-def", "rat-pos", "frac-cancel"), the sets <code>{a, ..., c}</code></td>
+<td>natural numbers (<code>set Nat</code>, <code>ℕ</code>), induction (for a variable that is a number: <code>default real</code>); <code>0 &lt;= n</code>, the predecessor, no number between n and n + 1, the well-ordering principle (proven from induction); <code>Nat ⊂ Real</code>, an integer is a natural number or the negative of one, a positive integer is a natural number, the rational numbers as fractions m / n ("rat-def", "rat-pos", "frac-cancel")</td>
 <td><code>set</code>, <code>number</code>, <code>logic</code></td>
 </tr>
 <tr>
@@ -1053,7 +1053,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 <tr>
 <td><code>complex.kurt</code></td>
 <td>complex numbers: the sort <code>complex</code> (<code>real ⊂ complex ⊂ set</code>), <code>+ - * / ^</code> overloaded on <code>real</code> and <code>complex</code> (<a href="../statements-terms-and-sorts/#sec-5-2">§5.2</a>: the least sort of a term; <code>&lt;</code> stays on <code>real</code>; <code>^</code> with the laws for a natural-number exponent, "complex-pow-succ"), the unit <code>i</code> (<code>builtin i imaginary</code>: <code>calc on</code> computes exactly with Gaussian rationals, <code>i * i</code> is <code>-1</code>, <code>(1 + i) ^ 2</code> is <code>2 * i</code>), the set <code>Complex</code> (<code>ℂ</code>, <code>\C</code>), the laws of a field for every complex number ("complex-distrib-add", ...), <code>re</code>, <code>im</code>, <code>conj</code>, the modulus <code>cabs</code> (not <code>abs</code>: a result of another sort than the argument is stage 2 of overloading) with their laws; <code>kurt --lean</code> with Mathlib's <code>ℂ</code>, every rule proved there</td>
-<td><code>real</code></td>
+<td><code>number</code>, <code>natural</code></td>
 </tr>
 <tr>
 <td><code>group.kurt</code></td>
@@ -1063,7 +1063,7 @@ declaring their own prerequisites via their own <code>load</code> lines:</p>
 <tr>
 <td><code>finite.kurt</code></td>
 <td>finite sets: <code>injective</code>, <code>surjective</code>, <code>bijection(f, A, B)</code> (set.kurt's mappings), their composition <code>comp(g, f, A, C)</code>, the difference <code>A ∖ B</code>, the numbers below n <code>below(n)</code> = {0, ..., n - 1}, <code>hassize(A, n)</code> (A has n elements: a bijection from <code>below(n)</code> onto A) and <code>finite(A)</code>; theorems: ∅ has 0 elements, <code>{a}</code> 1, adding a new element adds one, removing one removes one, the number is unique, a bijection keeps it, disjoint unions add up (and differences), a subset has at most as many, subsets, unions and bijective images of finite sets are finite. No <code>card</code> (a <code>def</code> needs a term, and Kurt has no description operator); one axiom, "nat-number" (an element of <code>Nat</code> is a number)</td>
-<td><code>set</code>, <code>natural</code></td>
+<td><code>set</code>, <code>natural</code>, <code>interval</code></td>
 </tr>
 <tr>
 <td><code>field.kurt</code></td>
@@ -1128,8 +1128,10 @@ identify prefix theoremhood with <code>empty ⊢ A</code>. <a href="https://gith
 calculus and an ordered-resource experiment without exchange, weakening, or contraction.</p>
 <p><code>modal.kurt</code> declares the optional sort <code>formula</code> for the formulas of modal logic, so a modal
 formula can't be written as a claim by itself (<code>use □P → P</code> is an error) -- a claim is <code>⊢ A</code>,
-"A is a theorem". The theory still owns <code>→</code> and <code>□</code>, so it cannot be loaded together with
-<code>set.kurt</code> (where <code>→</code> is a function-space constructor) without future namespaces.</p>
+"A is a theorem". The theory owns <code>∧</code>, <code>∨</code>, <code>¬</code>, <code>⇔</code> and <code>→</code> as its formula constructors, so it
+cannot be loaded together with <code>propositional.kurt</code> ("<code>¬</code> is declared in <code>modal.kurt</code> and in
+<code>propositional.kurt</code>") or any theory that loads it, nor with <code>lambda.kurt</code> (both declare <code>⊢</code>),
+without future namespaces.</p>
 <p>The former shallow theory with the same filename could not express sound necessitation because
 its formulas were Kurt statements: <code>%A implies □%A</code> also applied below an assumption. It was
 replaced. Moving the pretty aliases out of the minimal core lets the current <code>modal.kurt</code> own the

@@ -25,7 +25,7 @@
     
     
       
-        <title>11. Known gaps (so you don't mistake them for bugs in your proof) - Kurt 0.12.0 Reference</title>
+        <title>11. Known gaps (so you don't mistake them for bugs in your proof) - Kurt 0.13.1 Reference</title>
       
     
     
@@ -86,7 +86,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -100,7 +100,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -224,13 +224,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -801,7 +801,7 @@
 <li>
 <p><strong><code>calc</code>/<code>eval</code> that unfolds a user's own recursive function</strong>: print the
   value of e.g. <code>fact(3)</code> by repeatedly applying a function's own axioms
-  (<code>fact-zero</code>, <code>fact-step</code> in number.kurt) until none apply, instead of
+  ("factorial-base", "factorial-step" in number.kurt) until none apply, instead of
   only folding the small set of built-in arithmetic operations <code>calc on</code>
   already folds. On purpose, for now: those built-ins are hand-coded,
   trusted, and provably terminating; a user's recursive axioms carry no
@@ -821,7 +821,7 @@
   of <code>$a ∈ $G</code>, which a polymorphic variable may not be in (extensionality over the numbers alone
   would give <code>∅ = {∅}</code>), and its definitions would have to be families, one per sort: real sort
   parameters for <code>def</code>s and rules, with a soundness argument of their own. Until a course needs it: a
-  file about the integers as a group states the group facts it needs for <code>+</code> itself (dev/todo.md 40).</p>
+  file about the integers as a group states the group facts it needs for <code>+</code> itself (dev/todo.md 46).</p>
 </li>
 <li><strong>Two substitutions in one formula</strong> (not wanted, 2026-10-20): <code>sub $x $T (sub $y $N M)</code> is refused,
   and so is a <code>sub</code> in a goal. The search finds the value and the hole of a <code>sub</code> from the goal
@@ -844,12 +844,15 @@
 <h2 id="sec-11-2">11.2 Why no namespaces (yet)<a class="headerlink" href="#sec-11-2" title="Permanent link">&para;</a></h2>
 <p>Two theories loading symbols with the same name can't collide the way <code>import</code> does in most
 languages: "a symbol is declared by one file only" (<a href="../building-the-theory/#sec-8-2">§8.2</a>) -- <code>load number, field</code> simply can't
-both declare <code>+</code>. Where you would expect to need a namespace -- <code>group.kurt</code>, <code>field.kurt</code>,
-<code>vectorspace.kurt</code> each wanting their own <code>+</code>/<code>∘</code> -- Kurt uses an <strong>operator variable</strong> instead:
-their theorems are stated over a schematic <code>$op</code> (<code>var ∘</code>, <code>infix ∘</code>), instantiated at a concrete
-operator as an argument (<code>group(R, (+), 0, (-))</code>, <code>tutorial/24</code>), not as a qualified name. "Which
+both declare <code>+</code>. Where you would expect to need a namespace -- a group's operation, <code>+</code> in one
+group and <code>·</code> in another -- <code>group.kurt</code> uses an <strong>operator variable</strong> instead: its theorems are
+stated over a schematic <code>$op</code> (<code>var ∘</code>, <code>infix ∘</code>), instantiated at a concrete operator as an
+argument (<code>group(R, (+), 0, (-))</code>, <code>tutorial/24</code>), not as a qualified name. (<code>field.kurt</code> and
+<code>vectorspace.kurt</code> still declare their own <code>+</code>, so they are not loaded together with number.kurt.) "Which
 <code>+</code>" is something you pass in, not something you look up.</p>
-<p>The one real collision in the bundled theories is <code>⊢</code>: <code>modal.kurt</code>'s "A is a theorem" and
+<p>Besides the theories that declare their own <code>+</code> (number.kurt, field.kurt, matrix.kurt, <a href="../building-the-theory/#sec-8-2">§8.2</a>) and
+<code>modal.kurt</code>, whose formula constructors <code>∧</code>, <code>∨</code>, <code>¬</code> collide with propositional.kurt's (<a href="../building-the-theory/#sec-8-2">§8.2</a>), a
+collision in the bundled theories is <code>⊢</code>: <code>modal.kurt</code>'s "A is a theorem" and
 <code>lambda.kurt</code>'s typing judgment <code>Γ ⊢ M : A</code> are genuinely unrelated notations that happen to share
 a glyph, and only matter if one file loads both. A general lexically-scoped namespace ("open a
 block, use a theory's notation inside it, close it, the notation is gone") sounds like the fix,

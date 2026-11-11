@@ -27,7 +27,7 @@
     
     
       
-        <title>6. The theory: making and using claims - Kurt 0.12.0 Reference</title>
+        <title>6. The theory: making and using claims - Kurt 0.13.1 Reference</title>
       
     
     
@@ -88,7 +88,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-header__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-header__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -102,7 +102,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Kurt 0.12.0 Reference
+            Kurt 0.13.1 Reference
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -226,13 +226,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Kurt 0.12.0 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.12.0 Reference" data-md-component="logo">
+    <a href=".." title="Kurt 0.13.1 Reference" class="md-nav__button md-logo" aria-label="Kurt 0.13.1 Reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Kurt 0.12.0 Reference
+    Kurt 0.13.1 Reference
   </label>
   
     <div class="md-nav__source">
@@ -875,7 +875,7 @@ and then combined via "and-intro" (this, "impl-elim"/modus-ponens
 against every formula currently in scope, and "top-intro" for the literal
 symbol <code>true</code> are the primitive rules hard-coded in Python; the engine also
 uses an <code>iff</code> fact as an implication in both directions, computes "by calc",
-closes <code>case</code> blocks "by case-elim", and generates the "chain-trans-I-J" rules
+closes <code>case</code> blocks "by case-elim", and generates the "chain-trans-R/S" rules
 of a <code>chain</code> -- see <a href="../building-the-theory/#sec-8-1">§8.1</a>). Derivation is a <em>single</em> hop: given <code>A</code>, <code>A implies B</code>, and <code>B
 implies C</code> all separately in the theory, deriving <code>C</code> in one step is <em>not</em>
 automatic — you must first derive <code>B</code> as its own line.</p>
@@ -965,7 +965,7 @@ is <code>load</code>ed elsewhere (<a href="../building-the-theory/#sec-8-2">§8.
 derived as a bare claim.</p>
 <h2 id="sec-6-2">6.2 How to define things: <code>def</code> and <code>use</code><a class="headerlink" href="#sec-6-2" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="k">use</span> EXPR              <span class="c1">; use EXPR "label"</span>
-<span class="k">use</span> EXPR <span class="k">local</span> <span class="s">"label"</span>
+<span class="k">use</span> EXPR <span class="k">local</span> <span class="s">"label"</span>     <span class="c1">; also use EXPR "label" local</span>
 <span class="k">def</span> SYMBOL <span class="o">=</span> EXPR
 <span class="k">def</span> SYMBOL iff EXPR
 </code></pre></div>
@@ -1033,6 +1033,10 @@ display but the fact stays private to this file. <code>show</code>/<code>proof</
 and <code>def</code> follow the exact same rule: <code>def</code>'s label controls whether the
 symbol it introduces is (indirectly) exportable, and a proved theorem's
 <code>show</code> label carries forward to the final proved formula.</p>
+<p><strong>Names of rules in the theories</strong> (a convention, kept by new rules; older ones keep theirs, since a rename touches every proof that cites them):
+<code>OPERATOR-PROPERTY</code> for a law of an operator (<code>add-identity</code>, <code>mul-commutative</code>), <code>-refl</code>, <code>-sym</code>, <code>-trans</code> for a relation,
+<code>-intro</code> and <code>-elim</code> for the rules of a connective, quantifier or structure (<code>and-intro</code>, <code>exists-elim</code>, <code>group-inverse-in</code>); words
+joined by hyphens, in lower case, the theory's own prefix only where two theories have the same law (<code>complex-</code>).</p>
 <p>Since a bare <code>%</code>/<code>$</code> schema variable in a <code>use</code>/<code>def</code> axiom means "for any
 value of this symbol", it's easy to accidentally write an axiom that's far
 stronger than intended — e.g. <code>use %A</code> literally asserts "every proposition
@@ -1077,7 +1081,7 @@ arguments, print everything <code>use</code>d/<code>def</code>ined so far.</p>
 <code>pick</code> (since 2026-10-27; also with <code>--strict</code>, it is conservative by its form). There it is local
 to the block: the new symbol is a constant of the block, and the symbol and its defining fact are
 gone when the block closes. The right side may mention the block's own constants -- a name for a
-term about the <code>let</code> constant or the <code>pick</code> witness:</p>
+term about the <code>let</code> constant or the <code>pick</code> witness (with <code>calc on</code>, <a href="https://github.com/harmeling/kurt-lang/blob/main/proofs/debug/def-in-a-block.kurt">proofs/debug/def-in-a-block.kurt</a>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">show</span> <span class="o">∀</span> <span class="nv">$a</span> <span class="o">∃</span> x <span class="p">(</span>x <span class="o">&gt;</span> <span class="nv">$a</span> <span class="o">*</span> <span class="nv">$a</span><span class="p">)</span>
 <span class="k">proof</span>
     <span class="k">let</span> a
@@ -1118,14 +1122,14 @@ the inline definitions; they are exported with <code>load</code>.</p>
 <p><strong>Why not every <code>def</code> is an <code>inline</code>.</strong> <code>inline</code> is for notation: the same
 thing written differently -- a converse relation (<code>&gt;</code>, <code>⊃</code>, <code>child</code>), a negation
 (<code>≠</code>, <code>∉</code>), a short abbreviation of a term. A <code>def</code> gives a concept a name that
-one reasons with: <code>subspace(U)</code>, <code>even n</code>, <code>group(G, ·)</code>, <code>orthogonal(x, y)</code>.
+one reasons with: <code>subspace(U)</code>, <code>even n</code>, <code>group(G, (∘), e, inv)</code>, <code>orthogonal(x, y)</code>.
 Inlined, such a name would disappear from every line and from Kurt's output
 (which prints the stored term), the formulas would grow, the search would get
 slower (more places where rules fit), and the step "by definition", which a
 reader of a proof wants to see, would be gone. Most definitions also contain a
 binder (<code>even n ⇔ ∃ k ...</code>), which <code>inline</code> refuses. So: <code>def</code> for what has a
 name of its own in mathematics and theorems about it, <code>inline</code> for another way
-to write the same thing (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/46-inline.kurt">keywords/46-inline.kurt</a>).</p>
+to write the same thing (<a href="https://github.com/harmeling/kurt-lang/blob/main/keywords/47-inline.kurt">keywords/47-inline.kurt</a>).</p>
 <h2 id="sec-6-3">6.3 <code>todo</code><a class="headerlink" href="#sec-6-3" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kp">todo</span>          <span class="c1">; admit the next step (a claim, or the goal at `qed`)</span>
 <span class="kp">todo</span> EXPR      <span class="c1">; admit EXPR specifically, and add it to the theory</span>
